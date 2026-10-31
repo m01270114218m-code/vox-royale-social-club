@@ -1,0 +1,116 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { MessageCircle, Flag, Ban, UserPlus, UserCheck } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { AppShell, PageHeader } from "@/components/AppShell";
+import { UserAvatar } from "@/components/UserAvatar";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { errMsg, flagOf } from "@/lib/vox";
+
+export const Route = createFileRoute("/u/$id")({
+  head: () => ({
+    meta: [
+      { title: "ملف مستخدم — VOX ROYALE" },
+      { name: "description", content: "الملف الشخصي للمستخدم في VOX ROYALE." },
+      { property: "og:title", content: "ملف مستخدم — VOX ROYALE" },
+      { property: "og:description", content: "الملف الشخصي للمستخدم." },
+    ],
+  }),
+  component: () => (
+    <AppShell>
+      <UserPage />
+    </AppShell>
+  ),
+});
+
+type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; vip_level: number };
+
+function UserPage() {
+  const { id } = Route.useParams();
+  const { user } = useAuth();
+  const uid = user!.id;
+  const nav = useNavigate();
+  const [p, setP] = useState<P | null>(null);
+  const [stats, setStats] = useState({ followers: 0, following: 0, posts: 0 });
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+
+  useEffect(() => {
+    if (id === uid) {
+      nav({ to: "/profile" });
+      return;
+    }
+    (async () => {
+      const { data } = await supabase.from("profiles").select("id,display_no,display_name,avatar_url,bio,country,level,vip_level").eq("id", id).maybeSingle();
+      setP(data);
+      const [a, b, c, f, bl] = await Promise.all([
+        supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", id),
+        supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", id),
+        supabase.from("posts").select("*", { count: "exact", head: true }).eq("user_id", id),
+        supabase.from("follows").select("follower_id").eq("follower_id", uid).eq("following_id", id),
+        supabase.from("user_blocks").select("blocked_id").eq("blocker_id", uid).eq("blocked_id", id),
+      ]);
+      setStats({ followers: a.count ?? 0, following: b.count ?? 0, posts: c.count ?? 0 });
+      setIsFollowing(!!f.data?.length);
+      setBlocked(!!bl.data?.length);
+      supabase.rpc("visit_profile", { _profile: id });
+    })();
+  }, [id, uid, nav]);
+
+  async function toggleFollow() {
+    const { error } = isFollowing
+      ? await supabase.from("follows").delete().eq("follower_id", uid).eq("following_id", id)
+      : await supabase.from("follows").insert({ follower_id: uid, following_id: id });
+    if (error) return toast.error(error.message);
+    setIsFollowing(!isFollowing);
+    setStats((s) => ({ ...s, followers: s.followers + (isFollowing ? -1 : 1) }));
+  }
+  async function message() {
+    const { data, error } = await supabase.rpc("get_or_create_conversation", { _other: id });
+    if (error) return toast.error(errMsg(error));
+    nav({ to: "/chat/$id", params: { id: data as string } });
+  }
+  async function toggleBlock() {
+    const { error } = blocked
+      ? await supabase.from("user_blocks").delete().eq("blocker_id", uid).eq("blocked_id", id)
+      : await supabase.from("user_blocks").insert({ blocker_id: uid, blocked_id: id });
+    if (error) return toast.error(error.message);
+    setBlocked(!blocked);
+    toast.success(blocked ? "تم إلغاء الحظر" : "تم حظر المستخدم من مراسلتك");
+  }
+  async function report() {
+    const reason = prompt("سبب البلاغ (إساءة، احتيال، انتحال شخصية...)");
+    if (!reason) return;
+    const { error } = await supabase.rpc("submit_report", { _type: "user", _target: id, _category: "مستخدم", _details: reason });
+    if (error) toast.error(errMsg(error));
+    else toast.success("تم إرسال البلاغ للإدارة");
+  }
+
+  if (!p) return <PageHeader title="…" back />;
+  return (
+    <div>
+      <PageHeader title="الملف الشخصي" back />
+      <div className="glass mx-4 rounded-3xl p-6 text-center">
+        <div className="mx-auto w-fit"><UserAvatar src={p.avatar_url} name={p.display_name} size={96} ring /></div>
+        <h2 className="mt-3 text-2xl font-bold">{flagOf(p.country)} {p.display_name}</h2>
+        <div className="text-sm text-muted-foreground">ID: {p.display_no} · Lv.{p.level}{p.vip_level ? ` · VIP ${p.vip_level}` : ""}</div>
+        <p className="mt-2 text-sm">{p.bio || "لا توجد نبذة"}</p>
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+          <div><div className="text-xl font-bold">{stats.followers}</div><div className="text-xs text-muted-foreground">المتابِعون</div></div>
+          <div><div className="text-xl font-bold">{stats.following}</div><div className="text-xs text-muted-foreground">يتابع</div></div>
+          <div><div className="text-xl font-bold">{stats.posts}</div><div className="text-xs text-muted-foreground">منشورات</div></div>
+        </div>
+      </div>
+      <div className="mx-4 mt-4 grid grid-cols-2 gap-2">
+        <Button onClick={toggleFollow} className={isFollowing ? "" : "bg-gold font-bold"} variant={isFollowing ? "outline" : "default"}>
+          {isFollowing ? <><UserCheck className="h-4 w-4" /> متابَع</> : <><UserPlus className="h-4 w-4" /> متابعة</>}
+        </Button>
+        <Button onClick={message} variant="outline"><MessageCircle className="h-4 w-4" /> مراسلة</Button>
+        <Button onClick={toggleBlock} variant="outline"><Ban className="h-4 w-4" /> {blocked ? "إلغاء الحظر" : "حظر"}</Button>
+        <Button onClick={report} variant="outline"><Flag className="h-4 w-4" /> إبلاغ</Button>
+      </div>
+    </div>
+  );
+}
