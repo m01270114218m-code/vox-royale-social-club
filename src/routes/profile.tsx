@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { COUNTRIES, flagOf } from "@/lib/vox";
+import { COUNTRIES, errMsg, flagOf } from "@/lib/vox";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -35,12 +35,32 @@ function ProfilePage() {
   const [draft, setDraft] = useState<P | null>(null);
   const [wallet, setWallet] = useState({ coins: 0, diamonds: 0 });
   const [editing, setEditing] = useState(false);
+  const [txs, setTxs] = useState<{ id: string; currency: string; amount: number; reason: string; created_at: string }[]>([]);
+  const [linkEmail, setLinkEmail] = useState("");
+  const isGuest = !!user?.is_anonymous;
+  async function loadTx() {
+    const { data } = await supabase.from("wallet_transactions").select("id,currency,amount,reason,created_at").order("created_at", { ascending: false }).limit(20);
+    if (data) setTxs(data.map((d) => ({ ...d, amount: Number(d.amount) })));
+  }
+  async function daily() {
+    const { error } = await supabase.rpc("claim_daily_bonus");
+    if (error) { toast.error(errMsg(error)); return; }
+    setWallet((w) => ({ ...w, coins: w.coins + 200 }));
+    toast.success("+200 عملة 🎉");
+    loadTx();
+  }
+  async function link() {
+    const { error } = await supabase.auth.updateUser({ email: linkEmail });
+    if (error) { toast.error(error.message); return; }
+    toast.success("أرسلنا رابط تأكيد إلى بريدك لربط الحساب");
+  }
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
       if (data) setP(data as P);
       const { data: w } = await supabase.from("wallets").select("coins,diamonds").eq("user_id", user!.id).maybeSingle();
+      loadTx();
       if (w) setWallet({ coins: Number(w.coins), diamonds: Number(w.diamonds) });
     })();
   }, [user]);
@@ -90,7 +110,28 @@ function ProfilePage() {
       ) : (
         <div className="mt-4 grid gap-2">
           <Button variant="outline" onClick={() => { setDraft(p); setEditing(true); }}><Pencil className="h-4 w-4" /> تعديل الملف</Button>
-          <Button variant="outline" onClick={async () => { await supabase.auth.signOut(); nav({ to: "/auth" }); }}><LogOut className="h-4 w-4" /> تسجيل الخروج</Button>
+          <Button onClick={daily} className="bg-gold font-bold">🎁 مكافأة يومية +200</Button>
+          {isGuest && (
+            <div className="glass space-y-2 rounded-2xl p-3 text-sm">
+              <p className="text-primary">أنت تستخدم حساب الجهاز السريع. اربط بريدك حتى لا تفقد حسابك.</p>
+              <div className="flex gap-2"><Input type="email" dir="ltr" value={linkEmail} onChange={(e) => setLinkEmail(e.target.value)} placeholder="email@example.com" /><Button onClick={link} variant="outline">ربط</Button></div>
+            </div>
+          )}
+          <Button variant="outline" onClick={async () => {
+            if (isGuest && !confirm("حساب الجهاز غير مربوط ببريد، وإذا خرجت لن تتمكن من استعادته. متابعة؟")) return;
+            await supabase.auth.signOut(); nav({ to: "/auth" });
+          }}><LogOut className="h-4 w-4" /> تسجيل الخروج</Button>
+        </div>
+      )}
+      {!editing && (
+        <div className="glass mt-4 rounded-3xl p-4">
+          <h3 className="mb-2 font-bold">سجل المحفظة</h3>
+          {txs.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد معاملات بعد</p> : txs.map((t) => (
+            <div key={t.id} className="flex justify-between border-b border-border py-2 text-sm last:border-0">
+              <span>{({ gift_sent: "هدية مرسلة", gift_received: "هدية مستلمة", daily_bonus: "مكافأة يومية" } as Record<string, string>)[t.reason] ?? t.reason}</span>
+              <span className={t.amount < 0 ? "text-destructive" : "text-primary"}>{t.amount > 0 ? "+" : ""}{t.amount} {t.currency === "coins" ? "🪙" : "💎"}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
