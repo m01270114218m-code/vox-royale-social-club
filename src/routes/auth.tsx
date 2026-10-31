@@ -63,6 +63,29 @@ function AuthPage() {
     }
   }
 
+  async function quick() {
+    setBusy(true);
+    try {
+      let dev = localStorage.getItem("vox_device_id");
+      if (!dev) {
+        dev = crypto.randomUUID() + crypto.randomUUID();
+        localStorage.setItem("vox_device_id", dev);
+      }
+      const { error } = await supabase.auth.signInAnonymously();
+      if (error) throw error;
+      const r = await supabase.rpc("register_device", { _device: dev });
+      if (r.error) {
+        await supabase.auth.signOut();
+        throw new Error(r.error.message.includes("already") ? "هذا الجهاز لديه حساب بالفعل" : r.error.message);
+      }
+      toast.success("أهلاً بك في VOX ROYALE");
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function google() {
     const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
     if (r.error) toast.error(String(r.error.message ?? r.error));
@@ -84,6 +107,11 @@ function AuthPage() {
         <Button type="submit" disabled={busy} className="w-full bg-gold font-bold shadow-gold">
           {mode === "in" ? "دخول" : mode === "up" ? "إنشاء حساب" : "إرسال رابط الاستعادة"}
         </Button>
+        {mode === "in" && (
+          <Button type="button" disabled={busy} onClick={quick} className="w-full bg-accent text-accent-foreground font-bold">
+            ⚡ دخول سريع (حساب لهذا الجهاز)
+          </Button>
+        )}
         {mode !== "reset" && (
           <Button type="button" variant="outline" onClick={google} className="w-full">
             المتابعة باستخدام Google
