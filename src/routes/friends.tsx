@@ -55,7 +55,7 @@ function Friends() {
         const b = new Set((ing ?? []).map((x) => x.following_id));
         ids = tab === "followers" ? [...a] : tab === "following" ? [...b] : [...a].filter((x) => b.has(x));
       }
-      if (!ids.length) return setList([]);
+      if (!ids.length) { setList([]); return; }
       const { data } = await supabase.from("profiles").select("id,display_name,avatar_url,level").in("id", ids);
       setList(data ?? []);
     })();
