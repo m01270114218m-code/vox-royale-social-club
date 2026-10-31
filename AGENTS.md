@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Sensitive room actions (seats, bans, messages, room create/delete, wallet) go through SECURITY DEFINER Postgres RPCs; clients have SELECT-only grants so permissions are enforced server-side.
+- Android packaging uses a Capacitor wrapper (capacitor.config.json) around the web app; Flutter/native builds are not possible in this environment.
