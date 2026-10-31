@@ -63,20 +63,20 @@ function UserPage() {
     const { error } = isFollowing
       ? await supabase.from("follows").delete().eq("follower_id", uid).eq("following_id", id)
       : await supabase.from("follows").insert({ follower_id: uid, following_id: id });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     setIsFollowing(!isFollowing);
     setStats((s) => ({ ...s, followers: s.followers + (isFollowing ? -1 : 1) }));
   }
   async function message() {
     const { data, error } = await supabase.rpc("get_or_create_conversation", { _other: id });
-    if (error) return toast.error(errMsg(error));
+    if (error) { toast.error(errMsg(error)); return; }
     nav({ to: "/chat/$id", params: { id: data as string } });
   }
   async function toggleBlock() {
     const { error } = blocked
       ? await supabase.from("user_blocks").delete().eq("blocker_id", uid).eq("blocked_id", id)
       : await supabase.from("user_blocks").insert({ blocker_id: uid, blocked_id: id });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     setBlocked(!blocked);
     toast.success(blocked ? "تم إلغاء الحظر" : "تم حظر المستخدم من مراسلتك");
   }

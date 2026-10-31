@@ -120,8 +120,8 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
 
 function CreateRoom() {
   const nav = useNavigate();
-  const { create } = Route.useSearch();
-  const [open, setOpen] = useState(!!create);
+  const search = Route.useSearch();
+  const [open, setOpen] = useState(!!search.create);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [category, setCategory] = useState("chat");

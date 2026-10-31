@@ -54,7 +54,7 @@ function Moments() {
     let q = supabase.from("posts").select("*, profiles(display_name,avatar_url,country,level,vip_level)").order("created_at", { ascending: false }).limit(50);
     if (tab === "following") q = q.in("user_id", [...fset, uid]);
     const { data, error } = await q;
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     setPosts((data ?? []) as Post[]);
     const ids = (data ?? []).map((p) => p.id);
     if (ids.length) {
@@ -99,14 +99,14 @@ function Moments() {
 
   async function follow(id: string) {
     const { error } = await supabase.from("follows").insert({ follower_id: uid, following_id: id });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     setFollowing((s) => new Set(s).add(id));
   }
 
   async function remove(id: string) {
     if (!confirm("حذف المنشور؟")) return;
     const { error } = await supabase.from("posts").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     setPosts((ps) => ps.filter((p) => p.id !== id));
   }
 
@@ -191,7 +191,7 @@ function Comments({ postId, onAdded }: { postId: string; onAdded: () => void }) 
     e.preventDefault();
     if (!text.trim()) return;
     const { error } = await supabase.from("post_comments").insert({ post_id: postId, user_id: user!.id, body: text.trim().slice(0, 300) });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     setText("");
     onAdded();
     load();

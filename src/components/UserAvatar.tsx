@@ -1,6 +1,6 @@
 import { useMedia } from "@/lib/media";
 
-export function UserAvatar({ src, name, size = 48, ring = false }: { src?: string | null; name?: string | null; size?: number; ring?: boolean }) {
+export function UserAvatar({ src, name, size = 48, ring = false }: { src?: string | null | undefined; name?: string | null | undefined; size?: number; ring?: boolean }) {
   const url = useMedia(src);
   return (
     <div
