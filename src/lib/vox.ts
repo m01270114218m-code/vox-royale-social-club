@@ -34,6 +34,10 @@ export function errMsg(e: unknown): string {
     "slow down": "أرسلت رسائل كثيرة، انتظر قليلاً",
     "max 3 rooms per user": "الحد الأقصى 3 غرف لكل مستخدم",
     "cannot ban owner": "لا يمكن حظر صاحب الغرفة",
+    "insufficient coins": "رصيدك من العملات غير كافٍ",
+    "cannot gift yourself": "لا يمكنك إهداء نفسك",
+    "already claimed": "استلمت مكافأتك اليوم، عد غداً",
+    "gift unavailable": "الهدية غير متاحة",
   };
   for (const k of Object.keys(map)) if (m.includes(k)) return map[k] ?? m;
   return m;

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Crown } from "lucide-react";
+import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Crown, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { RequireAuth } from "@/components/AppShell";
@@ -28,7 +28,8 @@ export const Route = createFileRoute("/room/$id")({
 
 type Profile = { id: string; display_name: string; avatar_url: string | null; level: number; vip_level: number };
 type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
-type Msg = { id: string; user_id: string; body: string; created_at: string };
+type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
+type GiftT = { id: string; name: string; emoji: string; price: number; tier: string };
 type Room = { id: string; room_no: number; owner_id: string; name: string; description: string | null; category: string; country: string; seat_count: number };
 
 function RoomPage() {
@@ -44,6 +45,13 @@ function RoomPage() {
   const [text, setText] = useState("");
   const [seatMenu, setSeatMenu] = useState<Seat | null>(null);
   const [showMembers, setShowMembers] = useState(false);
+  const [gifts, setGifts] = useState<GiftT[]>([]);
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [giftTo, setGiftTo] = useState<string | null>(null);
+  const [giftSel, setGiftSel] = useState<GiftT | null>(null);
+  const [qty, setQty] = useState(1);
+  const [coins, setCoins] = useState(0);
+  const [anim, setAnim] = useState<{ key: number; emoji: string } | null>(null);
   const chatEnd = useRef<HTMLDivElement>(null);
   const uid = user!.id;
   const isOwner = room?.owner_id === uid;
@@ -84,7 +92,7 @@ function RoomPage() {
       setIsMod(!!m?.length);
       loadSeats();
       loadMembers();
-      const { data: ms } = await supabase.from("room_messages").select("id,user_id,body,created_at").eq("room_id", id).order("created_at", { ascending: false }).limit(50);
+      const { data: ms } = await supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).order("created_at", { ascending: false }).limit(50);
       if (ms) setMsgs(ms.reverse());
     })();
     const ch = supabase
@@ -92,7 +100,15 @@ function RoomPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "room_seats", filter: `room_id=eq.${id}` }, () => loadSeats())
       .on("postgres_changes", { event: "*", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, () => loadMembers())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${id}` }, (p) => setMsgs((x) => [...x.slice(-99), p.new as Msg]))
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "gift_transactions", filter: `room_id=eq.${id}` }, async (p) => {
+        const { data: g } = await supabase.from("gifts").select("emoji").eq("id", (p.new as { gift_id: string }).gift_id).maybeSingle();
+        if (g) {
+          setAnim({ key: Date.now(), emoji: g.emoji });
+          setTimeout(() => setAnim(null), 2600);
+        }
+      })
       .subscribe();
+    supabase.from("gifts").select("id,name,emoji,price,tier").order("sort").then(({ data }) => data && setGifts(data));
     return () => {
       alive = false;
       supabase.removeChannel(ch);
@@ -126,6 +142,27 @@ function RoomPage() {
   async function onSeat(s: Seat) {
     if (!s.user_id && !s.is_locked && !isStaff) return call("take_seat", { _room: id, _seat: s.seat_index });
     setSeatMenu(s);
+  }
+
+  async function openGifts(target?: string) {
+    const { data } = await supabase.from("wallets").select("coins").eq("user_id", uid).maybeSingle();
+    setCoins(Number(data?.coins ?? 0));
+    const others = members.filter((m) => m !== uid);
+    setGiftTo(target ?? seats.find((s) => s.user_id && s.user_id !== uid)?.user_id ?? others[0] ?? null);
+    setGiftSel(null);
+    setQty(1);
+    setSeatMenu(null);
+    setGiftOpen(true);
+  }
+  async function sendGift() {
+    if (!giftSel || !giftTo) return;
+    const { error } = await supabase.rpc("send_gift", { _room: id, _receiver: giftTo, _gift: giftSel.id, _qty: qty });
+    if (error) {
+      toast.error(errMsg(error));
+      return;
+    }
+    setCoins((c) => c - giftSel.price * qty);
+    setGiftOpen(false);
   }
 
   async function send(e: React.FormEvent) {
@@ -191,7 +228,7 @@ function RoomPage() {
       <div className="flex-1 space-y-2 overflow-y-auto px-4">
         <div className="rounded-xl bg-secondary/60 p-2 text-xs text-primary">📢 مرحباً بك في {room.name}. {room.description}</div>
         {msgs.map((m) => (
-          <div key={m.id} className="glass w-fit max-w-[85%] rounded-2xl px-3 py-1.5 text-sm">
+          <div key={m.id} className={`w-fit max-w-[85%] rounded-2xl px-3 py-1.5 text-sm ${m.kind === "gift" ? "bg-gold font-bold" : "glass"}`}>
             <span className="font-bold text-primary">{profiles[m.user_id]?.display_name ?? "…"}: </span>
             {m.body}
           </div>
@@ -205,6 +242,7 @@ function RoomPage() {
             {mySeat.is_muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
           </button>
         )}
+        <button type="button" onClick={() => openGifts()} className="rounded-full bg-accent p-2 text-accent-foreground" aria-label="هدية"><Gift className="h-5 w-5" /></button>
         <Input value={text} onChange={(e) => setText(e.target.value)} maxLength={500} placeholder="اكتب رسالة…" className="border-0 bg-transparent" />
         <Button type="submit" size="icon" className="rounded-full bg-gold"><Send className="h-4 w-4" /></Button>
       </form>
@@ -228,9 +266,39 @@ function RoomPage() {
                   )}
                 </>
               )}
+              {seatMenu.user_id && seatMenu.user_id !== uid && <Button onClick={() => openGifts(seatMenu.user_id!)} className="bg-accent text-accent-foreground">🎁 إرسال هدية</Button>}
               {seatMenu.user_id && seatMenu.user_id !== uid && !isStaff && <p className="text-center text-sm text-muted-foreground">{profiles[seatMenu.user_id]?.display_name} · مستوى {profiles[seatMenu.user_id]?.level}</p>}
             </div>
           )}
+        </SheetContent>
+      </Sheet>
+
+      {anim && (
+        <div key={anim.key} className="gift-pop pointer-events-none fixed inset-0 z-50 flex items-center justify-center text-[9rem]">{anim.emoji}</div>
+      )}
+
+      <Sheet open={giftOpen} onOpenChange={setGiftOpen}>
+        <SheetContent side="bottom" dir="rtl" className="max-h-[80vh] overflow-y-auto rounded-t-3xl">
+          <SheetHeader><SheetTitle className="flex justify-between"><span>الهدايا</span><span className="text-primary">🪙 {coins}</span></SheetTitle></SheetHeader>
+          <div className="space-y-3 p-4">
+            <select className="w-full rounded-md border border-input bg-input px-3 py-2 text-sm" value={giftTo ?? ""} onChange={(e) => setGiftTo(e.target.value)}>
+              {members.filter((m) => m !== uid).length === 0 && <option value="">لا يوجد أحد غيرك في الغرفة</option>}
+              {members.filter((m) => m !== uid).map((m) => <option key={m} value={m}>إلى: {profiles[m]?.display_name ?? "…"}</option>)}
+            </select>
+            <div className="grid grid-cols-4 gap-2">
+              {gifts.map((g) => (
+                <button key={g.id} onClick={() => setGiftSel(g)} className={`flex flex-col items-center rounded-2xl p-2 ${giftSel?.id === g.id ? "bg-secondary ring-2 ring-primary" : "glass"}`}>
+                  <span className="text-3xl">{g.emoji}</span>
+                  <span className="text-xs">{g.name}</span>
+                  <span className="text-xs text-primary">🪙{g.price}</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              {[1, 10, 99].map((n) => <button key={n} onClick={() => setQty(n)} className={`rounded-full px-3 py-1 text-sm ${qty === n ? "bg-gold" : "glass"}`}>x{n}</button>)}
+              <Button disabled={!giftSel || !giftTo} onClick={sendGift} className="mr-auto bg-gold font-bold">إرسال {giftSel ? `(${giftSel.price * qty})` : ""}</Button>
+            </div>
+          </div>
         </SheetContent>
       </Sheet>
 

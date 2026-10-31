@@ -117,3 +117,6 @@
     min-height: 100vh;
   }
 }
+
+@keyframes giftpop { 0% { transform: scale(0.2) translateY(40vh); opacity: 0; } 25% { transform: scale(1.2); opacity: 1; } 75% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.6) translateY(-30vh); opacity: 0; } }
+.gift-pop { animation: giftpop 2.6s ease-out forwards; filter: drop-shadow(0 0 30px oklch(0.82 0.14 85 / 80%)); }
