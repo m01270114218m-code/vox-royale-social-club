@@ -26,6 +26,8 @@ export const Route = createFileRoute("/room/$id")({
   ),
 });
 
+const mountCount: Record<string, number> = {};
+
 type Profile = { id: string; display_name: string; avatar_url: string | null; level: number; vip_level: number };
 type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
 type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
@@ -75,6 +77,7 @@ function RoomPage() {
 
   useEffect(() => {
     let alive = true;
+    mountCount[id] = (mountCount[id] ?? 0) + 1;
     (async () => {
       const { data: r, error } = await supabase.from("rooms").select("*").eq("id", id).maybeSingle();
       if (error || !r) {
@@ -112,7 +115,11 @@ function RoomPage() {
     return () => {
       alive = false;
       supabase.removeChannel(ch);
-      supabase.rpc("leave_room", { _room: id });
+      // Defer leaving so a quick remount (dev double-mount, reconnect) doesn't kick us out.
+      mountCount[id] = (mountCount[id] ?? 1) - 1;
+      setTimeout(() => {
+        if (!mountCount[id]) supabase.rpc("leave_room", { _room: id });
+      }, 800);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
