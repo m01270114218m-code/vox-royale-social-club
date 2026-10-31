@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, Users, Lock } from "lucide-react";
+import { Plus, Search, Users, Lock, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
@@ -18,6 +18,7 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: "اكتشف الغرف الصوتية الشائعة والجديدة." },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>): { create?: number } => (s["create"] ? { create: 1 } : {}),
   component: () => (
     <AppShell>
       <Home />
@@ -53,7 +54,10 @@ function Home() {
     <div className="px-4 pt-6">
       <header className="mb-4 flex items-center justify-between">
         <h1 className="font-display text-gold text-3xl">VOX ROYALE</h1>
-        <CreateRoom />
+        <div className="flex items-center gap-2">
+          <Link to="/notifications" aria-label="الإشعارات" className="glass rounded-full p-2"><Bell className="h-5 w-5" /></Link>
+          <CreateRoom />
+        </div>
       </header>
       <div className="relative mb-4">
         <Search className="absolute right-3 top-2.5 h-5 w-5 text-muted-foreground" />
@@ -116,7 +120,8 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
 
 function CreateRoom() {
   const nav = useNavigate();
-  const [open, setOpen] = useState(false);
+  const { create } = Route.useSearch();
+  const [open, setOpen] = useState(!!create);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [category, setCategory] = useState("chat");

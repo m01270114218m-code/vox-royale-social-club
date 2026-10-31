@@ -74,7 +74,7 @@ function ShellInner({ children }: { children: ReactNode }) {
     if (data) nav({ to: "/room/$id", params: { id: data.id } });
     else {
       toast("أنشئ غرفتك الأولى");
-      nav({ to: "/", search: { create: 1 } as never });
+      nav({ to: "/", search: { create: 1 } });
     }
   }
 
