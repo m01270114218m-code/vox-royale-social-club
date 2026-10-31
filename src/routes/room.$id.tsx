@@ -142,7 +142,7 @@ function RoomPage() {
 
   async function share() {
     const url = window.location.href;
-    if (navigator.share) await navigator.share({ title: room?.name, url }).catch(() => {});
+    if (navigator.share) await navigator.share({ title: room?.name ?? "VOX ROYALE", url }).catch(() => {});
     else {
       await navigator.clipboard.writeText(url);
       toast.success("تم نسخ رابط الغرفة");

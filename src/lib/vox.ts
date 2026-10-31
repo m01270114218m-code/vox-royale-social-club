@@ -35,6 +35,6 @@ export function errMsg(e: unknown): string {
     "max 3 rooms per user": "الحد الأقصى 3 غرف لكل مستخدم",
     "cannot ban owner": "لا يمكن حظر صاحب الغرفة",
   };
-  for (const k of Object.keys(map)) if (m.includes(k)) return map[k];
+  for (const k of Object.keys(map)) if (m.includes(k)) return map[k] ?? m;
   return m;
 }

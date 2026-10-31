@@ -48,7 +48,7 @@ function ProfilePage() {
   async function save() {
     if (!draft) return;
     const { error } = await supabase.from("profiles").update({ display_name: draft.display_name.trim().slice(0, 30), bio: (draft.bio ?? "").slice(0, 200), country: draft.country, avatar_url: draft.avatar_url || null }).eq("id", draft.id);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     setP(draft);
     setEditing(false);
     toast.success("تم الحفظ");

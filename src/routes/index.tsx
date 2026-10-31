@@ -130,7 +130,7 @@ function CreateRoom() {
     setBusy(true);
     const { data, error } = await supabase.rpc("create_room", { _name: name, _description: desc, _category: category, _country: country, _seat_count: seats, _is_private: priv });
     setBusy(false);
-    if (error) return toast.error(errMsg(error));
+    if (error) { toast.error(errMsg(error)); return; }
     setOpen(false);
     nav({ to: "/room/$id", params: { id: data as string } });
   }
