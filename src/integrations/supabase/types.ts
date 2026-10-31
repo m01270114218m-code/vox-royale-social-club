@@ -14,6 +14,124 @@ export type Database = {
   }
   public: {
     Tables: {
+      device_accounts: {
+        Row: {
+          created_at: string
+          device_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_hash?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gift_transactions: {
+        Row: {
+          created_at: string
+          gift_id: string
+          id: string
+          quantity: number
+          receiver_id: string
+          room_id: string | null
+          sender_id: string
+          total_price: number
+        }
+        Insert: {
+          created_at?: string
+          gift_id: string
+          id?: string
+          quantity?: number
+          receiver_id: string
+          room_id?: string | null
+          sender_id: string
+          total_price: number
+        }
+        Update: {
+          created_at?: string
+          gift_id?: string
+          id?: string
+          quantity?: number
+          receiver_id?: string
+          room_id?: string | null
+          sender_id?: string
+          total_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_transactions_gift_id_fkey"
+            columns: ["gift_id"]
+            isOneToOne: false
+            referencedRelation: "gifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_transactions_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_transactions_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_transactions_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gifts: {
+        Row: {
+          active: boolean
+          emoji: string
+          id: string
+          name: string
+          price: number
+          sort: number
+          tier: string
+        }
+        Insert: {
+          active?: boolean
+          emoji: string
+          id?: string
+          name: string
+          price: number
+          sort?: number
+          tier?: string
+        }
+        Update: {
+          active?: boolean
+          emoji?: string
+          id?: string
+          name?: string
+          price?: number
+          sort?: number
+          tier?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -322,6 +440,44 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          reason: string
+          ref_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency: string
+          id?: string
+          reason: string
+          ref_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          reason?: string
+          ref_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallets: {
         Row: {
           coins: number
@@ -357,6 +513,7 @@ export type Database = {
     }
     Functions: {
       ban_user: { Args: { _room: string; _user: string }; Returns: undefined }
+      claim_daily_bonus: { Args: never; Returns: number }
       create_room: {
         Args: {
           _category: string
@@ -380,6 +537,11 @@ export type Database = {
       join_room: { Args: { _room: string }; Returns: undefined }
       leave_room: { Args: { _room: string }; Returns: undefined }
       leave_seat: { Args: { _room: string }; Returns: undefined }
+      register_device: { Args: { _device: string }; Returns: string }
+      send_gift: {
+        Args: { _gift: string; _qty: number; _receiver: string; _room: string }
+        Returns: undefined
+      }
       send_room_message: {
         Args: { _body: string; _room: string }
         Returns: undefined
