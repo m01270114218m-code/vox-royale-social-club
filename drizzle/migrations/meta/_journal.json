@@ -15,6 +15,20 @@
       "when": 1793478108214,
       "tag": "0001_gifts_and_device_guest",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793478771950,
+      "tag": "0002_social_messaging_reports_families",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793478792610,
+      "tag": "0003_media_policies",
+      "breakpoints": true
     }
   ]
 }
