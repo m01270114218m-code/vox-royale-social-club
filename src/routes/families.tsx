@@ -34,7 +34,7 @@ function Families() {
   const uid = user!.id;
   const [list, setList] = useState<F[]>([]);
   const [mine, setMine] = useState<M | null>(null);
-  const [members, setMembers] = useState<(M & { p?: P })[]>([]);
+  const [members, setMembers] = useState<(M & { p?: P | undefined })[]>([]);
   const [show, setShow] = useState(false);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
