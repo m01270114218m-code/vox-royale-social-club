@@ -977,8 +977,45 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_delete_post: { Args: { _post: string }; Returns: undefined }
+      admin_delete_room: { Args: { _room: string }; Returns: undefined }
+      admin_grant_coins: {
+        Args: { _amount: number; _user: string }
+        Returns: undefined
+      }
+      admin_list_users: {
+        Args: { _q: string }
+        Returns: {
+          coins: number
+          created_at: string
+          display_name: string
+          display_no: number
+          id: string
+          level: number
+          roles: string[]
+          vip_level: number
+        }[]
+      }
+      admin_resolve_report: {
+        Args: { _reply: string; _report: string; _status: string }
+        Returns: undefined
+      }
+      admin_set_role: {
+        Args: {
+          _grant: boolean
+          _role: Database["public"]["Enums"]["app_role"]
+          _user: string
+        }
+        Returns: undefined
+      }
+      admin_set_vip: {
+        Args: { _user: string; _vip: number }
+        Returns: undefined
+      }
+      admin_stats: { Args: never; Returns: Json }
       ban_user: { Args: { _room: string; _user: string }; Returns: undefined }
       claim_daily_bonus: { Args: never; Returns: number }
+      claim_first_admin: { Args: never; Returns: boolean }
       create_family: {
         Args: { _description: string; _emblem: string; _name: string }
         Returns: string
@@ -1007,6 +1044,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin: { Args: { _uid: string }; Returns: boolean }
       is_room_staff: { Args: { _room: string; _uid: string }; Returns: boolean }
       join_room: { Args: { _room: string }; Returns: undefined }
       leave_family: { Args: never; Returns: undefined }
@@ -1054,6 +1092,17 @@ export type Database = {
       }
       take_seat: { Args: { _room: string; _seat: number }; Returns: undefined }
       toggle_my_mute: { Args: { _room: string }; Returns: undefined }
+      update_room: {
+        Args: {
+          _category: string
+          _cover_url: string
+          _description: string
+          _is_private: boolean
+          _name: string
+          _room: string
+        }
+        Returns: undefined
+      }
       visit_profile: { Args: { _profile: string }; Returns: undefined }
     }
     Enums: {

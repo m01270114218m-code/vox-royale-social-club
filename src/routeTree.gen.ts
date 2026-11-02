@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as FamiliesRouteImport } from './routes/families'
 import { Route as FriendsRouteImport } from './routes/friends'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as MomentsRouteImport } from './routes/moments'
 import { Route as NotificationsRouteImport } from './routes/notifications'
@@ -31,9 +33,19 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FamiliesRoute = FamiliesRouteImport.update({
+  id: '/families',
+  path: '/families',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FriendsRoute = FriendsRouteImport.update({
   id: '/friends',
   path: '/friends',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MessagesRoute = MessagesRouteImport.update({
@@ -80,7 +92,9 @@ const UIdRoute = UIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/families': typeof FamiliesRoute
   '/friends': typeof FriendsRoute
+  '/help': typeof HelpRoute
   '/messages': typeof MessagesRoute
   '/moments': typeof MomentsRoute
   '/notifications': typeof NotificationsRoute
@@ -93,7 +107,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/families': typeof FamiliesRoute
   '/friends': typeof FriendsRoute
+  '/help': typeof HelpRoute
   '/messages': typeof MessagesRoute
   '/moments': typeof MomentsRoute
   '/notifications': typeof NotificationsRoute
@@ -107,7 +123,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/families': typeof FamiliesRoute
   '/friends': typeof FriendsRoute
+  '/help': typeof HelpRoute
   '/messages': typeof MessagesRoute
   '/moments': typeof MomentsRoute
   '/notifications': typeof NotificationsRoute
@@ -122,7 +140,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/families'
     | '/friends'
+    | '/help'
     | '/messages'
     | '/moments'
     | '/notifications'
@@ -135,7 +155,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/families'
     | '/friends'
+    | '/help'
     | '/messages'
     | '/moments'
     | '/notifications'
@@ -148,7 +170,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/auth'
+    | '/families'
     | '/friends'
+    | '/help'
     | '/messages'
     | '/moments'
     | '/notifications'
@@ -162,7 +186,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
+  FamiliesRoute: typeof FamiliesRoute
   FriendsRoute: typeof FriendsRoute
+  HelpRoute: typeof HelpRoute
   MessagesRoute: typeof MessagesRoute
   MomentsRoute: typeof MomentsRoute
   NotificationsRoute: typeof NotificationsRoute
@@ -189,11 +215,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/families': {
+      id: '/families'
+      path: '/families'
+      fullPath: '/families'
+      preLoaderRoute: typeof FamiliesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/friends': {
       id: '/friends'
       path: '/friends'
       fullPath: '/friends'
       preLoaderRoute: typeof FriendsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/messages': {
@@ -258,7 +298,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
+  FamiliesRoute: FamiliesRoute,
   FriendsRoute: FriendsRoute,
+  HelpRoute: HelpRoute,
   MessagesRoute: MessagesRoute,
   MomentsRoute: MomentsRoute,
   NotificationsRoute: NotificationsRoute,
