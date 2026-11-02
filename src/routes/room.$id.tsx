@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Crown, Gift } from "lucide-react";
+import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Crown, Gift, Settings } from "lucide-react";
+import { RoomSettings } from "@/components/RoomSettings";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { RequireAuth } from "@/components/AppShell";
@@ -32,7 +33,7 @@ type Profile = { id: string; display_name: string; avatar_url: string | null; le
 type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
 type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
 type GiftT = { id: string; name: string; emoji: string; price: number; tier: string };
-type Room = { id: string; room_no: number; owner_id: string; name: string; description: string | null; category: string; country: string; seat_count: number };
+type Room = { id: string; room_no: number; owner_id: string; name: string; description: string | null; category: string; country: string; seat_count: number; is_private?: boolean; cover_url?: string | null };
 
 function RoomPage() {
   const { id } = Route.useParams();
@@ -54,6 +55,7 @@ function RoomPage() {
   const [qty, setQty] = useState(1);
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string } | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const chatEnd = useRef<HTMLDivElement>(null);
   const uid = user!.id;
   const isOwner = room?.owner_id === uid;
@@ -207,11 +209,15 @@ function RoomPage() {
         <button onClick={() => setShowMembers(true)} className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-sm"><Users className="h-4 w-4" />{members.length}</button>
         <button onClick={share} aria-label="مشاركة"><Share2 className="h-5 w-5" /></button>
         {isOwner && (
+          <button aria-label="إعدادات الغرفة" onClick={() => setSettingsOpen(true)}><Settings className="h-5 w-5" /></button>
+        )}
+        {isOwner && (
           <button aria-label="حذف الغرفة" onClick={async () => { if (confirm("حذف الغرفة نهائياً؟")) { const { error } = await supabase.rpc("delete_room", { _room: id }); if (error) toast.error(errMsg(error)); else nav({ to: "/" }); } }}>
             <Trash2 className="h-5 w-5 text-destructive" />
           </button>
         )}
       </header>
+      {isOwner && <RoomSettings room={room} uid={uid} open={settingsOpen} onOpenChange={setSettingsOpen} onSaved={(r) => setRoom({ ...room, ...r })} />}
 
       <div className={`grid ${cols} gap-y-5 px-4 py-4`}>
         {seats.map((s) => {
