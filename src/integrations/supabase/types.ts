@@ -1092,6 +1092,17 @@ export type Database = {
       }
       take_seat: { Args: { _room: string; _seat: number }; Returns: undefined }
       toggle_my_mute: { Args: { _room: string }; Returns: undefined }
+      update_room: {
+        Args: {
+          _category: string
+          _cover_url: string
+          _description: string
+          _is_private: boolean
+          _name: string
+          _room: string
+        }
+        Returns: undefined
+      }
       visit_profile: { Args: { _profile: string }; Returns: undefined }
     }
     Enums: {
