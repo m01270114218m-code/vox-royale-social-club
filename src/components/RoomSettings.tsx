@@ -34,7 +34,10 @@ export function RoomSettings({ room, uid, open, onOpenChange, onSaved }: { room:
     setBusy(true);
     const { error } = await supabase.rpc("update_room", { _room: room.id, _name: name, _description: desc, _category: cat, _is_private: priv, _cover_url: cover ?? "" });
     setBusy(false);
-    if (error) return toast.error(errMsg(error));
+    if (error) {
+      toast.error(errMsg(error));
+      return;
+    }
     toast.success("تم حفظ إعدادات الغرفة");
     onSaved({ ...room, name: name.trim(), description: desc, category: cat, is_private: priv, cover_url: cover });
     onOpenChange(false);

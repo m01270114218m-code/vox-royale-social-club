@@ -41,7 +41,10 @@ function Help() {
   }, []);
   async function send() {
     const { error } = await supabase.rpc("submit_report", { _type: "support", _target: user!.id, _category: cat, _details: details.trim() });
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("أُرسلت التذكرة");
     setDetails("");
     load();
