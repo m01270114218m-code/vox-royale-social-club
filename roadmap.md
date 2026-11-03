@@ -1,6 +1,9 @@
 # Roadmap
 - [x] Fix build errors (families, help pages)
-- [ ] Admin dashboard web page (/admin)
-- [ ] 3D premium look
-- [ ] Room owner can edit room name, cover photo, settings anytime
-- [ ] Source ZIP
+- [x] Admin dashboard web page (/admin)
+- [x] 3D cards look
+- [x] Room owner can edit room name, cover photo, settings anytime
+- [x] Store / VIP purchase with coins, avatar upload, room covers in list
+- [ ] Real coin recharge (needs payment provider)
+- [ ] Live voice audio (needs LiveKit keys)
+- [x] Source ZIP
