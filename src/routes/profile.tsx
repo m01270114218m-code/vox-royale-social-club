@@ -1,6 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { uploadImage } from "@/lib/media";
+import { UserAvatar } from "@/components/UserAvatar";
 import { useEffect, useState } from "react";
-import { Coins, Gem, LogOut, Pencil } from "lucide-react";
+import { Coins, Gem, LogOut, Pencil, Crown, Store, Users, Shield, LifeBuoy, Bell, Heart, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
@@ -65,6 +67,20 @@ function ProfilePage() {
     })();
   }, [user]);
 
+  async function changeAvatar(f?: File) {
+    if (!f || !p) return;
+    try {
+      const path = await uploadImage(f, p.id);
+      const { error } = await supabase.from("profiles").update({ avatar_url: path }).eq("id", p.id);
+      if (error) throw error;
+      setP({ ...p, avatar_url: path });
+      if (draft) setDraft({ ...draft, avatar_url: path });
+      toast.success("تم تحديث الصورة");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل الرفع");
+    }
+  }
+
   async function save() {
     if (!draft) return;
     const { error } = await supabase.from("profiles").update({ display_name: draft.display_name.trim().slice(0, 30), bio: (draft.bio ?? "").slice(0, 200), country: draft.country, avatar_url: draft.avatar_url || null }).eq("id", draft.id);
@@ -80,9 +96,11 @@ function ProfilePage() {
     <div className="px-4 pt-6">
       <div className="glass relative overflow-hidden rounded-3xl p-6 text-center">
         <div className="absolute inset-x-0 top-0 h-24 bg-royal" />
-        <div className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-gold shadow-gold">
-          {shown.avatar_url ? <img src={shown.avatar_url} alt="" className="h-[88px] w-[88px] rounded-full object-cover" /> : <span className="text-4xl font-bold">{shown.display_name.slice(0, 1)}</span>}
-        </div>
+        <label className="relative mx-auto block w-fit cursor-pointer">
+          <UserAvatar src={shown.avatar_url} name={shown.display_name} size={96} ring />
+          <span className="absolute bottom-0 left-0 rounded-full bg-gold p-1.5"><Camera className="h-4 w-4" /></span>
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => changeAvatar(e.target.files?.[0])} />
+        </label>
         <h2 className="mt-3 text-2xl font-bold">{flagOf(shown.country)} {shown.display_name}</h2>
         <div className="text-sm text-muted-foreground">ID: {p.display_no} · مستوى {p.level}{p.vip_level ? ` · VIP ${p.vip_level}` : ""}</div>
         <p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
@@ -97,7 +115,6 @@ function ProfilePage() {
       {editing && draft ? (
         <div className="glass mt-4 space-y-3 rounded-3xl p-4">
           <Input value={draft.display_name} maxLength={30} onChange={(e) => setDraft({ ...draft, display_name: e.target.value })} placeholder="الاسم" />
-          <Input value={draft.avatar_url ?? ""} onChange={(e) => setDraft({ ...draft, avatar_url: e.target.value })} placeholder="رابط الصورة الشخصية" dir="ltr" />
           <Textarea value={draft.bio ?? ""} maxLength={200} onChange={(e) => setDraft({ ...draft, bio: e.target.value })} placeholder="نبذة" />
           <select className="w-full rounded-md border border-input bg-input px-3 py-2 text-sm" value={draft.country ?? "EG"} onChange={(e) => setDraft({ ...draft, country: e.target.value })}>
             {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
@@ -109,6 +126,21 @@ function ProfilePage() {
         </div>
       ) : (
         <div className="mt-4 grid gap-2">
+          <div className="grid grid-cols-4 gap-2">
+            {([
+              ["/store", "المتجر", Store],
+              ["/store", "VIP", Crown],
+              ["/families", "العائلة", Users],
+              ["/friends", "الأصدقاء", Heart],
+              ["/notifications", "الإشعارات", Bell],
+              ["/help", "الدعم", LifeBuoy],
+              ["/admin", "لوحة التحكم", Shield],
+            ] as const).map(([to, label, Icon], i) => (
+              <Link key={i} to={to} className="card-3d glass flex flex-col items-center gap-1 rounded-2xl p-3 text-xs">
+                <Icon className="h-6 w-6 text-primary" />{label}
+              </Link>
+            ))}
+          </div>
           <Button variant="outline" onClick={() => { setDraft(p); setEditing(true); }}><Pencil className="h-4 w-4" /> تعديل الملف</Button>
           <Button onClick={daily} className="bg-gold font-bold">🎁 مكافأة يومية +200</Button>
           {isGuest && (
@@ -128,7 +160,7 @@ function ProfilePage() {
           <h3 className="mb-2 font-bold">سجل المحفظة</h3>
           {txs.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد معاملات بعد</p> : txs.map((t) => (
             <div key={t.id} className="flex justify-between border-b border-border py-2 text-sm last:border-0">
-              <span>{({ gift_sent: "هدية مرسلة", gift_received: "هدية مستلمة", daily_bonus: "مكافأة يومية" } as Record<string, string>)[t.reason] ?? t.reason}</span>
+              <span>{({ gift_sent: "هدية مرسلة", gift_received: "هدية مستلمة", daily_bonus: "مكافأة يومية", vip_purchase: "شراء VIP" } as Record<string, string>)[t.reason] ?? t.reason}</span>
               <span className={t.amount < 0 ? "text-destructive" : "text-primary"}>{t.amount > 0 ? "+" : ""}{t.amount} {t.currency === "coins" ? "🪙" : "💎"}</span>
             </div>
           ))}

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as FamiliesRouteImport } from './routes/families'
 import { Route as FriendsRouteImport } from './routes/friends'
@@ -19,6 +20,7 @@ import { Route as MomentsRouteImport } from './routes/moments'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as StoreRouteImport } from './routes/store'
 import { Route as ChatIdRouteImport } from './routes/chat.$id'
 import { Route as RoomIdRouteImport } from './routes/room.$id'
 import { Route as UIdRouteImport } from './routes/u.$id'
@@ -26,6 +28,11 @@ import { Route as UIdRouteImport } from './routes/u.$id'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -73,6 +80,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoreRoute = StoreRouteImport.update({
+  id: '/store',
+  path: '/store',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatIdRoute = ChatIdRouteImport.update({
   id: '/chat/$id',
   path: '/chat/$id',
@@ -91,6 +103,7 @@ const UIdRoute = UIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/families': typeof FamiliesRoute
   '/friends': typeof FriendsRoute
@@ -100,12 +113,14 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/store': typeof StoreRoute
   '/chat/$id': typeof ChatIdRoute
   '/room/$id': typeof RoomIdRoute
   '/u/$id': typeof UIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/families': typeof FamiliesRoute
   '/friends': typeof FriendsRoute
@@ -115,6 +130,7 @@ export interface FileRoutesByTo {
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/store': typeof StoreRoute
   '/chat/$id': typeof ChatIdRoute
   '/room/$id': typeof RoomIdRoute
   '/u/$id': typeof UIdRoute
@@ -122,6 +138,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/families': typeof FamiliesRoute
   '/friends': typeof FriendsRoute
@@ -131,6 +148,7 @@ export interface FileRoutesById {
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/store': typeof StoreRoute
   '/chat/$id': typeof ChatIdRoute
   '/room/$id': typeof RoomIdRoute
   '/u/$id': typeof UIdRoute
@@ -139,6 +157,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/auth'
     | '/families'
     | '/friends'
@@ -148,12 +167,14 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/reset-password'
+    | '/store'
     | '/chat/$id'
     | '/room/$id'
     | '/u/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/auth'
     | '/families'
     | '/friends'
@@ -163,12 +184,14 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/reset-password'
+    | '/store'
     | '/chat/$id'
     | '/room/$id'
     | '/u/$id'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/auth'
     | '/families'
     | '/friends'
@@ -178,6 +201,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/reset-password'
+    | '/store'
     | '/chat/$id'
     | '/room/$id'
     | '/u/$id'
@@ -185,6 +209,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   FamiliesRoute: typeof FamiliesRoute
   FriendsRoute: typeof FriendsRoute
@@ -194,6 +219,7 @@ export interface RootRouteChildren {
   NotificationsRoute: typeof NotificationsRoute
   ProfileRoute: typeof ProfileRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  StoreRoute: typeof StoreRoute
   ChatIdRoute: typeof ChatIdRoute
   RoomIdRoute: typeof RoomIdRoute
   UIdRoute: typeof UIdRoute
@@ -206,6 +232,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -271,6 +304,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/store': {
+      id: '/store'
+      path: '/store'
+      fullPath: '/store'
+      preLoaderRoute: typeof StoreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/chat/$id': {
       id: '/chat/$id'
       path: '/chat/$id'
@@ -297,6 +337,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   FamiliesRoute: FamiliesRoute,
   FriendsRoute: FriendsRoute,
@@ -306,6 +347,7 @@ const rootRouteChildren: RootRouteChildren = {
   NotificationsRoute: NotificationsRoute,
   ProfileRoute: ProfileRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  StoreRoute: StoreRoute,
   ChatIdRoute: ChatIdRoute,
   RoomIdRoute: RoomIdRoute,
   UIdRoute: UIdRoute,

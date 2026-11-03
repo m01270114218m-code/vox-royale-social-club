@@ -43,6 +43,13 @@
       "when": 1793662543433,
       "tag": "0005_update_room",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793743235479,
+      "tag": "0006_vip_store_admin_reports",
+      "breakpoints": true
     }
   ]
 }

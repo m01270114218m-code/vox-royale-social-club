@@ -4,6 +4,7 @@ import { Plus, Search, Users, Lock, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
+import { MediaImage } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/")({
   ),
 });
 
-type Room = { id: string; room_no: number; name: string; description: string | null; category: string; country: string; member_count: number; is_private: boolean; seat_count: number; created_at: string };
+type Room = { id: string; room_no: number; name: string; description: string | null; category: string; country: string; member_count: number; is_private: boolean; seat_count: number; created_at: string; cover_url?: string | null };
 
 function Home() {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -87,11 +88,11 @@ function Home() {
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {list.map((r) => (
-            <Link key={r.id} to="/room/$id" params={{ id: r.id }} className="glass group relative aspect-[3/4] overflow-hidden rounded-3xl p-3 transition hover:shadow-gold">
-              <div className="absolute inset-0 bg-royal opacity-80" />
+            <Link key={r.id} to="/room/$id" params={{ id: r.id }} className="card-3d glass group relative aspect-[3/4] overflow-hidden rounded-3xl p-3">
+              {r.cover_url ? <><MediaImage src={r.cover_url} className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" /></> : <div className="absolute inset-0 bg-royal opacity-80" />}
               <div className="relative flex h-full flex-col justify-between">
                 <span className="w-fit rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">{catName(r.category)}</span>
-                <div className="font-display text-6xl text-center text-gold opacity-80">{r.name.slice(0, 1)}</div>
+                {r.cover_url ? <div /> : <div className="font-display text-6xl text-center text-gold opacity-80">{r.name.slice(0, 1)}</div>}
                 <div>
                   <div className="flex items-center gap-1 font-bold">
                     {flagOf(r.country)} <span className="truncate">{r.name}</span> {r.is_private && <Lock className="h-3 w-3" />}
