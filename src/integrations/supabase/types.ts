@@ -983,6 +983,21 @@ export type Database = {
         Args: { _amount: number; _user: string }
         Returns: undefined
       }
+      admin_list_reports: {
+        Args: { _status: string }
+        Returns: {
+          admin_reply: string
+          category: string
+          created_at: string
+          details: string
+          id: string
+          reporter_id: string
+          reporter_name: string
+          status: string
+          target_id: string
+          target_type: string
+        }[]
+      }
       admin_list_users: {
         Args: { _q: string }
         Returns: {
@@ -1014,6 +1029,7 @@ export type Database = {
       }
       admin_stats: { Args: never; Returns: Json }
       ban_user: { Args: { _room: string; _user: string }; Returns: undefined }
+      buy_vip: { Args: { _level: number }; Returns: number }
       claim_daily_bonus: { Args: never; Returns: number }
       claim_first_admin: { Args: never; Returns: boolean }
       create_family: {
