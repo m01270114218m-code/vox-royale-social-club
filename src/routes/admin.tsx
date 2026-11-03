@@ -54,8 +54,8 @@ function AdminPage() {
 
   async function claim() {
     const { data, error } = await supabase.rpc("claim_first_admin");
-    if (error) return toast.error(errMsg(error));
-    if (!data) return toast.error("يوجد مشرف بالفعل — اطلب منه منحك الصلاحية");
+    if (error) { toast.error(errMsg(error)); return; }
+    if (!data) { toast.error("يوجد مشرف بالفعل — اطلب منه منحك الصلاحية"); return; }
     toast.success("أصبحت المشرف الأعلى");
     check();
   }
@@ -128,7 +128,7 @@ function Reports() {
   useEffect(() => { load(); }, [status]);
   async function act(id: string, s: string) {
     const { error } = await supabase.rpc("admin_resolve_report", { _report: id, _status: s, _reply: reply[id] ?? "" });
-    if (error) return toast.error(errMsg(error));
+    if (error) { toast.error(errMsg(error)); return; }
     toast.success("تم التحديث");
     load();
   }
@@ -174,7 +174,7 @@ function Rooms() {
   async function del(id: string) {
     if (!confirm("حذف الغرفة نهائياً؟")) return;
     const { error } = await supabase.rpc("admin_delete_room", { _room: id });
-    if (error) return toast.error(errMsg(error));
+    if (error) { toast.error(errMsg(error)); return; }
     toast.success("تم الحذف");
     load();
   }
@@ -204,7 +204,7 @@ function Posts() {
   async function del(id: string) {
     if (!confirm("حذف المنشور؟")) return;
     const { error } = await supabase.rpc("admin_delete_post", { _post: id });
-    if (error) return toast.error(errMsg(error));
+    if (error) { toast.error(errMsg(error)); return; }
     toast.success("تم الحذف");
     load();
   }
@@ -237,7 +237,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
   useEffect(() => { load(); }, []);
   async function run(p: PromiseLike<{ error: unknown }>, msg: string) {
     const { error } = await p;
-    if (error) return toast.error(errMsg(error as never));
+    if (error) { toast.error(errMsg(error as never)); return; }
     toast.success(msg);
     load();
   }

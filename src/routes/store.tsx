@@ -57,7 +57,7 @@ function StorePage() {
   }, [user]);
   async function buy(lv: number) {
     const { data, error } = await supabase.rpc("buy_vip", { _level: lv });
-    if (error) return toast.error(error.message.includes("insufficient") ? "رصيد العملات غير كافٍ" : errMsg(error));
+    if (error) { toast.error(error.message.includes("insufficient") ? "رصيد العملات غير كافٍ" : errMsg(error)); return; }
     setCoins(Number(data));
     setVip(lv);
     toast.success(`مبروك! أصبحت VIP ${lv} 👑`);
