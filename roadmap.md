@@ -8,3 +8,4 @@
 - [ ] Live voice audio (needs LiveKit keys)
 - [x] Source ZIP
 - [x] Separate admin Android app (admin-app/)
+- [ ] Quick login restores same guest account after sign-out
