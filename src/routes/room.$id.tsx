@@ -130,7 +130,7 @@ function RoomPage() {
     ensureProfiles([...members, ...seats.map((s) => s.user_id ?? ""), ...msgs.map((m) => m.user_id)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members, seats, msgs]);
-  useEffect(() => chatEnd.current?.scrollIntoView({ behavior: "smooth" }), [msgs]);
+  useEffect(() => { chatEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
   // If I got banned/kicked, leave.
   useEffect(() => {
