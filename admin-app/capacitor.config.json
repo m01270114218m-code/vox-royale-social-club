@@ -1,0 +1,6 @@
+{
+  "appId": "com.voxroyale.admin",
+  "appName": "VOX Admin",
+  "webDir": "../dist/client",
+  "server": { "url": "https://id-preview--29567f8f-ffda-4344-9e13-e1a1c5294bb9.lovable.app/admin", "cleartext": false }
+}
