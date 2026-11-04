@@ -16,8 +16,11 @@ import wallet from "@/assets/3d/wallet.png";
 import vip from "@/assets/3d/vip.png";
 import coin from "@/assets/3d/coin.png";
 import chest from "@/assets/3d/chest.png";
+import bell from "@/assets/3d/bell.png";
+import gear from "@/assets/3d/gear.png";
+import agency from "@/assets/3d/agency.png";
 
-export const icons3d = { home, explore, friends, messages, profile, store, wallet, vip, coin, chest, giftbox };
+export const icons3d = { home, explore, friends, messages, profile, store, wallet, vip, coin, chest, giftbox, bell, gear, agency, heart };
 
 const byName: Record<string, string> = {
   "وردة": rose, "قلب": heart, "تاج": crown, "خاتم": diamond, "سيارة": car, "قلعة": castle, "صاروخ": dragon,
