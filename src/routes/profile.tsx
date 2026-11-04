@@ -150,8 +150,15 @@ function ProfilePage() {
             </div>
           )}
           <Button variant="outline" onClick={async () => {
-            if (isGuest && !confirm("حساب الجهاز غير مربوط ببريد، وإذا خرجت لن تتمكن من استعادته. متابعة؟")) return;
-            await supabase.auth.signOut(); nav({ to: "/auth" });
+            if (isGuest) {
+              // Keep the guest session valid so "quick login" on this device restores the same account.
+              const { data: cur } = await supabase.auth.getSession();
+              if (cur.session) localStorage.setItem("vox_guest_refresh", cur.session.refresh_token);
+              await supabase.auth.signOut({ scope: "local" });
+            } else {
+              await supabase.auth.signOut();
+            }
+            nav({ to: "/auth" });
           }}><LogOut className="h-4 w-4" /> تسجيل الخروج</Button>
         </div>
       )}

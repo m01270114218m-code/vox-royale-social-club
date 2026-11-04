@@ -71,6 +71,17 @@ function AuthPage() {
         dev = crypto.randomUUID() + crypto.randomUUID();
         localStorage.setItem("vox_device_id", dev);
       }
+      // Same device → restore the same guest account if we saved it on sign-out.
+      const saved = localStorage.getItem("vox_guest_refresh");
+      if (saved) {
+        const { data: rs, error: re } = await supabase.auth.refreshSession({ refresh_token: saved });
+        if (!re && rs.session) {
+          localStorage.setItem("vox_guest_refresh", rs.session.refresh_token);
+          toast.success("أهلاً بعودتك");
+          return;
+        }
+        localStorage.removeItem("vox_guest_refresh");
+      }
       const { error } = await supabase.auth.signInAnonymously();
       if (error) throw error;
       const r = await supabase.rpc("register_device", { _device: dev });
@@ -78,6 +89,8 @@ function AuthPage() {
         await supabase.auth.signOut();
         throw new Error(r.error.message.includes("already") ? "هذا الجهاز لديه حساب بالفعل" : r.error.message);
       }
+      const { data: cur } = await supabase.auth.getSession();
+      if (cur.session) localStorage.setItem("vox_guest_refresh", cur.session.refresh_token);
       toast.success("أهلاً بك في VOX ROYALE");
     } catch (err) {
       toast.error((err as Error).message);
