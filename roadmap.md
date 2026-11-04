@@ -7,3 +7,4 @@
 - [ ] Real coin recharge (needs payment provider)
 - [ ] Live voice audio (needs LiveKit keys)
 - [x] Source ZIP
+- [x] Separate admin Android app (admin-app/)
