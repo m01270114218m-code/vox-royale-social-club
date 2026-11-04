@@ -1,3 +1,4 @@
+import { giftImage } from "@/lib/assets3d";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Crown, Gift, Settings } from "lucide-react";
@@ -106,9 +107,9 @@ function RoomPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, () => loadMembers())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${id}` }, (p) => setMsgs((x) => [...x.slice(-99), p.new as Msg]))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "gift_transactions", filter: `room_id=eq.${id}` }, async (p) => {
-        const { data: g } = await supabase.from("gifts").select("emoji").eq("id", (p.new as { gift_id: string }).gift_id).maybeSingle();
+        const { data: g } = await supabase.from("gifts").select("name,emoji").eq("id", (p.new as { gift_id: string }).gift_id).maybeSingle();
         if (g) {
-          setAnim({ key: Date.now(), emoji: g.emoji });
+          setAnim({ key: Date.now(), emoji: giftImage(g.name, g.emoji) });
           setTimeout(() => setAnim(null), 2600);
         }
       })
@@ -287,7 +288,7 @@ function RoomPage() {
       </Sheet>
 
       {anim && (
-        <div key={anim.key} className="gift-pop pointer-events-none fixed inset-0 z-50 flex items-center justify-center text-[9rem]">{anim.emoji}</div>
+        <div key={anim.key} className="gift-pop pointer-events-none fixed inset-0 z-50 flex items-center justify-center"><img src={anim.emoji} alt="" className="h-64 w-64 object-contain" /></div>
       )}
 
       <Sheet open={giftOpen} onOpenChange={setGiftOpen}>
@@ -301,7 +302,7 @@ function RoomPage() {
             <div className="grid grid-cols-4 gap-2">
               {gifts.map((g) => (
                 <button key={g.id} onClick={() => setGiftSel(g)} className={`flex flex-col items-center rounded-2xl p-2 ${giftSel?.id === g.id ? "bg-secondary ring-2 ring-primary" : "glass"}`}>
-                  <span className="text-3xl">{g.emoji}</span>
+                  <img src={giftImage(g.name, g.emoji)} alt={g.name} className="h-12 w-12 object-contain drop-shadow-lg" />
                   <span className="text-xs">{g.name}</span>
                   <span className="text-xs text-primary">🪙{g.price}</span>
                 </button>

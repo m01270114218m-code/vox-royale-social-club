@@ -1,3 +1,4 @@
+import { icons3d } from "@/lib/assets3d";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { uploadImage } from "@/lib/media";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -128,16 +129,16 @@ function ProfilePage() {
         <div className="mt-4 grid gap-2">
           <div className="grid grid-cols-4 gap-2">
             {([
-              ["/store", "المتجر", Store],
-              ["/store", "VIP", Crown],
-              ["/families", "العائلة", Users],
-              ["/friends", "الأصدقاء", Heart],
-              ["/notifications", "الإشعارات", Bell],
-              ["/help", "الدعم", LifeBuoy],
-              ["/admin", "لوحة التحكم", Shield],
-            ] as const).map(([to, label, Icon], i) => (
+              ["/store", "المتجر", icons3d.store],
+              ["/store", "VIP", icons3d.vip],
+              ["/families", "العائلة", icons3d.friends],
+              ["/friends", "الأصدقاء", icons3d.heart],
+              ["/notifications", "الإشعارات", icons3d.bell],
+              ["/help", "الدعم", icons3d.agency],
+              ["/admin", "لوحة التحكم", icons3d.gear],
+            ] as const).map(([to, label, icon], i) => (
               <Link key={i} to={to} className="card-3d glass flex flex-col items-center gap-1 rounded-2xl p-3 text-xs">
-                <Icon className="h-6 w-6 text-primary" />{label}
+                <img src={icon} alt="" className="h-11 w-11 object-contain drop-shadow-lg" />{label}
               </Link>
             ))}
           </div>
@@ -150,8 +151,15 @@ function ProfilePage() {
             </div>
           )}
           <Button variant="outline" onClick={async () => {
-            if (isGuest && !confirm("حساب الجهاز غير مربوط ببريد، وإذا خرجت لن تتمكن من استعادته. متابعة؟")) return;
-            await supabase.auth.signOut(); nav({ to: "/auth" });
+            if (isGuest) {
+              // Keep the guest session valid so "quick login" on this device restores the same account.
+              const { data: cur } = await supabase.auth.getSession();
+              if (cur.session) localStorage.setItem("vox_guest_refresh", cur.session.refresh_token);
+              await supabase.auth.signOut({ scope: "local" });
+            } else {
+              await supabase.auth.signOut();
+            }
+            nav({ to: "/auth" });
           }}><LogOut className="h-4 w-4" /> تسجيل الخروج</Button>
         </div>
       )}

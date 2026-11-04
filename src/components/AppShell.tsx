@@ -1,3 +1,4 @@
+import { icons3d } from "@/lib/assets3d";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { Home, User, Crown, Sparkles, MessageCircle, Mic } from "lucide-react";
@@ -83,23 +84,23 @@ function ShellInner({ children }: { children: ReactNode }) {
       <div className="mx-auto min-h-screen max-w-2xl pb-28">{children}</div>
       <nav className="glass fixed inset-x-3 bottom-3 z-40 mx-auto flex max-w-md items-end justify-around rounded-full px-2 py-2.5">
         <Link to="/" className={item} activeProps={active} activeOptions={{ exact: true }}>
-          <Home className="h-6 w-6" />
+          <img src={icons3d.home} alt="" className="h-8 w-8 drop-shadow-lg" />
           الغرف
         </Link>
         <Link to="/moments" className={item} activeProps={active}>
-          <Sparkles className="h-6 w-6" />
+          <img src={icons3d.explore} alt="" className="h-8 w-8 drop-shadow-lg" />
           اللحظات
         </Link>
         <button onClick={myRoom} aria-label="غرفتي" className="-mt-8 flex h-16 w-16 items-center justify-center rounded-full bg-gold shadow-gold">
           <Mic className="h-8 w-8" />
         </button>
         <Link to="/messages" className={`${item} relative`} activeProps={active}>
-          <MessageCircle className="h-6 w-6" />
+          <img src={icons3d.messages} alt="" className="h-8 w-8 drop-shadow-lg" />
           {unread > 0 && <span className="absolute -top-1 right-3 min-w-5 rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground">{unread > 99 ? "99+" : unread}</span>}
           الرسائل
         </Link>
         <Link to="/profile" className={item} activeProps={active}>
-          <User className="h-6 w-6" />
+          <img src={icons3d.profile} alt="" className="h-8 w-8 drop-shadow-lg" />
           أنا
         </Link>
       </nav>
