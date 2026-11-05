@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#10131f">
+  <title>VOX ROYALE | لوحة الإدارة</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="login" class="login-shell">
+    <section class="login-card">
+      <div class="brand-mark">VR</div><p class="eyebrow">VOX ROYALE CONTROL CENTER</p>
+      <h1>لوحة الإدارة الخارجية</h1><p class="muted">سجّل الدخول بحساب مشرف معتمد.</p>
+      <form id="login-form">
+        <label>البريد الإلكتروني<input name="email" type="email" autocomplete="username" required></label>
+        <label>كلمة المرور<input name="password" type="password" autocomplete="current-password" required></label>
+        <button class="primary" type="submit">تسجيل الدخول</button>
+      </form>
+      <button id="claim" class="ghost" type="button">تفعيل أول مشرف (لأول حساب فقط)</button>
+      <p id="login-error" class="error" role="alert"></p>
+    </section>
+  </div>
+  <div id="app" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark small">VR</span><div><b>VOX ROYALE</b><small>ADMIN CONTROL</small></div></div>
+      <nav id="nav"></nav>
+      <button id="logout" class="ghost logout">تسجيل الخروج</button>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div><p class="eyebrow">CONTROL CENTER</p><h1 id="section-title">لوحة المعلومات</h1></div><div class="session"><span class="online-dot"></span><span id="admin-email"></span></div></header>
+      <div id="notice" class="notice hidden"></div>
+      <section id="content"></section>
+    </main>
+  </div>
+  <dialog id="editor"><form method="dialog" id="editor-form"><div class="dialog-head"><h2 id="editor-title">تعديل سجل</h2><button class="icon-btn" value="cancel" aria-label="إغلاق">×</button></div><p class="muted">حرّر بيانات السجل بصيغة JSON. لا تعدّل المعرّفات أو الحقول المحمية.</p><textarea id="json-value" spellcheck="false" rows="16"></textarea><div class="dialog-actions"><button class="ghost" value="cancel">إلغاء</button><button id="save-record" class="primary" type="button">حفظ</button></div></form></dialog>
+  <script type="module" src="./app.js"></script>
+</body></html>
