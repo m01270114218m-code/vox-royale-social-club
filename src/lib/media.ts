@@ -19,18 +19,20 @@ export async function uploadImage(file: File, userId: string): Promise<string> {
 export function useMedia(value?: string | null): string | null {
   const [url, setUrl] = useState<string | null>(() => {
     if (!value) return null;
-    if (!value.startsWith("media:")) return value;
+    if (!value.startsWith("media:") && !value.startsWith("admin-assets:")) return value;
     return cache.get(value) ?? null;
   });
   useEffect(() => {
     if (!value) return setUrl(null);
-    if (!value.startsWith("media:")) return setUrl(value);
+    if (!value.startsWith("media:") && !value.startsWith("admin-assets:")) return setUrl(value);
     const hit = cache.get(value);
     if (hit) return setUrl(hit);
     let alive = true;
+    const bucket = value.startsWith("admin-assets:") ? "admin-assets" : "media";
+    const path = value.slice(value.indexOf(":") + 1);
     supabase.storage
-      .from("media")
-      .createSignedUrl(value.slice(6), 60 * 60 * 6)
+      .from(bucket)
+      .createSignedUrl(path, 60 * 60 * 6)
       .then(({ data }) => {
         if (data?.signedUrl && alive) {
           cache.set(value, data.signedUrl);
