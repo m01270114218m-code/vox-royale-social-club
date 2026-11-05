@@ -43,15 +43,18 @@ function ProfilePage() {
   const [linkEmail, setLinkEmail] = useState("");
   const isGuest = !!user?.is_anonymous;
   async function loadTx() {
-    const { data } = await supabase.from("wallet_transactions").select("id,currency,amount,reason,created_at").order("created_at", { ascending: false }).limit(20);
+    const { data, error } = await supabase.from("wallet_transactions").select("id,currency,amount,reason,created_at").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(20);
+    if (error) { toast.error(errMsg(error)); return; }
     if (data) setTxs(data.map((d) => ({ ...d, amount: Number(d.amount) })));
   }
   async function daily() {
     const { error } = await supabase.rpc("claim_daily_bonus");
     if (error) { toast.error(errMsg(error)); return; }
-    setWallet((w) => ({ ...w, coins: w.coins + 200 }));
-    toast.success("+200 عملة 🎉");
-    loadTx();
+    const { data: w, error: walletError } = await supabase.from("wallets").select("coins,diamonds").eq("user_id", user!.id).single();
+    if (walletError) { toast.error(errMsg(walletError)); return; }
+    setWallet({ coins: Number(w.coins), diamonds: Number(w.diamonds) });
+    toast.success("تم استلام المكافأة اليومية 🎉");
+    await loadTx();
   }
   async function link() {
     const { error } = await supabase.auth.updateUser({ email: linkEmail });
@@ -136,7 +139,6 @@ function ProfilePage() {
               ["/friends", "الأصدقاء", icons3d.friends],
               ["/notifications", "الإشعارات", icons3d.bell],
               ["/help", "الدعم", icons3d.support],
-              ["/admin", "لوحة التحكم", icons3d.gear],
             ] as const).map(([to, label, icon], i) => (
               <Link key={i} to={to} className="card-3d glass flex flex-col items-center gap-1 rounded-2xl p-3 text-xs">
                 <img src={icon} alt="" className="h-11 w-11 object-contain drop-shadow-lg" />{label}
