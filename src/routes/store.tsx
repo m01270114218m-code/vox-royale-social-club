@@ -47,14 +47,18 @@ function StorePage() {
   const { user } = useAuth();
   const [coins, setCoins] = useState(0);
   const [vip, setVip] = useState(0);
+  const [tiers, setTiers] = useState<{ level: number; name: string; price_coins: number; duration_days: number }[]>([]);
   useEffect(() => {
     (async () => {
       const [{ data: w }, { data: p }] = await Promise.all([
-        supabase.from("wallets").select("coins").eq("user_id", user!.id).maybeSingle(),
+        supabase.from("wallet_balances").select("coins").eq("user_id", user!.id).maybeSingle(),
         supabase.from("profiles").select("vip_level").eq("id", user!.id).single(),
+        supabase.from("vip_tiers").select("level,name,price_coins,duration_days").order("level"),
       ]);
       setCoins(Number(w?.coins ?? 0));
       setVip(p?.vip_level ?? 0);
+      const { data: tierData } = await supabase.from("vip_tiers").select("level,name,price_coins,duration_days").order("level");
+      setTiers(tierData ?? []);
     })();
   }, [user]);
   async function buy(lv: number) {
@@ -75,14 +79,14 @@ function StorePage() {
         <section>
           <h2 className="mb-2 font-bold">عضويات VIP</h2>
           <div className="grid grid-cols-2 gap-3">
-            {VIP.map((v) => (
-              <div key={v.lv} className={`card-3d glass rounded-3xl p-4 text-center ${vip >= v.lv ? "ring-2 ring-primary" : ""}`}>
-                <img src={vipBadge(v.lv)} alt={`وسام VIP ${v.lv}`} className="mx-auto h-24 w-24 object-contain" width={96} height={96} />
-                <div className="mx-auto mb-2 w-fit"><UserAvatar size={76} vip={v.lv} name={`إطار VIP ${v.lv}`} /></div>
-                <div className="font-display text-gold text-2xl">VIP {v.lv}</div>
-                <p className="min-h-10 text-xs text-muted-foreground">{v.perks}</p>
-                <Button size="sm" className="mt-2 w-full bg-gold" disabled={vip >= v.lv} onClick={() => buy(v.lv)}>
-                  {vip >= v.lv ? "مفعّل" : <><img src={icons3d.coin} alt="" className="h-5 w-5 object-contain" />{v.price.toLocaleString()}</>}
+            {tiers.map((v) => (
+              <div key={v.level} className={`card-3d glass rounded-3xl p-4 text-center ${vip >= v.level ? "ring-2 ring-primary" : ""}`}>
+                <img src={vipBadge(v.level)} alt={`وسام VIP ${v.level}`} className="mx-auto h-24 w-24 object-contain" width={96} height={96} />
+                <div className="mx-auto mb-2 w-fit"><UserAvatar size={76} vip={v.level} name={`إطار VIP ${v.level}`} /></div>
+                <div className="font-display text-gold text-2xl">VIP {v.level}</div>
+                <p className="min-h-10 text-xs text-muted-foreground">عضوية لمدة {v.duration_days} يوم</p>
+                <Button size="sm" className="mt-2 w-full bg-gold" disabled={vip >= v.lv} onClick={() => buy(v.level)}>
+                  {vip >= v.lv ? "مفعّل" : <><img src={icons3d.coin} alt="" className="h-5 w-5 object-contain" />{v.price_coins.toLocaleString()}</>}
                 </Button>
               </div>
             ))}
