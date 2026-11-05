@@ -55,9 +55,7 @@ function RoomPage() {
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftTo, setGiftTo] = useState<string | null>(null);
   const [giftSel, setGiftSel] = useState<GiftT | null>(null);
-  const [qty, setQty] = useState(1);
   const [coins, setCoins] = useState(0);
-  const [anim, setAnim] = useState<{ key: number; emoji: string } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const chatEnd = useRef<HTMLDivElement>(null);
    const uid = user?.id ?? "";
@@ -155,18 +153,17 @@ function RoomPage() {
     const others = members.filter((m) => m !== uid);
     setGiftTo(target ?? seats.find((s) => s.user_id && s.user_id !== uid)?.user_id ?? others[0] ?? null);
     setGiftSel(null);
-    setQty(1);
     setSeatMenu(null);
     setGiftOpen(true);
   }
   async function sendGift() {
     if (!giftSel || !giftTo) return;
-    const { error } = await supabase.rpc("send_gift", { _room: id, _receiver: giftTo, _gift: giftSel.id, _qty: qty });
+    const { error } = await supabase.rpc("send_gift", { target_user: giftTo, gift_id: giftSel.id });
     if (error) {
       toast.error(errMsg(error));
       return;
     }
-    setCoins((c) => c - giftSel.price * qty);
+    setCoins((c) => Math.max(0, c - giftSel.price));
     setGiftOpen(false);
   }
 
@@ -276,10 +273,6 @@ function RoomPage() {
         </SheetContent>
       </Sheet>
 
-      {anim && (
-        <div key={anim.key} className="gift-pop pointer-events-none fixed inset-0 z-50 flex items-center justify-center"><img src={anim.emoji} alt="" className="h-64 w-64 object-contain" /></div>
-      )}
-
       <Sheet open={giftOpen} onOpenChange={setGiftOpen}>
         <SheetContent side="bottom" dir="rtl" className="max-h-[80vh] overflow-y-auto rounded-t-3xl">
           <SheetHeader><SheetTitle className="flex justify-between"><span>الهدايا</span><span className="text-primary">🪙 {coins}</span></SheetTitle></SheetHeader>
@@ -297,9 +290,8 @@ function RoomPage() {
                 </Button>
               ))}
             </div>
-            <div className="flex items-center gap-2">
-              {[1, 10, 99].map((n) => <Button variant="ghost" size="sm" key={n} onClick={() => setQty(n)} className={`rounded-full ${qty === n ? "bg-gold" : "glass"}`}>x{n}</Button>)}
-              <Button disabled={!giftSel || !giftTo} onClick={sendGift} className="mr-auto bg-gold font-bold">إرسال {giftSel ? `(${giftSel.price * qty})` : ""}</Button>
+            <div className="flex items-center justify-end">
+              <Button disabled={!giftSel || !giftTo} onClick={sendGift} className="bg-gold font-bold">إرسال {giftSel ? `(${giftSel.price})` : ""}</Button>
             </div>
           </div>
         </SheetContent>
