@@ -1,10 +1,19 @@
-# تطبيق لوحة التحكم (VOX Admin) — تطبيق أندرويد منفصل
+# VOX ROYALE ADMIN CONTROL CENTER
 
-تطبيق مستقل يفتح لوحة التحكم مباشرة ويتصل بنفس قاعدة البيانات الحقيقية.
-الصلاحيات تُتحقق على الخادم: فقط المشرفون يستطيعون الإدارة.
+لوحة تحكم ويب خارجية مستقلة عن تطبيق Android. لا توجد لوحة إدارة داخل تطبيق المستخدم.
 
-1. من داخل مجلد `admin-app`: `npm init -y && npm i @capacitor/core @capacitor/cli @capacitor/android`
-2. `npx cap add android && npx cap sync android`
-3. `npx cap open android` ثم Build → Build APK.
+## البناء المحلي
+من جذر المستودع:
+```bash
+npm install
+npm run admin:build
+```
+الناتج في `admin-app/dist`.
 
-بعد النشر غيّر `server.url` إلى `https://رابطك/admin`.
+## Supabase
+اللوحة تستخدم مشروع Supabase المشار إليه في `admin-app/.env.production` باستخدام Project URL وPublishable key فقط. لا تضع `service_role` أو `sb_secret` في المتصفح.
+
+تسجيل الدخول يتطلب حساب Supabase Auth ودوراً مصرحاً به في `public.admin_roles`. عمليات الإدارة تخضع لسياسات RLS؛ وجود شاشة أو زر لا يعني أن العملية مسموحة. المحفظة وأدوار المشرفين للعرض فقط في النسخة الحالية. لا تعتبر آلية تفعيل أول مشرف جاهزة قبل اختبار RPC `claim_first_admin` وسياسات الجدول.
+
+## النشر
+ملف GitHub Actions في `.github/workflows/admin-console.yml` يحاول بناء اللوحة ونشرها إلى GitHub Pages عند الدفع إلى فرع `external-admin-console`. يلزم تفعيل GitHub Pages لمصدر GitHub Actions في إعدادات المستودع. لم يتم تأكيد نشر حي حتى الآن.
