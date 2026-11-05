@@ -50,14 +50,13 @@ function StorePage() {
   const [tiers, setTiers] = useState<{ level: number; name: string; price_coins: number; duration_days: number }[]>([]);
   useEffect(() => {
     (async () => {
-      const [{ data: w }, { data: p }] = await Promise.all([
+      const [{ data: w }, { data: p }, { data: tierData }] = await Promise.all([
         supabase.from("wallet_balances").select("coins").eq("user_id", user!.id).maybeSingle(),
         supabase.from("profiles").select("vip_level").eq("id", user!.id).single(),
         supabase.from("vip_tiers").select("level,name,price_coins,duration_days").order("level"),
       ]);
       setCoins(Number(w?.coins ?? 0));
       setVip(p?.vip_level ?? 0);
-      const { data: tierData } = await supabase.from("vip_tiers").select("level,name,price_coins,duration_days").order("level");
       setTiers(tierData ?? []);
     })();
   }, [user]);
