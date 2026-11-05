@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Shield, Flag, DoorOpen, FileText, Users, Trash2 } from "lucide-react";
@@ -21,12 +21,14 @@ export const Route = createFileRoute("/admin")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: () => (
-    <RequireAuth>
-      <AdminPage />
-    </RequireAuth>
-  ),
+  component: () => <AdminRedirect /> ,
 });
+
+function AdminRedirect() {
+  const navigate = useNavigate();
+  useEffect(() => { void navigate({ to: "/" }); }, [navigate]);
+  return null;
+}
 
 type Tab = "reports" | "rooms" | "posts" | "users";
 const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
