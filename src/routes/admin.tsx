@@ -8,7 +8,7 @@ import {
   UserCog, Ban, Eye, Plus, X
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, type Json } from "@/integrations/supabase/client";
 import { RequireAuth } from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -89,7 +89,7 @@ function Section({title,icon:Icon,children,action}:{title:string;icon:any;childr
 }
 function Empty({text="لا توجد بيانات"}:{text?:string}){return <div className={card+" p-8 text-center text-sm text-muted-foreground"}>{text}</div>}
 function Stat({label,value,icon:Icon}:{label:string;value:string|number;icon:any}){return <div className={card+" p-5"}><Icon className="h-5 w-5 text-primary"/><div className="mt-3 text-2xl font-black">{typeof value==="number"?value.toLocaleString():value}</div><div className="text-xs text-muted-foreground">{label}</div></div>}
-async function audit(action:string,type?:string,id?:string,details?:Record<string,unknown>){await supabase.rpc("admin_write_audit",{p_action:action,p_entity_type:type??null,p_entity_id:id??null,p_details:details??{}})}
+async function audit(action:string,type?:string,id?:string,details?:Json){await supabase.rpc("admin_write_audit",{p_action:action,p_entity_type:type??null,p_entity_id:id??null,p_details:details??{}})}
 
 function Dashboard({refresh}:{refresh:number}){
  const [s,setS]=useState({users:0,rooms:0,members:0,seats:0,coins:0,gifts:0,bans:0,reports:0});
