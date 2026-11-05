@@ -9,4 +9,4 @@
 - [x] Source ZIP
 - [x] Separate admin Android app (admin-app/)
 - [ ] Quick login restores same guest account after sign-out
-- [ ] Own 3D asset for every element (services menu, store, VIP, wallet, frames, badges)
+- [ ] Dedicated 3D frames, VIP/level badges, microphone states, room backgrounds, gifts and controls wired into the app
