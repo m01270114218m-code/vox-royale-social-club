@@ -34,6 +34,7 @@ type Banner = { id: string; title: string; body: string | null; image_url: strin
 function Home() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [assetBackgrounds, setAssetBackgrounds] = useState<Record<string, string>>({});
   const [tab, setTab] = useState<"hot" | "new">("hot");
   const [country, setCountry] = useState<string | null>(null);
   const [cat, setCat] = useState<string | null>(null);
@@ -46,6 +47,8 @@ function Home() {
     const now = new Date().toISOString();
     const { data: activeBanners, error: bannerError } = await supabase.from("admin_banners").select("id,title,body,image_url,action_url").eq("is_active", true).or(`starts_at.is.null,starts_at.lte.${now}`).or(`ends_at.is.null,ends_at.gt.${now}`).order("created_at", { ascending: false }).limit(5);
     if (!bannerError) setBanners(activeBanners ?? []);
+    const { data: assets } = await supabase.from("admin_assets").select("asset_key,url").eq("is_active", true).like("asset_key", "room-background-%");
+    if (assets) setAssetBackgrounds(Object.fromEntries(assets.map((asset) => [asset.asset_key, asset.url ?? ""])));
   }
   useEffect(() => {
     load();
@@ -96,7 +99,7 @@ function Home() {
         <div className="grid grid-cols-2 gap-3">
           {list.map((r) => (
             <Link key={r.id} to="/room/$id" params={{ id: r.id }} className="card-3d glass group relative aspect-[3/4] overflow-hidden rounded-3xl p-3">
-              <MediaImage src={r.cover_url || roomBackground(r.category)} className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
+              <MediaImage src={r.cover_url || assetBackgrounds[`room-background-${r.category}`] || roomBackground(r.category)} className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
               <div className="relative flex h-full flex-col justify-between">
                 <span className="w-fit rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">{catName(r.category)}</span>
                 <div />
