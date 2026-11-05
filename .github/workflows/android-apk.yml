@@ -2,7 +2,7 @@ name: Build VOX ROYALE Android APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/complete-admin-android]
   workflow_dispatch:
 
 permissions:
@@ -11,6 +11,7 @@ permissions:
 jobs:
   android:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,6 +20,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps --no-audit --no-fund
@@ -26,13 +34,20 @@ jobs:
       - name: Install Capacitor Android
         run: npm install @capacitor/core @capacitor/cli @capacitor/android --legacy-peer-deps --no-audit --no-fund
 
-      - name: Build web app
+      - name: Build application
         run: npm run build
 
-      - name: Create Android project
+      - name: Verify web bundle for Android
+        shell: bash
+        run: |
+          echo "Build output:"
+          find .output -maxdepth 4 -type f -name 'index.html' -print || true
+          test -s .output/public/index.html || (echo "::error::Expected .output/public/index.html was not produced by the app build"; exit 1)
+
+      - name: Add Android platform
         run: npx cap add android
 
-      - name: Sync Android
+      - name: Sync Android project
         run: npx cap sync android
 
       - name: Build debug APK
