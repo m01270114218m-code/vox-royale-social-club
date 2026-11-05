@@ -5,6 +5,7 @@ import { Home, User, Crown, Sparkles, MessageCircle, Mic } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -91,9 +92,9 @@ function ShellInner({ children }: { children: ReactNode }) {
           <img src={icons3d.explore} alt="" className="h-8 w-8 drop-shadow-lg" />
           اللحظات
         </Link>
-        <button onClick={myRoom} aria-label="غرفتي" className="-mt-8 flex h-16 w-16 items-center justify-center rounded-full bg-gold shadow-gold">
-          <Mic className="h-8 w-8" />
-        </button>
+        <Button onClick={myRoom} aria-label="غرفتي" title="غرفتي" className="-mt-8 h-16 w-16 rounded-full bg-gold p-1 shadow-gold">
+          <img src={icons3d.micHost} alt="" className="h-14 w-14 object-contain" />
+        </Button>
         <Link to="/messages" className={`${item} relative`} activeProps={active}>
           <img src={icons3d.messages} alt="" className="h-8 w-8 drop-shadow-lg" />
           {unread > 0 && <span className="absolute -top-1 right-3 min-w-5 rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground">{unread > 99 ? "99+" : unread}</span>}
@@ -113,9 +114,7 @@ export function PageHeader({ title, back, right }: { title: string; back?: boole
   return (
     <header className="sticky top-0 z-30 flex items-center gap-3 bg-background/70 px-4 py-4 backdrop-blur">
       {back && (
-        <button onClick={() => (history.length > 1 ? history.back() : nav({ to: "/profile" }))} aria-label="رجوع" className="text-xl">
-          →
-        </button>
+        <Button variant="ghost" size="icon" onClick={() => (history.length > 1 ? history.back() : nav({ to: "/profile" }))} aria-label="رجوع" title="رجوع"><img src={icons3d.back} alt="" className="h-7 w-7 rotate-180 object-contain" /></Button>
       )}
       <h1 className="font-display text-gold flex-1 text-2xl">{title}</h1>
       {right}
