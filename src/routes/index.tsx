@@ -29,9 +29,11 @@ export const Route = createFileRoute("/")({
 });
 
 type Room = { id: string; room_no: number; name: string; description: string | null; category: string; country: string; member_count: number; is_private: boolean; seat_count: number; created_at: string; cover_url?: string | null };
+type Banner = { id: string; title: string; body: string | null; image_url: string | null; action_url: string | null };
 
 function Home() {
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
   const [tab, setTab] = useState<"hot" | "new">("hot");
   const [country, setCountry] = useState<string | null>(null);
   const [cat, setCat] = useState<string | null>(null);
@@ -41,6 +43,9 @@ function Home() {
     const { data, error } = await supabase.from("rooms").select("*").limit(100);
     if (error) toast.error(error.message);
     else setRooms(data as Room[]);
+    const now = new Date().toISOString();
+    const { data: activeBanners, error: bannerError } = await supabase.from("admin_banners").select("id,title,body,image_url,action_url").eq("is_active", true).or(`starts_at.is.null,starts_at.lte.${now}`).or(`ends_at.is.null,ends_at.gt.${now}`).order("created_at", { ascending: false }).limit(5);
+    if (!bannerError) setBanners(activeBanners ?? []);
   }
   useEffect(() => {
     load();
@@ -61,6 +66,7 @@ function Home() {
           <CreateRoom />
         </div>
       </header>
+      {banners.length > 0 && <section className="mb-4 space-y-2">{banners.map((banner) => <a key={banner.id} href={banner.action_url || undefined} target={banner.action_url ? "_blank" : undefined} rel="noreferrer" className="glass block overflow-hidden rounded-2xl">{banner.image_url && <MediaImage src={banner.image_url} className="max-h-36 w-full object-cover" />}<div className="p-3"><b>{banner.title}</b>{banner.body && <p className="text-sm text-muted-foreground">{banner.body}</p>}</div></a>)}</section>}
       <div className="relative mb-4">
         <img src={icons3d.search} alt="" className="absolute right-3 top-1.5 h-7 w-7 object-contain" />
         <Input className="pr-10" placeholder="ابحث باسم الغرفة أو رقمها" value={q} onChange={(e) => setQ(e.target.value)} />
