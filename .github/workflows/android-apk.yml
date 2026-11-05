@@ -29,6 +29,8 @@ jobs:
         run: npm install --legacy-peer-deps --no-audit --no-fund
       - name: Install pinned Capacitor 7
         run: npm install --no-save @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 --legacy-peer-deps --no-audit --no-fund
+      - name: Typecheck
+        run: npx tsc --noEmit
       - name: Build web app and static Android shell
         run: npm run build
       - name: Verify Capacitor web assets
