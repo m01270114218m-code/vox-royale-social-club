@@ -61,10 +61,14 @@ function StorePage() {
     })();
   }, [user]);
   async function buy(lv: number) {
-    const { data, error } = await supabase.rpc("buy_vip", { _level: lv });
+    const { error } = await supabase.rpc("buy_vip", { target_level: lv });
     if (error) { toast.error(error.message.includes("insufficient") ? "رصيد العملات غير كافٍ" : errMsg(error)); return; }
-    setCoins(Number(data));
-    setVip(lv);
+    const [{ data: w }, { data: p }] = await Promise.all([
+      supabase.from("wallet_balances").select("coins").eq("user_id", user!.id).maybeSingle(),
+      supabase.from("profiles").select("vip_level").eq("id", user!.id).single(),
+    ]);
+    setCoins(Number(w?.coins ?? 0));
+    setVip(p?.vip_level ?? lv);
     toast.success(`مبروك! أصبحت VIP ${lv} 👑`);
   }
   return (
