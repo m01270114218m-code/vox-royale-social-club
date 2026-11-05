@@ -92,22 +92,77 @@ function Empty({text="لا توجد بيانات"}:{text?:string}){return <div c
 function Stat({label,value,icon:Icon}:{label:string;value:string|number;icon:any}){return <div className={card+" p-5"}><Icon className="h-5 w-5 text-primary"/><div className="mt-3 text-2xl font-black">{typeof value==="number"?value.toLocaleString():value}</div><div className="text-xs text-muted-foreground">{label}</div></div>}
 async function audit(action:string,type?:string,id?:string,details?:Json){await supabase.rpc("admin_write_audit",{p_action:action,p_entity_type:type??null,p_entity_id:id??null,p_details:details??{}})}
 
-function Dashboard({refresh}:{refresh:number}){
- const [s,setS]=useState({users:0,rooms:0,members:0,seats:0,coins:0,gifts:0,bans:0,reports:0});
- useEffect(()=>{(async()=>{
-  const [u,r,m,se,w,g,b,rep]=await Promise.all([
-   supabase.from("profiles").select("id",{count:"exact",head:true}),supabase.from("rooms").select("id",{count:"exact",head:true}),
-   supabase.from("room_members").select("user_id",{count:"exact",head:true}),supabase.from("room_seats").select("room_id",{count:"exact",head:true}),
-   supabase.from("wallet_balances").select("coins"),supabase.from("gifts").select("id",{count:"exact",head:true}),
-   supabase.from("user_bans").select("user_id",{count:"exact",head:true}),supabase.from("admin_reports").select("id",{count:"exact",head:true})
-  ]);
-  setS({users:u.count??0,rooms:r.count??0,members:m.count??0,seats:se.count??0,coins:(w.data??[]).reduce((n,x)=>n+Number(x.coins||0),0),gifts:g.count??0,bans:b.count??0,reports:rep.count??0});
- })()},[refresh]);
- return <div className="space-y-6"><div><h2 className="text-3xl font-black">Dashboard</h2><p className="text-sm text-muted-foreground">مركز التحكم الكامل في VOX ROYALE.</p></div>
- <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-8"><Stat label="Users" value={s.users} icon={Users}/><Stat label="Rooms" value={s.rooms} icon={DoorOpen}/><Stat label="Room members" value={s.members} icon={Activity}/><Stat label="Seats" value={s.seats} icon={Volume2}/><Stat label="Coins" value={s.coins} icon={Wallet}/><Stat label="Gifts" value={s.gifts} icon={Gift}/><Stat label="Bans" value={s.bans} icon={Ban}/><Stat label="Reports" value={s.reports} icon={FileText}/></div>
- <div className="grid gap-4 md:grid-cols-3"><div className={card+" p-5"}><h3 className="font-bold">تشغيل سريع</h3><div className="mt-3 grid grid-cols-2 gap-2"><Quick label="Users" onClick={()=>{}} icon={Users}/><Quick label="Rooms" onClick={()=>{}} icon={DoorOpen}/><Quick label="Wallet" onClick={()=>{}} icon={Wallet}/><Quick label="Reports" onClick={()=>{}} icon={FileText}/></div></div><div className={card+" p-5 md:col-span-2"><h3 className="font-bold">نطاق التحكم</h3><p className="mt-3 text-sm leading-7 text-muted-foreground">المستخدمون، الغرف والمقاعد، VIP، المحافظ والمعاملات، الهدايا، البانرات، الإشعارات، مكتبة الأصول 3D، البلاغات، الأدوار، الإعدادات، التحليلات وسجل التدقيق—all connected to Supabase.</p></div></div>
- </div>
+function Dashboard({refresh}:{refresh:number}) {
+  const [s,setS]=useState({users:0,rooms:0,members:0,seats:0,coins:0,gifts:0,bans:0,reports:0});
+
+  useEffect(() => {
+    (async () => {
+      const [u,r,m,se,w,g,b,rep] = await Promise.all([
+        supabase.from("profiles").select("id",{count:"exact",head:true}),
+        supabase.from("rooms").select("id",{count:"exact",head:true}),
+        supabase.from("room_members").select("user_id",{count:"exact",head:true}),
+        supabase.from("room_seats").select("room_id",{count:"exact",head:true}),
+        supabase.from("wallet_balances").select("coins"),
+        supabase.from("gifts").select("id",{count:"exact",head:true}),
+        supabase.from("user_bans").select("user_id",{count:"exact",head:true}),
+        supabase.from("admin_reports").select("id",{count:"exact",head:true}),
+      ]);
+
+      setS({
+        users:u.count ?? 0,
+        rooms:r.count ?? 0,
+        members:m.count ?? 0,
+        seats:se.count ?? 0,
+        coins:(w.data ?? []).reduce((n,x) => n + Number(x.coins || 0), 0),
+        gifts:g.count ?? 0,
+        bans:b.count ?? 0,
+        reports:rep.count ?? 0,
+      });
+    })();
+  },[refresh]);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-3xl font-black">Dashboard</h2>
+        <p className="text-sm text-muted-foreground">مركز التحكم الكامل في VOX ROYALE.</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-8">
+        <Stat label="Users" value={s.users} icon={Users}/>
+        <Stat label="Rooms" value={s.rooms} icon={DoorOpen}/>
+        <Stat label="Room members" value={s.members} icon={Activity}/>
+        <Stat label="Seats" value={s.seats} icon={Volume2}/>
+        <Stat label="Coins" value={s.coins} icon={Wallet}/>
+        <Stat label="Gifts" value={s.gifts} icon={Gift}/>
+        <Stat label="Bans" value={s.bans} icon={Ban}/>
+        <Stat label="Reports" value={s.reports} icon={FileText}/>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className={card + " p-5"}>
+          <h3 className="font-bold">تشغيل سريع</h3>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Quick label="Users" onClick={() => {}} icon={Users}/>
+            <Quick label="Rooms" onClick={() => {}} icon={DoorOpen}/>
+            <Quick label="Wallet" onClick={() => {}} icon={Wallet}/>
+            <Quick label="Reports" onClick={() => {}} icon={FileText}/>
+          </div>
+        </div>
+
+        <div className={card + " p-5 md:col-span-2"}>
+          <h3 className="font-bold">نطاق التحكم</h3>
+          <p className="mt-3 text-sm leading-7 text-muted-foreground">
+            المستخدمون، الغرف والمقاعد، VIP، المحافظ والمعاملات، الهدايا، البانرات،
+            الإشعارات، مكتبة الأصول 3D، البلاغات، الأدوار، الإعدادات، التحليلات وسجل التدقيق
+            — all connected to Supabase.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
+
 function Quick({label,onClick,icon:Icon}:{label:string;onClick:()=>void;icon:any}){return <button onClick={onClick} className="rounded-xl border border-white/10 p-3 text-right text-xs hover:bg-white/[.05]"><Icon className="h-4 w-4 text-primary"/><span className="mt-2 block">{label}</span></button>}
 
 function UsersTab({refresh}:{refresh:number}){
