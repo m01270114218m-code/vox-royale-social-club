@@ -1,3 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-export default defineConfig({ plugins:[react()], root: __dirname, base:"./", build:{outDir:"dist",emptyOutDir:true}, resolve:{alias:{"@":new URL("../src",import.meta.url).pathname}} });
+import { fileURLToPath } from "node:url";
+import { dirname,resolve } from "node:path";
+const here=dirname(fileURLToPath(import.meta.url));
+export default defineConfig({ plugins:[react()], root:here, base:"./", build:{outDir:resolve(here,"dist"),emptyOutDir:true} });
