@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import {
   Activity, BarChart3, Bell, Boxes, Building2, Check, Crown, DoorOpen, FileText,
   Gift, History, LayoutDashboard, Megaphone, RefreshCw, Save, Search, Settings,
@@ -83,7 +84,7 @@ function AdminPage(){
   </div>
 }
 
-function Section({title,icon:Icon,children,action}:{title:string;icon:any;children:React.ReactNode;action?:React.ReactNode}){
+function Section({title,icon:Icon,children,action}:{title:string;icon:any;children:ReactNode;action?:ReactNode}){
  return <section className="space-y-3"><div className="flex items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-xl font-bold"><Icon className="h-5 w-5 text-primary"/>{title}</h2>{action}</div>{children}</section>
 }
 function Empty({text="لا توجد بيانات"}:{text?:string}){return <div className={card+" p-8 text-center text-sm text-muted-foreground"}>{text}</div>}
