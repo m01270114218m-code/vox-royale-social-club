@@ -25,33 +25,14 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 function useUnread(uid?: string) {
   const [n, setN] = useState(0);
   useEffect(() => {
-    if (!uid) return;
+    if (!uid) { setN(0); return; }
     const load = async () => {
-      const [{ count: a }, { data: convs }] = await Promise.all([
-        supabase.from("notifications").select("id", { count: "exact", head: true }).eq("is_read", false),
-        supabase.from("conversations").select("id"),
-      ]);
-      let b = 0;
-      if (convs?.length) {
-        const { count } = await supabase
-          .from("messages")
-          .select("id", { count: "exact", head: true })
-          .in("conversation_id", convs.map((c) => c.id))
-          .neq("sender_id", uid)
-          .is("read_at", null);
-        b = count ?? 0;
-      }
-      setN((a ?? 0) + b);
+      const { count, error } = await supabase.from("user_notifications").select("id", { count: "exact", head: true }).eq("user_id", uid).is("read_at", null);
+      if (!error) setN(count ?? 0);
     };
-    load();
-    const ch = supabase
-      .channel(`unread-${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${uid}` }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, load)
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
+    void load();
+    const ch = supabase.channel(`unread-${uid}`).on("postgres_changes", { event: "*", schema: "public", table: "user_notifications", filter: `user_id=eq.${uid}` }, load).subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, [uid]);
   return n;
 }
