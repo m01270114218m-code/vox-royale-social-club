@@ -33,7 +33,7 @@ export const Route = createFileRoute("/room/$id")({
 const mountCount: Record<string, number> = {};
 
 type Profile = { id: string; display_name: string; avatar_url: string | null; level: number; vip_level: number };
-type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
+type Seat = { seat_number: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
 type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
 type GiftT = { id: string; name: string; emoji: string; price: number; tier: string };
 type Room = { id: string; room_no: number; owner_id: string; name: string; description: string | null; category: string; country: string; seat_count: number; is_private?: boolean; cover_url?: string | null };
@@ -72,7 +72,7 @@ function RoomPage() {
   }, [profiles]);
 
   const loadSeats = useCallback(async () => {
-    const { data } = await supabase.from("room_seats").select("seat_index,user_id,is_locked,is_muted").eq("room_id", id).order("seat_index");
+    const { data } = await supabase.from("room_seats").select("seat_number,user_id,is_locked,is_muted").eq("room_id", id).order("seat_number");
     if (data) setSeats(data);
   }, [id]);
   const loadMembers = useCallback(async () => {
@@ -96,11 +96,11 @@ function RoomPage() {
       }
       if (!alive) return;
       setRoom(r as Room);
-      const { data: m } = await supabase.from("room_moderators").select("user_id").eq("room_id", id).eq("user_id", uid);
+      const { data: m } = await supabase.from("room_members").select("role").eq("room_id", id).eq("user_id", uid).in("role", ["owner","admin"]);
       setIsMod(!!m?.length);
       loadSeats();
       loadMembers();
-      const { data: ms } = await supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).order("created_at", { ascending: false }).limit(50);
+      const { data: ms } = await supabase.from("room_messages").select("id,user_id,body,created_at").eq("room_id", id).order("created_at", { ascending: false }).limit(50);
       if (ms) setMsgs(ms.reverse());
     })();
     const ch = supabase
@@ -108,15 +108,8 @@ function RoomPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "room_seats", filter: `room_id=eq.${id}` }, () => loadSeats())
       .on("postgres_changes", { event: "*", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, () => loadMembers())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${id}` }, (p) => setMsgs((x) => [...x.slice(-99), p.new as Msg]))
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "gift_transactions", filter: `room_id=eq.${id}` }, async (p) => {
-        const { data: g } = await supabase.from("gifts").select("name,emoji").eq("id", (p.new as { gift_id: string }).gift_id).maybeSingle();
-        if (g) {
-          setAnim({ key: Date.now(), emoji: giftImage(g.name, g.emoji) });
-          setTimeout(() => setAnim(null), 2600);
-        }
-      })
       .subscribe();
-    supabase.from("gifts").select("id,name,emoji,price,tier").order("sort").then(({ data }) => data && setGifts(data));
+    supabase.from("gifts").select("id,name,emoji,price_coins").eq("is_active",true).then(({ data }) => data && setGifts(data.map((g) => ({ ...g, price: Number(g.price_coins), tier: "" }))));
     return () => {
       alive = false;
       supabase.removeChannel(ch);
@@ -152,12 +145,12 @@ function RoomPage() {
   }
 
   async function onSeat(s: Seat) {
-    if (!s.user_id && !s.is_locked && !isStaff) return call("take_seat", { _room: id, _seat: s.seat_index });
+    if (!s.user_id && !s.is_locked && !isStaff) return call("take_seat", { _room: id, _seat: s.seat_number });
     setSeatMenu(s);
   }
 
   async function openGifts(target?: string) {
-    const { data } = await supabase.from("wallets").select("coins").eq("user_id", uid).maybeSingle();
+    const { data } = await supabase.from("wallet_balances").select("coins").eq("user_id", uid).maybeSingle();
     setCoins(Number(data?.coins ?? 0));
     const others = members.filter((m) => m !== uid);
     setGiftTo(target ?? seats.find((s) => s.user_id && s.user_id !== uid)?.user_id ?? others[0] ?? null);
@@ -226,12 +219,12 @@ function RoomPage() {
           const p = s.user_id ? profiles[s.user_id] : null;
           const host = s.user_id === room.owner_id;
           return (
-            <Button variant="ghost" key={s.seat_index} aria-label={`المقعد ${s.seat_index + 1}${s.is_locked ? " مقفل" : ""}`} onClick={() => onSeat(s)} className="h-auto min-w-0 flex-col gap-1 p-0 hover:bg-transparent">
+            <Button variant="ghost" key={s.seat_number} aria-label={`المقعد ${s.seat_number + 1}${s.is_locked ? " مقفل" : ""}`} onClick={() => onSeat(s)} className="h-auto min-w-0 flex-col gap-1 p-0 hover:bg-transparent">
               <div className="relative flex h-20 w-20 items-center justify-center">
-                {p ? <UserAvatar src={p.avatar_url} name={p.display_name} vip={p.vip_level} size={72} /> : <img src={s.is_locked ? icons3d.micLocked : s.seat_index === 0 ? icons3d.micHost : icons3d.mic} alt="" className="h-20 w-20 object-contain" />}
+                {p ? <UserAvatar src={p.avatar_url} name={p.display_name} vip={p.vip_level} size={72} /> : <img src={s.is_locked ? icons3d.micLocked : s.seat_number === 0 ? icons3d.micHost : icons3d.mic} alt="" className="h-20 w-20 object-contain" />}
                 {p && <img src={s.is_muted ? icons3d.micMuted : host ? icons3d.micHost : icons3d.mic} alt={s.is_muted ? "مكتوم" : "على المقعد"} className="absolute -bottom-1 -left-1 h-7 w-7 object-contain" />}
               </div>
-              <span className="max-w-16 truncate text-xs">{p ? p.display_name : s.seat_index + 1}</span>
+              <span className="max-w-16 truncate text-xs">{p ? p.display_name : s.seat_number + 1}</span>
             </Button>
           );
         })}
@@ -259,18 +252,18 @@ function RoomPage() {
 
       <Sheet open={!!seatMenu} onOpenChange={(o) => !o && setSeatMenu(null)}>
         <SheetContent side="bottom" dir="rtl" className="rounded-t-3xl">
-          <SheetHeader><SheetTitle>المقعد {seatMenu ? seatMenu.seat_index + 1 : ""}</SheetTitle></SheetHeader>
+          <SheetHeader><SheetTitle>المقعد {seatMenu ? seatMenu.seat_number + 1 : ""}</SheetTitle></SheetHeader>
           {seatMenu && (
             <div className="grid gap-2 p-4">
-              {!seatMenu.user_id && (!seatMenu.is_locked || isStaff) && <Button onClick={() => call("take_seat", { _room: id, _seat: seatMenu.seat_index })} className="bg-gold">الجلوس هنا</Button>}
+              {!seatMenu.user_id && (!seatMenu.is_locked || isStaff) && <Button onClick={() => call("take_seat", { _room: id, _seat: seatMenu.seat_number })} className="bg-gold">الجلوس هنا</Button>}
               {seatMenu.user_id === uid && <Button variant="outline" onClick={() => call("leave_seat", { _room: id })}>مغادرة المقعد</Button>}
               {isStaff && (
                 <>
-                  <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_locked ? "unlock" : "lock" })}>{seatMenu.is_locked ? "فتح المقعد" : "قفل المقعد"}</Button>
+                  <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_number, _action: seatMenu.is_locked ? "unlock" : "lock" })}>{seatMenu.is_locked ? "فتح المقعد" : "قفل المقعد"}</Button>
                   {seatMenu.user_id && (
                     <>
-                      <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_muted ? "unmute" : "mute" })}>{seatMenu.is_muted ? "تشغيل المايك" : "كتم المايك"}</Button>
-                      {seatMenu.user_id !== uid && <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick_seat" })}>إنزال من المقعد</Button>}
+                      <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_number, _action: seatMenu.is_muted ? "unmute" : "mute" })}>{seatMenu.is_muted ? "تشغيل المايك" : "كتم المايك"}</Button>
+                      {seatMenu.user_id !== uid && <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_number, _action: "kick_seat" })}>إنزال من المقعد</Button>}
                       {seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && <Button variant="destructive" onClick={() => call("ban_user", { _room: id, _user: seatMenu.user_id })}>حظر من الغرفة</Button>}
                     </>
                   )}
