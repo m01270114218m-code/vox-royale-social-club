@@ -1,5 +1,5 @@
 {
   "appId": "com.voxroyale.app",
   "appName": "VOX ROYALE",
-  "webDir": "dist/client"
+  "webDir": ".output/public"
 }
