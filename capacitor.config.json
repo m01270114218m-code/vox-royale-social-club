@@ -1,6 +1,5 @@
 {
   "appId": "com.voxroyale.app",
   "appName": "VOX ROYALE",
-  "webDir": "dist/client",
-  "server": { "url": "https://id-preview--29567f8f-ffda-4344-9e13-e1a1c5294bb9.lovable.app", "cleartext": false }
+  "webDir": "dist/client"
 }
