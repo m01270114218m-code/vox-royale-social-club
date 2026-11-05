@@ -1,3 +1,5 @@
+import { IdentityBadges } from "@/components/IdentityBadges";
+import { icons3d } from "@/lib/assets3d";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Heart, MessageCircle, ImagePlus, Send, Trash2, Flag } from "lucide-react";
@@ -142,12 +144,11 @@ function Moments() {
         {posts.map((p) => (
           <article key={p.id} className="glass rounded-3xl p-4">
             <div className="flex items-center gap-3">
-              <Link to="/u/$id" params={{ id: p.user_id }}><UserAvatar src={p.profiles?.avatar_url} name={p.profiles?.display_name} size={44} /></Link>
+              <Link to="/u/$id" params={{ id: p.user_id }}><UserAvatar src={p.profiles?.avatar_url} name={p.profiles?.display_name} size={52} vip={p.profiles?.vip_level} /></Link>
               <div className="min-w-0 flex-1">
                 <Link to="/u/$id" params={{ id: p.user_id }} className="block truncate font-bold">{p.profiles?.display_name}</Link>
                 <div className="flex gap-1 text-[10px]">
-                  <span className="rounded-full bg-secondary px-2">Lv.{p.profiles?.level}</span>
-                  {!!p.profiles?.vip_level && <span className="bg-gold rounded-full px-2">VIP{p.profiles.vip_level}</span>}
+                  <IdentityBadges level={p.profiles?.level} vip={p.profiles?.vip_level} />
                 </div>
               </div>
               {p.user_id !== uid && !following.has(p.user_id) && <Button size="sm" variant="outline" onClick={() => follow(p.user_id)}>+ متابعة</Button>}
@@ -203,7 +204,7 @@ function Comments({ postId, onAdded }: { postId: string; onAdded: () => void }) 
       ))}
       <form onSubmit={add} className="flex gap-2">
         <Input value={text} onChange={(e) => setText(e.target.value)} maxLength={300} placeholder="اكتب تعليقاً…" />
-        <Button type="submit" size="icon" className="bg-gold"><Send className="h-4 w-4" /></Button>
+        <Button type="submit" size="icon" className="bg-gold"><img src={icons3d.send} alt="" className="h-6 w-6 object-contain" /></Button>
       </form>
     </div>
   );

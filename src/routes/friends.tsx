@@ -1,3 +1,4 @@
+import { IdentityBadges } from "@/components/IdentityBadges";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/friends")({
   ),
 });
 
-type P = { id: string; display_name: string; avatar_url: string | null; level: number };
+type P = { id: string; display_name: string; avatar_url: string | null; level: number; vip_level: number };
 const TABS = [
   { id: "friends", label: "أصدقاء" },
   { id: "followers", label: "المتابِعون" },
@@ -56,7 +57,7 @@ function Friends() {
         ids = tab === "followers" ? [...a] : tab === "following" ? [...b] : [...a].filter((x) => b.has(x));
       }
       if (!ids.length) { setList([]); return; }
-      const { data } = await supabase.from("profiles").select("id,display_name,avatar_url,level").in("id", ids);
+      const { data } = await supabase.from("profiles").select("id,display_name,avatar_url,level,vip_level").in("id", ids);
       setList(data ?? []);
     })();
   }, [tab, uid]);
@@ -73,8 +74,8 @@ function Friends() {
       <div className="space-y-1 px-4">
         {list.map((p) => (
           <Link key={p.id} to="/u/$id" params={{ id: p.id }} className="flex items-center gap-3 rounded-2xl p-2 hover:bg-secondary/40">
-            <UserAvatar src={p.avatar_url} name={p.display_name} size={48} />
-            <div><div className="font-bold">{p.display_name}</div><div className="text-xs text-muted-foreground">Lv.{p.level}</div></div>
+            <UserAvatar src={p.avatar_url} name={p.display_name} size={56} vip={p.vip_level} />
+            <div><div className="font-bold">{p.display_name}</div><IdentityBadges level={p.level} vip={p.vip_level} /></div>
           </Link>
         ))}
       </div>

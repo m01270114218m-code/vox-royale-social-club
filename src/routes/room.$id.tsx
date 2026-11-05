@@ -1,4 +1,6 @@
-import { giftImage } from "@/lib/assets3d";
+import { giftImage, icons3d, roomBackground } from "@/lib/assets3d";
+import { UserAvatar, MediaImage } from "@/components/UserAvatar";
+import { IdentityBadges } from "@/components/IdentityBadges";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Crown, Gift, Settings } from "lucide-react";
@@ -58,7 +60,7 @@ function RoomPage() {
   const [anim, setAnim] = useState<{ key: number; emoji: string } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const chatEnd = useRef<HTMLDivElement>(null);
-  const uid = user!.id;
+   const uid = user?.id ?? "";
   const isOwner = room?.owner_id === uid;
   const isStaff = isOwner || isMod;
 
@@ -200,22 +202,21 @@ function RoomPage() {
   const cols = room.seat_count <= 4 ? "grid-cols-4" : room.seat_count === 6 || room.seat_count === 9 ? "grid-cols-3" : "grid-cols-4";
 
   return (
-    <div className="mx-auto flex h-screen max-w-2xl flex-col">
+    <div className="room-scene mx-auto flex h-dvh max-w-2xl flex-col">
+      <MediaImage src={room.cover_url || roomBackground(room.category)} className="room-scenery" />
       <header className="glass m-3 flex items-center gap-3 rounded-2xl p-3">
-        <button onClick={() => nav({ to: "/" })} aria-label="رجوع"><ArrowRight /></button>
+        <Button variant="ghost" size="icon" onClick={() => nav({ to: "/" })} aria-label="رجوع" title="رجوع"><img src={icons3d.back} alt="" className="h-7 w-7 rotate-180 object-contain" /></Button>
         <div className="min-w-0 flex-1">
           <div className="truncate font-bold">{flagOf(room.country)} {room.name}</div>
           <div className="text-xs text-muted-foreground">#{room.room_no} · {catName(room.category)}</div>
         </div>
-        <button onClick={() => setShowMembers(true)} className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-sm"><Users className="h-4 w-4" />{members.length}</button>
-        <button onClick={share} aria-label="مشاركة"><Share2 className="h-5 w-5" /></button>
+        <Button variant="secondary" size="sm" onClick={() => setShowMembers(true)} className="gap-1 rounded-full px-2"><img src={icons3d.friends} alt="" className="h-5 w-5 object-contain" />{members.length}</Button>
+        <Button variant="ghost" size="icon" onClick={share} aria-label="مشاركة" title="مشاركة"><img src={icons3d.share} alt="" className="h-6 w-6 object-contain" /></Button>
         {isOwner && (
-          <button aria-label="إعدادات الغرفة" onClick={() => setSettingsOpen(true)}><Settings className="h-5 w-5" /></button>
+          <Button variant="ghost" size="icon" aria-label="إعدادات الغرفة" title="إعدادات الغرفة" onClick={() => setSettingsOpen(true)}><img src={icons3d.gear} alt="" className="h-6 w-6 object-contain" /></Button>
         )}
         {isOwner && (
-          <button aria-label="حذف الغرفة" onClick={async () => { if (confirm("حذف الغرفة نهائياً؟")) { const { error } = await supabase.rpc("delete_room", { _room: id }); if (error) toast.error(errMsg(error)); else nav({ to: "/" }); } }}>
-            <Trash2 className="h-5 w-5 text-destructive" />
-          </button>
+          <Button variant="ghost" size="icon" aria-label="حذف الغرفة" title="حذف الغرفة" onClick={async () => { if (confirm("حذف الغرفة نهائياً؟")) { const { error } = await supabase.rpc("delete_room", { _room: id }); if (error) toast.error(errMsg(error)); else nav({ to: "/" }); } }}><img src={icons3d.trash} alt="" className="h-6 w-6 object-contain" /></Button>
         )}
       </header>
       {isOwner && <RoomSettings room={room} uid={uid} open={settingsOpen} onOpenChange={setSettingsOpen} onSaved={(r) => setRoom({ ...room, ...r })} />}
@@ -225,16 +226,13 @@ function RoomPage() {
           const p = s.user_id ? profiles[s.user_id] : null;
           const host = s.user_id === room.owner_id;
           return (
-            <button key={s.seat_index} onClick={() => onSeat(s)} className="flex flex-col items-center gap-1">
-              <div className={`relative flex h-16 w-16 items-center justify-center rounded-full ${p ? "bg-gold" : "glass"} ${p && !s.is_muted ? "speaking" : ""}`}>
-                {p ? (
-                  p.avatar_url ? <img src={p.avatar_url} alt="" className="h-[58px] w-[58px] rounded-full object-cover" /> : <span className="text-xl font-bold">{p.display_name.slice(0, 1)}</span>
-                ) : s.is_locked ? <Lock className="h-6 w-6 text-muted-foreground" /> : <Mic className="h-6 w-6 text-muted-foreground" />}
-                {p && s.is_muted && <MicOff className="absolute -bottom-1 -left-1 h-5 w-5 rounded-full bg-destructive p-0.5" />}
-                {host && <Crown className="absolute -top-2 h-5 w-5 text-primary" />}
+            <Button variant="ghost" key={s.seat_index} aria-label={`المقعد ${s.seat_index + 1}${s.is_locked ? " مقفل" : ""}`} onClick={() => onSeat(s)} className="h-auto min-w-0 flex-col gap-1 p-0 hover:bg-transparent">
+              <div className="relative flex h-20 w-20 items-center justify-center">
+                {p ? <UserAvatar src={p.avatar_url} name={p.display_name} vip={p.vip_level} size={72} /> : <img src={s.is_locked ? icons3d.micLocked : s.seat_index === 0 ? icons3d.micHost : icons3d.mic} alt="" className="h-20 w-20 object-contain" />}
+                {p && <img src={s.is_muted ? icons3d.micMuted : host ? icons3d.micHost : icons3d.mic} alt={s.is_muted ? "مكتوم" : "على المقعد"} className="absolute -bottom-1 -left-1 h-7 w-7 object-contain" />}
               </div>
               <span className="max-w-16 truncate text-xs">{p ? p.display_name : s.seat_index + 1}</span>
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -252,13 +250,11 @@ function RoomPage() {
 
       <form onSubmit={send} className="glass m-3 flex items-center gap-2 rounded-full p-2">
         {mySeat && (
-          <button type="button" onClick={() => call("toggle_my_mute", { _room: id })} className={`rounded-full p-2 ${mySeat.is_muted ? "bg-destructive" : "bg-gold"}`} aria-label="المايك">
-            {mySeat.is_muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-          </button>
+          <Button type="button" variant="ghost" size="icon" onClick={() => call("toggle_my_mute", { _room: id })} aria-label="المايك" title="المايك"><img src={mySeat.is_muted ? icons3d.micMuted : icons3d.mic} alt="" className="h-8 w-8 object-contain" /></Button>
         )}
-        <button type="button" onClick={() => openGifts()} className="rounded-full bg-accent p-2 text-accent-foreground" aria-label="هدية"><Gift className="h-5 w-5" /></button>
+        <Button type="button" variant="ghost" size="icon" onClick={() => openGifts()} aria-label="هدية" title="هدية"><img src={icons3d.giftbox} alt="" className="h-8 w-8 object-contain" /></Button>
         <Input value={text} onChange={(e) => setText(e.target.value)} maxLength={500} placeholder="اكتب رسالة…" className="border-0 bg-transparent" />
-        <Button type="submit" size="icon" className="rounded-full bg-gold"><Send className="h-4 w-4" /></Button>
+        <Button type="submit" size="icon" aria-label="إرسال" title="إرسال" className="rounded-full bg-gold"><img src={icons3d.send} alt="" className="h-7 w-7 object-contain" /></Button>
       </form>
 
       <Sheet open={!!seatMenu} onOpenChange={(o) => !o && setSeatMenu(null)}>
@@ -280,8 +276,8 @@ function RoomPage() {
                   )}
                 </>
               )}
-              {seatMenu.user_id && seatMenu.user_id !== uid && <Button onClick={() => openGifts(seatMenu.user_id!)} className="bg-accent text-accent-foreground">🎁 إرسال هدية</Button>}
-              {seatMenu.user_id && seatMenu.user_id !== uid && !isStaff && <p className="text-center text-sm text-muted-foreground">{profiles[seatMenu.user_id]?.display_name} · مستوى {profiles[seatMenu.user_id]?.level}</p>}
+               {seatMenu.user_id && seatMenu.user_id !== uid && <Button onClick={() => { if (seatMenu.user_id) openGifts(seatMenu.user_id); }} className="bg-accent text-accent-foreground"><img src={icons3d.giftbox} alt="" className="h-6 w-6 object-contain" /> إرسال هدية</Button>}
+               {seatMenu.user_id && <IdentityBadges level={profiles[seatMenu.user_id]?.level} vip={profiles[seatMenu.user_id]?.vip_level} />}
             </div>
           )}
         </SheetContent>
@@ -301,15 +297,15 @@ function RoomPage() {
             </select>
             <div className="grid grid-cols-4 gap-2">
               {gifts.map((g) => (
-                <button key={g.id} onClick={() => setGiftSel(g)} className={`flex flex-col items-center rounded-2xl p-2 ${giftSel?.id === g.id ? "bg-secondary ring-2 ring-primary" : "glass"}`}>
-                  <img src={giftImage(g.name, g.emoji)} alt={g.name} className="h-12 w-12 object-contain drop-shadow-lg" />
+                <Button variant="ghost" key={g.id} onClick={() => setGiftSel(g)} className={`h-auto flex-col gap-1 rounded-xl p-2 ${giftSel?.id === g.id ? "bg-secondary ring-2 ring-primary" : "glass"}`}>
+                  <img src={giftImage(g.name, g.emoji)} alt={g.name} className="h-16 w-16 object-contain" />
                   <span className="text-xs">{g.name}</span>
                   <span className="text-xs text-primary">🪙{g.price}</span>
-                </button>
+                </Button>
               ))}
             </div>
             <div className="flex items-center gap-2">
-              {[1, 10, 99].map((n) => <button key={n} onClick={() => setQty(n)} className={`rounded-full px-3 py-1 text-sm ${qty === n ? "bg-gold" : "glass"}`}>x{n}</button>)}
+              {[1, 10, 99].map((n) => <Button variant="ghost" size="sm" key={n} onClick={() => setQty(n)} className={`rounded-full ${qty === n ? "bg-gold" : "glass"}`}>x{n}</Button>)}
               <Button disabled={!giftSel || !giftTo} onClick={sendGift} className="mr-auto bg-gold font-bold">إرسال {giftSel ? `(${giftSel.price * qty})` : ""}</Button>
             </div>
           </div>
@@ -322,7 +318,7 @@ function RoomPage() {
           <div className="space-y-2 p-4">
             {members.map((m) => (
               <div key={m} className="flex items-center justify-between rounded-xl bg-secondary/50 p-2">
-                <span>{profiles[m]?.display_name ?? "…"} {m === room.owner_id && "👑"}</span>
+                <div className="flex items-center gap-2"><UserAvatar src={profiles[m]?.avatar_url} name={profiles[m]?.display_name} vip={profiles[m]?.vip_level} size={44} /><div><span>{profiles[m]?.display_name ?? "…"}</span><IdentityBadges level={profiles[m]?.level} vip={profiles[m]?.vip_level} /></div></div>
                 {isStaff && m !== uid && m !== room.owner_id && <Button size="sm" variant="destructive" onClick={() => call("ban_user", { _room: id, _user: m })}>حظر</Button>}
               </div>
             ))}

@@ -7,6 +7,7 @@ import { CATEGORIES, errMsg } from "@/lib/vox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { roomThemes, roomBackground } from "@/lib/assets3d";
 
 export type EditableRoom = { id: string; name: string; description: string | null; category: string; is_private?: boolean; cover_url?: string | null };
 
@@ -48,15 +49,18 @@ export function RoomSettings({ room, uid, open, onOpenChange, onSaved }: { room:
         <SheetHeader><SheetTitle>إعدادات الغرفة</SheetTitle></SheetHeader>
         <div className="space-y-3 p-4">
           <label className="card-3d relative flex h-32 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-secondary">
-            {coverUrl ? <img src={coverUrl} alt="غلاف الغرفة" className="h-full w-full object-cover" /> : <ImagePlus className="h-8 w-8 text-muted-foreground" />}
+            <img src={coverUrl || roomBackground(cat)} alt="غلاف الغرفة" className="h-full w-full object-cover" />
             <span className="absolute bottom-2 rounded-full bg-background/70 px-3 py-1 text-xs">تغيير صورة الغرفة</span>
             <input type="file" accept="image/*" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
           </label>
+          <div className="grid grid-cols-4 gap-2">
+            {roomThemes.map((theme) => <Button key={theme.id} variant="ghost" title={theme.name} aria-label={theme.name} aria-pressed={cover === theme.image} onClick={() => setCover(theme.image)} className={`h-auto flex-col gap-1 p-1 ${cover === theme.image ? "ring-2 ring-primary" : ""}`}><img src={theme.image} alt="" className="aspect-square w-full rounded-md object-cover" /><span className="text-[10px]">{theme.name}</span></Button>)}
+          </div>
           <Input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} placeholder="اسم الغرفة" />
           <Input value={desc} maxLength={200} onChange={(e) => setDesc(e.target.value)} placeholder="وصف / إعلان الغرفة" />
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map((c) => (
-              <button key={c.id} onClick={() => setCat(c.id)} className={`rounded-full px-3 py-1 text-sm ${cat === c.id ? "bg-gold" : "bg-secondary"}`}>{c.name}</button>
+              <Button variant="secondary" size="sm" key={c.id} onClick={() => setCat(c.id)} className={`rounded-full ${cat === c.id ? "bg-gold" : "bg-secondary"}`}>{c.name}</Button>
             ))}
           </div>
           <label className="flex items-center justify-between rounded-2xl bg-secondary/50 p-3 text-sm">
