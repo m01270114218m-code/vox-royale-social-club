@@ -57,10 +57,12 @@ function RoomPage() {
   const [giftSel, setGiftSel] = useState<GiftT | null>(null);
   const [coins, setCoins] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [adminRoomCover, setAdminRoomCover] = useState<string | null>(null);
   const chatEnd = useRef<HTMLDivElement>(null);
    const uid = user?.id ?? "";
   const isOwner = room?.owner_id === uid;
   const isStaff = isOwner || isMod;
+  useEffect(() => { if (!room?.category) return; supabase.from("admin_assets").select("url").eq("asset_key", `room-background-${room.category}`).eq("is_active", true).maybeSingle().then(({ data }) => setAdminRoomCover(data?.url ?? null)); }, [room?.category]);
 
   const ensureProfiles = useCallback(async (ids: string[]) => {
     const missing = ids.filter((x) => x && !profiles[x]);
@@ -193,7 +195,7 @@ function RoomPage() {
 
   return (
     <div className="room-scene mx-auto flex h-dvh max-w-2xl flex-col">
-      <MediaImage src={room.cover_url || roomBackground(room.category)} className="room-scenery" />
+      <MediaImage src={room.cover_url || adminRoomCover || roomBackground(room.category)} className="room-scenery" />
       <header className="glass m-3 flex items-center gap-3 rounded-2xl p-3">
         <Button variant="ghost" size="icon" onClick={() => nav({ to: "/" })} aria-label="رجوع" title="رجوع"><img src={icons3d.back} alt="" className="h-7 w-7 rotate-180 object-contain" /></Button>
         <div className="min-w-0 flex-1">
