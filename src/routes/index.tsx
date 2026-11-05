@@ -163,7 +163,7 @@ function CreateRoom() {
           <div>
             <div className="mb-1 text-sm text-muted-foreground">عدد المقاعد</div>
             <div className="flex flex-wrap gap-2">
-              {SEAT_OPTIONS.map((n) => (
+              {SEAT_OPTIONS.filter((n) => n <= 8).map((n) => (
                 <button type="button" key={n} onClick={() => setSeats(n)} className={`h-10 w-12 rounded-xl font-bold ${seats === n ? "bg-gold" : "glass"}`}>{n}</button>
               ))}
             </div>
