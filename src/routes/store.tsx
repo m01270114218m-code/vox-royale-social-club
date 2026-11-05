@@ -1,3 +1,5 @@
+import { icons3d, avatarFrame, vipBadge } from "@/lib/assets3d";
+import { UserAvatar } from "@/components/UserAvatar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -67,7 +69,7 @@ function StorePage() {
       <PageHeader title="المتجر وVIP" back />
       <div className="space-y-5 px-4">
         <div className="card-3d glass flex items-center justify-between rounded-3xl p-4">
-          <div className="flex items-center gap-2"><Coins className="text-primary" /><b className="text-xl">{coins.toLocaleString()}</b> عملة</div>
+          <div className="flex items-center gap-2"><img src={icons3d.coin} alt="" className="h-12 w-12 object-contain" /><b className="text-xl">{coins.toLocaleString()}</b> عملة</div>
           <span className="rounded-full bg-gold px-3 py-1 text-sm font-bold">VIP {vip}</span>
         </div>
         <section>
@@ -75,11 +77,12 @@ function StorePage() {
           <div className="grid grid-cols-2 gap-3">
             {VIP.map((v) => (
               <div key={v.lv} className={`card-3d glass rounded-3xl p-4 text-center ${vip >= v.lv ? "ring-2 ring-primary" : ""}`}>
-                <Crown className="mx-auto h-10 w-10 text-primary" />
+                <img src={vipBadge(v.lv)} alt={`وسام VIP ${v.lv}`} className="mx-auto h-24 w-24 object-contain" width={96} height={96} />
+                <div className="mx-auto mb-2 w-fit"><UserAvatar size={76} vip={v.lv} name={`إطار VIP ${v.lv}`} /></div>
                 <div className="font-display text-gold text-2xl">VIP {v.lv}</div>
                 <p className="min-h-10 text-xs text-muted-foreground">{v.perks}</p>
                 <Button size="sm" className="mt-2 w-full bg-gold" disabled={vip >= v.lv} onClick={() => buy(v.lv)}>
-                  {vip >= v.lv ? "مفعّل" : `🪙 ${v.price.toLocaleString()}`}
+                  {vip >= v.lv ? "مفعّل" : <><img src={icons3d.coin} alt="" className="h-5 w-5 object-contain" />{v.price.toLocaleString()}</>}
                 </Button>
               </div>
             ))}
@@ -90,7 +93,7 @@ function StorePage() {
           <div className="grid grid-cols-2 gap-3">
             {PACKS.map((p) => (
               <div key={p.coins} className="card-3d glass rounded-3xl p-4 text-center">
-                <div className="text-2xl">🪙</div>
+                <img src={icons3d.chest} alt="" className="mx-auto h-20 w-20 object-contain" />
                 <b>{p.coins.toLocaleString()}</b>
                 <div className="text-sm text-muted-foreground">{p.price}</div>
                 <Button size="sm" variant="outline" className="mt-2 w-full" onClick={() => toast("الدفع الإلكتروني غير مفعّل بعد — تواصل مع الإدارة للشحن")}>شحن</Button>

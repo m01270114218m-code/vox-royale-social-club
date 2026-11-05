@@ -1,3 +1,4 @@
+import { icons3d, roomBackground } from "@/lib/assets3d";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Users, Lock, Bell } from "lucide-react";
@@ -56,12 +57,12 @@ function Home() {
       <header className="mb-4 flex items-center justify-between">
         <h1 className="font-display text-gold text-3xl">VOX ROYALE</h1>
         <div className="flex items-center gap-2">
-          <Link to="/notifications" aria-label="الإشعارات" className="glass rounded-full p-2"><Bell className="h-5 w-5" /></Link>
+          <Link to="/notifications" aria-label="الإشعارات" className="glass rounded-full p-2"><img src={icons3d.bell} alt="" className="h-7 w-7 object-contain" /></Link>
           <CreateRoom />
         </div>
       </header>
       <div className="relative mb-4">
-        <Search className="absolute right-3 top-2.5 h-5 w-5 text-muted-foreground" />
+        <img src={icons3d.search} alt="" className="absolute right-3 top-1.5 h-7 w-7 object-contain" />
         <Input className="pr-10" placeholder="ابحث باسم الغرفة أو رقمها" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       <div className="mb-3 flex gap-2">
@@ -89,10 +90,10 @@ function Home() {
         <div className="grid grid-cols-2 gap-3">
           {list.map((r) => (
             <Link key={r.id} to="/room/$id" params={{ id: r.id }} className="card-3d glass group relative aspect-[3/4] overflow-hidden rounded-3xl p-3">
-              {r.cover_url ? <><MediaImage src={r.cover_url} className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" /></> : <div className="absolute inset-0 bg-royal opacity-80" />}
+              <MediaImage src={r.cover_url || roomBackground(r.category)} className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
               <div className="relative flex h-full flex-col justify-between">
                 <span className="w-fit rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">{catName(r.category)}</span>
-                {r.cover_url ? <div /> : <div className="font-display text-6xl text-center text-gold opacity-80">{r.name.slice(0, 1)}</div>}
+                <div />
                 <div>
                   <div className="flex items-center gap-1 font-bold">
                     {flagOf(r.country)} <span className="truncate">{r.name}</span> {r.is_private && <Lock className="h-3 w-3" />}
@@ -144,7 +145,7 @@ function CreateRoom() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="bg-gold rounded-full font-bold shadow-gold"><Plus className="h-4 w-4" /> غرفة</Button>
+        <Button size="sm" className="bg-gold rounded-full font-bold shadow-gold"><img src={icons3d.plus} alt="" className="h-6 w-6 object-contain" /> غرفة</Button>
       </DialogTrigger>
       <DialogContent dir="rtl">
         <DialogHeader><DialogTitle className="font-display text-gold">إنشاء غرفة</DialogTitle></DialogHeader>

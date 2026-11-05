@@ -1,3 +1,4 @@
+import { IdentityBadges } from "@/components/IdentityBadges";
 import { icons3d } from "@/lib/assets3d";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { uploadImage } from "@/lib/media";
@@ -98,19 +99,19 @@ function ProfilePage() {
       <div className="glass relative overflow-hidden rounded-3xl p-6 text-center">
         <div className="absolute inset-x-0 top-0 h-24 bg-royal" />
         <label className="relative mx-auto block w-fit cursor-pointer">
-          <UserAvatar src={shown.avatar_url} name={shown.display_name} size={96} ring />
+          <UserAvatar src={shown.avatar_url} name={shown.display_name} size={112} ring vip={p.vip_level} />
           <span className="absolute bottom-0 left-0 rounded-full bg-gold p-1.5"><Camera className="h-4 w-4" /></span>
           <input type="file" accept="image/*" className="hidden" onChange={(e) => changeAvatar(e.target.files?.[0])} />
         </label>
         <h2 className="mt-3 text-2xl font-bold">{flagOf(shown.country)} {shown.display_name}</h2>
-        <div className="text-sm text-muted-foreground">ID: {p.display_no} · مستوى {p.level}{p.vip_level ? ` · VIP ${p.vip_level}` : ""}</div>
-        <p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
+        <div className="text-sm text-muted-foreground">ID: {p.display_no}</div>
+        <IdentityBadges level={p.level} vip={p.vip_level} /><p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
         {editing && <div className="mt-2 text-xs text-primary">معاينة — لم يتم الحفظ بعد</div>}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="glass flex items-center gap-3 rounded-2xl p-4"><Coins className="text-primary" /><div><div className="text-xl font-bold">{wallet.coins}</div><div className="text-xs text-muted-foreground">عملات ذهبية</div></div></div>
-        <div className="glass flex items-center gap-3 rounded-2xl p-4"><Gem className="text-accent" /><div><div className="text-xl font-bold">{wallet.diamonds}</div><div className="text-xs text-muted-foreground">ماسات</div></div></div>
+        <div className="glass flex items-center gap-3 rounded-2xl p-4"><img src={icons3d.coin} alt="" className="h-12 w-12 object-contain" /><div><div className="text-xl font-bold">{wallet.coins}</div><div className="text-xs text-muted-foreground">عملات ذهبية</div></div></div>
+        <div className="glass flex items-center gap-3 rounded-2xl p-4"><img src={icons3d.diamond} alt="" className="h-12 w-12 object-contain" /><div><div className="text-xl font-bold">{wallet.diamonds}</div><div className="text-xs text-muted-foreground">ماسات</div></div></div>
       </div>
 
       {editing && draft ? (
@@ -131,10 +132,10 @@ function ProfilePage() {
             {([
               ["/store", "المتجر", icons3d.store],
               ["/store", "VIP", icons3d.vip],
-              ["/families", "العائلة", icons3d.friends],
-              ["/friends", "الأصدقاء", icons3d.heart],
+              ["/families", "العائلة", icons3d.family],
+              ["/friends", "الأصدقاء", icons3d.friends],
               ["/notifications", "الإشعارات", icons3d.bell],
-              ["/help", "الدعم", icons3d.agency],
+              ["/help", "الدعم", icons3d.support],
               ["/admin", "لوحة التحكم", icons3d.gear],
             ] as const).map(([to, label, icon], i) => (
               <Link key={i} to={to} className="card-3d glass flex flex-col items-center gap-1 rounded-2xl p-3 text-xs">
@@ -142,8 +143,8 @@ function ProfilePage() {
               </Link>
             ))}
           </div>
-          <Button variant="outline" onClick={() => { setDraft(p); setEditing(true); }}><Pencil className="h-4 w-4" /> تعديل الملف</Button>
-          <Button onClick={daily} className="bg-gold font-bold">🎁 مكافأة يومية +200</Button>
+          <Button variant="outline" onClick={() => { setDraft(p); setEditing(true); }}><img src={icons3d.gear} alt="" className="h-6 w-6 object-contain" /> تعديل الملف</Button>
+          <Button onClick={daily} className="bg-gold font-bold"><img src={icons3d.giftbox} alt="" className="h-7 w-7 object-contain" /> مكافأة يومية +200</Button>
           {isGuest && (
             <div className="glass space-y-2 rounded-2xl p-3 text-sm">
               <p className="text-primary">أنت تستخدم حساب الجهاز السريع. اربط بريدك حتى لا تفقد حسابك.</p>
@@ -160,7 +161,7 @@ function ProfilePage() {
               await supabase.auth.signOut();
             }
             nav({ to: "/auth" });
-          }}><LogOut className="h-4 w-4" /> تسجيل الخروج</Button>
+          }}><img src={icons3d.logout} alt="" className="h-6 w-6 object-contain" /> تسجيل الخروج</Button>
         </div>
       )}
       {!editing && (

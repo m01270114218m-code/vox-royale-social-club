@@ -1,3 +1,4 @@
+import { IdentityBadges } from "@/components/IdentityBadges";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { MessageCircle, Flag, Ban, UserPlus, UserCheck } from "lucide-react";
@@ -93,10 +94,10 @@ function UserPage() {
     <div>
       <PageHeader title="الملف الشخصي" back />
       <div className="glass mx-4 rounded-3xl p-6 text-center">
-        <div className="mx-auto w-fit"><UserAvatar src={p.avatar_url} name={p.display_name} size={96} ring /></div>
+        <div className="mx-auto w-fit"><UserAvatar src={p.avatar_url} name={p.display_name} size={112} ring vip={p.vip_level} /></div>
         <h2 className="mt-3 text-2xl font-bold">{flagOf(p.country)} {p.display_name}</h2>
-        <div className="text-sm text-muted-foreground">ID: {p.display_no} · Lv.{p.level}{p.vip_level ? ` · VIP ${p.vip_level}` : ""}</div>
-        <p className="mt-2 text-sm">{p.bio || "لا توجد نبذة"}</p>
+        <div className="text-sm text-muted-foreground">ID: {p.display_no}</div>
+        <IdentityBadges level={p.level} vip={p.vip_level} /><p className="mt-2 text-sm">{p.bio || "لا توجد نبذة"}</p>
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
           <div><div className="text-xl font-bold">{stats.followers}</div><div className="text-xs text-muted-foreground">المتابِعون</div></div>
           <div><div className="text-xl font-bold">{stats.following}</div><div className="text-xs text-muted-foreground">يتابع</div></div>
