@@ -8,7 +8,8 @@ import {
   UserCog, Ban, Eye, Plus, X
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase, type Json } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { RequireAuth } from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
