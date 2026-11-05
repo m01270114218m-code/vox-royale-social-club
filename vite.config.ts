@@ -1,20 +1,22 @@
-// TanStack Start configuration shared with the project's Vite preset.
-// Android/Capacitor needs a real static HTML shell, so enable SPA mode and
-// emit the shell as the root index.html inside .output/public.
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { defineConfig } from "vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import viteReact from "@vitejs/plugin-react";
 
 export default defineConfig({
-  tanstackStart: {
-    spa: {
-      enabled: true,
-      prerender: {
-        outputPath: "/index.html",
-        crawlLinks: false,
-        retryCount: 2,
+  plugins: [
+    tanstackStart({
+      spa: {
+        enabled: true,
+        prerender: {
+          outputPath: "/index.html",
+          crawlLinks: false,
+          retryCount: 2,
+        },
       },
-    },
-    server: {
-      entry: "server",
-    },
-  },
+      server: {
+        entry: "server",
+      },
+    }),
+    viteReact(),
+  ],
 });
