@@ -25,6 +25,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm install
+      - uses: actions/configure-pages@v5
       - run: npm run admin:build
       - uses: actions/upload-pages-artifact@v3
         with:
