@@ -34,7 +34,7 @@ const mountCount: Record<string, number> = {};
 
 type Profile = { id: string; display_name: string; avatar_url: string | null; level: number; vip_level: number };
 type Seat = { seat_number: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
-type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
+type Msg = { id: string; user_id: string; body: string; created_at: string };
 type GiftT = { id: string; name: string; emoji: string; price: number; tier: string };
 type Room = { id: string; room_no: number; owner_id: string; name: string; description: string | null; category: string; country: string; seat_count: number; is_private?: boolean; cover_url?: string | null };
 
@@ -230,7 +230,7 @@ function RoomPage() {
       <div className="flex-1 space-y-2 overflow-y-auto px-4">
         <div className="rounded-xl bg-secondary/60 p-2 text-xs text-primary">📢 مرحباً بك في {room.name}. {room.description}</div>
         {msgs.map((m) => (
-          <div key={m.id} className={`w-fit max-w-[85%] rounded-2xl px-3 py-1.5 text-sm ${m.kind === "gift" ? "bg-gold font-bold" : "glass"}`}>
+          <div key={m.id} className={`w-fit max-w-[85%] rounded-2xl px-3 py-1.5 text-sm glass`}>
             <span className="font-bold text-primary">{profiles[m.user_id]?.display_name ?? "…"}: </span>
             {m.body}
           </div>
