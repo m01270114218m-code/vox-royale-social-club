@@ -10,3 +10,6 @@
 - [x] Separate admin Android app (admin-app/)
 - [ ] Quick login restores same guest account after sign-out
 - [ ] Dedicated 3D frames, VIP/level badges, microphone states, room backgrounds, gifts and controls wired into the app
+- [ ] Rename the app to ارحب شات and refresh sign-in and remaining screens with matching 3D controls
+- [ ] Remove Lovable badge where project settings permit
+- [ ] Review admin-only access, role assignment and real room moderation; establish the intended admin account securely
