@@ -1,0 +1,31 @@
+name: Validate VOX external admin panel
+on:
+  push:
+    branches: [feature/complete-admin-android]
+    paths:
+      - "admin-app/**"
+      - ".github/workflows/admin-panel-check.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check JavaScript syntax
+        run: node --check admin-app/app.js
+      - name: Validate required admin files
+        run: |
+          test -s admin-app/index.html
+          test -s admin-app/app.js
+          test -s admin-app/styles.css
+          test -s admin-app/config.js
+      - name: Upload standalone dashboard source
+        uses: actions/upload-artifact@v4
+        with:
+          name: vox-royale-external-admin-panel
+          path: admin-app/
