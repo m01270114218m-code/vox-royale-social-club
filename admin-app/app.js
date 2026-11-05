@@ -21,7 +21,7 @@ const datasets={
  settings:[["admin_settings","إعدادات التطبيق"]],
  audit:[["admin_audit_log","سجل التدقيق"]]
 };
-const readOnly=new Set(["wallet_transactions","admin_audit_log"]);
+const readOnly=new Set(["wallet_balances","wallet_transactions","admin_audit_log"]);
 let currentUser=null,currentSection="dashboard",currentTable=null,currentRows=[],editing=null;
 function notice(msg){const el=$("#notice");el.textContent=msg;el.classList.remove("hidden");setTimeout(()=>el.classList.add("hidden"),5000)}
 function showLogin(msg=""){ $("#app").classList.add("hidden");$("#login").classList.remove("hidden");$("#login-error").textContent=msg}
@@ -43,7 +43,7 @@ db.auth.onAuthStateChange(async(_event,session)=>{if(session?.user&&!currentUser
 function renderNav(){ $("#nav").innerHTML=sections.map(([id,label,icon])=>`<button class="nav-btn ${id===currentSection?"active":""}" data-section="${id}"><span>${icon}</span>　${label}</button>`).join("");$("#nav").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>openSection(b.dataset.section)))}
 async function count(table){const {count,error}=await db.from(table).select("*",{count:"exact",head:true});if(error)throw error;return count||0}
 async function dashboard(){
- const items=[["المستخدمون","profiles"],["الغرف","rooms"],["المقاعد المشغولة","room_seats"],["الهدايا","gifts"],["مستويات VIP","vip_tiers"],["البلاغات","admin_reports"],["الأصول","admin_assets"],["الإشعارات","user_notifications"]];
+ const items=[["المستخدمون","profiles"],["الغرف","rooms"],["المقاعد","room_seats"],["الهدايا","gifts"],["مستويات VIP","vip_tiers"],["البلاغات","admin_reports"],["الأصول","admin_assets"],["الإشعارات","user_notifications"]];
  const values=await Promise.all(items.map(async([label,table])=>[label,await count(table)]));
  $("#content").innerHTML=`<div class="stats">${values.map(([label,n])=>`<article class="stat"><b>${Number(n).toLocaleString("ar-EG")}</b><span>${label}</span></article>`).join("")}</div><div class="panel" style="margin-top:16px"><h3>حالة الاتصال</h3><p class="muted">اتصال Supabase نشط. جميع التعديلات تخضع لسياسات RLS وصلاحية المشرف على الخادم.</p><p class="hint">قاعدة البيانات: ${esc(new URL(SUPABASE_URL).hostname)} · الدور: ${esc((await verifyAdmin())||"غير معروف")}</p></div>`;
 }
