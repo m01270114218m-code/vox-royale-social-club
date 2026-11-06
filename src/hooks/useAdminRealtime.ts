@@ -13,10 +13,21 @@ export function useAdminRealtime(tables: readonly string[], onChange: () => void
   useEffect(() => {
     if (!tableKey) return;
     const channel = supabase.channel("admin-live:" + tableKey);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        callback.current();
+      }, 180);
+    };
     tableKey.split(",").forEach((table) => {
-      channel.on("postgres_changes", { event: "*", schema: "public", table }, () => callback.current());
+      channel.on("postgres_changes", { event: "*", schema: "public", table }, schedule);
     });
     channel.subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    return () => {
+      if (timer) clearTimeout(timer);
+      void supabase.removeChannel(channel);
+    };
   }, [tableKey]);
 }
