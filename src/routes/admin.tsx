@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText, Image as ImageIcon, Box, Upload, Search, Power, RefreshCw, File as FileIcon, Armchair, PanelsTopLeft, Settings, BarChart3, ShieldCheck, ExternalLink } from "lucide-react";
-import { AdminRolesTab, AnalyticsTab, BannersTab, NotificationsTab, SeatsTab, SettingsTab } from "@/components/admin/AdminExtendedTabs";
+import { AdminRolesTab, AnalyticsTab, AppBuilderTab, BannersTab, NotificationsTab, SeatsTab, SettingsTab } from "@/components/admin/AdminExtendedTabs";
 import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 import { supabase } from "@/integrations/supabase/client";
 import { RequireAuth } from "@/components/AppShell";
@@ -48,7 +48,7 @@ function FullAdminPanel() {
   );
 }
 
-type Tab = "reports" | "rooms" | "seats" | "posts" | "users" | "wallet" | "gifts" | "vip" | "store" | "assets" | "banners" | "notifications" | "roles" | "settings" | "analytics" | "audit";
+type Tab = "reports" | "rooms" | "seats" | "posts" | "users" | "wallet" | "gifts" | "vip" | "store" | "assets" | "banners" | "notifications" | "roles" | "settings" | "app_builder" | "analytics" | "audit";
 const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
 
 function AdminPage() {
@@ -118,6 +118,7 @@ function AdminPage() {
     { id: "notifications", label: "الإشعارات", icon: Bell },
     { id: "roles", label: "صلاحيات الإدارة", icon: ShieldCheck },
     { id: "settings", label: "الإعدادات", icon: Settings },
+    { id: "app_builder", label: "تطوير التطبيق", icon: PanelsTopLeft },
     { id: "analytics", label: "التحليلات", icon: BarChart3 },
     { id: "audit", label: "سجل الإجراءات", icon: ScrollText },
   ];
@@ -181,6 +182,7 @@ function AdminPage() {
         {tab === "notifications" && <NotificationsTab />}
         {tab === "roles" && <AdminRolesTab isSuper={isSuper} />}
         {tab === "settings" && <SettingsTab />}
+        {tab === "app_builder" && <AppBuilderTab />}
         {tab === "analytics" && <AnalyticsTab />}
         {tab === "audit" && <AuditTab />}
       </div>
