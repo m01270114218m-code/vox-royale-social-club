@@ -893,6 +893,27 @@ export type Database = {
           },
         ]
       }
+      vip_tiers: {
+        Row: {
+          duration_days: number
+          level: number
+          name: string
+          price_coins: number
+        }
+        Insert: {
+          duration_days?: number
+          level: number
+          name: string
+          price_coins: number
+        }
+        Update: {
+          duration_days?: number
+          level?: number
+          name?: string
+          price_coins?: number
+        }
+        Relationships: []
+      }
       store_items: {
         Row: {
           asset_key: string
