@@ -32,16 +32,19 @@ function AuthPage() {
   const [bannerTitle, setBannerTitle] = useState("");
   const [bannerUrl, setBannerUrl] = useState<string | null>(null);
   const [showBanner, setShowBanner] = useState(false);
+  const [authMethods, setAuthMethods] = useState({ email_enabled: true, quick_enabled: true, google_enabled: true });
 
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     async function loadPublicBranding() {
-      const { data, error } = await supabase.from("admin_settings").select("key,value").in("key", ["app_branding", "home_banner"]);
+      const { data, error } = await supabase.from("admin_settings").select("key,value").in("key", ["app_branding", "home_banner", "auth_methods"]);
       if (error || !alive) return;
       const settings = Object.fromEntries((data ?? []).map((row) => [row.key, row.value as Record<string, unknown>]));
       const brand = (settings.app_branding ?? {}) as { app_name?: string; logo_path?: string };
       const banner = (settings.home_banner ?? {}) as { title?: string; image_path?: string; enabled?: boolean };
+      const methods = (settings.auth_methods ?? {}) as { email_enabled?: boolean; quick_enabled?: boolean; google_enabled?: boolean };
+      if (alive) setAuthMethods({ email_enabled: methods.email_enabled !== false, quick_enabled: methods.quick_enabled !== false, google_enabled: methods.google_enabled !== false });
       if (brand.app_name) setAppName(brand.app_name);
       if (brand.logo_path) {
         const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(brand.logo_path, 3600);
@@ -187,6 +190,7 @@ function AuthPage() {
       <h1 className="font-display text-gold text-4xl">{appName}</h1>
       <p className="mb-8 mt-2 text-muted-foreground">غرف صوتية بمستوى ملكي</p>
       <form onSubmit={submit} className="glass w-full max-w-sm space-y-3 rounded-3xl p-6">
+        {authMethods.email_enabled && <>
         {mode === "up" && <Input placeholder="الاسم" value={name} onChange={(e) => setName(e.target.value)} required maxLength={30} />}
         <Input type="email" placeholder="البريد الإلكتروني" value={email} onChange={(e) => setEmail(e.target.value)} required dir="ltr" />
         {mode !== "reset" && (
@@ -195,17 +199,18 @@ function AuthPage() {
         <Button type="submit" disabled={busy} className="w-full bg-gold font-bold shadow-gold">
           {mode === "in" ? "دخول" : mode === "up" ? "إنشاء حساب" : "إرسال رابط الاستعادة"}
         </Button>
-        {mode === "in" && (
+        </>}
+        {authMethods.quick_enabled && mode === "in" && (
           <Button type="button" disabled={busy} onClick={quick} className="w-full bg-accent text-accent-foreground font-bold">
             ⚡ دخول سريع (حساب لهذا الجهاز)
           </Button>
         )}
-        {mode !== "reset" && (
+        {authMethods.google_enabled && mode !== "reset" && (
           <Button type="button" disabled={busy} variant="outline" onClick={google} className="w-full">
             المتابعة باستخدام Google
           </Button>
         )}
-        <div className="flex justify-between pt-2 text-sm text-muted-foreground">
+        {authMethods.email_enabled && <div className="flex justify-between pt-2 text-sm text-muted-foreground">
           {mode === "reset" ? (
             <button type="button" onClick={() => setMode("in")}>العودة إلى تسجيل الدخول</button>
           ) : (
@@ -214,7 +219,7 @@ function AuthPage() {
             </button>
           )}
           {mode !== "reset" && <button type="button" onClick={() => setMode("reset")}>نسيت كلمة المرور؟</button>}
-        </div>
+        </div>}
       </form>
     </div>
   );
