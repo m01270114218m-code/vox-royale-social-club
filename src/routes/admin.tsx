@@ -340,7 +340,7 @@ function StoreTab() {
   useEffect(() => { load(); }, []);
   async function save() {
     const { error } = await supabase.rpc("admin_save_store_item", {
-      _id: null, _kind: form.kind, _name: form.name, _description: form.description,
+      _id: null as unknown as string, _kind: form.kind, _name: form.name, _description: form.description,
       _price: Number(form.price || 0), _asset_key: form.asset_key, _sort_order: Number(form.sort_order || 0),
     });
     if (error) { toast.error(errMsg(error)); return; }
