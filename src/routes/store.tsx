@@ -80,8 +80,8 @@ function StorePage() {
                 <div className="mx-auto mb-2 w-fit"><UserAvatar size={76} vip={v.level} name={`إطار VIP ${v.level}`} /></div>
                 <div className="font-display text-gold text-2xl">VIP {v.level}</div>
                 <p className="min-h-10 text-xs text-muted-foreground">عضوية لمدة {v.duration_days} يوم</p>
-                <Button size="sm" className="mt-2 w-full bg-gold" disabled={vip >= v.lv} onClick={() => buy(v.level)}>
-                  {vip >= v.lv ? "مفعّل" : <><img src={icons3d.coin} alt="" className="h-5 w-5 object-contain" />{v.price_coins.toLocaleString()}</>}
+                <Button size="sm" className="mt-2 w-full bg-gold" disabled={vip >= v.level} onClick={() => buy(v.level)}>
+                  {vip >= v.level ? "مفعّل" : <><img src={icons3d.coin} alt="" className="h-5 w-5 object-contain" />{v.price_coins.toLocaleString()}</>}
                 </Button>
               </div>
             ))}
