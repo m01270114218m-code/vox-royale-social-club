@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_assets: {
+        Row: {
+          asset_key: string
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean
+          metadata: Json
+          name: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          asset_key: string
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          asset_key?: string
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
+      admin_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -41,6 +98,45 @@ export type Database = {
           id?: string
           target_id?: string | null
           target_type?: string | null
+        }
+        Relationships: []
+      }
+      banners: {
+        Row: {
+          created_at: string
+          ends_at: string | null
+          id: string
+          image_url: string
+          is_active: boolean
+          sort_order: number
+          starts_at: string | null
+          target_url: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          image_url: string
+          is_active?: boolean
+          sort_order?: number
+          starts_at?: string | null
+          target_url?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          image_url?: string
+          is_active?: boolean
+          sort_order?: number
+          starts_at?: string | null
+          target_url?: string | null
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -675,6 +771,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "room_bans_banned_by_fkey"
+            columns: ["banned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "room_bans_room_id_fkey"
             columns: ["room_id"]
             isOneToOne: false
@@ -893,27 +996,6 @@ export type Database = {
           },
         ]
       }
-      vip_tiers: {
-        Row: {
-          duration_days: number
-          level: number
-          name: string
-          price_coins: number
-        }
-        Insert: {
-          duration_days?: number
-          level: number
-          name: string
-          price_coins: number
-        }
-        Update: {
-          duration_days?: number
-          level?: number
-          name?: string
-          price_coins?: number
-        }
-        Relationships: []
-      }
       store_items: {
         Row: {
           asset_key: string
@@ -1031,6 +1113,27 @@ export type Database = {
         }
         Relationships: []
       }
+      vip_tiers: {
+        Row: {
+          duration_days: number
+          level: number
+          name: string
+          price_coins: number
+        }
+        Insert: {
+          duration_days?: number
+          level: number
+          name: string
+          price_coins: number
+        }
+        Update: {
+          duration_days?: number
+          level?: number
+          name?: string
+          price_coins?: number
+        }
+        Relationships: []
+      }
       wallet_transactions: {
         Row: {
           amount: number
@@ -1098,42 +1201,6 @@ export type Database = {
           },
         ]
       }
-      admin_assets: {
-        Row: {
-          id: string
-          asset_key: string
-          name: string
-          category: string
-          url: string | null
-          metadata: Json
-          is_active: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          asset_key: string
-          name: string
-          category?: string
-          url?: string | null
-          metadata?: Json
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          asset_key?: string
-          name?: string
-          category?: string
-          url?: string | null
-          metadata?: Json
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
@@ -1146,9 +1213,10 @@ export type Database = {
       admin_delete_post: { Args: { _post: string }; Returns: undefined }
       admin_delete_room: { Args: { _room: string }; Returns: undefined }
       admin_delete_store_item: { Args: { _id: string }; Returns: undefined }
-      admin_grant_coins:
-        | { Args: { _amount: number; _user: string }; Returns: number }
-        | { Args: { _amount: number; _user: string }; Returns: undefined }
+      admin_grant_coins: {
+        Args: { _amount: number; _user: string }
+        Returns: number
+      }
       admin_list_audit: {
         Args: { _limit?: number }
         Returns: {
@@ -1175,7 +1243,7 @@ export type Database = {
         }[]
       }
       admin_list_reports: {
-        Args: { _status: string }
+        Args: { _status?: string }
         Returns: {
           admin_reply: string
           category: string
@@ -1190,7 +1258,7 @@ export type Database = {
         }[]
       }
       admin_list_users: {
-        Args: { _q: string }
+        Args: { _q?: string }
         Returns: {
           coins: number
           created_at: string
@@ -1228,6 +1296,10 @@ export type Database = {
           _sort_order: number
         }
         Returns: string
+      }
+      admin_seat_action: {
+        Args: { _action: string; _room: string; _seat: number }
+        Returns: undefined
       }
       admin_set_role: {
         Args: {
@@ -1271,6 +1343,7 @@ export type Database = {
         Args: { _accept: boolean; _family: string; _user: string }
         Returns: undefined
       }
+      get_analytics: { Args: never; Returns: Json }
       get_or_create_conversation: { Args: { _other: string }; Returns: string }
       has_role: {
         Args: {
@@ -1330,6 +1403,7 @@ export type Database = {
       update_room: {
         Args: {
           _category: string
+          _country: string
           _cover_url: string
           _description: string
           _is_private: boolean
