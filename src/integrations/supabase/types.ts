@@ -200,6 +200,48 @@ export type Database = {
         }
         Relationships: []
       }
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          last_at: string
+          last_message: string | null
+          user_a: string
+          user_b: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_at?: string
+          last_message?: string | null
+          user_a: string
+          user_b: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_at?: string
+          last_message?: string | null
+          user_a?: string
+          user_b?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_user_a_fkey"
+            columns: ["user_a"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_user_b_fkey"
+            columns: ["user_b"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gifts: {
         Row: {
           emoji: string
@@ -224,25 +266,145 @@ export type Database = {
         }
         Relationships: []
       }
-      posts: {
+      messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+          read_at: string | null
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_comments: {
         Row: {
           body: string
           created_at: string
           id: string
-          like_count: number
+          post_id: string
           user_id: string
         }
         Insert: {
           body: string
           created_at?: string
           id?: string
-          like_count?: number
+          post_id: string
           user_id: string
         }
         Update: {
           body?: string
           created_at?: string
           id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_likes: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posts: {
+        Row: {
+          body: string
+          comment_count: number
+          created_at: string
+          id: string
+          image_url: string | null
+          like_count: number
+          user_id: string
+        }
+        Insert: {
+          body: string
+          comment_count?: number
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          like_count?: number
+          user_id: string
+        }
+        Update: {
+          body?: string
+          comment_count?: number
+          created_at?: string
+          id?: string
+          image_url?: string | null
           like_count?: number
           user_id?: string
         }
@@ -250,6 +412,39 @@ export type Database = {
           {
             foreignKeyName: "posts_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_visits: {
+        Row: {
+          profile_id: string
+          visited_at: string
+          visitor_id: string
+        }
+        Insert: {
+          profile_id: string
+          visited_at?: string
+          visitor_id: string
+        }
+        Update: {
+          profile_id?: string
+          visited_at?: string
+          visitor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_visits_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_visits_visitor_id_fkey"
+            columns: ["visitor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -527,6 +722,39 @@ export type Database = {
           },
         ]
       }
+      user_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_follows: {
         Row: {
           created_at: string
@@ -730,7 +958,39 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      follows: {
+        Row: {
+          created_at: string | null
+          follower_id: string | null
+          following_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          follower_id?: string | null
+          following_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          follower_id?: string | null
+          following_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_follows_followed_id_fkey"
+            columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_follows_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       admin_delete_post: { Args: { _post: string }; Returns: undefined }
@@ -808,11 +1068,14 @@ export type Database = {
         Args: { amount_to_exchange: number }
         Returns: undefined
       }
+      get_or_create_conversation: { Args: { _other: string }; Returns: string }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       is_admin: { Args: { _uid: string }; Returns: boolean }
       join_room: { Args: { _room: string }; Returns: undefined }
       leave_room: { Args: { _room: string }; Returns: undefined }
       leave_seat: { Args: { _room: string }; Returns: undefined }
+      mark_conv_read: { Args: { _conv: string }; Returns: undefined }
+      send_dm: { Args: { _body: string; _conv: string }; Returns: undefined }
       send_gift: {
         Args: { gift_id: string; target_user: string }
         Returns: undefined
@@ -824,6 +1087,15 @@ export type Database = {
       staff_seat_action: {
         Args: { _action: string; _room: string; _seat: number }
         Returns: undefined
+      }
+      submit_report: {
+        Args: {
+          _category: string
+          _details: string
+          _target: string
+          _type: string
+        }
+        Returns: string
       }
       take_seat: { Args: { _room: string; _seat: number }; Returns: undefined }
       toggle_my_mute: { Args: { _room: string }; Returns: undefined }
@@ -838,6 +1110,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      visit_profile: { Args: { _profile: string }; Returns: undefined }
     }
     Enums: {
       room_role: "owner" | "admin" | "member"
