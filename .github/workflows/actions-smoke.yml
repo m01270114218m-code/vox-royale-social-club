@@ -12,5 +12,13 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
     steps:
-      - name: Confirm GitHub Actions runner starts
-        run: echo "GitHub Actions runner started successfully"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Confirm runner and official actions
+        run: node --version
