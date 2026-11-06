@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string | null
+          details: string | null
+          id: string
+          target_id: string | null
+          target_type: string | null
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string | null
+          details?: string | null
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string | null
+          details?: string | null
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           id: string
@@ -1052,11 +1082,40 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_broadcast: {
+        Args: { _body: string; _title: string }
+        Returns: number
+      }
       admin_delete_post: { Args: { _post: string }; Returns: undefined }
       admin_delete_room: { Args: { _room: string }; Returns: undefined }
-      admin_grant_coins: {
-        Args: { _amount: number; _user: string }
-        Returns: undefined
+      admin_delete_store_item: { Args: { _id: string }; Returns: undefined }
+      admin_grant_coins:
+        | { Args: { _amount: number; _user: string }; Returns: number }
+        | { Args: { _amount: number; _user: string }; Returns: undefined }
+      admin_list_audit: {
+        Args: { _limit?: number }
+        Returns: {
+          action: string
+          admin_id: string
+          admin_name: string
+          created_at: string
+          details: string
+          id: string
+          target_id: string
+          target_type: string
+        }[]
+      }
+      admin_list_gift_tx: {
+        Args: { _limit?: number }
+        Returns: {
+          cost: number
+          created_at: string
+          gift_name: string
+          receiver_id: string
+          receiver_name: string
+          sender_id: string
+          sender_name: string
+        }[]
       }
       admin_list_reports: {
         Args: { _status: string }
@@ -1086,9 +1145,32 @@ export type Database = {
           vip_level: number
         }[]
       }
+      admin_list_wallet_tx: {
+        Args: { _limit?: number }
+        Returns: {
+          amount: number
+          created_at: string
+          display_name: string
+          kind: string
+          note: string
+          user_id: string
+        }[]
+      }
       admin_resolve_report: {
         Args: { _reply: string; _report: string; _status: string }
         Returns: undefined
+      }
+      admin_save_store_item: {
+        Args: {
+          _asset_key: string
+          _description: string
+          _id: string
+          _kind: string
+          _name: string
+          _price: number
+          _sort_order: number
+        }
+        Returns: string
       }
       admin_set_role: {
         Args: {
@@ -1200,6 +1282,15 @@ export type Database = {
         Returns: undefined
       }
       visit_profile: { Args: { _profile: string }; Returns: undefined }
+      write_audit: {
+        Args: {
+          _action: string
+          _details?: string
+          _target_id?: string
+          _target_type?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "super_admin" | "admin" | "moderator" | "user"
