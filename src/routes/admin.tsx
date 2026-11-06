@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText, Image as ImageIcon, Box, Upload, Search, Power, RefreshCw, File as FileIcon, Armchair, PanelsTopLeft, Settings, BarChart3, ShieldCheck } from "lucide-react";
 import { AdminRolesTab, AnalyticsTab, BannersTab, NotificationsTab, SeatsTab, SettingsTab } from "@/components/admin/AdminExtendedTabs";
+import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 import { supabase } from "@/integrations/supabase/client";
 import { RequireAuth } from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,7 +38,6 @@ function AdminPage() {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [isSuper, setIsSuper] = useState(false);
   const [stats, setStats] = useState<Record<string, number> | null>(null);
-  const [revision, setRevision] = useState(0);
   const [tab, setTab] = useState<Tab>("reports");
 
   async function check() {
@@ -54,22 +54,15 @@ function AdminPage() {
   }
   useEffect(() => { void check(); }, [user?.id]);
 
-  // One authenticated Realtime channel keeps every visible admin module in sync with app writes.
-  useEffect(() => {
+  async function refreshStats() {
     if (!allowed) return;
-    const tables = ["profiles", "wallets", "wallet_transactions", "rooms", "room_members", "room_seats", "gifts", "gift_transactions", "vip_tiers", "banners", "notifications", "admin_assets", "reports", "user_roles", "admin_settings", "audit_log", "store_items", "posts"];
-    const channel = supabase.channel("vox-admin-live-dashboard");
-    tables.forEach((table) => {
-      channel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
-        setRevision((value) => value + 1);
-        void supabase.rpc("admin_stats").then(({ data, error }) => {
-          if (!error && data) setStats(data as Record<string, number>);
-        });
-      });
-    });
-    channel.subscribe();
-    return () => { void supabase.removeChannel(channel); };
-  }, [allowed]);
+    const { data, error } = await supabase.rpc("admin_stats");
+    if (!error && data) setStats(data as Record<string, number>);
+  }
+  useAdminRealtime(
+    ["profiles", "wallets", "wallet_transactions", "rooms", "room_members", "room_seats", "gifts", "gift_transactions", "vip_tiers", "banners", "notifications", "admin_assets", "reports", "user_roles", "admin_settings", "audit_log", "store_items", "posts"],
+    refreshStats,
+  );
 
   async function claim() {
     const { data, error } = await supabase.rpc("claim_first_admin");
@@ -147,7 +140,7 @@ function AdminPage() {
           </button>
         ))}
       </div>
-      <div key={revision} className="mt-4">
+      <div className="mt-4">
         {tab === "reports" && <Reports />}
         {tab === "rooms" && <Rooms />}
         {tab === "seats" && <SeatsTab />}
