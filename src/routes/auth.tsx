@@ -27,6 +27,41 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [appName, setAppName] = useState("VOX ROYALE");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [bannerTitle, setBannerTitle] = useState("");
+  const [bannerUrl, setBannerUrl] = useState<string | null>(null);
+  const [showBanner, setShowBanner] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    async function loadPublicBranding() {
+      const { data, error } = await supabase.from("admin_settings").select("key,value").in("key", ["app_branding", "home_banner"]);
+      if (error || !alive) return;
+      const settings = Object.fromEntries((data ?? []).map((row) => [row.key, row.value as Record<string, unknown>]));
+      const brand = (settings.app_branding ?? {}) as { app_name?: string; logo_path?: string };
+      const banner = (settings.home_banner ?? {}) as { title?: string; image_path?: string; enabled?: boolean };
+      if (brand.app_name) setAppName(brand.app_name);
+      if (brand.logo_path) {
+        const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(brand.logo_path, 3600);
+        if (alive) setLogoUrl(signed?.signedUrl ?? null);
+      }
+      if (banner.enabled !== false && banner.image_path && !sessionStorage.getItem("vox_intro_seen")) {
+        const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(banner.image_path, 3600);
+        if (alive && signed?.signedUrl) {
+          sessionStorage.setItem("vox_intro_seen", "1");
+          setBannerTitle(banner.title || "");
+          setBannerUrl(signed.signedUrl);
+          setShowBanner(true);
+          timer = setTimeout(() => setShowBanner(false), 5000);
+        }
+      }
+    }
+    void loadPublicBranding();
+    return () => { alive = false; if (timer) clearTimeout(timer); };
+  }, []);
+
 
   useEffect(() => {
     if (user) nav({ to: "/" });
@@ -137,10 +172,19 @@ function AuthPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-6">
-      <div className="floaty mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-gold shadow-gold">
-        <Crown className="h-12 w-12" />
+      {showBanner && bannerUrl && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4" role="dialog" aria-label="بنر البداية">
+          <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-gold/40 shadow-2xl">
+            <img src={bannerUrl} alt={bannerTitle || "بنر البداية"} className="max-h-[78vh] w-full object-contain" />
+            {bannerTitle && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-5 pt-12 text-center text-xl font-bold text-white">{bannerTitle}</div>}
+            <button type="button" onClick={() => setShowBanner(false)} className="absolute right-3 top-3 rounded-full bg-black/70 px-4 py-2 text-sm text-white">تخطي</button>
+          </div>
+        </div>
+      )}
+      <div className="floaty mb-6 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-gold shadow-gold">
+        {logoUrl ? <img src={logoUrl} alt={appName} className="h-full w-full object-contain p-2" /> : <Crown className="h-12 w-12" />}
       </div>
-      <h1 className="font-display text-gold text-4xl">VOX ROYALE</h1>
+      <h1 className="font-display text-gold text-4xl">{appName}</h1>
       <p className="mb-8 mt-2 text-muted-foreground">غرف صوتية بمستوى ملكي</p>
       <form onSubmit={submit} className="glass w-full max-w-sm space-y-3 rounded-3xl p-6">
         {mode === "up" && <Input placeholder="الاسم" value={name} onChange={(e) => setName(e.target.value)} required maxLength={30} />}
