@@ -104,9 +104,13 @@ async function renderTab(tab){
    host.innerHTML='<h3>سجل المحافظ</h3>'+((data||[]).map(t=>item(esc(t.display_name||t.user_id),'<div class="muted small">'+esc(t.kind)+' · '+esc(t.note)+' · '+date(t.created_at)+'</div>','<b class="'+(Number(t.amount)>=0?'good':'dangerText')+'">'+(Number(t.amount)>=0?'+':'')+money(t.amount)+' 🪙</b>')).join('')||noRows());return;
   }
   if(tab==='gifts'){
-   const [{data:gifts,error:e1},{data:tx,error:e2}]=await Promise.all([db.from('gifts').select('*').order('price'),db.rpc('admin_list_gift_tx',{_limit:100})]);if(e1)throw e1;if(e2)throw e2;
-   host.innerHTML='<h3>كتالوج الهدايا</h3><form id="gift-form" class="item"><div class="fieldgrid"><input name="id" placeholder="المعرف (اختياري)"><input name="name" placeholder="اسم الهدية" required><input name="emoji" placeholder="رمز الهدية" value="🎁" required><input name="price" type="number" min="0" placeholder="السعر" required><input name="tier" placeholder="الفئة" value="normal"><input name="sort" type="number" value="0" placeholder="الترتيب"></div><button>إضافة الهدية</button></form>'+
-   ((gifts||[]).map(g=>item(esc(g.emoji)+' '+esc(g.name),'<div class="muted small">'+money(g.price)+' عملة · '+esc(g.tier||'')+'</div>','<button class="secondary" data-action="gift-toggle" data-id="'+esc(g.id)+'" data-active="'+(!g.active)+'">'+(g.active?'إيقاف':'تفعيل')+'</button><button class="danger" data-action="gift-delete" data-id="'+esc(g.id)+'">حذف</button>')).join('')||noRows())+
+   const [{data:gifts,error:e1},{data:tx,error:e2},{data:giftAssets,error:e3}]=await Promise.all([
+    db.from('gifts').select('*').order('price'),db.rpc('admin_list_gift_tx',{_limit:100}),
+    db.from('admin_assets').select('asset_key,name').eq('category','gift').eq('is_active',true).order('name')
+   ]);if(e1)throw e1;if(e2)throw e2;if(e3)throw e3;
+   const assetOptions='<option value="">الصورة الافتراضية</option>'+(giftAssets||[]).map(a=>'<option value="'+esc(a.asset_key)+'">'+esc(a.name)+'</option>').join('');
+   host.innerHTML='<h3>كتالوج الهدايا</h3><p class="muted small">ارفع شكل الهدية من مكتبة الأصول بتصنيف gift ثم اختره هنا لربطه بالهدية.</p><form id="gift-form" class="item"><div class="fieldgrid"><input name="id" placeholder="المعرف (اختياري)"><input name="name" placeholder="اسم الهدية" required><input name="emoji" placeholder="رمز الهدية" value="🎁" required><input name="price" type="number" min="0" placeholder="السعر" required><input name="tier" placeholder="الفئة" value="normal"><input name="sort" type="number" value="0" placeholder="الترتيب"><select name="asset_key">'+assetOptions+'</select></div><button>إضافة الهدية</button></form>'+
+   ((gifts||[]).map(g=>item(esc(g.emoji)+' '+esc(g.name),'<div class="muted small">'+money(g.price)+' عملة · '+esc(g.tier||'')+' · أصل: '+esc(g.asset_key||'افتراضي')+'</div>','<button class="secondary" data-action="gift-toggle" data-id="'+esc(g.id)+'" data-active="'+(!g.active)+'">'+(g.active?'إيقاف':'تفعيل')+'</button><button class="danger" data-action="gift-delete" data-id="'+esc(g.id)+'">حذف</button>')).join('')||noRows())+
    '<h3>معاملات إرسال الهدايا</h3>'+((tx||[]).map(g=>item(esc(g.sender_name)+' أرسل '+esc(g.gift_name)+' إلى '+esc(g.receiver_name),'<div class="muted small">'+date(g.created_at)+'</div>','<b>🪙 '+money(g.cost)+'</b>')).join('')||noRows('لا توجد معاملات هدايا بعد'));return;
   }
   if(tab==='banners'){
@@ -213,7 +217,7 @@ $('panel').addEventListener('submit',async e=>{
  const form=e.target;if(!(form instanceof HTMLFormElement))return;e.preventDefault();const v=Object.fromEntries(new FormData(form).entries());
  try{
   if(form.id==='vip-form'){const {error}=await db.from('vip_tiers').upsert({level:Number(v.level),name:String(v.name),price_coins:Number(v.price_coins),duration_days:Number(v.duration_days)});if(error)throw error}
-  if(form.id==='gift-form'){const name=String(v.name).trim();const id=String(v.id).trim()||name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||('gift-'+Date.now());const {error}=await db.from('gifts').upsert({id,name,emoji:String(v.emoji),price:Number(v.price),active:true,tier:String(v.tier||'normal'),sort:Number(v.sort||0)});if(error)throw error}
+  if(form.id==='gift-form'){const name=String(v.name).trim();const id=String(v.id).trim()||undefined;const payload={name,emoji:String(v.emoji),price:Number(v.price),active:true,tier:String(v.tier||'normal'),sort:Number(v.sort||0),asset_key:String(v.asset_key||'')||null};const {error}=await db.from('gifts').insert(id?{...payload,id}:payload);if(error)throw error}
   if(form.id==='banner-form'){
    let imagePath=String(v.image_url||'').trim();
    const imageFile=form.querySelector('[name=image_file]').files?.[0];
