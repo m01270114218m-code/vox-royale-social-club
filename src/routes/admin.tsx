@@ -35,7 +35,7 @@ const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
 
 function AdminPage() {
   const { user } = useAuth();
-  const externalAdminUrl = import.meta.env.VITE_ADMIN_PANEL_URL as string | undefined;
+  const externalAdminUrl = (import.meta.env.VITE_ADMIN_PANEL_URL as string | undefined) || "/control-center/";
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [isSuper, setIsSuper] = useState(false);
   const [stats, setStats] = useState<Record<string, number> | null>(null);
