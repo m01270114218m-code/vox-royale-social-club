@@ -84,3 +84,4 @@ jobs:
           test -s "$APK"
           TAG="vox-royale-apk-${GITHUB_SHA::7}"
           gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --title "VOX ROYALE Android APK ${GITHUB_SHA::7}" --notes "Bundled Android APK for commit $GITHUB_SHA on branch $GITHUB_REF_NAME. App UI is packaged locally; Supabase services require internet access."
+
