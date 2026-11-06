@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Shield, Flag, DoorOpen, FileText, Users, Trash2 } from "lucide-react";
+import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { RequireAuth } from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/admin")({
   ),
 });
 
-type Tab = "reports" | "rooms" | "posts" | "users";
+type Tab = "reports" | "rooms" | "posts" | "users" | "wallet" | "gifts" | "store" | "broadcast" | "audit";
 const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
 
 function AdminPage() {
