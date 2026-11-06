@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText } from "lucide-react";
+import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText, Image as ImageIcon, Box, Upload, Search, Power, RefreshCw, File as FileIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { RequireAuth } from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/admin")({
   ),
 });
 
-type Tab = "reports" | "rooms" | "posts" | "users" | "wallet" | "gifts" | "store" | "broadcast" | "audit";
+type Tab = "reports" | "rooms" | "posts" | "users" | "wallet" | "gifts" | "store" | "assets" | "broadcast" | "audit";
 const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
 
 function AdminPage() {
@@ -80,6 +80,7 @@ function AdminPage() {
     { id: "wallet", label: "المحافظ", icon: Wallet },
     { id: "gifts", label: "الهدايا", icon: Gift },
     { id: "store", label: "المتجر", icon: Store },
+    { id: "assets", label: "مكتبة الأصول", icon: ImageIcon },
     { id: "broadcast", label: "إشعار عام", icon: Bell },
     { id: "audit", label: "سجل الإجراءات", icon: ScrollText },
   ];
@@ -116,6 +117,7 @@ function AdminPage() {
         {tab === "wallet" && <WalletTab />}
         {tab === "gifts" && <GiftsTab />}
         {tab === "store" && <StoreTab />}
+        {tab === "assets" && <AssetsTab />}
         {tab === "broadcast" && <BroadcastTab />}
         {tab === "audit" && <AuditTab />}
       </div>
@@ -429,6 +431,224 @@ function AuditTab() {
           <div className="text-xs text-muted-foreground">{a.target_type} <span dir="ltr">{a.target_id}</span> {a.details}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+
+type AdminAsset = {
+  id: string;
+  asset_key: string;
+  name: string;
+  category: string;
+  url: string | null;
+  metadata: { storage_path?: string; content_type?: string; size?: number } | null;
+  is_active: boolean;
+  created_at: string;
+};
+const ASSET_CATEGORIES: Record<string, string> = {
+  general: "عام",
+  ui: "عناصر الواجهة",
+  room: "الغرف والخلفيات",
+  gift: "الهدايا",
+  frame: "إطارات الصور",
+  vip: "شارات VIP",
+  level: "المستويات",
+  banner: "البانرات",
+  avatar: "الصور الشخصية",
+  "3d": "مجسمات ثلاثية الأبعاد",
+};
+const ASSET_BUCKET = "admin-assets";
+const MAX_ASSET_SIZE = 50 * 1024 * 1024;
+
+function AssetsTab() {
+  const [rows, setRows] = useState<AdminAsset[]>([]);
+  const [category, setCategory] = useState("general");
+  const [name, setName] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    const db = supabase as any;
+    const { data, error } = await db.from("admin_assets").select("*").order("created_at", { ascending: false }).limit(300);
+    if (error) {
+      toast.error(errMsg(error));
+      setLoading(false);
+      return;
+    }
+    const assets = (data ?? []) as AdminAsset[];
+    setRows(assets);
+    const signed: Record<string, string> = {};
+    await Promise.all(assets.map(async (asset) => {
+      const path = asset.metadata?.storage_path ?? asset.url;
+      if (!path) return;
+      const { data: result } = await supabase.storage.from(ASSET_BUCKET).createSignedUrl(path, 3600);
+      if (result?.signedUrl) signed[asset.id] = result.signedUrl;
+    }));
+    setPreviews(signed);
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function uploadAssets() {
+    if (!files.length) {
+      toast.error("اختر ملفاً واحداً على الأقل");
+      return;
+    }
+    const invalid = files.find((file) => file.size > MAX_ASSET_SIZE);
+    if (invalid) {
+      toast.error(`حجم ${invalid.name} أكبر من الحد المسموح (50 ميجابايت)`);
+      return;
+    }
+    setUploading(true);
+    const db = supabase as any;
+    let uploaded = 0;
+    for (const file of files) {
+      const cleanName = file.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(-100) || "asset";
+      const path = `${category}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${cleanName}`;
+      const { error: storageError } = await supabase.storage.from(ASSET_BUCKET).upload(path, file, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+      if (storageError) {
+        toast.error(`فشل رفع ${file.name}: ${storageError.message}`);
+        continue;
+      }
+      const assetKey = `${category}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const { error: rowError } = await db.from("admin_assets").insert({
+        asset_key: assetKey,
+        name: name.trim() || file.name.replace(/\.[^.]+$/, ""),
+        category,
+        url: path,
+        metadata: { storage_path: path, content_type: file.type || "application/octet-stream", size: file.size, original_name: file.name },
+        is_active: true,
+      });
+      if (rowError) {
+        await supabase.storage.from(ASSET_BUCKET).remove([path]);
+        toast.error(`تم رفع الملف لكن تعذرت إضافته للمكتبة: ${rowError.message}`);
+        continue;
+      }
+      uploaded += 1;
+    }
+    setUploading(false);
+    setFiles([]);
+    setName("");
+    const picker = document.getElementById("admin-asset-files") as HTMLInputElement | null;
+    if (picker) picker.value = "";
+    if (uploaded) toast.success(`تم رفع وإضافة ${uploaded} أصل بنجاح`);
+    await load();
+  }
+
+  async function toggleAsset(asset: AdminAsset) {
+    const db = supabase as any;
+    const { error } = await db.from("admin_assets").update({ is_active: !asset.is_active, updated_at: new Date().toISOString() }).eq("id", asset.id);
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success(asset.is_active ? "تم إيقاف الأصل عن الظهور في التطبيق" : "تم تفعيل الأصل");
+    await load();
+  }
+
+  async function deleteAsset(asset: AdminAsset) {
+    if (!confirm(`حذف الأصل «${asset.name}» نهائياً؟`)) return;
+    const path = asset.metadata?.storage_path ?? asset.url;
+    if (path) {
+      const { error } = await supabase.storage.from(ASSET_BUCKET).remove([path]);
+      if (error) { toast.error(`تعذر حذف الملف: ${error.message}`); return; }
+    }
+    const db = supabase as any;
+    const { error } = await db.from("admin_assets").delete().eq("id", asset.id);
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تم حذف الأصل والملف المرتبط به");
+    await load();
+  }
+
+  const visible = rows.filter((asset) =>
+    (filter === "all" || asset.category === filter) &&
+    (asset.name.toLowerCase().includes(search.toLowerCase()) || asset.asset_key.toLowerCase().includes(search.toLowerCase()))
+  );
+  const isImage = (asset: AdminAsset) => (asset.metadata?.content_type ?? "").startsWith("image/");
+  const isModel = (asset: AdminAsset) => /model\/gltf|octet-stream/i.test(asset.metadata?.content_type ?? "") || /\.(glb|gltf)$/i.test(asset.name);
+
+  return (
+    <div className="space-y-4">
+      <div className="glass space-y-3 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h2 className="font-bold">مكتبة أصول التطبيق</h2>
+            <p className="text-xs text-muted-foreground">ارفع الصور ومجسمات GLB/GLTF لتخزينها وربطها بمحتوى التطبيق.</p>
+          </div>
+          <span className="rounded-full bg-secondary px-3 py-1 text-xs">{rows.length} أصل</span>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="space-y-1 text-xs">
+            <span className="text-muted-foreground">تصنيف الأصل</span>
+            <select className="w-full rounded-md border border-input bg-input px-3 py-2" value={category} onChange={(e) => setCategory(e.target.value)}>
+              {Object.entries(ASSET_CATEGORIES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs">
+            <span className="text-muted-foreground">اسم الأصل (اختياري)</span>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="مثال: تاج VIP ذهبي" />
+          </label>
+        </div>
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-secondary/40 p-5 text-center">
+          <Upload className="h-7 w-7 text-primary" />
+          <span className="text-sm font-semibold">اختر صوراً أو ملفات ثلاثية الأبعاد</span>
+          <span className="text-xs text-muted-foreground">PNG · JPG · WEBP · GIF · SVG · GLB · GLTF — حتى 50 MB للملف</span>
+          <input id="admin-asset-files" className="max-w-full text-xs" type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.glb,.gltf,model/gltf-binary,model/gltf+json,application/octet-stream" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
+        </label>
+        {files.length > 0 && <p className="text-xs text-muted-foreground">{files.length} ملف محدد · {files.map((f) => f.name).join("، ")}</p>}
+        <Button className="w-full bg-gold" onClick={uploadAssets} disabled={uploading || files.length === 0}>
+          {uploading ? "جارٍ رفع الأصول…" : `رفع وإضافة ${files.length || ""} أصل`}
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <div className="min-w-40 flex-1"><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث باسم الأصل أو مفتاحه" /></div>
+        <select className="rounded-md border border-input bg-input px-3 text-xs" value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <option value="all">كل التصنيفات</option>
+          {Object.entries(ASSET_CATEGORIES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select>
+        <Button size="icon" variant="outline" onClick={load} disabled={loading} aria-label="تحديث"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
+      </div>
+
+      {visible.length === 0 && <p className="glass rounded-2xl p-8 text-center text-sm text-muted-foreground">{loading ? "جارٍ تحميل المكتبة…" : "لا توجد أصول مطابقة. ارفع أول أصل من النموذج أعلاه."}</p>}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {visible.map((asset) => (
+          <div key={asset.id} className="glass min-w-0 overflow-hidden rounded-2xl">
+            <div className="flex aspect-square items-center justify-center bg-secondary/60 p-2">
+              {previews[asset.id] && isImage(asset) ? (
+                <img src={previews[asset.id]} alt={asset.name} className="h-full w-full object-contain" />
+              ) : isModel(asset) ? (
+                <div className="text-center"><Box className="mx-auto h-12 w-12 text-primary" /><span className="mt-2 block text-xs">مجسم ثلاثي الأبعاد</span></div>
+              ) : (
+                <div className="text-center"><FileIcon className="mx-auto h-10 w-10 text-muted-foreground" /><span className="mt-2 block text-xs">ملف أصل</span></div>
+              )}
+            </div>
+            <div className="space-y-2 p-3">
+              <div className="truncate text-sm font-semibold" title={asset.name}>{asset.name}</div>
+              <div className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                <span>{ASSET_CATEGORIES[asset.category] ?? asset.category}</span>
+                <span>{asset.metadata?.size ? `${(asset.metadata.size / 1024 / 1024).toFixed(1)} MB` : ""}</span>
+              </div>
+              <div className="flex items-center justify-between gap-1">
+                <span className={`rounded-full px-2 py-1 text-[10px] ${asset.is_active ? "bg-green-500/15 text-green-500" : "bg-muted text-muted-foreground"}`}>{asset.is_active ? "نشط" : "متوقف"}</span>
+                <div className="flex gap-1">
+                  {previews[asset.id] && <a href={previews[asset.id]} target="_blank" rel="noreferrer" className="rounded-md p-1.5 hover:bg-secondary" title="فتح الملف"><Search className="h-4 w-4" /></a>}
+                  <button onClick={() => toggleAsset(asset)} className="rounded-md p-1.5 hover:bg-secondary" title={asset.is_active ? "إيقاف" : "تفعيل"}><Power className="h-4 w-4" /></button>
+                  <button onClick={() => deleteAsset(asset)} className="rounded-md p-1.5 text-destructive hover:bg-secondary" title="حذف"><Trash2 className="h-4 w-4" /></button>
+                </div>
+              </div>
+              <div className="truncate text-[10px] text-muted-foreground" dir="ltr">{asset.asset_key}</div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
