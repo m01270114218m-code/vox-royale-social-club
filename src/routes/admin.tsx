@@ -25,7 +25,7 @@ export const Route = createFileRoute("/admin")({
   }),
   component: () => (
     <RequireAuth>
-      <FullAdminPanel />
+      <AdminPage />
     </RequireAuth>
   ),
 });
