@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string | null
+          details: string | null
+          id: string
+          target_id: string | null
+          target_type: string | null
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string | null
+          details?: string | null
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string | null
+          details?: string | null
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           id: string
@@ -527,6 +557,8 @@ export type Database = {
           deletion_requested_at: string | null
           display_name: string
           display_no: number
+          equipped_entry: string | null
+          equipped_frame: string | null
           gender: string | null
           id: string
           level: number
@@ -544,6 +576,8 @@ export type Database = {
           deletion_requested_at?: string | null
           display_name?: string
           display_no?: number
+          equipped_entry?: string | null
+          equipped_frame?: string | null
           gender?: string | null
           id: string
           level?: number
@@ -561,6 +595,8 @@ export type Database = {
           deletion_requested_at?: string | null
           display_name?: string
           display_no?: number
+          equipped_entry?: string | null
+          equipped_frame?: string | null
           gender?: string | null
           id?: string
           level?: number
@@ -857,6 +893,39 @@ export type Database = {
           },
         ]
       }
+      store_items: {
+        Row: {
+          asset_key: string
+          created_at: string | null
+          description: string | null
+          id: string
+          kind: string
+          name: string
+          price: number
+          sort_order: number | null
+        }
+        Insert: {
+          asset_key: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          kind: string
+          name: string
+          price: number
+          sort_order?: number | null
+        }
+        Update: {
+          asset_key?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          kind?: string
+          name?: string
+          price?: number
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
       user_blocks: {
         Row: {
           blocked_id: string
@@ -881,6 +950,42 @@ export type Database = {
           {
             foreignKeyName: "user_blocks_blocker_id_fkey"
             columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_items: {
+        Row: {
+          acquired_at: string | null
+          id: string
+          item_id: string
+          user_id: string
+        }
+        Insert: {
+          acquired_at?: string | null
+          id?: string
+          item_id: string
+          user_id: string
+        }
+        Update: {
+          acquired_at?: string | null
+          id?: string
+          item_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "store_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_items_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -977,11 +1082,40 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_broadcast: {
+        Args: { _body: string; _title: string }
+        Returns: number
+      }
       admin_delete_post: { Args: { _post: string }; Returns: undefined }
       admin_delete_room: { Args: { _room: string }; Returns: undefined }
-      admin_grant_coins: {
-        Args: { _amount: number; _user: string }
-        Returns: undefined
+      admin_delete_store_item: { Args: { _id: string }; Returns: undefined }
+      admin_grant_coins:
+        | { Args: { _amount: number; _user: string }; Returns: number }
+        | { Args: { _amount: number; _user: string }; Returns: undefined }
+      admin_list_audit: {
+        Args: { _limit?: number }
+        Returns: {
+          action: string
+          admin_id: string
+          admin_name: string
+          created_at: string
+          details: string
+          id: string
+          target_id: string
+          target_type: string
+        }[]
+      }
+      admin_list_gift_tx: {
+        Args: { _limit?: number }
+        Returns: {
+          cost: number
+          created_at: string
+          gift_name: string
+          receiver_id: string
+          receiver_name: string
+          sender_id: string
+          sender_name: string
+        }[]
       }
       admin_list_reports: {
         Args: { _status: string }
@@ -1011,9 +1145,32 @@ export type Database = {
           vip_level: number
         }[]
       }
+      admin_list_wallet_tx: {
+        Args: { _limit?: number }
+        Returns: {
+          amount: number
+          created_at: string
+          display_name: string
+          kind: string
+          note: string
+          user_id: string
+        }[]
+      }
       admin_resolve_report: {
         Args: { _reply: string; _report: string; _status: string }
         Returns: undefined
+      }
+      admin_save_store_item: {
+        Args: {
+          _asset_key: string
+          _description: string
+          _id: string
+          _kind: string
+          _name: string
+          _price: number
+          _sort_order: number
+        }
+        Returns: string
       }
       admin_set_role: {
         Args: {
@@ -1029,6 +1186,7 @@ export type Database = {
       }
       admin_stats: { Args: never; Returns: Json }
       ban_user: { Args: { _room: string; _user: string }; Returns: undefined }
+      buy_item: { Args: { _item_id: string }; Returns: number }
       buy_vip: { Args: { _level: number }; Returns: number }
       claim_daily_bonus: { Args: never; Returns: number }
       claim_first_admin: { Args: never; Returns: boolean }
@@ -1048,6 +1206,10 @@ export type Database = {
         Returns: string
       }
       delete_room: { Args: { _room: string }; Returns: undefined }
+      equip_item: {
+        Args: { _equip: boolean; _item_id: string }
+        Returns: undefined
+      }
       family_decide: {
         Args: { _accept: boolean; _family: string; _user: string }
         Returns: undefined
@@ -1120,6 +1282,15 @@ export type Database = {
         Returns: undefined
       }
       visit_profile: { Args: { _profile: string }; Returns: undefined }
+      write_audit: {
+        Args: {
+          _action: string
+          _details?: string
+          _target_id?: string
+          _target_type?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "super_admin" | "admin" | "moderator" | "user"

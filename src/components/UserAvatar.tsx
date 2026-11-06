@@ -1,9 +1,9 @@
 import { useMedia } from "@/lib/media";
-import { avatarFrame, icons3d } from "@/lib/assets3d";
+import { avatarFrame, frameByKey, icons3d } from "@/lib/assets3d";
 
-export function UserAvatar({ src, name, size = 48, ring = false, vip = 0 }: { src?: string | null | undefined; name?: string | null | undefined; size?: number; ring?: boolean; vip?: number }) {
+export function UserAvatar({ src, name, size = 48, ring = false, vip = 0, frameKey }: { src?: string | null | undefined; name?: string | null | undefined; size?: number; ring?: boolean; vip?: number | undefined; frameKey?: string | null | undefined }) {
   const url = useMedia(src);
-  const frame = avatarFrame(vip);
+  const frame = frameByKey(frameKey) ?? avatarFrame(vip);
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <div className={`absolute flex items-center justify-center overflow-hidden rounded-full bg-secondary ${frame ? "inset-[18%]" : "inset-0"} ${ring && !frame ? "shadow-gold ring-2 ring-primary" : ""}`}>

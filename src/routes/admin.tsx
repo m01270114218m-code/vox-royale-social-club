@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Shield, Flag, DoorOpen, FileText, Users, Trash2 } from "lucide-react";
+import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { RequireAuth } from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/admin")({
   ),
 });
 
-type Tab = "reports" | "rooms" | "posts" | "users";
+type Tab = "reports" | "rooms" | "posts" | "users" | "wallet" | "gifts" | "store" | "broadcast" | "audit";
 const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
 
 function AdminPage() {
@@ -77,6 +77,11 @@ function AdminPage() {
     { id: "rooms", label: "الغرف", icon: DoorOpen },
     { id: "posts", label: "المنشورات", icon: FileText },
     { id: "users", label: "المستخدمون", icon: Users },
+    { id: "wallet", label: "المحافظ", icon: Wallet },
+    { id: "gifts", label: "الهدايا", icon: Gift },
+    { id: "store", label: "المتجر", icon: Store },
+    { id: "broadcast", label: "إشعار عام", icon: Bell },
+    { id: "audit", label: "سجل الإجراءات", icon: ScrollText },
   ];
   const statLabels: Record<string, string> = { users: "المستخدمون", rooms: "الغرف", posts: "المنشورات", families: "العائلات", open_reports: "بلاغات مفتوحة", gifts: "الهدايا", coins: "إجمالي العملات" };
 
@@ -108,6 +113,11 @@ function AdminPage() {
         {tab === "rooms" && <Rooms />}
         {tab === "posts" && <Posts />}
         {tab === "users" && <UsersTab isSuper={isSuper} />}
+        {tab === "wallet" && <WalletTab />}
+        {tab === "gifts" && <GiftsTab />}
+        {tab === "store" && <StoreTab />}
+        {tab === "broadcast" && <BroadcastTab />}
+        {tab === "audit" && <AuditTab />}
       </div>
     </div>
   );
@@ -261,6 +271,162 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
               return <Button key={r} size="sm" variant={has ? "destructive" : "outline"} onClick={() => run(supabase.rpc("admin_set_role", { _user: u.id, _role: r, _grant: !has }), "تم تحديث الصلاحية")}>{has ? `إزالة ${r}` : `منح ${r}`}</Button>;
             })}
           </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+type WalletTx = { user_id: string; display_name: string | null; amount: number; kind: string; note: string; created_at: string };
+function WalletTab() {
+  const [rows, setRows] = useState<WalletTx[]>([]);
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.rpc("admin_list_wallet_tx", { _limit: 200 });
+      if (error) toast.error(errMsg(error));
+      setRows((data as WalletTx[]) ?? []);
+    })();
+  }, []);
+  return (
+    <div className="space-y-2">
+      {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد معاملات</p>}
+      {rows.map((t, i) => (
+        <div key={i} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
+          <div>
+            <b>{t.display_name ?? "مستخدم"}</b>
+            <div className="text-xs text-muted-foreground">{t.kind} · {t.note} · {fmt(t.created_at)}</div>
+          </div>
+          <b className={t.amount >= 0 ? "text-green-400" : "text-red-400"}>{t.amount >= 0 ? "+" : ""}{Number(t.amount).toLocaleString()} 🪙</b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+type GiftTx = { sender_name: string | null; receiver_name: string | null; gift_name: string; cost: number; created_at: string };
+function GiftsTab() {
+  const [rows, setRows] = useState<GiftTx[]>([]);
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.rpc("admin_list_gift_tx", { _limit: 200 });
+      if (error) toast.error(errMsg(error));
+      setRows((data as GiftTx[]) ?? []);
+    })();
+  }, []);
+  return (
+    <div className="space-y-2">
+      {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد هدايا</p>}
+      {rows.map((g, i) => (
+        <div key={i} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
+          <div><b>{g.sender_name ?? "—"}</b> أرسل <b className="text-primary">{g.gift_name}</b> إلى <b>{g.receiver_name ?? "—"}</b>
+            <div className="text-xs text-muted-foreground">{fmt(g.created_at)}</div>
+          </div>
+          <b>🪙 {Number(g.cost).toLocaleString()}</b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+type StoreRow = { id: string; kind: string; name: string; description: string | null; price: number; asset_key: string; sort_order: number };
+const KINDS: Record<string, string> = { frame: "إطار", entry: "دخولية", name_effect: "تأثير اسم", theme: "خلفية" };
+function StoreTab() {
+  const [rows, setRows] = useState<StoreRow[]>([]);
+  const [form, setForm] = useState({ kind: "frame", name: "", description: "", price: "100", asset_key: "", sort_order: "0" });
+  async function load() {
+    const { data } = await supabase.from("store_items").select("*").order("kind").order("sort_order");
+    setRows((data as StoreRow[]) ?? []);
+  }
+  useEffect(() => { load(); }, []);
+  async function save() {
+    const { error } = await supabase.rpc("admin_save_store_item", {
+      _id: null, _kind: form.kind, _name: form.name, _description: form.description,
+      _price: Number(form.price || 0), _asset_key: form.asset_key, _sort_order: Number(form.sort_order || 0),
+    });
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تمت الإضافة");
+    setForm({ kind: "frame", name: "", description: "", price: "100", asset_key: "", sort_order: "0" });
+    load();
+  }
+  async function del(id: string) {
+    if (!confirm("حذف العنصر من المتجر؟")) return;
+    const { error } = await supabase.rpc("admin_delete_store_item", { _id: id });
+    if (error) { toast.error(errMsg(error)); return; }
+    load();
+  }
+  return (
+    <div className="space-y-3">
+      <div className="glass space-y-2 rounded-2xl p-4">
+        <b className="text-sm">إضافة عنصر جديد</b>
+        <div className="grid grid-cols-2 gap-2">
+          <select className="rounded-md border border-input bg-input px-2 py-1.5 text-xs" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
+            {Object.entries(KINDS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+          <Input placeholder="الاسم" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Input placeholder="الوصف" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <Input type="number" placeholder="السعر بالعملات" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+          <Input placeholder="مفتاح الأصل (مثل frame-1)" value={form.asset_key} onChange={(e) => setForm({ ...form, asset_key: e.target.value })} dir="ltr" />
+          <Input type="number" placeholder="الترتيب" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: e.target.value })} />
+        </div>
+        <Button size="sm" className="bg-gold" onClick={save} disabled={!form.name || !form.asset_key}>إضافة</Button>
+      </div>
+      {rows.map((r) => (
+        <div key={r.id} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
+          <div><b>{r.name}</b> <span className="text-xs text-muted-foreground">({KINDS[r.kind] ?? r.kind})</span>
+            <div className="text-xs text-muted-foreground" dir="ltr">{r.asset_key}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <b>🪙 {r.price.toLocaleString()}</b>
+            <Button size="icon" variant="destructive" onClick={() => del(r.id)} aria-label="حذف"><Trash2 className="h-4 w-4" /></Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BroadcastTab() {
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  async function send() {
+    setSending(true);
+    const { data, error } = await supabase.rpc("admin_broadcast", { _title: title, _body: body });
+    setSending(false);
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success(`وصل الإشعار إلى ${Number(data).toLocaleString()} مستخدم`);
+    setTitle(""); setBody("");
+  }
+  return (
+    <div className="glass mx-auto max-w-md space-y-3 rounded-2xl p-4">
+      <b>إرسال إشعار لجميع المستخدمين</b>
+      <Input placeholder="العنوان" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <textarea className="min-h-24 w-full rounded-md border border-input bg-input px-3 py-2 text-sm" placeholder="نص الإشعار" value={body} onChange={(e) => setBody(e.target.value)} />
+      <Button className="w-full bg-gold" onClick={send} disabled={sending || !title || !body}>{sending ? "جارٍ الإرسال…" : "إرسال للجميع"}</Button>
+    </div>
+  );
+}
+
+type AuditRow = { id: string; admin_name: string | null; action: string; target_type: string; target_id: string; details: string; created_at: string };
+function AuditTab() {
+  const [rows, setRows] = useState<AuditRow[]>([]);
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.rpc("admin_list_audit", { _limit: 200 });
+      if (error) toast.error(errMsg(error));
+      setRows((data as AuditRow[]) ?? []);
+    })();
+  }, []);
+  return (
+    <div className="space-y-2">
+      {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد إجراءات مسجلة بعد</p>}
+      {rows.map((a) => (
+        <div key={a.id} className="glass rounded-2xl p-3 text-sm">
+          <div className="flex justify-between gap-2">
+            <b>{a.admin_name ?? "مشرف"} · {a.action}</b>
+            <span className="text-xs text-muted-foreground">{fmt(a.created_at)}</span>
+          </div>
+          <div className="text-xs text-muted-foreground">{a.target_type} <span dir="ltr">{a.target_id}</span> {a.details}</div>
         </div>
       ))}
     </div>

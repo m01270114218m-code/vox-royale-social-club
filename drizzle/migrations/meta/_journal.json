@@ -50,6 +50,20 @@
       "when": 1793743235479,
       "tag": "0006_vip_store_admin_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793923630299,
+      "tag": "0007_store_items_and_rls_fixes",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793923783541,
+      "tag": "0008_admin_expansion_audit_store",
+      "breakpoints": true
     }
   ]
 }
