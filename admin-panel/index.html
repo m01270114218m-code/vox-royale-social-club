@@ -33,7 +33,7 @@ const money=v=>Number(v??0).toLocaleString('ar-EG');
 const date=v=>v?new Date(v).toLocaleString('ar-EG'):'—';
 let db=null,isSuper=false,active='dashboard',sessionUser=null,channel=null,userQuery='';
 const tabs=[
- ['dashboard','لوحة المعلومات'],['users','المستخدمون'],['rooms','الغرف'],['seats','المقاعد'],['vip','VIP'],['store','المتجر والإطارات والدخوليات'],['wallet','المحافظ'],['gifts','الهدايا'],['banners','البانرات'],['notifications','الإشعارات'],['assets','الأصول ثلاثية الأبعاد'],['audio','المايكات والتأثيرات'],['reports','البلاغات'],['roles','صلاحيات الإدارة'],['settings','الإعدادات'],['branding','هوية التطبيق والبنرات'],['analytics','التحليلات'],['audit','سجل الإجراءات']
+ ['dashboard','لوحة المعلومات'],['users','المستخدمون'],['rooms','الغرف'],['seats','المقاعد'],['vip','VIP'],['store','المتجر والإطارات والدخوليات'],['wallet','المحافظ'],['gifts','الهدايا'],['banners','البانرات'],['notifications','الإشعارات'],['assets','الأصول ثلاثية الأبعاد'],['audio','المايكات والتأثيرات'],['reports','البلاغات'],['roles','صلاحيات الإدارة'],['settings','الإعدادات'],['auth','طرق تسجيل الدخول'],['branding','هوية التطبيق والبنرات'],['analytics','التحليلات'],['audit','سجل الإجراءات']
 ];
 function status(id,text,bad=false){const node=$(id);if(node){node.textContent=text;node.className='status'+(bad?' dangerText':'')}}
 function show(which){['setup','login','dashboard'].forEach(id=>$(id).classList.toggle('hidden',id!==which));$('logout').classList.toggle('hidden',which!=='dashboard')}
@@ -152,6 +152,14 @@ async function renderTab(tab){
    host.innerHTML='<h3>إعدادات التطبيق</h3><form id="settings-form" class="item"><input name="key" placeholder="مفتاح الإعداد" required><textarea name="value" placeholder="قيمة JSON" required>{}</textarea><button>حفظ الإعداد</button></form>'+
    ((data||[]).map(s=>item(esc(s.key),'<pre>'+esc(JSON.stringify(s.value,null,2))+'</pre><div class="muted small">'+date(s.updated_at)+'</div>','<button class="secondary" data-action="setting-edit" data-key="'+esc(s.key)+'" data-value="'+esc(JSON.stringify(s.value))+'">تعديل</button><button class="danger" data-action="setting-delete" data-key="'+esc(s.key)+'">حذف</button>')).join('')||noRows());return;
   }
+  if(tab==='auth'){
+   const {data,error}=await db.from('admin_settings').select('value').eq('key','auth_methods').maybeSingle();if(error)throw error;
+   const cfg=data?.value||{};
+   host.innerHTML='<h3>إدارة طرق تسجيل الدخول</h3><p class="muted small">هذه المفاتيح تتحكم في إظهار وإخفاء طرق الدخول داخل التطبيق. تفعيل مزود Google أو Anonymous على خوادم Supabase يحتاج إعداده أيضاً من لوحة Supabase كما هو موضح أسفل الإعدادات.</p>'+
+    '<form id="auth-methods-form" class="item"><label><input name="email_enabled" type="checkbox" '+(cfg.email_enabled!==false?'checked':'')+' style="width:auto"> تفعيل تسجيل الدخول بالبريد وكلمة المرور عبر Supabase</label><label><input name="quick_enabled" type="checkbox" '+(cfg.quick_enabled!==false?'checked':'')+' style="width:auto"> تفعيل الدخول السريع (حساب مجهول مرتبط بالجهاز)</label><label><input name="google_enabled" type="checkbox" '+(cfg.google_enabled!==false?'checked':'')+' style="width:auto"> تفعيل المتابعة باستخدام Google</label><button type="submit">حفظ ونشر طرق الدخول</button></form>'+
+    item('إعدادات Supabase المطلوبة','<ol><li>من Authentication ثم Sign In / Providers فعّل Anonymous Sign-ins للدخول السريع.</li><li>فعّل Google وأدخل Client ID وClient Secret من Google Cloud.</li><li>من Authentication ثم URL Configuration أضف رابط الموقع ورابط العودة/deep link الخاص بتطبيق Android إلى Redirect URLs.</li><li>اختبر كل طريقة على نسخة التطبيق بعد الحفظ.</li></ol><p class="muted small">لا يتم تخزين Client Secret أو مفاتيح خاصة داخل لوحة الإدارة أو التطبيق.</p>');
+   return;
+  }
   if(tab==='branding'){
    const {data,error}=await db.from('admin_settings').select('key,value').in('key',['app_branding','home_banner']);if(error)throw error;
    const cfg=Object.fromEntries((data||[]).map(x=>[x.key,x.value||{}]));
@@ -251,6 +259,12 @@ $('panel').addEventListener('submit',async e=>{
    const {error}=await db.from('banners').insert({title:String(v.title),image_url:imagePath,target_url:String(v.target_url||'')||null,sort_order:Number(v.sort_order)||0,is_active:true});if(error)throw error
   }
   if(form.id==='broadcast-form'){const {data,error}=await db.rpc('admin_broadcast',{_title:String(v.title),_body:String(v.body)});if(error)throw error;alert('تم إرسال الإشعار إلى '+money(data)+' حساب')}
+  if(form.id==='auth-methods-form'){
+   const {data:{user}}=await db.auth.getUser();
+   const value={email_enabled:form.querySelector('[name=email_enabled]').checked,quick_enabled:form.querySelector('[name=quick_enabled]').checked,google_enabled:form.querySelector('[name=google_enabled]').checked};
+   const {error}=await db.from('admin_settings').upsert({key:'auth_methods',value,updated_by:user?.id||null,updated_at:new Date().toISOString()},{onConflict:'key'});if(error)throw error;
+   alert('تم حفظ طرق تسجيل الدخول. افتح التطبيق من جديد لتطبيق الإعدادات.');
+  }
   if(form.id==='branding-form'){
    const {data:oldRows,error:oldError}=await db.from('admin_settings').select('key,value').in('key',['app_branding','home_banner']);if(oldError)throw oldError;
    const old=Object.fromEntries((oldRows||[]).map(x=>[x.key,x.value||{}]));
