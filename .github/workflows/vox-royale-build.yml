@@ -32,4 +32,7 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           bun --version
           bun install --frozen-lockfile
+          export NITRO_PRESET=render-com
           bun run build
+          test -s .output/server/index.mjs
+          test -s .output/public/control-center/index.html
