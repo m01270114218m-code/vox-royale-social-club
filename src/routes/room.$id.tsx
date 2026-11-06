@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { catName, errMsg, flagOf } from "@/lib/vox";
+import { getAdminAssetUrl } from "@/lib/media";
 
 export const Route = createFileRoute("/room/$id")({
   head: () => ({
@@ -58,6 +59,7 @@ function RoomPage() {
   const [qty, setQty] = useState(1);
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string } | null>(null);
+  const [entryAnim, setEntryAnim] = useState<{ key: number; src: string } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const chatEnd = useRef<HTMLDivElement>(null);
@@ -76,6 +78,17 @@ function RoomPage() {
     const { data } = await supabase.from("room_seats").select("seat_index,user_id,is_locked,is_muted").eq("room_id", id).order("seat_index");
     if (data) setSeats(data);
   }, [id]);
+  async function playEntryFor(userId: string) {
+    const { data: profile } = await supabase.from("profiles").select("equipped_entry").eq("id", userId).maybeSingle();
+    const key = profile?.equipped_entry;
+    if (!key) return;
+    const src = await getAdminAssetUrl(key);
+    if (!src) return;
+    const token = Date.now();
+    setEntryAnim({ key: token, src });
+    setTimeout(() => setEntryAnim((current) => current?.key === token ? null : current), 3200);
+  }
+
   const loadMembers = useCallback(async () => {
     const { data } = await supabase.from("room_members").select("user_id").eq("room_id", id);
     if (data) setMembers(data.map((d) => d.user_id));
@@ -107,7 +120,8 @@ function RoomPage() {
     const ch = supabase
       .channel(`room-${id}-${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "room_seats", filter: `room_id=eq.${id}` }, () => loadSeats())
-      .on("postgres_changes", { event: "*", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, () => loadMembers())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, (payload) => { loadMembers(); void playEntryFor((payload.new as { user_id: string }).user_id); })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, () => loadMembers())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${id}` }, (p) => setMsgs((x) => [...x.slice(-99), p.new as Msg]))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "gift_transactions", filter: `room_id=eq.${id}` }, async (p) => {
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key").eq("id", (p.new as { gift_id: string }).gift_id).maybeSingle();
@@ -321,6 +335,12 @@ function RoomPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      {entryAnim && (
+        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-black/35">
+          <img src={entryAnim.src} alt="تأثير دخول المستخدم" className="h-72 w-72 animate-bounce object-contain drop-shadow-2xl" />
+        </div>
+      )}
 
       {anim && (
         <div key={anim.key} className="gift-pop pointer-events-none fixed inset-0 z-50 flex items-center justify-center"><img src={anim.emoji} alt="" className="h-64 w-64 object-contain" /></div>
