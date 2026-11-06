@@ -23,26 +23,32 @@ jobs:
           git clone --depth 1 --branch "$BRANCH" "https://github.com/${GITHUB_REPOSITORY}.git" source
           cd source
           test -f package.json
+          test -f bun.lock
           test -f capacitor.config.json
 
-      - name: Install dependencies and build web application
+      - name: Install locked dependencies and build web application
         working-directory: source
         run: |
-          node --version
-          npm install --no-package-lock --no-audit --no-fund
-          npm run build
+          curl -fsSL https://bun.sh/install | bash
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun --version
+          bun install --frozen-lockfile
+          bun run build
 
       - name: Prepare Android toolchain
         working-directory: source
         run: |
+          export PATH="$HOME/.bun/bin:$PATH"
           java -version
           test -n "$ANDROID_HOME" || test -n "$ANDROID_SDK_ROOT"
-          npm install --no-save @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest --no-audit --no-fund
-          npx cap add android
+          bun add @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
+          bunx cap add android
 
       - name: Sync Android project
         working-directory: source
-        run: npx cap sync android
+        run: |
+          export PATH="$HOME/.bun/bin:$PATH"
+          bunx cap sync android
 
       - name: Build debug APK
         working-directory: source/android
