@@ -1077,6 +1077,42 @@ export type Database = {
           },
         ]
       }
+      admin_assets: {
+        Row: {
+          id: string
+          asset_key: string
+          name: string
+          category: string
+          url: string | null
+          metadata: Json
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          asset_key: string
+          name: string
+          category?: string
+          url?: string | null
+          metadata?: Json
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          asset_key?: string
+          name?: string
+          category?: string
+          url?: string | null
+          metadata?: Json
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
