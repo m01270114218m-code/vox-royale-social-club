@@ -2,7 +2,7 @@
 - [x] Fix TS build errors (moments, room)
 - [x] Store: sellable frames + entry effects for coins (buy_item/equip_item RPCs)
 - [x] Fix open-read RLS on follows, post_likes, room_members
-- [ ] GitHub Actions workflow to build APK
+- [ ] GitHub Actions workflow to build APK (complete Android source, not web)
 - [ ] Expand admin dashboard sections (banners, settings, audit log, analytics)
 - [ ] Rebuild source ZIP
 - [x] Fix build errors (families, help pages)
