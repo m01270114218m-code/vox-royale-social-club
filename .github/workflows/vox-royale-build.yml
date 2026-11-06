@@ -17,18 +17,20 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout source without external actions
+        run: |
+          BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          git clone --depth 1 --branch "$BRANCH" "https://github.com/${GITHUB_REPOSITORY}.git" source
+          cd source
+          test -f package.json
+          test -f bun.lock
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Install project dependencies
-        run: npm install --no-package-lock --no-audit --no-fund
-
-      - name: Build web application
-        run: npm run build
+      - name: Install dependencies and build
+        working-directory: source
+        run: |
+          node --version
+          npm --version
+          npm install --no-package-lock --no-audit --no-fund
+          npm run build
