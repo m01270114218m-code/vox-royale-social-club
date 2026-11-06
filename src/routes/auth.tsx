@@ -104,7 +104,12 @@ function AuthPage() {
       localStorage.setItem("vox_guest_refresh", guest.session.refresh_token);
       toast.success("تم إنشاء حساب سريع لهذا الجهاز");
     } catch (err) {
-      toast.error((err as Error).message || "تعذر تسجيل الدخول السريع");
+      const message = (err as Error).message || "";
+      if (message.toLowerCase().includes("anonymous") || message.includes("anonymous_provider_disabled")) {
+        toast.error("الدخول السريع غير مفعّل في إعدادات Supabase حالياً. فعّل Anonymous Sign-ins من Authentication ثم Sign In / Providers.");
+      } else {
+        toast.error(message || "تعذر تسجيل الدخول السريع");
+      }
     } finally {
       setBusy(false);
     }
@@ -120,7 +125,12 @@ function AuthPage() {
       });
       if (error) throw error;
     } catch (err) {
-      toast.error((err as Error).message || "تعذر بدء تسجيل الدخول باستخدام Google");
+      const message = (err as Error).message || "";
+      if (message.toLowerCase().includes("provider is not enabled")) {
+        toast.error("تسجيل Google غير مفعّل في Supabase. فعّل Google من Authentication ثم Sign In / Providers وأدخل بيانات OAuth.");
+      } else {
+        toast.error(message || "تعذر بدء تسجيل الدخول باستخدام Google");
+      }
       setBusy(false);
     }
   }
