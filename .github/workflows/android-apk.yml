@@ -26,7 +26,7 @@ jobs:
           test -f bun.lock
           test -f capacitor.config.json
 
-      - name: Install locked dependencies and build web application
+      - name: Install locked dependencies and build static app shell
         working-directory: source
         run: |
           curl -fsSL https://bun.sh/install | bash
@@ -34,6 +34,11 @@ jobs:
           bun --version
           bun install --frozen-lockfile
           bun run build
+          test -s .output/public/index.html
+          if grep -Eqi 'lovable\\.app|lovable\\.dev' .output/public/index.html; then
+            echo "::error::Lovable preview branding or host reference remains in the Android app shell."
+            exit 1
+          fi
 
       - name: Select compatible Java 21
         run: |
@@ -51,23 +56,17 @@ jobs:
         working-directory: source
         run: |
           export PATH="$HOME/.bun/bin:$PATH"
-          java -version 2>&1 | grep -q '21\\.'
+          java -version 2>&1 | grep -Eq 'version "21([.]|")'
           test -n "$ANDROID_HOME" || test -n "$ANDROID_SDK_ROOT"
-          APP_URL="$(node -e "const c=require('./capacitor.config.json'); process.stdout.write(c.server?.url || '')")"
-          if [ -z "$APP_URL" ] || [[ "$APP_URL" == *lovable.app* ]] || [[ "$APP_URL" == *lovable.dev* ]]; then
-            echo "::error::The APK must point to the independent VOX ROYALE host, not the Lovable preview. Deploy the Render service and set server.url in capacitor.config.json first."
-            exit 1
-          fi
-          case "$APP_URL" in https://*) ;; *) echo "::error::VOX_APP_URL must use HTTPS"; exit 1;; esac
-          curl --fail --silent --show-error "$APP_URL/" -o /dev/null
           bun add @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
           bunx cap add android
 
-      - name: Sync Android project
+      - name: Sync bundled web assets into Android
         working-directory: source
         run: |
           export PATH="$HOME/.bun/bin:$PATH"
           bunx cap sync android
+          test -s android/app/src/main/assets/public/index.html
 
       - name: Build debug APK
         working-directory: source/android
@@ -83,4 +82,4 @@ jobs:
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           TAG="vox-royale-apk-${GITHUB_SHA::7}"
-          gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --title "VOX ROYALE Android APK ${GITHUB_SHA::7}" --notes "Automated debug APK build for commit $GITHUB_SHA on branch $GITHUB_REF_NAME."
+          gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --title "VOX ROYALE Android APK ${GITHUB_SHA::7}" --notes "Bundled Android APK for commit $GITHUB_SHA on branch $GITHUB_REF_NAME. App UI is packaged locally; Supabase services require internet access."
