@@ -61,6 +61,8 @@ function RoomPage() {
   const [anim, setAnim] = useState<{ key: number; emoji: string } | null>(null);
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
+  const [micRequests, setMicRequests] = useState<{ id: string; user_id: string; created_at: string }[]>([]);
+  const [myMicRequest, setMyMicRequest] = useState<{ id: string } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const chatEnd = useRef<HTMLDivElement>(null);
    const uid = user?.id ?? "";
@@ -94,6 +96,14 @@ function RoomPage() {
     if (data) setMembers(data.map((d) => d.user_id));
   }, [id]);
 
+  const loadMicRequests = useCallback(async () => {
+    const { data } = await supabase.from("room_mic_requests").select("id,user_id,created_at").eq("room_id", id).eq("status", "pending").order("created_at");
+    if (data) {
+      setMicRequests(data as { id: string; user_id: string; created_at: string }[]);
+      setMyMicRequest((data.find((r) => r.user_id === uid) as { id: string } | undefined) ?? null);
+    }
+  }, [id, uid]);
+
   useEffect(() => {
     let alive = true;
     mountCount[id] = (mountCount[id] ?? 0) + 1;
@@ -114,6 +124,7 @@ function RoomPage() {
       setIsMod(!!m?.length);
       loadSeats();
       loadMembers();
+      loadMicRequests();
       const { data: ms } = await supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).order("created_at", { ascending: false }).limit(50);
       if (ms) setMsgs(ms.reverse());
     })();
@@ -122,6 +133,7 @@ function RoomPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "room_seats", filter: `room_id=eq.${id}` }, () => loadSeats())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, (payload) => { loadMembers(); void playEntryFor((payload.new as { user_id: string }).user_id); })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, () => loadMembers())
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_mic_requests", filter: `room_id=eq.${id}` }, () => loadMicRequests())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${id}` }, (p) => setMsgs((x) => [...x.slice(-99), p.new as Msg]))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "gift_transactions", filter: `room_id=eq.${id}` }, async (p) => {
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key").eq("id", (p.new as { gift_id: string }).gift_id).maybeSingle();
@@ -204,8 +216,20 @@ function RoomPage() {
   }
 
   async function onSeat(s: Seat) {
-    if (!s.user_id && !s.is_locked && !isStaff) return call("take_seat", { _room: id, _seat: s.seat_index });
+    if (!s.user_id && !s.is_locked && !isStaff) {
+      const { error } = await supabase.rpc("request_mic", { _room: id });
+      if (error) toast.error(errMsg(error)); else toast.success("تم إرسال طلب الميك لصاحب الغرفة");
+      await loadMicRequests();
+      return;
+    }
     setSeatMenu(s);
+  }
+
+  async function decideMicRequest(requestId: string, accept: boolean) {
+    const { error } = await supabase.rpc("decide_mic_request", { _request: requestId, _accept: accept });
+    if (error) toast.error(errMsg(error)); else toast.success(accept ? "تمت الموافقة على طلب الميك" : "تم رفض الطلب");
+    await loadMicRequests();
+    await loadSeats();
   }
 
   async function openGifts(target?: string) {
@@ -272,6 +296,21 @@ function RoomPage() {
         )}
       </header>
       {isOwner && <RoomSettings room={room} uid={uid} open={settingsOpen} onOpenChange={setSettingsOpen} onSaved={(r) => setRoom({ ...room, ...r })} />}
+      {isStaff && micRequests.length > 0 && (
+        <div className="mx-3 mb-2 rounded-2xl border border-primary/30 bg-secondary/80 p-3" dir="rtl">
+          <div className="mb-2 flex items-center justify-between"><span className="font-bold">طلبات الصعود للميك ({micRequests.length})</span></div>
+          <div className="space-y-2">
+            {micRequests.map((r) => (
+              <div key={r.id} className="flex items-center gap-2 rounded-xl bg-background/60 p-2">
+                <UserAvatar src={profiles[r.user_id]?.avatar_url} name={profiles[r.user_id]?.display_name} vip={profiles[r.user_id]?.vip_level} size={38} />
+                <span className="min-w-0 flex-1 truncate">{profiles[r.user_id]?.display_name ?? "مستخدم"}</span>
+                <Button size="sm" onClick={() => void decideMicRequest(r.id, true)} className="bg-gold">موافقة</Button>
+                <Button size="sm" variant="outline" onClick={() => void decideMicRequest(r.id, false)}>رفض</Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className={`grid ${cols} gap-y-5 px-4 py-4`}>
         {seats.map((s) => {
@@ -302,6 +341,7 @@ function RoomPage() {
       </div>
 
       <form onSubmit={send} className="glass m-3 flex items-center gap-2 rounded-full p-2">
+        {!mySeat && !isStaff && <Button type="button" variant="ghost" size="icon" onClick={async () => { const { error } = await supabase.rpc("request_mic", { _room: id }); if (error) toast.error(errMsg(error)); else { toast.success("تم إرسال طلب الميك لصاحب الغرفة"); await loadMicRequests(); } }} aria-label="طلب الميك" title="طلب الميك"><Mic className="h-7 w-7" /></Button>}
         {mySeat && (
           <Button type="button" variant="ghost" size="icon" onClick={() => call("toggle_my_mute", { _room: id })} aria-label="المايك" title="المايك"><img src={mySeat.is_muted ? icons3d.micMuted : icons3d.mic} alt="" className="h-8 w-8 object-contain" /></Button>
         )}
@@ -315,7 +355,7 @@ function RoomPage() {
           <SheetHeader><SheetTitle>المقعد {seatMenu ? seatMenu.seat_index + 1 : ""}</SheetTitle></SheetHeader>
           {seatMenu && (
             <div className="grid gap-2 p-4">
-              {!seatMenu.user_id && (!seatMenu.is_locked || isStaff) && <Button onClick={() => call("take_seat", { _room: id, _seat: seatMenu.seat_index })} className="bg-gold">الجلوس هنا</Button>}
+              {!seatMenu.user_id && (!seatMenu.is_locked || isStaff) && (isStaff ? <Button onClick={() => call("take_seat", { _room: id, _seat: seatMenu.seat_index })} className="bg-gold">الجلوس هنا</Button> : <Button onClick={() => { void supabase.rpc("request_mic", { _room: id }).then(({ error }) => { if (error) toast.error(errMsg(error)); else toast.success("تم إرسال طلب الميك لصاحب الغرفة"); return loadMicRequests(); }); }} className="bg-gold">طلب الصعود للميك</Button>)}
               {seatMenu.user_id === uid && <Button variant="outline" onClick={() => call("leave_seat", { _room: id })}>مغادرة المقعد</Button>}
               {isStaff && (
                 <>
