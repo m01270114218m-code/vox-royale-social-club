@@ -43,3 +43,50 @@ export function useMedia(value?: string | null): string | null {
   }, [value]);
   return url;
 }
+
+const adminAssetCache = new Map<string, string>();
+
+/** Resolve an active asset from the administrator-managed private bucket. */
+export async function getAdminAssetUrl(assetKey?: string | null): Promise<string | null> {
+  if (!assetKey) return null;
+  const cached = adminAssetCache.get(assetKey);
+  if (cached) return cached;
+  const { data: asset, error } = await supabase
+    .from("admin_assets")
+    .select("url,metadata")
+    .eq("asset_key", assetKey)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (error || !asset) return null;
+  const metadata = asset.metadata as { storage_path?: string } | null;
+  const path = metadata?.storage_path || asset.url;
+  if (!path) return null;
+  const { data: signed, error: signError } = await supabase.storage
+    .from("admin-assets")
+    .createSignedUrl(path, 60 * 60);
+  if (signError || !signed?.signedUrl) return null;
+  adminAssetCache.set(assetKey, signed.signedUrl);
+  return signed.signedUrl;
+}
+
+export function useAdminAsset(assetKey?: string | null): string | null {
+  const [url, setUrl] = useState<string | null>(() => (assetKey ? adminAssetCache.get(assetKey) ?? null : null));
+  useEffect(() => {
+    let alive = true;
+    if (!assetKey) {
+      setUrl(null);
+      return;
+    }
+    const hit = adminAssetCache.get(assetKey);
+    if (hit) {
+      setUrl(hit);
+      return;
+    }
+    setUrl(null);
+    void getAdminAssetUrl(assetKey).then((next) => {
+      if (alive) setUrl(next);
+    });
+    return () => { alive = false; };
+  }, [assetKey]);
+  return url;
+}
