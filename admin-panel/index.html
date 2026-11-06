@@ -102,7 +102,7 @@ async function renderTab(tab){
   }
   if(tab==='banners'){
    const {data,error}=await db.from('banners').select('*').order('sort_order').limit(200);if(error)throw error;
-   host.innerHTML='<h3>البانرات والإعلانات</h3><form id="banner-form" class="item"><div class="fieldgrid"><input name="title" placeholder="العنوان" required><input name="image_url" placeholder="رابط الصورة HTTPS" required><input name="target_url" placeholder="رابط الوجهة (اختياري)"><input name="sort_order" type="number" value="0"></div><button>نشر البانر</button></form>'+
+   host.innerHTML='<h3>البانرات والإعلانات</h3><form id="banner-form" class="item"><div class="fieldgrid"><input name="title" placeholder="العنوان" required><input name="image_url" placeholder="رابط الصورة HTTPS (اختياري)"><input name="image_file" type="file" accept="image/*"><input name="target_url" placeholder="رابط الوجهة (اختياري)"><input name="sort_order" type="number" value="0"></div><button>نشر البانر</button></form>'+
    ((data||[]).map(b=>item(esc(b.title),'<div class="muted small">'+esc(b.image_url)+' · '+(b.is_active?'نشط':'متوقف')+'</div>','<button class="secondary" data-action="banner-toggle" data-id="'+b.id+'" data-active="'+(!b.is_active)+'">'+(b.is_active?'إيقاف':'تفعيل')+'</button><button class="danger" data-action="banner-delete" data-id="'+b.id+'">حذف</button>')).join('')||noRows());return;
   }
   if(tab==='notifications'){
@@ -113,7 +113,7 @@ async function renderTab(tab){
   if(tab==='assets'){
    const {data,error}=await db.from('admin_assets').select('*').order('created_at',{ascending:false}).limit(300);if(error)throw error;
    const cards=await Promise.all((data||[]).map(async a=>{let url='';const path=a.metadata?.storage_path||a.url;if(path){const {data:s}=await db.storage.from('admin-assets').createSignedUrl(path,900);url=s?.signedUrl||''}return item(esc(a.name),'<div class="muted small">'+esc(a.category)+' · '+esc(a.asset_key)+' · '+(a.is_active?'نشط':'متوقف')+'</div>'+(url?'<a href="'+esc(url)+'" target="_blank" rel="noreferrer">معاينة الملف</a>':''),'<button class="secondary" data-action="asset-toggle" data-id="'+a.id+'" data-active="'+(!a.is_active)+'">'+(a.is_active?'إيقاف':'تفعيل')+'</button><button class="danger" data-action="asset-delete" data-id="'+a.id+'">حذف</button>')}));
-   host.innerHTML='<h3>مكتبة الأصول ثلاثية الأبعاد</h3><form id="asset-form" class="item"><div class="fieldgrid"><input name="name" placeholder="اسم الأصل" required><select name="category"><option>general</option><option>ui</option><option>room</option><option>gift</option><option>frame</option><option>vip</option><option>banner</option><option>3d</option></select><input name="files" type="file" multiple accept="image/*,.glb,.gltf" required></div><button>رفع الأصول إلى Storage</button></form>'+ (cards.join('')||noRows());return;
+   host.innerHTML='<h3>مكتبة الأصول ثلاثية الأبعاد</h3><form id="asset-form" class="item"><div class="fieldgrid"><input name="name" placeholder="اسم الأصل" required><select name="category"><option>general</option><option>ui</option><option>room</option><option>gift</option><option>frame</option><option>vip</option><option>banner</option><option>3d</option></select><input name="files" type="file" multiple accept="image/*,.glb,.gltf,.svga,.gif,.webp,.mp4,.webm,.json" required></div><button>رفع الأصول إلى Storage</button></form>'+ (cards.join('')||noRows());return;
   }
   if(tab==='reports'){
    const {data,error}=await db.rpc('admin_list_reports',{_status:''});if(error)throw error;
@@ -181,7 +181,18 @@ $('panel').addEventListener('submit',async e=>{
  try{
   if(form.id==='vip-form'){const {error}=await db.from('vip_tiers').upsert({level:Number(v.level),name:String(v.name),price_coins:Number(v.price_coins),duration_days:Number(v.duration_days)});if(error)throw error}
   if(form.id==='gift-form'){const name=String(v.name).trim();const id=String(v.id).trim()||name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||('gift-'+Date.now());const {error}=await db.from('gifts').upsert({id,name,emoji:String(v.emoji),price:Number(v.price),active:true,tier:String(v.tier||'normal'),sort:Number(v.sort||0)});if(error)throw error}
-  if(form.id==='banner-form'){if(!/^https:\/\//i.test(String(v.image_url)))throw new Error('رابط الصورة يجب أن يبدأ بـ HTTPS');const {error}=await db.from('banners').insert({title:String(v.title),image_url:String(v.image_url),target_url:String(v.target_url||'')||null,sort_order:Number(v.sort_order)||0,is_active:true});if(error)throw error}
+  if(form.id==='banner-form'){
+   let imagePath=String(v.image_url||'').trim();
+   const imageFile=form.querySelector('[name=image_file]').files?.[0];
+   if(imageFile){
+    if(imageFile.size>20*1024*1024||!imageFile.type.startsWith('image/'))throw new Error('اختر صورة حتى 20 MB');
+    const clean=imageFile.name.replace(/[^a-zA-Z0-9._-]+/g,'-');imagePath='banner/'+Date.now()+'-'+clean;
+    const {error:upError}=await db.storage.from('admin-assets').upload(imagePath,imageFile,{contentType:imageFile.type,upsert:false});if(upError)throw upError;
+    const {error:assetError}=await db.from('admin_assets').insert({asset_key:'banner-'+Date.now(),name:String(v.title),category:'banner',url:imagePath,metadata:{storage_path:imagePath,content_type:imageFile.type,original_name:imageFile.name},is_active:true});
+    if(assetError){await db.storage.from('admin-assets').remove([imagePath]);throw assetError}
+   }else if(!/^https:\/\//i.test(imagePath))throw new Error('اختر صورة من الهاتف أو أدخل رابط HTTPS صالحاً');
+   const {error}=await db.from('banners').insert({title:String(v.title),image_url:imagePath,target_url:String(v.target_url||'')||null,sort_order:Number(v.sort_order)||0,is_active:true});if(error)throw error
+  }
   if(form.id==='broadcast-form'){const {data,error}=await db.rpc('admin_broadcast',{_title:String(v.title),_body:String(v.body)});if(error)throw error;alert('تم إرسال الإشعار إلى '+money(data)+' حساب')}
   if(form.id==='branding-form'){
    const {data:oldRows,error:oldError}=await db.from('admin_settings').select('key,value').in('key',['app_branding','home_banner']);if(oldError)throw oldError;
