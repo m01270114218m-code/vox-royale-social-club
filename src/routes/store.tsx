@@ -9,6 +9,7 @@ import { AppShell, PageHeader } from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { errMsg } from "@/lib/vox";
+import { getAdminAssetUrl } from "@/lib/media";
 
 export const Route = createFileRoute("/store")({
   head: () => ({
@@ -43,7 +44,7 @@ const PACKS = [
   { coins: 350000, price: "$49.99" },
 ];
 
-type StoreItem = { id: string; kind: string; name: string; description: string | null; price: number; asset_key: string };
+type StoreItem = { id: string; kind: string; name: string; description: string | null; price: number; asset_key: string; asset_url?: string | null };
 
 function StorePage() {
   const { user } = useAuth();
@@ -65,7 +66,8 @@ function StorePage() {
       setVip(p?.vip_level ?? 0);
       setEquippedFrame(p?.equipped_frame ?? null);
       setEquippedEntry(p?.equipped_entry ?? null);
-      setItems(si ?? []);
+      const enrichedItems = await Promise.all((si ?? []).map(async (item) => ({ ...item, asset_url: await getAdminAssetUrl(item.asset_key) })));
+      setItems(enrichedItems);
       setOwned(new Set((ui ?? []).map((r) => r.item_id)));
     })();
   }, [user]);
@@ -124,7 +126,7 @@ function StorePage() {
                 <div key={item.id} className={`card-3d glass rounded-3xl p-4 text-center ${isEquipped ? "ring-2 ring-primary" : ""}`}>
                   <div className="relative mx-auto mb-2 h-24 w-24">
                     <div className="absolute inset-[18%] overflow-hidden rounded-full bg-secondary" />
-                    <img src={frameByKey(item.asset_key)} alt={item.name} className="absolute inset-0 h-full w-full object-contain" />
+                    <img src={item.asset_url || frameByKey(item.asset_key)} alt={item.name} className="absolute inset-0 h-full w-full object-contain" />
                   </div>
                   <b className="text-sm">{item.name}</b>
                   <p className="min-h-8 text-xs text-muted-foreground">{item.description}</p>
@@ -150,7 +152,7 @@ function StorePage() {
               const isEquipped = equippedEntry === item.asset_key;
               return (
                 <div key={item.id} className={`card-3d glass rounded-3xl p-4 text-center ${isEquipped ? "ring-2 ring-primary" : ""}`}>
-                  <img src={entryEffects[item.asset_key]?.image ?? icons3d.giftbox} alt={item.name} className="mx-auto mb-2 h-20 w-20 object-contain" />
+                  <img src={item.asset_url || entryEffects[item.asset_key]?.image || icons3d.giftbox} alt={item.name} className="mx-auto mb-2 h-20 w-20 object-contain" />
                   <b className="text-sm">{item.name}</b>
                   <p className="min-h-8 text-xs text-muted-foreground">{item.description}</p>
                   {isOwned ? (
