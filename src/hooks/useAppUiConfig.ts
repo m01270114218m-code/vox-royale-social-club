@@ -10,7 +10,7 @@ export type AppUiConfig = {
   features: Record<string, boolean>;
 };
 const fallback: AppUiConfig = {
-  branding:{app_name:"VOX ROYALE"}, bottom_nav:{home_label:"الغرف",explore_label:"اللحظات",room_label:"غرفتي",messages_label:"الرسائل",profile_label:"أنا"},
+  branding:{app_name:"صدي شات"}, bottom_nav:{home_label:"الغرف",explore_label:"اللحظات",room_label:"غرفتي",messages_label:"الرسائل",profile_label:"أنا"},
   mic:{}, buttons:{}, routes:{}, features:{gifts:true,store:true,vip:true,wallet:true,rooms:true,moments:true,messages:true}
 };
 export function useAppUiConfig(){
@@ -18,12 +18,12 @@ export function useAppUiConfig(){
   useEffect(()=>{
     let alive=true;
     async function load(){
-      const {data}=await supabase.from("admin_settings").select("key,value").in("key",["ui.branding","ui.bottom_nav","ui.mic","ui.buttons","ui.routes","features"]);
+      const {data}=await supabase.from("admin_settings").select("key,value").in("key",["ui.branding","app_branding","home_banner","ui.bottom_nav","ui.mic","ui.buttons","ui.routes","features"]);
       if(!alive)return;
       const next=JSON.parse(JSON.stringify(fallback)) as AppUiConfig;
       for(const row of data??[]){
         const v=(row.value??{}) as Record<string,unknown>;
-        if(row.key==="ui.branding") next.branding={...next.branding,...v};
+        if(row.key==="ui.branding" || row.key==="app_branding") next.branding={...next.branding,...(row.key==="app_branding" ? {app_name:v.app_name, logo_url:v.logo_url ?? v.logo_path} : v)};
         if(row.key==="ui.bottom_nav") next.bottom_nav={...next.bottom_nav,...v};
         if(row.key==="ui.mic") next.mic={...next.mic,...v};
         if(row.key==="ui.buttons") next.buttons={...next.buttons,...v};
