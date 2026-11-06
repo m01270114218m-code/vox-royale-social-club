@@ -198,7 +198,7 @@ $('panel').addEventListener('submit',async e=>{
    const {data:oldRows,error:oldError}=await db.from('admin_settings').select('key,value').in('key',['app_branding','home_banner']);if(oldError)throw oldError;
    const old=Object.fromEntries((oldRows||[]).map(x=>[x.key,x.value||{}]));
    async function uploadBrandFile(file,kind){
-    if(!file)return null;
+    if(!file||!(file instanceof File)||file.size===0)return null;
     if(file.size>20*1024*1024)throw new Error('الحد الأقصى لصورة الهوية 20 MB');
     if(!file.type.startsWith('image/'))throw new Error('اختر ملف صورة صالحاً');
     const clean=file.name.replace(/[^a-zA-Z0-9._-]+/g,'-');
