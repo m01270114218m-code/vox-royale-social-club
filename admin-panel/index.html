@@ -31,7 +31,7 @@ const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=v=>Number(v??0).toLocaleString('ar-EG');
 const date=v=>v?new Date(v).toLocaleString('ar-EG'):'—';
-let db=null,isSuper=false,active='dashboard',sessionUser=null,channel=null;
+let db=null,isSuper=false,active='dashboard',sessionUser=null,channel=null,userQuery='';
 const tabs=[
  ['dashboard','لوحة المعلومات'],['users','المستخدمون'],['rooms','الغرف'],['seats','المقاعد'],['vip','VIP'],['wallet','المحافظ'],['gifts','الهدايا'],['banners','البانرات'],['notifications','الإشعارات'],['assets','الأصول ثلاثية الأبعاد'],['reports','البلاغات'],['roles','صلاحيات الإدارة'],['settings','الإعدادات'],['analytics','التحليلات'],['audit','سجل الإجراءات']
 ];
@@ -69,7 +69,7 @@ async function renderTab(tab){
  try{
   if(tab==='dashboard'){await refreshStats();host.innerHTML='<h3>ملخص النظام</h3><p class="muted">الأرقام أعلاه من الجداول الفعلية. التغييرات القادمة من التطبيق تظهر تلقائياً عبر Realtime.</p>';return}
   if(tab==='users'){
-   const q=document.querySelector('#user-q')?.value||'';
+   const q=userQuery;
    const {data,error}=await db.rpc('admin_list_users',{_q:q});if(error)throw error;
    host.innerHTML='<h3>المستخدمون</h3><div class="row"><input id="user-q" placeholder="بحث بالاسم أو رقم المستخدم" value="'+esc(q)+'"><button data-action="search-users">بحث</button></div>'+
    ((data||[]).map(u=>item(esc(u.display_name)+' · ID '+esc(u.display_no),'<div class="muted small">المستوى '+u.level+' · VIP '+u.vip_level+' · '+money(u.coins)+' عملة · '+esc((u.roles||[]).join(', '))+'</div>'+
@@ -148,7 +148,7 @@ function subscribeLive(){
 }
 async function action(button){
  const a=button.dataset.action,id=button.dataset.id;
- if(a==='search-users'){await renderTab('users');return}
+ if(a==='search-users'){userQuery=document.querySelector('#user-q')?.value||'';await renderTab('users');return}
  if(a==='coins'){const amount=Number(document.querySelector('#coins-'+button.dataset.user)?.value);if(!Number.isFinite(amount)||amount===0){alert('أدخل قيمة صحيحة غير صفرية');return}const {error}=await db.rpc('admin_grant_coins',{_user:button.dataset.user,_amount:amount});if(error)throw error}
  if(a==='set-vip'){const level=Number(document.querySelector('#vip-'+button.dataset.user)?.value);const {error}=await db.rpc('admin_set_vip',{_user:button.dataset.user,_vip:level});if(error)throw error}
  if(a==='role'){if(!isSuper)throw new Error('super_admin_required');const {error}=await db.rpc('admin_set_role',{_user:button.dataset.user,_role:button.dataset.role,_grant:button.dataset.grant==='true'});if(error)throw error}
