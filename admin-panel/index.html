@@ -33,7 +33,7 @@ const money=v=>Number(v??0).toLocaleString('ar-EG');
 const date=v=>v?new Date(v).toLocaleString('ar-EG'):'—';
 let db=null,isSuper=false,active='dashboard',sessionUser=null,channel=null,userQuery='';
 const tabs=[
- ['dashboard','لوحة المعلومات'],['users','المستخدمون'],['rooms','الغرف'],['seats','المقاعد'],['vip','VIP'],['wallet','المحافظ'],['gifts','الهدايا'],['banners','البانرات'],['notifications','الإشعارات'],['assets','الأصول ثلاثية الأبعاد'],['reports','البلاغات'],['roles','صلاحيات الإدارة'],['settings','الإعدادات'],['branding','هوية التطبيق والبنرات'],['analytics','التحليلات'],['audit','سجل الإجراءات']
+ ['dashboard','لوحة المعلومات'],['users','المستخدمون'],['rooms','الغرف'],['seats','المقاعد'],['vip','VIP'],['wallet','المحافظ'],['gifts','الهدايا'],['banners','البانرات'],['notifications','الإشعارات'],['assets','الأصول ثلاثية الأبعاد'],['audio','المايكات والتأثيرات'],['reports,'البلاغات'],['roles','صلاحيات الإدارة'],['settings','الإعدادات'],['branding','هوية التطبيق والبنرات'],['analytics','التحليلات'],['audit','سجل الإجراءات']
 ];
 function status(id,text,bad=false){const node=$(id);if(node){node.textContent=text;node.className='status'+(bad?' dangerText':'')}}
 function show(which){['setup','login','dashboard'].forEach(id=>$(id).classList.toggle('hidden',id!==which));$('logout').classList.toggle('hidden',which!=='dashboard')}
@@ -70,12 +70,21 @@ async function renderTab(tab){
   if(tab==='dashboard'){await refreshStats();host.innerHTML='<h3>ملخص النظام</h3><p class="muted">الأرقام أعلاه من الجداول الفعلية. التغييرات القادمة من التطبيق تظهر تلقائياً عبر Realtime.</p>';return}
   if(tab==='users'){
    const q=userQuery;
-   const {data,error}=await db.rpc('admin_list_users',{_q:q});if(error)throw error;
-   host.innerHTML='<h3>المستخدمون</h3><div class="row"><input id="user-q" placeholder="بحث بالاسم أو رقم المستخدم" value="'+esc(q)+'"><button data-action="search-users">بحث</button></div>'+
-   ((data||[]).map(u=>item(esc(u.display_name)+' · ID '+esc(u.display_no),'<div class="muted small">المستوى '+u.level+' · VIP '+u.vip_level+' · '+money(u.coins)+' عملة · '+esc((u.roles||[]).join(', '))+'</div>'+
-   '<div class="fieldgrid"><input id="coins-'+u.id+'" type="number" placeholder="قيمة العملات (+/-)"><button data-action="coins" data-user="'+u.id+'">تعديل الرصيد</button><select id="vip-'+u.id+'">'+Array.from({length:11},(_,i)=>'<option value="'+i+'" '+(i===u.vip_level?'selected':'')+'>VIP '+i+'</option>').join('')+'</select><button data-action="set-vip" data-user="'+u.id+'">حفظ VIP</button></div>'+
-   (isSuper?'<div class="actions">'+['admin','moderator'].map(role=>'<button class="secondary" data-action="role" data-user="'+u.id+'" data-role="'+role+'" data-grant="'+(!(u.roles||[]).includes(role))+'">'+((u.roles||[]).includes(role)?'إزالة ':'منح ')+role+'</button>').join('')+'</div>':'')
-   )).join('')||noRows())+'<p class="muted small">عمليات العملات وVIP تُنفذ عبر RPC محمي في قاعدة البيانات.</p>';return;
+   const [{data,error},{data:items,error:itemsError},{data:profiles,error:profilesError},{data:wallets,error:walletsError}]=await Promise.all([
+    db.rpc('admin_list_users',{_q:q}),db.from('store_items').select('id,name,kind,asset_key').order('name').limit(300),
+    db.from('profiles').select('id,id_color,avatar_url').limit(1000),db.from('wallets').select('user_id,diamonds').limit(1000)
+   ]);
+   if(error)throw error;if(itemsError)throw itemsError;if(profilesError)throw profilesError;if(walletsError)throw walletsError;
+   const meta=Object.fromEntries((profiles||[]).map(p=>[p.id,p]));const balances=Object.fromEntries((wallets||[]).map(w=>[w.user_id,w]));
+   const itemOptions=(items||[]).map(i=>'<option value="'+i.id+'">'+esc(i.name)+' · '+esc(i.kind)+'</option>').join('');
+   host.innerHTML='<h3>إدارة المستخدمين الشاملة</h3><div class="row"><input id="user-q" placeholder="بحث بالاسم أو رقم المستخدم" value="'+esc(q)+'"><button data-action="search-users">بحث</button></div>'+
+   ((data||[]).map(u=>{const m=meta[u.id]||{};return item(esc(u.display_name)+' · ID '+esc(u.display_no),
+    '<div class="muted small">المستوى '+u.level+' · VIP '+u.vip_level+' · '+money(u.coins)+' عملة · '+money(balances[u.id]?.diamonds||0)+' ماسة · '+esc((u.roles||[]).join(', '))+'</div>'+
+    '<div class="fieldgrid"><label>رقم ID<input id="idno-'+u.id+'" type="number" min="100000" value="'+esc(u.display_no)+'"></label><label>المستوى<input id="level-'+u.id+'" type="number" min="1" max="999" value="'+esc(u.level)+'"></label><label>لون ID<input id="idcolor-'+u.id+'" type="color" value="'+esc(m.id_color||'#D4AF37')+'"></label><button data-action="identity" data-user="'+u.id+'">حفظ الهوية والمستوى</button></div>'+
+    '<div class="fieldgrid"><select id="currency-'+u.id+'"><option value="coins">عملات</option><option value="diamonds">ماسات</option></select><input id="amount-'+u.id+'" type="number" placeholder="قيمة (+ إضافة / - خصم)"><input id="reason-'+u.id+'" placeholder="سبب العملية"><button data-action="wallet-adjust" data-user="'+u.id+'">تعديل الرصيد</button></div>'+
+    '<div class="fieldgrid"><select id="vip-'+u.id+'">'+Array.from({length:11},(_,i)=>'<option value="'+i+'" '+(i===u.vip_level?'selected':'')+'>VIP '+i+'</option>').join('')+'</select><button data-action="set-vip" data-user="'+u.id+'">حفظ VIP</button><select id="item-'+u.id+'"><option value="">اختر إطاراً أو دخولية لمنحها</option>'+itemOptions+'</select><label><input id="equip-'+u.id+'" type="checkbox" style="width:auto"> تجهيز العنصر فوراً</label><button data-action="grant-item" data-user="'+u.id+'">إرسال العنصر</button></div>'+
+    (isSuper?'<div class="actions">'+['admin','moderator'].map(role=>'<button class="secondary" data-action="role" data-user="'+u.id+'" data-role="'+role+'" data-grant="'+(!(u.roles||[]).includes(role))+'">'+((u.roles||[]).includes(role)?'إزالة ':'منح ')+role+'</button>').join('')+'</div>':'')
+   )}).join('')||noRows())+'<p class="muted small">كل التعديلات تُنفّذ عبر دوال محمية في قاعدة البيانات وتُسجّل في سجل الإدارة.</p>';return;
   }
   if(tab==='rooms'){
    const {data,error}=await db.from('rooms').select('id,room_no,name,member_count,seat_count,is_private,created_at').order('created_at',{ascending:false}).limit(200);if(error)throw error;
@@ -113,7 +122,7 @@ async function renderTab(tab){
   if(tab==='assets'){
    const {data,error}=await db.from('admin_assets').select('*').order('created_at',{ascending:false}).limit(300);if(error)throw error;
    const cards=await Promise.all((data||[]).map(async a=>{let url='';const path=a.metadata?.storage_path||a.url;if(path){const {data:s}=await db.storage.from('admin-assets').createSignedUrl(path,900);url=s?.signedUrl||''}return item(esc(a.name),'<div class="muted small">'+esc(a.category)+' · '+esc(a.asset_key)+' · '+(a.is_active?'نشط':'متوقف')+'</div>'+(url?'<a href="'+esc(url)+'" target="_blank" rel="noreferrer">معاينة الملف</a>':''),'<button class="secondary" data-action="asset-toggle" data-id="'+a.id+'" data-active="'+(!a.is_active)+'">'+(a.is_active?'إيقاف':'تفعيل')+'</button><button class="danger" data-action="asset-delete" data-id="'+a.id+'">حذف</button>')}));
-   host.innerHTML='<h3>مكتبة الأصول ثلاثية الأبعاد</h3><form id="asset-form" class="item"><div class="fieldgrid"><input name="name" placeholder="اسم الأصل" required><select name="category"><option>general</option><option>ui</option><option>room</option><option>gift</option><option>frame</option><option>vip</option><option>banner</option><option>3d</option></select><input name="files" type="file" multiple accept="image/*,.glb,.gltf,.svga,.gif,.webp,.mp4,.webm,.json" required></div><button>رفع الأصول إلى Storage</button></form>'+ (cards.join('')||noRows());return;
+   host.innerHTML='<h3>مكتبة الأصول ثلاثية الأبعاد</h3><form id="asset-form" class="item"><div class="fieldgrid"><input name="name" placeholder="اسم الأصل" required><select name="category"><option>general</option><option>ui</option><option>room</option><option>gift</option><option>frame</option><option>vip</option><option>banner</option><option>microphone</option><option>effect</option><option>3d</option></select><input name="files" type="file" multiple accept="image/*,.glb,.gltf,.svga,.gif,.webp,.mp4,.webm,.json" required></div><button>رفع الأصول إلى Storage</button></form>'+ (cards.join('')||noRows());return;
   }
   if(tab==='reports'){
    const {data,error}=await db.rpc('admin_list_reports',{_status:''});if(error)throw error;
@@ -138,6 +147,15 @@ async function renderTab(tab){
     item('حالة الإعدادات','<div class="muted small">الشعار: '+(brand.logo_path?'مرفوع':'غير مرفوع')+' · بنر البداية: '+(banner.image_path?'مرفوع':'غير مرفوع')+' · '+(banner.enabled===false?'متوقف':'مفعّل')+'</div>');
    return;
   }
+  if(tab==='audio'){
+   const {data,error}=await db.from('admin_settings').select('value').eq('key','voice_controls').maybeSingle();if(error)throw error;
+   const cfg=data?.value||{};
+   const {data:assets,error:assetError}=await db.from('admin_assets').select('asset_key,name,category,is_active').in('category',['microphone','effect']).eq('is_active',true).order('name');if(assetError)throw assetError;
+   const opts=(category,selected)=>'<option value="">استخدام الافتراضي</option>'+(assets||[]).filter(a=>a.category===category).map(a=>'<option value="'+esc(a.asset_key)+'" '+(selected===a.asset_key?'selected':'')+'>'+esc(a.name)+'</option>').join('');
+   host.innerHTML='<h3>إعدادات المايك والمظهر الصوتي</h3><p class="muted small">ارفع ملفات المايك والتأثيرات أولاً من مكتبة الأصول مع اختيار تصنيف microphone أو effect. هذه الإعدادات تتحكم في شكل عناصر المايك ومؤشراته. مؤثرات معالجة الصوت الحقيقية تحتاج محرك صوت مباشر داخل التطبيق.</p>'+
+    '<form id="audio-form" class="item"><label>شكل المايك</label><select name="mic_asset_key">'+opts('microphone',cfg.mic_asset_key)+'</select><label>شكل المايك المكتوم</label><select name="muted_asset_key">'+opts('microphone',cfg.muted_asset_key)+'</select><label>تأثير مرئي للمايك</label><select name="effect_asset_key">'+opts('effect',cfg.effect_asset_key)+'</select><label>نمط الإضاءة</label><select name="mic_style"><option value="classic" '+((cfg.mic_style||'classic')==='classic'?'selected':'')+'>كلاسيكي</option><option value="gold" '+(cfg.mic_style==='gold'?'selected':'')+'>ذهبي</option><option value="neon" '+(cfg.mic_style==='neon'?'selected':'')+'>نيون</option><option value="minimal" '+(cfg.mic_style==='minimal'?'selected':'')+'>بسيط</option></select><label><input name="show_mic_effect" type="checkbox" style="width:auto" '+(cfg.show_mic_effect?'checked':'')+'> إظهار التأثير المرئي</label><label><input name="moderator_mute_enabled" type="checkbox" style="width:auto" '+(cfg.moderator_mute_enabled!==false?'checked':'')+'> السماح للمشرفين بكتم مقاعد الغرفة</label><button type="submit">حفظ إعدادات المايك</button></form>';
+   return;
+  }
   if(tab==='analytics'){
    const {data,error}=await db.rpc('get_analytics');if(error)throw error;
    host.innerHTML='<h3>التحليلات</h3><pre>'+esc(JSON.stringify(data,null,2))+'</pre>';return;
@@ -158,6 +176,21 @@ function subscribeLive(){
 async function action(button){
  const a=button.dataset.action,id=button.dataset.id;
  if(a==='search-users'){userQuery=document.querySelector('#user-q')?.value||'';await renderTab('users');return}
+ if(a==='identity'){
+  const displayNo=Number(document.querySelector('#idno-'+button.dataset.user)?.value),level=Number(document.querySelector('#level-'+button.dataset.user)?.value),color=document.querySelector('#idcolor-'+button.dataset.user)?.value||'#D4AF37';
+  if(!Number.isInteger(displayNo)||!Number.isInteger(level))throw new Error('أدخل ID ومستوى صحيحين');
+  const {error}=await db.rpc('admin_update_user_identity',{_user:button.dataset.user,_display_no:displayNo,_level:level,_id_color:color});if(error)throw error;
+ }
+ if(a==='wallet-adjust'){
+  const amount=Number(document.querySelector('#amount-'+button.dataset.user)?.value),currency=document.querySelector('#currency-'+button.dataset.user)?.value,reason=document.querySelector('#reason-'+button.dataset.user)?.value||'admin_adjustment';
+  if(!Number.isSafeInteger(amount)||amount===0)throw new Error('أدخل مبلغاً صحيحاً غير صفر');
+  const {error}=await db.rpc('admin_adjust_wallet',{_user:button.dataset.user,_currency:currency,_amount:amount,_reason:reason});if(error)throw error;
+ }
+ if(a==='grant-item'){
+  const itemId=document.querySelector('#item-'+button.dataset.user)?.value,equip=!!document.querySelector('#equip-'+button.dataset.user)?.checked;
+  if(!itemId)throw new Error('اختر العنصر أولاً');
+  const {error}=await db.rpc('admin_grant_store_item',{_user:button.dataset.user,_item:itemId,_equip:equip});if(error)throw error;
+ }
  if(a==='coins'){const amount=Number(document.querySelector('#coins-'+button.dataset.user)?.value);if(!Number.isFinite(amount)||amount===0){alert('أدخل قيمة صحيحة غير صفرية');return}const {error}=await db.rpc('admin_grant_coins',{_user:button.dataset.user,_amount:amount});if(error)throw error}
  if(a==='set-vip'){const level=Number(document.querySelector('#vip-'+button.dataset.user)?.value);const {error}=await db.rpc('admin_set_vip',{_user:button.dataset.user,_vip:level});if(error)throw error}
  if(a==='role'){if(!isSuper)throw new Error('super_admin_required');const {error}=await db.rpc('admin_set_role',{_user:button.dataset.user,_role:button.dataset.role,_grant:button.dataset.grant==='true'});if(error)throw error}
@@ -219,6 +252,12 @@ $('panel').addEventListener('submit',async e=>{
    const rows=[{key:'app_branding',value:brand,updated_by:user?.id||null,updated_at:new Date().toISOString()},{key:'home_banner',value:home,updated_by:user?.id||null,updated_at:new Date().toISOString()}];
    const {error:saveError}=await db.from('admin_settings').upsert(rows,{onConflict:'key'});if(saveError)throw saveError;
    alert('تم حفظ إعدادات الهوية والبنر. ستظهر التغييرات للمستخدمين بعد إعادة فتح التطبيق.');
+  }
+  if(form.id==='audio-form'){
+   const {data:{user}}=await db.auth.getUser();
+   const value={mic_asset_key:String(v.mic_asset_key||''),muted_asset_key:String(v.muted_asset_key||''),effect_asset_key:String(v.effect_asset_key||''),mic_style:String(v.mic_style||'classic'),show_mic_effect:form.querySelector('[name=show_mic_effect]').checked,moderator_mute_enabled:form.querySelector('[name=moderator_mute_enabled]').checked};
+   const {error}=await db.from('admin_settings').upsert({key:'voice_controls',value,updated_by:user?.id||null,updated_at:new Date().toISOString()},{onConflict:'key'});if(error)throw error;
+   alert('تم حفظ إعدادات المايك والمظهر الصوتي');
   }
   if(form.id==='settings-form'){let value;try{value=JSON.parse(String(v.value))}catch{throw new Error('صيغة JSON غير صحيحة')}const {data:{user}}=await db.auth.getUser();const {error}=await db.from('admin_settings').upsert({key:String(v.key),value,updated_by:user?.id||null,updated_at:new Date().toISOString()});if(error)throw error}
   if(form.id==='asset-form'){
