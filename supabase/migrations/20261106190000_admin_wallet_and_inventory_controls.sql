@@ -1,5 +1,6 @@
 alter table public.gifts add column if not exists asset_key text;
 
+drop policy if exists "public voice controls read" on public.admin_settings;
 create policy "public voice controls read"
 on public.admin_settings for select to authenticated
 using (key = 'voice_controls');
