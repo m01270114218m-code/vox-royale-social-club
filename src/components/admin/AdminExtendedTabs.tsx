@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { errMsg } from "@/lib/vox";
+import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 
 const fmt = (value: string) => new Date(value).toLocaleString("ar-EG");
 
@@ -37,6 +38,7 @@ export function SeatsTab() {
     setLoading(false);
   }
   useEffect(() => { void load(); }, [query]);
+  useAdminRealtime(["room_seats", "room_members"], load);
   async function act(row: SeatRow, action: string) {
     const { error } = await supabase.rpc("admin_seat_action", {
       _room: row.room_id, _seat: row.seat_index, _action: action,
@@ -76,6 +78,7 @@ export function BannersTab() {
     setRows((data ?? []) as Banner[]);
   }
   useEffect(() => { void load(); }, []);
+  useAdminRealtime(["banners"], load);
   async function save() {
     if (!form.title.trim() || !/^https?:\/\//i.test(form.image_url.trim())) { toast.error("أدخل عنواناً ورابط صورة صحيحاً"); return; }
     const { error } = await supabase.from("banners").insert({
@@ -127,6 +130,7 @@ export function NotificationsTab() {
     setRows((data ?? []) as NotificationRow[]);
   }
   useEffect(() => { void load(); }, []);
+  useAdminRealtime(["notifications"], load);
   async function send() {
     if (!title.trim() || !body.trim()) return;
     setSending(true);
@@ -162,6 +166,7 @@ export function AdminRolesTab({ isSuper }: { isSuper: boolean }) {
     setRows(((data ?? []) as RoleUser[]).filter((user) => user.roles.length > 0));
   }
   useEffect(() => { void load(); }, []);
+  useAdminRealtime(["user_roles", "profiles"], load);
   async function change(user: RoleUser, role: "admin" | "moderator", grant: boolean) {
     if (!isSuper) { toast.error("إدارة الصلاحيات متاحة للمشرف الأعلى فقط"); return; }
     const { error } = await supabase.rpc("admin_set_role", { _user: user.id, _role: role, _grant: grant });
@@ -193,6 +198,7 @@ export function SettingsTab() {
     setRows((data ?? []) as typeof rows);
   }
   useEffect(() => { void load(); }, []);
+  useAdminRealtime(["admin_settings"], load);
   async function save() {
     let parsed: unknown;
     try { parsed = JSON.parse(value); } catch { toast.error("قيمة JSON غير صحيحة"); return; }
@@ -235,6 +241,7 @@ export function AnalyticsTab() {
     setLoading(false);
   }
   useEffect(() => { void load(); }, []);
+  useAdminRealtime(["profiles", "rooms", "wallets", "gift_transactions", "reports"], load);
   const renderValue = (value: unknown): string => typeof value === "object" && value !== null ? JSON.stringify(value, null, 2) : String(value ?? "—");
   return <div className="space-y-3">
     <div className="flex items-center justify-between"><b>تحليلات مباشرة من قاعدة البيانات</b><Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}>تحديث</Button></div>
