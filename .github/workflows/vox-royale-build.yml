@@ -3,8 +3,6 @@ name: VOX ROYALE web build
 on:
   push:
     branches: [admin-asset-center]
-  pull_request:
-    branches: [zen, admin-asset-center]
   workflow_dispatch:
 
 permissions:
