@@ -49,7 +49,7 @@ async function checkAdmin(){
  isSuper=!!superRole;
  $('claimBox').classList.add('hidden');
  $('who').textContent='مسجل الدخول: '+(session.user.email||session.user.id)+' · '+(isSuper?'المشرف الأعلى':'مشرف');
- show('dashboard');await refreshStats();buildTabs();subscribeLive();await renderTab(active);return true;
+ show('dashboard');buildTabs();subscribeLive();await renderTab(active);return true;
 }
 async function refreshStats(){
  const {data,error}=await db.rpc('admin_stats');
@@ -67,7 +67,7 @@ function noRows(text='لا توجد بيانات مسجلة'){return '<div class
 async function renderTab(tab){
  active=tab;const host=$('panel');host.innerHTML='<p class="muted">جارٍ تحميل بيانات Supabase…</p>';
  try{
-  if(tab==='dashboard'){await refreshStats();host.innerHTML='<h3>ملخص النظام</h3><p class="muted">الأرقام أعلاه من الجداول الفعلية. التغييرات القادمة من التطبيق تظهر تلقائياً عبر Realtime.</p>';return}
+  if(tab==='dashboard'){host.innerHTML='<h3>ملخص النظام</h3><p class="muted">الأرقام أعلاه من الجداول الفعلية. التغييرات القادمة من التطبيق تظهر تلقائياً عبر Realtime.</p>';return}
   if(tab==='users'){
    const q=userQuery;
    const [{data,error},{data:items,error:itemsError},{data:profiles,error:profilesError},{data:wallets,error:walletsError}]=await Promise.all([
@@ -191,8 +191,41 @@ async function renderTab(tab){
 function subscribeLive(){
  if(channel)db.removeChannel(channel);
  const names=['profiles','wallets','wallet_transactions','rooms','room_members','room_seats','gifts','gift_transactions','vip_tiers','banners','notifications','admin_assets','reports','user_roles','admin_settings','audit_log','store_items','posts'];
+ const tabTables={
+  users:['profiles','wallets','store_items','user_roles'],
+  rooms:['rooms','room_members'],
+  seats:['room_seats','room_members'],
+  vip:['vip_tiers'],
+  store:['store_items','admin_assets'],
+  wallet:['wallets','wallet_transactions'],
+  gifts:['gifts','gift_transactions','admin_assets'],
+  banners:['banners','admin_assets'],
+  notifications:['notifications'],
+  assets:['admin_assets'],
+  audio:['admin_assets','admin_settings'],
+  reports:['reports'],
+  roles:['user_roles','profiles'],
+  settings:['admin_settings'],
+  auth:['admin_settings'],
+  branding:['admin_settings','admin_assets'],
+  analytics:['profiles','rooms','wallets','gift_transactions','reports'],
+  audit:['audit_log']
+ };
+ let timer=null;
+ let pending=new Set();
+ const schedule=(table)=>{
+  pending.add(table);
+  if(timer)clearTimeout(timer);
+  timer=setTimeout(async()=>{
+   timer=null;
+   await refreshStats();
+   const relevant=tabTables[active]||[];
+   if(active!=='dashboard' && relevant.some(t=>pending.has(t))) await renderTab(active);
+   pending.clear();
+  },180);
+ };
  channel=db.channel('vox-admin-panel-live');
- names.forEach(table=>channel.on('postgres_changes',{event:'*',schema:'public',table},()=>{void refreshStats();if(active!=='dashboard')void renderTab(active)}));
+ names.forEach(table=>channel.on('postgres_changes',{event:'*',schema:'public',table},()=>schedule(table)));
  channel.subscribe();
 }
 async function action(button){
