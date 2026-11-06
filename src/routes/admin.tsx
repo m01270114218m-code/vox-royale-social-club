@@ -85,7 +85,20 @@ function AdminPage() {
     { id: "broadcast", label: "إشعار عام", icon: Bell },
     { id: "audit", label: "سجل الإجراءات", icon: ScrollText },
   ];
-  const statLabels: Record<string, string> = { users: "المستخدمون", rooms: "الغرف", posts: "المنشورات", families: "العائلات", open_reports: "بلاغات مفتوحة", gifts: "الهدايا", coins: "إجمالي العملات" };
+  // Keep dashboard cards aligned with the keys returned by public.admin_stats().
+  const statLabels: Record<string, string> = {
+    users: "المستخدمون",
+    rooms: "الغرف",
+    seats: "المقاعد",
+    vip_users: "مستخدمو VIP",
+    wallet_coins: "إجمالي العملات",
+    wallet_diamonds: "إجمالي الماسات",
+    gifts: "الهدايا",
+    reports_open: "البلاغات المفتوحة",
+    assets: "الأصول",
+    banners: "الإعلانات",
+    notifications: "الإشعارات",
+  };
 
   return (
     <div className="mx-auto max-w-6xl p-4">
