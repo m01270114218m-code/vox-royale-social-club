@@ -60,7 +60,7 @@ function AdminPage() {
     if (!error && data) setStats(data as Record<string, number>);
   }
   useAdminRealtime(
-    ["profiles", "wallets", "wallet_transactions", "rooms", "room_members", "room_seats", "gifts", "gift_transactions", "vip_tiers", "banners", "notifications", "admin_assets", "reports", "user_roles", "admin_settings", "audit_log", "store_items", "posts"],
+    allowed ? ["profiles", "wallets", "wallet_transactions", "rooms", "room_members", "room_seats", "gifts", "gift_transactions", "vip_tiers", "banners", "notifications", "admin_assets", "reports", "user_roles", "admin_settings", "audit_log", "store_items", "posts"] : [],
     refreshStats,
   );
 
@@ -366,7 +366,7 @@ function GiftsTab() {
   useEffect(() => { load(); }, []);
   useAdminRealtime(["gifts", "gift_transactions"], load);
   async function saveGift() {
-    const id = form.id.trim() || form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const id = form.id.trim() || form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `gift-${Date.now()}`;
     if (!id || !form.name.trim() || !form.emoji.trim() || Number(form.price_coins) < 0) {
       toast.error("أدخل معرفاً واسم الهدية ورمزها وسعراً صحيحاً"); return;
     }
