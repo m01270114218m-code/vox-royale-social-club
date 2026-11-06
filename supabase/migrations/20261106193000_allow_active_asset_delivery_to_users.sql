@@ -1,3 +1,4 @@
+drop policy if exists "Authenticated users read active admin assets" on storage.objects;
 create policy "Authenticated users read active admin assets"
 on storage.objects for select to authenticated
 using (
