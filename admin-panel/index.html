@@ -33,7 +33,7 @@ const money=v=>Number(v??0).toLocaleString('ar-EG');
 const date=v=>v?new Date(v).toLocaleString('ar-EG'):'—';
 let db=null,isSuper=false,active='dashboard',sessionUser=null,channel=null,userQuery='';
 const tabs=[
- ['dashboard','لوحة المعلومات'],['users','المستخدمون'],['rooms','الغرف'],['seats','المقاعد'],['vip','VIP'],['wallet','المحافظ'],['gifts','الهدايا'],['banners','البانرات'],['notifications','الإشعارات'],['assets','الأصول ثلاثية الأبعاد'],['reports','البلاغات'],['roles','صلاحيات الإدارة'],['settings','الإعدادات'],['analytics','التحليلات'],['audit','سجل الإجراءات']
+ ['dashboard','لوحة المعلومات'],['users','المستخدمون'],['rooms','الغرف'],['seats','المقاعد'],['vip','VIP'],['wallet','المحافظ'],['gifts','الهدايا'],['banners','البانرات'],['notifications','الإشعارات'],['assets','الأصول ثلاثية الأبعاد'],['reports','البلاغات'],['roles','صلاحيات الإدارة'],['settings','الإعدادات'],['branding','هوية التطبيق والبنرات'],['analytics','التحليلات'],['audit','سجل الإجراءات']
 ];
 function status(id,text,bad=false){const node=$(id);if(node){node.textContent=text;node.className='status'+(bad?' dangerText':'')}}
 function show(which){['setup','login','dashboard'].forEach(id=>$(id).classList.toggle('hidden',id!==which));$('logout').classList.toggle('hidden',which!=='dashboard')}
@@ -129,6 +129,15 @@ async function renderTab(tab){
    host.innerHTML='<h3>إعدادات التطبيق</h3><form id="settings-form" class="item"><input name="key" placeholder="مفتاح الإعداد" required><textarea name="value" placeholder="قيمة JSON" required>{}</textarea><button>حفظ الإعداد</button></form>'+
    ((data||[]).map(s=>item(esc(s.key),'<pre>'+esc(JSON.stringify(s.value,null,2))+'</pre><div class="muted small">'+date(s.updated_at)+'</div>','<button class="secondary" data-action="setting-edit" data-key="'+esc(s.key)+'" data-value="'+esc(JSON.stringify(s.value))+'">تعديل</button><button class="danger" data-action="setting-delete" data-key="'+esc(s.key)+'">حذف</button>')).join('')||noRows());return;
   }
+  if(tab==='branding'){
+   const {data,error}=await db.from('admin_settings').select('key,value').in('key',['app_branding','home_banner']);if(error)throw error;
+   const cfg=Object.fromEntries((data||[]).map(x=>[x.key,x.value||{}]));
+   const brand=cfg.app_branding||{},banner=cfg.home_banner||{};
+   host.innerHTML='<h3>هوية التطبيق والصفحة الرئيسية</h3><p class="muted small">اختر الصور مباشرة من ذاكرة الهاتف. تُرفع إلى Supabase Storage وتظهر في التطبيق دون إعادة بناء APK.</p>'+
+    '<form id="branding-form" class="item"><h4>اسم التطبيق وشعاره</h4><label>اسم التطبيق</label><input name="app_name" maxlength="40" value="'+esc(brand.app_name||'VOX ROYALE')+'" required><label>اختيار شعار من الهاتف</label><input name="logo_file" type="file" accept="image/*"><div class="muted small">'+(brand.logo_path?'يوجد شعار محفوظ حالياً':'لم يتم رفع شعار بعد')+'</div><hr><h4>بنر شاشة البداية</h4><label>عنوان البنر</label><input name="banner_title" maxlength="100" value="'+esc(banner.title||'مرحباً بك في VOX ROYALE')+'"><label>اختيار صورة البنر من الهاتف</label><input name="banner_file" type="file" accept="image/*"><label><input name="banner_enabled" type="checkbox" '+(banner.enabled!==false?'checked':'')+' style="width:auto"> تفعيل بنر البداية</label><div class="muted small">مدة العرض ثابتة 5 ثوانٍ عند فتح التطبيق.</div><button type="submit">حفظ ونشر الهوية والبنر</button></form>'+
+    item('حالة الإعدادات','<div class="muted small">الشعار: '+(brand.logo_path?'مرفوع':'غير مرفوع')+' · بنر البداية: '+(banner.image_path?'مرفوع':'غير مرفوع')+' · '+(banner.enabled===false?'متوقف':'مفعّل')+'</div>');
+   return;
+  }
   if(tab==='analytics'){
    const {data,error}=await db.rpc('get_analytics');if(error)throw error;
    host.innerHTML='<h3>التحليلات</h3><pre>'+esc(JSON.stringify(data,null,2))+'</pre>';return;
@@ -174,6 +183,32 @@ $('panel').addEventListener('submit',async e=>{
   if(form.id==='gift-form'){const name=String(v.name).trim();const id=String(v.id).trim()||name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||('gift-'+Date.now());const {error}=await db.from('gifts').upsert({id,name,emoji:String(v.emoji),price:Number(v.price),active:true,tier:String(v.tier||'normal'),sort:Number(v.sort||0)});if(error)throw error}
   if(form.id==='banner-form'){if(!/^https:\/\//i.test(String(v.image_url)))throw new Error('رابط الصورة يجب أن يبدأ بـ HTTPS');const {error}=await db.from('banners').insert({title:String(v.title),image_url:String(v.image_url),target_url:String(v.target_url||'')||null,sort_order:Number(v.sort_order)||0,is_active:true});if(error)throw error}
   if(form.id==='broadcast-form'){const {data,error}=await db.rpc('admin_broadcast',{_title:String(v.title),_body:String(v.body)});if(error)throw error;alert('تم إرسال الإشعار إلى '+money(data)+' حساب')}
+  if(form.id==='branding-form'){
+   const {data:oldRows,error:oldError}=await db.from('admin_settings').select('key,value').in('key',['app_branding','home_banner']);if(oldError)throw oldError;
+   const old=Object.fromEntries((oldRows||[]).map(x=>[x.key,x.value||{}]));
+   async function uploadBrandFile(file,kind){
+    if(!file)return null;
+    if(file.size>20*1024*1024)throw new Error('الحد الأقصى لصورة الهوية 20 MB');
+    if(!file.type.startsWith('image/'))throw new Error('اختر ملف صورة صالحاً');
+    const clean=file.name.replace(/[^a-zA-Z0-9._-]+/g,'-');
+    const path='branding/'+kind+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'-'+clean;
+    const {error:upError}=await db.storage.from('admin-assets').upload(path,file,{contentType:file.type,upsert:false});if(upError)throw upError;
+    const assetKey='branding-'+kind+'-'+Date.now();
+    const {error:rowError}=await db.from('admin_assets').insert({asset_key:assetKey,name:kind==='logo'?'شعار التطبيق':'بنر شاشة البداية',category:'banner',url:path,metadata:{storage_path:path,content_type:file.type,size:file.size,original_name:file.name,kind},is_active:true});
+    if(rowError){await db.storage.from('admin-assets').remove([path]);throw rowError}
+    return {path,asset_key:assetKey};
+   }
+   const logo=await uploadBrandFile(v.logo_file,'logo');
+   const banner=await uploadBrandFile(v.banner_file,'intro-banner');
+   const brand={...(old.app_branding||{}),app_name:String(v.app_name||'VOX ROYALE').trim()};
+   if(logo){brand.logo_path=logo.path;brand.logo_asset_key=logo.asset_key}
+   const home={...(old.home_banner||{}),title:String(v.banner_title||'').trim(),enabled:form.querySelector('[name=banner_enabled]').checked,duration_seconds:5};
+   if(banner){home.image_path=banner.path;home.asset_key=banner.asset_key}
+   const {data:{user}}=await db.auth.getUser();
+   const rows=[{key:'app_branding',value:brand,updated_by:user?.id||null,updated_at:new Date().toISOString()},{key:'home_banner',value:home,updated_by:user?.id||null,updated_at:new Date().toISOString()}];
+   const {error:saveError}=await db.from('admin_settings').upsert(rows,{onConflict:'key'});if(saveError)throw saveError;
+   alert('تم حفظ إعدادات الهوية والبنر. ستظهر التغييرات للمستخدمين بعد إعادة فتح التطبيق.');
+  }
   if(form.id==='settings-form'){let value;try{value=JSON.parse(String(v.value))}catch{throw new Error('صيغة JSON غير صحيحة')}const {data:{user}}=await db.auth.getUser();const {error}=await db.from('admin_settings').upsert({key:String(v.key),value,updated_by:user?.id||null,updated_at:new Date().toISOString()});if(error)throw error}
   if(form.id==='asset-form'){
    const files=form.querySelector('[name=files]').files;const category=String(v.category);let success=0;
