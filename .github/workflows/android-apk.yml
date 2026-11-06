@@ -2,46 +2,63 @@ name: Build VOX ROYALE Android APK
 
 on:
   push:
-    branches: [main, admin-asset-center]
+    branches: [admin-asset-center]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: vox-royale-android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   android:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 22
+          bun-version: latest
 
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-audit --no-fund
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
 
-      - name: Install Capacitor Android
-        run: npm install @capacitor/core @capacitor/cli @capacitor/android --legacy-peer-deps --no-audit --no-fund
+      - name: Install project dependencies
+        run: bun install --frozen-lockfile
 
-      - name: Build web app
-        run: npm run build
+      - name: Verify web production build
+        run: bun run build
+
+      - name: Install Capacitor toolchain
+        run: bun add @capacitor/core @capacitor/cli @capacitor/android
+
+      - name: Prepare Capacitor web directory
+        run: |
+          mkdir -p android-web
+          test -f android-web/index.html || printf '%s\n' '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>Connecting to VOX ROYALE…</body></html>' > android-web/index.html
 
       - name: Create Android project
-        run: npx cap add android
+        run: bunx cap add android
 
-      - name: Sync Android
-        run: npx cap sync android
+      - name: Sync Android project
+        run: bunx cap sync android
 
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vox-royale-debug-apk
+          name: vox-royale-android-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 14
