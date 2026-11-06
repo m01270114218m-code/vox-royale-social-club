@@ -480,7 +480,7 @@ function AssetsTab() {
       setLoading(false);
       return;
     }
-    const assets = (data ?? []) as AdminAsset[];
+    const assets = (data ?? []) as unknown as AdminAsset[];
     setRows(assets);
     const signed: Record<string, string> = {};
     await Promise.all(assets.map(async (asset) => {
