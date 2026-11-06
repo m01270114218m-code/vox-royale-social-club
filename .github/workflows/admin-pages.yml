@@ -8,6 +8,7 @@ on:
       - ".github/workflows/admin-pages.yml"
   workflow_dispatch:
 
+# External admin panel deployment; requires GitHub Pages to be enabled for this repository.
 permissions:
   contents: read
   pages: write
