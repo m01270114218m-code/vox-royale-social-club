@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText, Image as ImageIcon, Box, Upload, Search, Power, RefreshCw, File as FileIcon, Armchair, PanelsTopLeft, Settings, BarChart3, ShieldCheck } from "lucide-react";
+import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText, Image as ImageIcon, Box, Upload, Search, Power, RefreshCw, File as FileIcon, Armchair, PanelsTopLeft, Settings, BarChart3, ShieldCheck, ExternalLink } from "lucide-react";
 import { AdminRolesTab, AnalyticsTab, BannersTab, NotificationsTab, SeatsTab, SettingsTab } from "@/components/admin/AdminExtendedTabs";
 import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +35,7 @@ const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
 
 function AdminPage() {
   const { user } = useAuth();
+  const externalAdminUrl = import.meta.env.VITE_ADMIN_PANEL_URL as string | undefined;
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [isSuper, setIsSuper] = useState(false);
   const [stats, setStats] = useState<Record<string, number> | null>(null);
@@ -119,9 +120,16 @@ function AdminPage() {
 
   return (
     <div className="mx-auto max-w-6xl p-4">
-      <header className="flex items-center justify-between py-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 py-3">
         <h1 className="font-display text-gold text-3xl">لوحة التحكم</h1>
-        <Link to="/" className="text-sm text-muted-foreground">← التطبيق</Link>
+        <div className="flex items-center gap-2">
+          {externalAdminUrl && (
+            <a href={externalAdminUrl} target="_blank" rel="noreferrer">
+              <Button size="sm" variant="outline"><ExternalLink className="mr-1 h-4 w-4" /> اللوحة الخارجية</Button>
+            </a>
+          )}
+          <Link to="/" className="text-sm text-muted-foreground">← التطبيق</Link>
+        </div>
       </header>
       {stats && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
