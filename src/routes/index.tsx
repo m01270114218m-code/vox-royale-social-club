@@ -36,6 +36,40 @@ function Home() {
   const [country, setCountry] = useState<string | null>(null);
   const [cat, setCat] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [appBranding, setAppBranding] = useState<{ app_name?: string; logo_path?: string } | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [introBanner, setIntroBanner] = useState<{ title?: string; image_path?: string; enabled?: boolean } | null>(null);
+  const [introBannerUrl, setIntroBannerUrl] = useState<string | null>(null);
+  const [showIntroBanner, setShowIntroBanner] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    async function loadBranding() {
+      const { data, error } = await supabase.from("admin_settings").select("key,value").in("key", ["app_branding", "home_banner"]);
+      if (error || !alive) return;
+      const settings = Object.fromEntries((data ?? []).map((row) => [row.key, row.value as Record<string, unknown>]));
+      const brand = (settings.app_branding ?? {}) as { app_name?: string; logo_path?: string };
+      const banner = (settings.home_banner ?? {}) as { title?: string; image_path?: string; enabled?: boolean; duration_seconds?: number };
+      setAppBranding(brand);
+      setIntroBanner(banner);
+      if (brand.logo_path) {
+        const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(brand.logo_path, 3600);
+        if (alive) setLogoUrl(signed?.signedUrl ?? null);
+      }
+      if (banner.enabled !== false && banner.image_path) {
+        const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(banner.image_path, 3600);
+        if (alive && signed?.signedUrl) {
+          setIntroBannerUrl(signed.signedUrl);
+          setShowIntroBanner(true);
+          timer = setTimeout(() => setShowIntroBanner(false), 5000);
+        }
+      }
+    }
+    void loadBranding();
+    return () => { alive = false; if (timer) clearTimeout(timer); };
+  }, []);
+
 
   async function load() {
     const { data, error } = await supabase.from("rooms").select("*").limit(100);
@@ -54,8 +88,20 @@ function Home() {
 
   return (
     <div className="px-4 pt-6">
+      {showIntroBanner && introBannerUrl && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4" role="dialog" aria-label="إعلان البداية">
+          <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-gold/40 shadow-2xl">
+            <img src={introBannerUrl} alt={introBanner?.title || "بنر البداية"} className="max-h-[78vh] w-full object-contain" />
+            {introBanner?.title && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-5 pt-12 text-center text-xl font-bold text-white">{introBanner.title}</div>}
+            <button onClick={() => setShowIntroBanner(false)} className="absolute right-3 top-3 rounded-full bg-black/70 px-4 py-2 text-sm text-white">تخطي</button>
+          </div>
+        </div>
+      )}
       <header className="mb-4 flex items-center justify-between">
-        <h1 className="font-display text-gold text-3xl">VOX ROYALE</h1>
+        <div className="flex min-w-0 items-center gap-2">
+          {logoUrl && <img src={logoUrl} alt="" className="h-10 w-10 rounded-xl object-contain" />}
+          <h1 className="font-display text-gold text-3xl">{appBranding?.app_name || "VOX ROYALE"}</h1>
+        </div>
         <div className="flex items-center gap-2">
           <Link to="/notifications" aria-label="الإشعارات" className="glass rounded-full p-2"><img src={icons3d.bell} alt="" className="h-7 w-7 object-contain" /></Link>
           <CreateRoom />
