@@ -37,11 +37,11 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "in") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
         if (error) throw error;
       } else if (mode === "up") {
         const { error } = await supabase.auth.signUp({
-          email,
+          email: email.trim().toLowerCase(),
           password,
           options: { emailRedirectTo: window.location.origin, data: { full_name: name } },
         });
@@ -49,7 +49,7 @@ function AuthPage() {
         toast.success("تم إنشاء الحساب، افتح بريدك لتأكيده");
         setMode("in");
       } else {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
           redirectTo: `${window.location.origin}/reset-password`,
         });
         if (error) throw error;
@@ -65,45 +65,64 @@ function AuthPage() {
   async function quick() {
     setBusy(true);
     try {
+      const { data: current, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (current.session?.user.is_anonymous) {
+        toast.success("أهلاً بك مجدداً");
+        return;
+      }
+
       let dev = localStorage.getItem("vox_device_id");
       if (!dev) {
-        dev = crypto.randomUUID() + crypto.randomUUID();
+        dev = typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID() + crypto.randomUUID()
+          : "vox-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
         localStorage.setItem("vox_device_id", dev);
       }
-      // Same device → restore the same guest account if we saved it on sign-out.
+
       const saved = localStorage.getItem("vox_guest_refresh");
       if (saved) {
-        const { data: rs, error: re } = await supabase.auth.refreshSession({ refresh_token: saved });
-        if (!re && rs.session) {
-          localStorage.setItem("vox_guest_refresh", rs.session.refresh_token);
-          toast.success("أهلاً بعودتك");
+        const { data: restored, error: restoreError } = await supabase.auth.refreshSession({ refresh_token: saved });
+        if (!restoreError && restored.session) {
+          localStorage.setItem("vox_guest_refresh", restored.session.refresh_token);
+          toast.success("أهلاً بعودتك إلى حسابك");
           return;
         }
         localStorage.removeItem("vox_guest_refresh");
       }
-      const { error } = await supabase.auth.signInAnonymously();
+
+      const { data: guest, error } = await supabase.auth.signInAnonymously();
       if (error) throw error;
-      const r = await supabase.rpc("register_device", { _device: dev });
-      if (r.error) {
-        await supabase.auth.signOut();
-        throw new Error(r.error.message.includes("already") ? "هذا الجهاز لديه حساب بالفعل" : r.error.message);
+      if (!guest.user || !guest.session) throw new Error("لم يتم إنشاء جلسة دخول سريعة");
+
+      const { error: deviceError } = await supabase.rpc("register_device", { _device: dev });
+      if (deviceError) {
+        await supabase.auth.signOut({ scope: "local" });
+        throw new Error("تعذر ربط الحساب بهذا الجهاز: " + deviceError.message);
       }
-      const { data: cur } = await supabase.auth.getSession();
-      if (cur.session) localStorage.setItem("vox_guest_refresh", cur.session.refresh_token);
-      toast.success("أهلاً بك في VOX ROYALE");
+
+      localStorage.setItem("vox_guest_refresh", guest.session.refresh_token);
+      toast.success("تم إنشاء حساب سريع لهذا الجهاز");
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error((err as Error).message || "تعذر تسجيل الدخول السريع");
     } finally {
       setBusy(false);
     }
   }
 
   async function google() {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin },
-    });
-    if (error) toast.error(error.message);
+    setBusy(true);
+    try {
+      const redirectTo = (import.meta.env.VITE_AUTH_REDIRECT_URL as string | undefined) || window.location.origin;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+      if (error) throw error;
+    } catch (err) {
+      toast.error((err as Error).message || "تعذر بدء تسجيل الدخول باستخدام Google");
+      setBusy(false);
+    }
   }
 
   return (
@@ -128,7 +147,7 @@ function AuthPage() {
           </Button>
         )}
         {mode !== "reset" && (
-          <Button type="button" variant="outline" onClick={google} className="w-full">
+          <Button type="button" disabled={busy} variant="outline" onClick={google} className="w-full">
             المتابعة باستخدام Google
           </Button>
         )}
