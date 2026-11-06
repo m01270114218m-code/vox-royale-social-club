@@ -33,7 +33,7 @@ const money=v=>Number(v??0).toLocaleString('ar-EG');
 const date=v=>v?new Date(v).toLocaleString('ar-EG'):'—';
 let db=null,isSuper=false,active='dashboard',sessionUser=null,channel=null,userQuery='';
 const tabs=[
- ['dashboard','لوحة المعلومات'],['users','المستخدمون'],['rooms','الغرف'],['seats','المقاعد'],['vip','VIP'],['store','المتجر والإطارات والدخوليات'],['wallet','المحافظ'],['gifts','الهدايا'],['banners','البانرات'],['notifications','الإشعارات'],['assets','الأصول ثلاثية الأبعاد'],['audio','المايكات والتأثيرات'],['reports,'البلاغات'],['roles','صلاحيات الإدارة'],['settings','الإعدادات'],['branding','هوية التطبيق والبنرات'],['analytics','التحليلات'],['audit','سجل الإجراءات']
+ ['dashboard','لوحة المعلومات'],['users','المستخدمون'],['rooms','الغرف'],['seats','المقاعد'],['vip','VIP'],['store','المتجر والإطارات والدخوليات'],['wallet','المحافظ'],['gifts','الهدايا'],['banners','البانرات'],['notifications','الإشعارات'],['assets','الأصول ثلاثية الأبعاد'],['audio','المايكات والتأثيرات'],['reports','البلاغات'],['roles','صلاحيات الإدارة'],['settings','الإعدادات'],['branding','هوية التطبيق والبنرات'],['analytics','التحليلات'],['audit','سجل الإجراءات']
 ];
 function status(id,text,bad=false){const node=$(id);if(node){node.textContent=text;node.className='status'+(bad?' dangerText':'')}}
 function show(which){['setup','login','dashboard'].forEach(id=>$(id).classList.toggle('hidden',id!==which));$('logout').classList.toggle('hidden',which!=='dashboard')}
