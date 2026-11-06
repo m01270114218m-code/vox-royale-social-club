@@ -1,9 +1,9 @@
-import { icons3d, avatarFrame, vipBadge } from "@/lib/assets3d";
+import { icons3d, vipBadge } from "@/lib/assets3d";
 import { UserAvatar } from "@/components/UserAvatar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Crown, Coins } from "lucide-react";
+
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,14 +28,6 @@ export const Route = createFileRoute("/store")({
   ),
 });
 
-const VIP = [
-  { lv: 1, price: 1000, perks: "شارة VIP ولون اسم مميز" },
-  { lv: 2, price: 3000, perks: "إطار صورة فضي" },
-  { lv: 3, price: 8000, perks: "إطار ذهبي ودخول مميز للغرف" },
-  { lv: 4, price: 20000, perks: "مركبة دخول وتأثير اسم" },
-  { lv: 5, price: 50000, perks: "حماية من الطرد من الغرف العامة" },
-  { lv: 6, price: 120000, perks: "تاج ملكي وأولوية الدعم" },
-];
 const PACKS = [
   { coins: 6000, price: "$0.99" },
   { coins: 32000, price: "$4.99" },
