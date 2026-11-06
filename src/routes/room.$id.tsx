@@ -130,10 +130,40 @@ function RoomPage() {
     })();
     const ch = supabase
       .channel(`room-${id}-${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "room_seats", filter: `room_id=eq.${id}` }, () => loadSeats())
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, (payload) => { loadMembers(); void playEntryFor((payload.new as { user_id: string }).user_id); })
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, () => loadMembers())
-      .on("postgres_changes", { event: "*", schema: "public", table: "room_mic_requests", filter: `room_id=eq.${id}` }, () => loadMicRequests())
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_seats", filter: `room_id=eq.${id}` }, (payload) => {
+        const next = payload.new as Partial<Seat> & { room_id?: string };
+        const prev = payload.old as Partial<Seat> & { room_id?: string };
+        const seatIndex = Number(next.seat_index ?? prev.seat_index);
+        if (!Number.isInteger(seatIndex)) return;
+        setSeats((current) => {
+          if (payload.eventType === "DELETE") return current.filter((s) => s.seat_index !== seatIndex);
+          const row = { seat_index: seatIndex, user_id: (next.user_id ?? null) as string | null, is_locked: !!next.is_locked, is_muted: !!next.is_muted };
+          const exists = current.some((s) => s.seat_index === seatIndex);
+          return exists ? current.map((s) => s.seat_index === seatIndex ? row : s) : [...current, row].sort((a,b) => a.seat_index-b.seat_index);
+        });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, (payload) => {
+        const userId = (payload.new as { user_id: string }).user_id;
+        setMembers((current) => current.includes(userId) ? current : [...current, userId]);
+        void playEntryFor(userId);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, (payload) => {
+        const userId = (payload.old as { user_id: string }).user_id;
+        setMembers((current) => current.filter((x) => x !== userId));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_mic_requests", filter: `room_id=eq.${id}` }, (payload) => {
+        const row = payload.new as { id?: string; user_id?: string; created_at?: string; status?: string };
+        if (payload.eventType === "DELETE" || (row.status && row.status !== "pending")) {
+          const idToRemove = row.id || (payload.old as { id?: string }).id;
+          if (idToRemove) setMicRequests((current) => current.filter((x) => x.id !== idToRemove));
+          if (idToRemove === myMicRequest?.id) setMyMicRequest(null);
+          return;
+        }
+        if (row.id && row.user_id && row.created_at) {
+          setMicRequests((current) => current.some((x) => x.id === row.id) ? current : [...current, { id: row.id!, user_id: row.user_id!, created_at: row.created_at! }]);
+          if (row.user_id === uid) setMyMicRequest({ id: row.id });
+        }
+      })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${id}` }, (p) => setMsgs((x) => [...x.slice(-99), p.new as Msg]))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "gift_transactions", filter: `room_id=eq.${id}` }, async (p) => {
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key").eq("id", (p.new as { gift_id: string }).gift_id).maybeSingle();
@@ -427,3 +457,4 @@ function RoomPage() {
     </div>
   );
 }
+
