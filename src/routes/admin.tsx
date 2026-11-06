@@ -274,7 +274,7 @@ function Rooms() {
 function Posts() {
   const [rows, setRows] = useState<{ id: string; body: string; like_count: number; created_at: string; profiles: { display_name: string } | null }[]>([]);
   async function load() {
-    const { data } = await supabase.from("posts").select("id,body,like_count,created_at,profiles(display_name)").order("created_at", { ascending: false }).limit(100);
+    const { data } = await supabase.from("posts").select("id,body,like_count,created_at,profiles!posts_user_id_fkey(display_name)").order("created_at", { ascending: false }).limit(100);
     setRows((data as never) ?? []);
   }
   useEffect(() => { load(); }, []);
