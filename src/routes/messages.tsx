@@ -48,7 +48,7 @@ function Messages() {
       (um ?? []).forEach((m) => (counts[m.conversation_id] = (counts[m.conversation_id] ?? 0) + 1));
       setUnread(counts);
     }
-    const { count } = await supabase.from("notifications").select("id", { count: "exact", head: true }).eq("is_read", false);
+    const { count } = await supabase.from("user_notifications").select("id", { count: "exact", head: true }).eq("user_id", uid).is("read_at", null);
     setNotif(count ?? 0);
   }
   useEffect(() => {
