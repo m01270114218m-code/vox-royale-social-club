@@ -175,6 +175,7 @@ function Reports() {
     setRows((data as Report[]) ?? []);
   }
   useEffect(() => { load(); }, [status]);
+  useAdminRealtime(["reports"], load);
   async function act(id: string, s: string) {
     const { error } = await supabase.rpc("admin_resolve_report", { _report: id, _status: s, _reply: reply[id] ?? "" });
     if (error) { toast.error(errMsg(error)); return; }
@@ -220,6 +221,7 @@ function Rooms() {
     setRows(data ?? []);
   }
   useEffect(() => { load(); }, []);
+  useAdminRealtime(["rooms", "room_members"], load);
   async function del(id: string) {
     if (!confirm("حذف الغرفة نهائياً؟")) return;
     const { error } = await supabase.rpc("admin_delete_room", { _room: id });
@@ -250,6 +252,7 @@ function Posts() {
     setRows((data as never) ?? []);
   }
   useEffect(() => { load(); }, []);
+  useAdminRealtime(["posts"], load);
   async function del(id: string) {
     if (!confirm("حذف المنشور؟")) return;
     const { error } = await supabase.rpc("admin_delete_post", { _post: id });
@@ -284,6 +287,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
     setRows((data as U[]) ?? []);
   }
   useEffect(() => { load(); }, []);
+  useAdminRealtime(["profiles", "wallets", "user_roles"], load);
   async function run(p: PromiseLike<{ error: unknown }>, msg: string) {
     const { error } = await p;
     if (error) { toast.error(errMsg(error as never)); return; }
@@ -326,6 +330,7 @@ function WalletTab() {
       setRows((data as WalletTx[]) ?? []);
     })();
   }, []);
+  useAdminRealtime(["wallet_transactions", "wallets"], () => { void supabase.rpc("admin_list_wallet_tx", { _limit: 200 }).then(({ data, error }) => { if (error) toast.error(errMsg(error)); setRows((data as WalletTx[]) ?? []); }); });
   return (
     <div className="space-y-2">
       {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد معاملات</p>}
@@ -359,6 +364,7 @@ function GiftsTab() {
     setCatalog((gifts as GiftCatalog[]) ?? []);
   }
   useEffect(() => { load(); }, []);
+  useAdminRealtime(["gifts", "gift_transactions"], load);
   async function saveGift() {
     const id = form.id.trim() || form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     if (!id || !form.name.trim() || !form.emoji.trim() || Number(form.price_coins) < 0) {
@@ -421,6 +427,7 @@ function VipTab() {
     setRows((data as VipTier[]) ?? []);
   }
   useEffect(() => { load(); }, []);
+  useAdminRealtime(["vip_tiers", "profiles"], load);
   async function save() {
     const level = Number(form.level), price = Number(form.price_coins), days = Number(form.duration_days);
     if (!Number.isInteger(level) || level < 1 || level > 10 || !form.name.trim() || price < 0 || days < 1) {
@@ -469,6 +476,7 @@ function StoreTab() {
     setRows((data as StoreRow[]) ?? []);
   }
   useEffect(() => { load(); }, []);
+  useAdminRealtime(["store_items"], load);
   async function save() {
     const { error } = await supabase.rpc("admin_save_store_item", {
       _id: null as unknown as string, _kind: form.kind, _name: form.name, _description: form.description,
@@ -548,6 +556,7 @@ function AuditTab() {
       setRows((data as AuditRow[]) ?? []);
     })();
   }, []);
+  useAdminRealtime(["audit_log"], () => { void supabase.rpc("admin_list_audit", { _limit: 200 }).then(({ data, error }) => { if (error) toast.error(errMsg(error)); setRows((data as AuditRow[]) ?? []); }); });
   return (
     <div className="space-y-2">
       {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد إجراءات مسجلة بعد</p>}
@@ -623,6 +632,7 @@ function AssetsTab() {
   }
 
   useEffect(() => { load(); }, []);
+  useAdminRealtime(["admin_assets"], load);
 
   async function uploadAssets() {
     if (!files.length) {
