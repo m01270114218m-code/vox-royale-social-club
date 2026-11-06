@@ -25,6 +25,7 @@ jobs:
           test -f package.json
           test -f bun.lock
           test -f capacitor.config.json
+          test -s public/control-center/index.html
 
       - name: Install locked dependencies and build static app shell
         working-directory: source
