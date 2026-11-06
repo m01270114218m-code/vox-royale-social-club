@@ -77,6 +77,11 @@ function AdminPage() {
     { id: "rooms", label: "الغرف", icon: DoorOpen },
     { id: "posts", label: "المنشورات", icon: FileText },
     { id: "users", label: "المستخدمون", icon: Users },
+    { id: "wallet", label: "المحافظ", icon: Wallet },
+    { id: "gifts", label: "الهدايا", icon: Gift },
+    { id: "store", label: "المتجر", icon: Store },
+    { id: "broadcast", label: "إشعار عام", icon: Bell },
+    { id: "audit", label: "سجل الإجراءات", icon: ScrollText },
   ];
   const statLabels: Record<string, string> = { users: "المستخدمون", rooms: "الغرف", posts: "المنشورات", families: "العائلات", open_reports: "بلاغات مفتوحة", gifts: "الهدايا", coins: "إجمالي العملات" };
 
@@ -108,6 +113,11 @@ function AdminPage() {
         {tab === "rooms" && <Rooms />}
         {tab === "posts" && <Posts />}
         {tab === "users" && <UsersTab isSuper={isSuper} />}
+        {tab === "wallet" && <WalletTab />}
+        {tab === "gifts" && <GiftsTab />}
+        {tab === "store" && <StoreTab />}
+        {tab === "broadcast" && <BroadcastTab />}
+        {tab === "audit" && <AuditTab />}
       </div>
     </div>
   );
