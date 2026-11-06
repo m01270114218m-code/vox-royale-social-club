@@ -247,9 +247,12 @@ function RoomPage() {
 
   async function onSeat(s: Seat) {
     if (!s.user_id && !s.is_locked && !isStaff) {
-      const { error } = await supabase.rpc("request_mic", { _room: id });
-      if (error) toast.error(errMsg(error)); else toast.success("تم إرسال طلب الميك لصاحب الغرفة");
-      await loadMicRequests();
+      const { data: requestId, error } = await supabase.rpc("request_mic", { _room: id });
+      if (error) toast.error(errMsg(error));
+      else {
+        if (requestId) setMyMicRequest({ id: String(requestId) });
+        toast.success("تم إرسال طلب الميك لصاحب الغرفة");
+      }
       return;
     }
     setSeatMenu(s);
@@ -258,8 +261,6 @@ function RoomPage() {
   async function decideMicRequest(requestId: string, accept: boolean) {
     const { error } = await supabase.rpc("decide_mic_request", { _request: requestId, _accept: accept });
     if (error) toast.error(errMsg(error)); else toast.success(accept ? "تمت الموافقة على طلب الميك" : "تم رفض الطلب");
-    await loadMicRequests();
-    await loadSeats();
   }
 
   async function openGifts(target?: string) {
@@ -371,7 +372,7 @@ function RoomPage() {
       </div>
 
       <form onSubmit={send} className="glass m-3 flex items-center gap-2 rounded-full p-2">
-        {!mySeat && !isStaff && <Button type="button" variant="ghost" size="icon" onClick={async () => { const { error } = await supabase.rpc("request_mic", { _room: id }); if (error) toast.error(errMsg(error)); else { toast.success("تم إرسال طلب الميك لصاحب الغرفة"); await loadMicRequests(); } }} aria-label="طلب الميك" title="طلب الميك"><Mic className="h-7 w-7" /></Button>}
+        {!mySeat && !isStaff && <Button type="button" variant="ghost" size="icon" onClick={async () => { const { data: requestId, error } = await supabase.rpc("request_mic", { _room: id }); if (error) toast.error(errMsg(error)); else { if (requestId) setMyMicRequest({ id: String(requestId) }); toast.success("تم إرسال طلب الميك لصاحب الغرفة"); } }} aria-label="طلب الميك" title="طلب الميك"><Mic className="h-7 w-7" /></Button>}
         {mySeat && (
           <Button type="button" variant="ghost" size="icon" onClick={() => call("toggle_my_mute", { _room: id })} aria-label="المايك" title="المايك"><img src={mySeat.is_muted ? icons3d.micMuted : icons3d.mic} alt="" className="h-8 w-8 object-contain" /></Button>
         )}
