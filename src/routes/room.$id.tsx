@@ -35,7 +35,7 @@ const mountCount: Record<string, number> = {};
 type Profile = { id: string; display_name: string; avatar_url: string | null; level: number; vip_level: number };
 type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
 type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
-type GiftT = { id: string; name: string; emoji: string; price: number; tier: string };
+type GiftT = { id: string; name: string; emoji: string; price: number; tier: string; asset_key?: string | null; asset_url?: string | null };
 type Room = { id: string; room_no: number; owner_id: string; name: string; description: string | null; category: string; country: string; seat_count: number; is_private?: boolean; cover_url?: string | null };
 
 function RoomPage() {
@@ -58,6 +58,7 @@ function RoomPage() {
   const [qty, setQty] = useState(1);
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string } | null>(null);
+  const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const chatEnd = useRef<HTMLDivElement>(null);
    const uid = user?.id ?? "";
@@ -109,14 +110,51 @@ function RoomPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, () => loadMembers())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${id}` }, (p) => setMsgs((x) => [...x.slice(-99), p.new as Msg]))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "gift_transactions", filter: `room_id=eq.${id}` }, async (p) => {
-        const { data: g } = await supabase.from("gifts").select("name,emoji").eq("id", (p.new as { gift_id: string }).gift_id).maybeSingle();
+        const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key").eq("id", (p.new as { gift_id: string }).gift_id).maybeSingle();
         if (g) {
-          setAnim({ key: Date.now(), emoji: giftImage(g.name, g.emoji) });
+          let image = giftImage(g.name, g.emoji);
+          if (g.asset_key) {
+            const { data: asset } = await supabase.from("admin_assets").select("url,metadata").eq("asset_key", g.asset_key).eq("is_active", true).maybeSingle();
+            const path = asset?.metadata?.storage_path || asset?.url;
+            if (path) {
+              const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
+              image = signed?.signedUrl || image;
+            }
+          }
+          setAnim({ key: Date.now(), emoji: image });
           setTimeout(() => setAnim(null), 2600);
         }
       })
       .subscribe();
-    supabase.from("gifts").select("id,name,emoji,price,tier").order("sort").then(({ data }) => data && setGifts(data));
+    const loadCatalog = async () => {
+      const { data: rows } = await supabase.from("gifts").select("id,name,emoji,price,tier,asset_key").eq("active", true).order("sort");
+      const keys = (rows || []).map((g) => g.asset_key).filter((key): key is string => !!key);
+      const { data: assets } = keys.length ? await supabase.from("admin_assets").select("asset_key,url,metadata").in("asset_key", keys).eq("is_active", true) : { data: [] };
+      const assetMap = new Map<string, string>();
+      await Promise.all((assets || []).map(async (asset) => {
+        const path = asset.metadata?.storage_path || asset.url;
+        if (!path) return;
+        const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
+        if (signed?.signedUrl) assetMap.set(asset.asset_key, signed.signedUrl);
+      }));
+      setGifts((rows || []).map((g) => ({ ...g, asset_url: g.asset_key ? assetMap.get(g.asset_key) || null : null })) as GiftT[]);
+    };
+    void loadCatalog();
+    const loadVoiceControls = async () => {
+      const { data } = await supabase.from("admin_settings").select("value").eq("key", "voice_controls").maybeSingle();
+      const cfg = (data?.value || {}) as { mic_style?: string; show_mic_effect?: boolean; mic_asset_key?: string; muted_asset_key?: string; effect_asset_key?: string };
+      const getUrl = async (key?: string) => {
+        if (!key) return undefined;
+        const { data: asset } = await supabase.from("admin_assets").select("url,metadata").eq("asset_key", key).eq("is_active", true).maybeSingle();
+        const path = asset?.metadata?.storage_path || asset?.url;
+        if (!path) return undefined;
+        const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
+        return signed?.signedUrl;
+      };
+      const [mic_asset_url, muted_asset_url, effect_asset_url] = await Promise.all([getUrl(cfg.mic_asset_key), getUrl(cfg.muted_asset_key), getUrl(cfg.effect_asset_key)]);
+      setVoiceControls({ mic_style: cfg.mic_style, show_mic_effect: cfg.show_mic_effect, mic_asset_url, muted_asset_url, effect_asset_url });
+    };
+    void loadVoiceControls();
     return () => {
       alive = false;
       supabase.removeChannel(ch);
@@ -228,8 +266,9 @@ function RoomPage() {
           return (
             <Button variant="ghost" key={s.seat_index} aria-label={`المقعد ${s.seat_index + 1}${s.is_locked ? " مقفل" : ""}`} onClick={() => onSeat(s)} className="h-auto min-w-0 flex-col gap-1 p-0 hover:bg-transparent">
               <div className="relative flex h-20 w-20 items-center justify-center">
-                {p ? <UserAvatar src={p.avatar_url} name={p.display_name} vip={p.vip_level} size={72} /> : <img src={s.is_locked ? icons3d.micLocked : s.seat_index === 0 ? icons3d.micHost : icons3d.mic} alt="" className="h-20 w-20 object-contain" />}
-                {p && <img src={s.is_muted ? icons3d.micMuted : host ? icons3d.micHost : icons3d.mic} alt={s.is_muted ? "مكتوم" : "على المقعد"} className="absolute -bottom-1 -left-1 h-7 w-7 object-contain" />}
+                {p ? <UserAvatar src={p.avatar_url} name={p.display_name} vip={p.vip_level} size={72} /> : <img src={s.is_locked ? icons3d.micLocked : voiceControls.mic_asset_url || (s.seat_index === 0 ? icons3d.micHost : icons3d.mic)} alt="" className="h-20 w-20 object-contain" />}
+                {p && <img src={s.is_muted ? voiceControls.muted_asset_url || icons3d.micMuted : voiceControls.mic_asset_url || (host ? icons3d.micHost : icons3d.mic)} alt={s.is_muted ? "مكتوم" : "على المقعد"} className="absolute -bottom-1 -left-1 h-7 w-7 object-contain" style={{ filter: voiceControls.mic_style === "neon" ? "drop-shadow(0 0 7px #22d3ee)" : voiceControls.mic_style === "gold" ? "drop-shadow(0 0 7px #e8bd63)" : undefined }} />}
+                {p && voiceControls.show_mic_effect && voiceControls.effect_asset_url && <img src={voiceControls.effect_asset_url} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-contain" />}
               </div>
               <span className="max-w-16 truncate text-xs">{p ? p.display_name : s.seat_index + 1}</span>
             </Button>
@@ -298,7 +337,7 @@ function RoomPage() {
             <div className="grid grid-cols-4 gap-2">
               {gifts.map((g) => (
                 <Button variant="ghost" key={g.id} onClick={() => setGiftSel(g)} className={`h-auto flex-col gap-1 rounded-xl p-2 ${giftSel?.id === g.id ? "bg-secondary ring-2 ring-primary" : "glass"}`}>
-                  <img src={giftImage(g.name, g.emoji)} alt={g.name} className="h-16 w-16 object-contain" />
+                  <img src={g.asset_url || giftImage(g.name, g.emoji)} alt={g.name} className="h-16 w-16 object-contain" />
                   <span className="text-xs">{g.name}</span>
                   <span className="text-xs text-primary">🪙{g.price}</span>
                 </Button>
