@@ -115,6 +115,59 @@ function StorePage() {
           </div>
         </section>
         <section>
+          <h2 className="mb-2 font-bold">إطارات الصورة</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {items.filter((i) => i.kind === "frame").map((item) => {
+              const isOwned = owned.has(item.id);
+              const isEquipped = equippedFrame === item.asset_key;
+              return (
+                <div key={item.id} className={`card-3d glass rounded-3xl p-4 text-center ${isEquipped ? "ring-2 ring-primary" : ""}`}>
+                  <div className="relative mx-auto mb-2 h-24 w-24">
+                    <div className="absolute inset-[18%] overflow-hidden rounded-full bg-secondary" />
+                    <img src={frameByKey(item.asset_key)} alt={item.name} className="absolute inset-0 h-full w-full object-contain" />
+                  </div>
+                  <b className="text-sm">{item.name}</b>
+                  <p className="min-h-8 text-xs text-muted-foreground">{item.description}</p>
+                  {isOwned ? (
+                    <Button size="sm" variant={isEquipped ? "outline" : "default"} className="mt-2 w-full" onClick={() => equip(item, !isEquipped)}>
+                      {isEquipped ? "إزالة" : "تجهيز"}
+                    </Button>
+                  ) : (
+                    <Button size="sm" className="mt-2 w-full bg-gold" onClick={() => buyItem(item)}>
+                      <img src={icons3d.coin} alt="" className="h-5 w-5 object-contain" />{item.price.toLocaleString()}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+        <section>
+          <h2 className="mb-2 font-bold">دخوليات الغرف</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {items.filter((i) => i.kind === "entry").map((item) => {
+              const isOwned = owned.has(item.id);
+              const isEquipped = equippedEntry === item.asset_key;
+              return (
+                <div key={item.id} className={`card-3d glass rounded-3xl p-4 text-center ${isEquipped ? "ring-2 ring-primary" : ""}`}>
+                  <img src={entryEffects[item.asset_key]?.image ?? icons3d.giftbox} alt={item.name} className="mx-auto mb-2 h-20 w-20 object-contain" />
+                  <b className="text-sm">{item.name}</b>
+                  <p className="min-h-8 text-xs text-muted-foreground">{item.description}</p>
+                  {isOwned ? (
+                    <Button size="sm" variant={isEquipped ? "outline" : "default"} className="mt-2 w-full" onClick={() => equip(item, !isEquipped)}>
+                      {isEquipped ? "إزالة" : "تجهيز"}
+                    </Button>
+                  ) : (
+                    <Button size="sm" className="mt-2 w-full bg-gold" onClick={() => buyItem(item)}>
+                      <img src={icons3d.coin} alt="" className="h-5 w-5 object-contain" />{item.price.toLocaleString()}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+        <section>
           <h2 className="mb-2 font-bold">شحن العملات</h2>
           <div className="grid grid-cols-2 gap-3">
             {PACKS.map((p) => (
