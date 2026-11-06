@@ -1,6 +1,6 @@
 {
   "appId": "com.voxroyale.app",
-  "appName": "VOX ROYALE",
+  "appName": "صدي شات",
   "webDir": ".output/public",
   "android": {
     "allowMixedContent": false
