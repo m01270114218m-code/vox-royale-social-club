@@ -1,9 +1,8 @@
 {
   "appId": "com.voxroyale.app",
   "appName": "VOX ROYALE",
-  "webDir": "android-web",
-  "server": {
-    "url": "https://vox-royale-social-club.lovable.app",
-    "cleartext": false
+  "webDir": ".output/public",
+  "android": {
+    "allowMixedContent": false
   }
 }
