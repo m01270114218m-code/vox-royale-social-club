@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText, Image as ImageIcon, Box, Upload, Search, Power, RefreshCw, File as FileIcon } from "lucide-react";
+import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText, Image as ImageIcon, Box, Upload, Search, Power, RefreshCw, File as FileIcon, Armchair, PanelsTopLeft, Settings, BarChart3, ShieldCheck } from "lucide-react";
+import { AdminRolesTab, AnalyticsTab, BannersTab, NotificationsTab, SeatsTab, SettingsTab } from "@/components/admin/AdminExtendedTabs";
 import { supabase } from "@/integrations/supabase/client";
 import { RequireAuth } from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,7 +29,7 @@ export const Route = createFileRoute("/admin")({
   ),
 });
 
-type Tab = "reports" | "rooms" | "posts" | "users" | "wallet" | "gifts" | "vip" | "store" | "assets" | "broadcast" | "audit";
+type Tab = "reports" | "rooms" | "seats" | "posts" | "users" | "wallet" | "gifts" | "vip" | "store" | "assets" | "banners" | "notifications" | "roles" | "settings" | "analytics" | "audit";
 const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
 
 function AdminPage() {
@@ -36,6 +37,7 @@ function AdminPage() {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [isSuper, setIsSuper] = useState(false);
   const [stats, setStats] = useState<Record<string, number> | null>(null);
+  const [revision, setRevision] = useState(0);
   const [tab, setTab] = useState<Tab>("reports");
 
   async function check() {
@@ -50,7 +52,24 @@ function AdminPage() {
       setStats(data as Record<string, number>);
     }
   }
-  useEffect(() => { check(); }, [user]);
+  useEffect(() => { void check(); }, [user?.id]);
+
+  // One authenticated Realtime channel keeps every visible admin module in sync with app writes.
+  useEffect(() => {
+    if (!allowed) return;
+    const tables = ["profiles", "wallets", "wallet_transactions", "rooms", "room_members", "room_seats", "gifts", "gift_transactions", "vip_tiers", "banners", "notifications", "admin_assets", "reports", "user_roles", "admin_settings", "audit_log", "store_items", "posts"];
+    const channel = supabase.channel("vox-admin-live-dashboard");
+    tables.forEach((table) => {
+      channel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
+        setRevision((value) => value + 1);
+        void supabase.rpc("admin_stats").then(({ data, error }) => {
+          if (!error && data) setStats(data as Record<string, number>);
+        });
+      });
+    });
+    channel.subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [allowed]);
 
   async function claim() {
     const { data, error } = await supabase.rpc("claim_first_admin");
@@ -75,14 +94,19 @@ function AdminPage() {
   const tabs: { id: Tab; label: string; icon: typeof Flag }[] = [
     { id: "reports", label: "البلاغات", icon: Flag },
     { id: "rooms", label: "الغرف", icon: DoorOpen },
+    { id: "seats", label: "المقاعد", icon: Armchair },
     { id: "posts", label: "المنشورات", icon: FileText },
     { id: "users", label: "المستخدمون", icon: Users },
     { id: "wallet", label: "المحافظ", icon: Wallet },
     { id: "gifts", label: "الهدايا", icon: Gift },
     { id: "vip", label: "مستويات VIP", icon: Shield },
     { id: "store", label: "المتجر", icon: Store },
-    { id: "assets", label: "مكتبة الأصول", icon: ImageIcon },
-    { id: "broadcast", label: "إشعار عام", icon: Bell },
+    { id: "assets", label: "الأصول ثلاثية الأبعاد", icon: ImageIcon },
+    { id: "banners", label: "البانرات", icon: PanelsTopLeft },
+    { id: "notifications", label: "الإشعارات", icon: Bell },
+    { id: "roles", label: "صلاحيات الإدارة", icon: ShieldCheck },
+    { id: "settings", label: "الإعدادات", icon: Settings },
+    { id: "analytics", label: "التحليلات", icon: BarChart3 },
     { id: "audit", label: "سجل الإجراءات", icon: ScrollText },
   ];
   // Keep dashboard cards aligned with the keys returned by public.admin_stats().
@@ -123,9 +147,10 @@ function AdminPage() {
           </button>
         ))}
       </div>
-      <div className="mt-4">
+      <div key={revision} className="mt-4">
         {tab === "reports" && <Reports />}
         {tab === "rooms" && <Rooms />}
+        {tab === "seats" && <SeatsTab />}
         {tab === "posts" && <Posts />}
         {tab === "users" && <UsersTab isSuper={isSuper} />}
         {tab === "wallet" && <WalletTab />}
@@ -133,7 +158,11 @@ function AdminPage() {
         {tab === "vip" && <VipTab />}
         {tab === "store" && <StoreTab />}
         {tab === "assets" && <AssetsTab />}
-        {tab === "broadcast" && <BroadcastTab />}
+        {tab === "banners" && <BannersTab />}
+        {tab === "notifications" && <NotificationsTab />}
+        {tab === "roles" && <AdminRolesTab isSuper={isSuper} />}
+        {tab === "settings" && <SettingsTab />}
+        {tab === "analytics" && <AnalyticsTab />}
         {tab === "audit" && <AuditTab />}
       </div>
     </div>
@@ -321,7 +350,7 @@ function WalletTab() {
 }
 
 type GiftTx = { sender_name: string | null; receiver_name: string | null; gift_name: string; cost: number; created_at: string };
-type GiftCatalog = { id: string; name: string; emoji: string; price_coins: number; is_active: boolean };
+type GiftCatalog = { id: string; name: string; emoji: string; price: number; active: boolean };
 function GiftsTab() {
   const [rows, setRows] = useState<GiftTx[]>([]);
   const [catalog, setCatalog] = useState<GiftCatalog[]>([]);
@@ -329,7 +358,7 @@ function GiftsTab() {
   async function load() {
     const [{ data, error }, { data: gifts, error: catalogError }] = await Promise.all([
       supabase.rpc("admin_list_gift_tx", { _limit: 200 }),
-      supabase.from("gifts").select("id,name,emoji,price_coins,is_active").order("price_coins"),
+      supabase.from("gifts").select("id,name,emoji,price,active").order("price"),
     ]);
     if (error) toast.error(errMsg(error));
     if (catalogError) toast.error(errMsg(catalogError));
@@ -342,14 +371,14 @@ function GiftsTab() {
     if (!id || !form.name.trim() || !form.emoji.trim() || Number(form.price_coins) < 0) {
       toast.error("أدخل معرفاً واسم الهدية ورمزها وسعراً صحيحاً"); return;
     }
-    const { error } = await supabase.from("gifts").upsert({ id, name: form.name.trim(), emoji: form.emoji.trim(), price_coins: Number(form.price_coins), is_active: true });
+    const { error } = await supabase.from("gifts").upsert({ id, name: form.name.trim(), emoji: form.emoji.trim(), price: Number(form.price_coins), active: true });
     if (error) { toast.error(errMsg(error)); return; }
     toast.success("تم حفظ الهدية في الكتالوج");
     setForm({ id: "", name: "", emoji: "🎁", price_coins: "100" });
     load();
   }
   async function toggleGift(g: GiftCatalog) {
-    const { error } = await supabase.from("gifts").update({ is_active: !g.is_active }).eq("id", g.id);
+    const { error } = await supabase.from("gifts").update({ active: !g.active }).eq("id", g.id);
     if (error) { toast.error(errMsg(error)); return; }
     load();
   }
@@ -373,8 +402,8 @@ function GiftsTab() {
       </div>
       {catalog.map((g) => (
         <div key={g.id} className="glass flex items-center justify-between gap-2 rounded-xl p-3 text-sm">
-          <div><b>{g.emoji} {g.name}</b><div className="text-xs text-muted-foreground" dir="ltr">{g.id} · {g.price_coins} coins</div></div>
-          <div className="flex gap-1"><Button size="sm" variant="outline" onClick={() => toggleGift(g)}>{g.is_active ? "إيقاف" : "تفعيل"}</Button><Button size="sm" variant="destructive" onClick={() => deleteGift(g)}>حذف</Button></div>
+          <div><b>{g.emoji} {g.name}</b><div className="text-xs text-muted-foreground" dir="ltr">{g.id} · {g.price} coins</div></div>
+          <div className="flex gap-1"><Button size="sm" variant="outline" onClick={() => toggleGift(g)}>{g.active ? "إيقاف" : "تفعيل"}</Button><Button size="sm" variant="destructive" onClick={() => deleteGift(g)}>حذف</Button></div>
         </div>
       ))}
       <div className="border-t border-border pt-3"><b>سجل إرسال الهدايا</b></div>
