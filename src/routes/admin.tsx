@@ -474,8 +474,7 @@ function AssetsTab() {
 
   async function load() {
     setLoading(true);
-    const db = supabase as any;
-    const { data, error } = await db.from("admin_assets").select("*").order("created_at", { ascending: false }).limit(300);
+    const { data, error } = await supabase.from("admin_assets").select("*").order("created_at", { ascending: false }).limit(300);
     if (error) {
       toast.error(errMsg(error));
       setLoading(false);
@@ -546,8 +545,7 @@ function AssetsTab() {
   }
 
   async function toggleAsset(asset: AdminAsset) {
-    const db = supabase as any;
-    const { error } = await db.from("admin_assets").update({ is_active: !asset.is_active, updated_at: new Date().toISOString() }).eq("id", asset.id);
+    const { error } = await supabase.from("admin_assets").update({ is_active: !asset.is_active, updated_at: new Date().toISOString() }).eq("id", asset.id);
     if (error) { toast.error(errMsg(error)); return; }
     toast.success(asset.is_active ? "تم إيقاف الأصل عن الظهور في التطبيق" : "تم تفعيل الأصل");
     await load();
@@ -560,8 +558,7 @@ function AssetsTab() {
       const { error } = await supabase.storage.from(ASSET_BUCKET).remove([path]);
       if (error) { toast.error(`تعذر حذف الملف: ${error.message}`); return; }
     }
-    const db = supabase as any;
-    const { error } = await db.from("admin_assets").delete().eq("id", asset.id);
+    const { error } = await supabase.from("admin_assets").delete().eq("id", asset.id);
     if (error) { toast.error(errMsg(error)); return; }
     toast.success("تم حذف الأصل والملف المرتبط به");
     await load();
