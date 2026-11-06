@@ -1,0 +1,15 @@
+services:
+  - type: web
+    runtime: static
+    name: vox-royale-admin-panel
+    branch: admin-asset-center
+    buildCommand: echo "Publishing the Supabase-connected admin panel"
+    staticPublishPath: ./admin-panel
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
