@@ -105,8 +105,9 @@ function AuthPage() {
     try {
       const { data: current, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
-      if (current.session?.user.is_anonymous) {
-        toast.success("أهلاً بك مجدداً");
+      if (current.session?.user) {
+        if (current.session.user.is_anonymous) toast.success("أهلاً بك مجدداً");
+        else toast.info("أنت مسجل الدخول بالفعل. سجّل الخروج أولاً إذا أردت إنشاء حساب سريع منفصل.");
         return;
       }
 
