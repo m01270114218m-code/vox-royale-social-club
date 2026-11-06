@@ -152,10 +152,14 @@ function AuthPage() {
           </Button>
         )}
         <div className="flex justify-between pt-2 text-sm text-muted-foreground">
-          <button type="button" onClick={() => setMode(mode === "in" ? "up" : "in")}>
-            {mode === "in" ? "حساب جديد" : "لدي حساب"}
-          </button>
-          <button type="button" onClick={() => setMode("reset")}>نسيت كلمة المرور؟</button>
+          {mode === "reset" ? (
+            <button type="button" onClick={() => setMode("in")}>العودة إلى تسجيل الدخول</button>
+          ) : (
+            <button type="button" onClick={() => setMode(mode === "in" ? "up" : "in")}>
+              {mode === "in" ? "حساب جديد" : "لدي حساب"}
+            </button>
+          )}
+          {mode !== "reset" && <button type="button" onClick={() => setMode("reset")}>نسيت كلمة المرور؟</button>}
         </div>
       </form>
     </div>
