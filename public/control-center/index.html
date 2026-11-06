@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VOX ROYALE | Admin Center</title>
+<title>صدي شات | Admin Center</title>
 <style>
 :root{color-scheme:dark;--bg:#090b12;--panel:#121724;--line:#273044;--gold:#e8bd63;--muted:#9aa5b8;--red:#f87171;--green:#4ade80}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,#222033 0,#090b12 48%);color:#f5f2ea;font:15px system-ui,sans-serif;min-height:100vh}
@@ -15,11 +15,11 @@ button{background:var(--gold);color:#17130b;border:0;font-weight:700;cursor:poin
 </style>
 </head>
 <body><main class="wrap">
-<header class="top"><div><div class="brand">VOX ROYALE</div><div class="muted">EXTERNAL ADMIN CENTER · LIVE SUPABASE</div></div><button id="logout" class="secondary hidden">تسجيل الخروج</button></header>
-<section id="setup" class="card hidden"><h2>إعداد الاتصال</h2><p class="muted">الاتصال مضبوط على قاعدة بيانات VOX ROYALE الحالية. المفتاح المستخدم Publishable عام ومخصص للواجهة، ولا تستخدم service_role هنا.</p><label>Project URL</label><input id="url"><label>Publishable Key</label><input id="key" type="password" autocomplete="off"><button id="save">حفظ الاتصال</button><div id="setupMsg" class="status"></div></section>
+<header class="top"><div><div class="brand">صدي شات</div><div class="muted">EXTERNAL ADMIN CENTER · LIVE SUPABASE</div></div><button id="logout" class="secondary hidden">تسجيل الخروج</button></header>
+<section id="setup" class="card hidden"><h2>إعداد الاتصال</h2><p class="muted">الاتصال مضبوط على قاعدة بيانات صدي شات الحالية. المفتاح المستخدم Publishable عام ومخصص للواجهة، ولا تستخدم service_role هنا.</p><label>Project URL</label><input id="url"><label>Publishable Key</label><input id="key" type="password" autocomplete="off"><button id="save">حفظ الاتصال</button><div id="setupMsg" class="status"></div></section>
 <section id="login" class="card hidden"><h2>دخول المشرف</h2><label>البريد الإلكتروني</label><input id="email" type="email" autocomplete="username"><label>كلمة المرور</label><input id="password" type="password" autocomplete="current-password"><div class="actions"><button id="signin">تسجيل الدخول</button></div><div id="loginMsg" class="status"></div><div id="claimBox" class="hidden"><p class="muted">لا يوجد مشرف مسجل حالياً. إذا كان هذا أول حساب إدارة يمكنك المطالبة بصلاحية المشرف الأعلى.</p><button id="claim">المطالبة بصلاحية أول مشرف</button></div></section>
 <section id="dashboard" class="hidden">
-<div class="card"><div class="row"><div><h2>لوحة إدارة VOX ROYALE</h2><p id="who" class="muted small"></p></div><span class="tag good">متصل بقاعدة البيانات الحقيقية</span></div><div class="grid" id="stats"></div><div class="tabs" id="tabs"></div><div class="card section" id="panel"><p class="muted">اختر قسماً لعرض البيانات الحقيقية.</p></div></div>
+<div class="card"><div class="row"><div><h2>لوحة إدارة صدي شات</h2><p id="who" class="muted small"></p></div><span class="tag good">متصل بقاعدة البيانات الحقيقية</span></div><div class="grid" id="stats"></div><div class="tabs" id="tabs"></div><div class="card section" id="panel"><p class="muted">اختر قسماً لعرض البيانات الحقيقية.</p></div></div>
 </section>
 <footer class="muted small" style="padding:20px 4px">البيانات تُقرأ وتُكتب مباشرة في Supabase • صلاحيات الإدارة يتم التحقق منها داخل قاعدة البيانات</footer>
 </main>
@@ -165,7 +165,7 @@ async function renderTab(tab){
    const cfg=Object.fromEntries((data||[]).map(x=>[x.key,x.value||{}]));
    const brand=cfg.app_branding||{},banner=cfg.home_banner||{};
    host.innerHTML='<h3>هوية التطبيق والصفحة الرئيسية</h3><p class="muted small">اختر الصور مباشرة من ذاكرة الهاتف. تُرفع إلى Supabase Storage وتظهر في التطبيق دون إعادة بناء APK.</p>'+
-    '<form id="branding-form" class="item"><h4>اسم التطبيق وشعاره</h4><label>اسم التطبيق</label><input name="app_name" maxlength="40" value="'+esc(brand.app_name||'VOX ROYALE')+'" required><label>اختيار شعار من الهاتف</label><input name="logo_file" type="file" accept="image/*"><div class="muted small">'+(brand.logo_path?'يوجد شعار محفوظ حالياً':'لم يتم رفع شعار بعد')+'</div><hr><h4>بنر شاشة البداية</h4><label>عنوان البنر</label><input name="banner_title" maxlength="100" value="'+esc(banner.title||'مرحباً بك في VOX ROYALE')+'"><label>اختيار صورة البنر من الهاتف</label><input name="banner_file" type="file" accept="image/*"><label><input name="banner_enabled" type="checkbox" '+(banner.enabled!==false?'checked':'')+' style="width:auto"> تفعيل بنر البداية</label><div class="muted small">مدة العرض ثابتة 5 ثوانٍ عند فتح التطبيق.</div><button type="submit">حفظ ونشر الهوية والبنر</button></form>'+
+    '<form id="branding-form" class="item"><h4>اسم التطبيق وشعاره</h4><label>اسم التطبيق</label><input name="app_name" maxlength="40" value="'+esc(brand.app_name||'صدي شات')+'" required><label>اختيار شعار من الهاتف</label><input name="logo_file" type="file" accept="image/*"><div class="muted small">'+(brand.logo_path?'يوجد شعار محفوظ حالياً':'لم يتم رفع شعار بعد')+'</div><hr><h4>بنر شاشة البداية</h4><label>عنوان البنر</label><input name="banner_title" maxlength="100" value="'+esc(banner.title||'مرحباً بك في صدي شات')+'"><label>اختيار صورة البنر من الهاتف</label><input name="banner_file" type="file" accept="image/*"><label><input name="banner_enabled" type="checkbox" '+(banner.enabled!==false?'checked':'')+' style="width:auto"> تفعيل بنر البداية</label><div class="muted small">مدة العرض ثابتة 5 ثوانٍ عند فتح التطبيق.</div><button type="submit">حفظ ونشر الهوية والبنر</button></form>'+
     item('حالة الإعدادات','<div class="muted small">الشعار: '+(brand.logo_path?'مرفوع':'غير مرفوع')+' · بنر البداية: '+(banner.image_path?'مرفوع':'غير مرفوع')+' · '+(banner.enabled===false?'متوقف':'مفعّل')+'</div>');
    return;
   }
@@ -315,7 +315,7 @@ $('panel').addEventListener('submit',async e=>{
    }
    const logo=await uploadBrandFile(v.logo_file,'logo');
    const banner=await uploadBrandFile(v.banner_file,'intro-banner');
-   const brand={...(old.app_branding||{}),app_name:String(v.app_name||'VOX ROYALE').trim()};
+   const brand={...(old.app_branding||{}),app_name:String(v.app_name||'صدي شات').trim()};
    if(logo){brand.logo_path=logo.path;brand.logo_asset_key=logo.asset_key}
    const home={...(old.home_banner||{}),title:String(v.banner_title||'').trim(),enabled:form.querySelector('[name=banner_enabled]').checked,duration_seconds:5};
    if(banner){home.image_path=banner.path;home.asset_key=banner.asset_key}
