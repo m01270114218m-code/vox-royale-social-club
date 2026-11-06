@@ -1,7 +1,7 @@
 import { icons3d } from "@/lib/assets3d";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { Home, User, Crown, Sparkles, MessageCircle, Mic } from "lucide-react";
+import { Home, User, Crown, Sparkles, MessageCircle, Mic, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,6 +68,15 @@ function ShellInner({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const nav = useNavigate();
   const unread = useUnread(user?.id);
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    let active = true;
+    if (!user?.id) { setIsAdmin(false); return; }
+    supabase.rpc("is_admin", { _uid: user.id }).then(({ data, error }) => {
+      if (active) setIsAdmin(!error && !!data);
+    });
+    return () => { active = false; };
+  }, [user?.id]);
   const item = "flex flex-1 flex-col items-center gap-0.5 text-[11px] text-muted-foreground";
   const active = { className: "text-primary" };
 
@@ -104,6 +113,12 @@ function ShellInner({ children }: { children: ReactNode }) {
           <img src={icons3d.profile} alt="" className="h-8 w-8 drop-shadow-lg" />
           أنا
         </Link>
+        {isAdmin && (
+          <Link to="/admin" className={item} activeProps={active}>
+            <Shield className="h-7 w-7" />
+            الإدارة
+          </Link>
+        )}
       </nav>
     </>
   );
