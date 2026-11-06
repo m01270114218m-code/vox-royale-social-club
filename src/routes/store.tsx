@@ -1,4 +1,4 @@
-import { icons3d, avatarFrame, vipBadge } from "@/lib/assets3d";
+import { icons3d, avatarFrame, vipBadge, frameByKey, entryEffects } from "@/lib/assets3d";
 import { UserAvatar } from "@/components/UserAvatar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -43,20 +43,46 @@ const PACKS = [
   { coins: 350000, price: "$49.99" },
 ];
 
+type StoreItem = { id: string; kind: string; name: string; description: string; price: number; asset_key: string };
+
 function StorePage() {
   const { user } = useAuth();
   const [coins, setCoins] = useState(0);
   const [vip, setVip] = useState(0);
+  const [items, setItems] = useState<StoreItem[]>([]);
+  const [owned, setOwned] = useState<Set<string>>(new Set());
+  const [equippedFrame, setEquippedFrame] = useState<string | null>(null);
+  const [equippedEntry, setEquippedEntry] = useState<string | null>(null);
   useEffect(() => {
     (async () => {
-      const [{ data: w }, { data: p }] = await Promise.all([
+      const [{ data: w }, { data: p }, { data: si }, { data: ui }] = await Promise.all([
         supabase.from("wallets").select("coins").eq("user_id", user!.id).maybeSingle(),
-        supabase.from("profiles").select("vip_level").eq("id", user!.id).single(),
+        supabase.from("profiles").select("vip_level, equipped_frame, equipped_entry").eq("id", user!.id).single(),
+        supabase.from("store_items").select("id, kind, name, description, price, asset_key").order("sort_order"),
+        supabase.from("user_items").select("item_id").eq("user_id", user!.id),
       ]);
       setCoins(Number(w?.coins ?? 0));
       setVip(p?.vip_level ?? 0);
+      setEquippedFrame(p?.equipped_frame ?? null);
+      setEquippedEntry(p?.equipped_entry ?? null);
+      setItems(si ?? []);
+      setOwned(new Set((ui ?? []).map((r) => r.item_id)));
     })();
   }, [user]);
+  async function buyItem(item: StoreItem) {
+    const { data, error } = await supabase.rpc("buy_item", { _item_id: item.id });
+    if (error) { toast.error(error.message.includes("insufficient") ? "رصيد العملات غير كافٍ" : error.message.includes("already") ? "تملكه بالفعل" : errMsg(error)); return; }
+    setCoins(Number(data));
+    setOwned((s) => new Set(s).add(item.id));
+    toast.success(`اشتريت ${item.name}! 🎉`);
+  }
+  async function equip(item: StoreItem, on: boolean) {
+    const { error } = await supabase.rpc("equip_item", { _item_id: item.id, _equip: on });
+    if (error) { toast.error(errMsg(error)); return; }
+    if (item.kind === "frame") setEquippedFrame(on ? item.asset_key : null);
+    if (item.kind === "entry") setEquippedEntry(on ? item.asset_key : null);
+    toast.success(on ? `تم تجهيز ${item.name}` : "تمت الإزالة");
+  }
   async function buy(lv: number) {
     const { data, error } = await supabase.rpc("buy_vip", { _level: lv });
     if (error) { toast.error(error.message.includes("insufficient") ? "رصيد العملات غير كافٍ" : errMsg(error)); return; }
