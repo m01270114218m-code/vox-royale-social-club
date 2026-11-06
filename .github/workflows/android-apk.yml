@@ -35,12 +35,17 @@ jobs:
           bun install --frozen-lockfile
           bun run build
 
-      - name: Install compatible Java 21
+      - name: Select compatible Java 21
         run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-21-jdk
-          echo "JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64" >> "$GITHUB_ENV"
-          echo "/usr/lib/jvm/java-21-openjdk-amd64/bin" >> "$GITHUB_PATH"
+          if [ -n "${JAVA_HOME_21_X64:-}" ] && [ -x "$JAVA_HOME_21_X64/bin/java" ]; then
+            JDK_HOME="$JAVA_HOME_21_X64"
+          else
+            sudo apt-get update
+            sudo apt-get install -y openjdk-21-jdk
+            JDK_HOME="/usr/lib/jvm/java-21-openjdk-amd64"
+          fi
+          echo "JAVA_HOME=$JDK_HOME" >> "$GITHUB_ENV"
+          echo "$JDK_HOME/bin" >> "$GITHUB_PATH"
 
       - name: Prepare Android toolchain
         working-directory: source
