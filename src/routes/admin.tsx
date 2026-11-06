@@ -25,10 +25,28 @@ export const Route = createFileRoute("/admin")({
   }),
   component: () => (
     <RequireAuth>
-      <AdminPage />
+      <FullAdminPanel />
     </RequireAuth>
   ),
 });
+
+
+/** Full administration UI embedded in the Android/web app.
+ * The static control center is bundled at public/control-center/index.html
+ * and shares the same origin + Supabase auth storage as the app.
+ */
+function FullAdminPanel() {
+  return (
+    <main className="fixed inset-0 z-[100] bg-background">
+      <iframe
+        title="لوحة التحكم الكاملة — VOX ROYALE"
+        src="/control-center/"
+        className="h-[100dvh] w-full border-0"
+        allow="clipboard-read; clipboard-write"
+      />
+    </main>
+  );
+}
 
 type Tab = "reports" | "rooms" | "seats" | "posts" | "users" | "wallet" | "gifts" | "vip" | "store" | "assets" | "banners" | "notifications" | "roles" | "settings" | "analytics" | "audit";
 const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
