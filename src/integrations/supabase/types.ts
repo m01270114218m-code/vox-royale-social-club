@@ -527,6 +527,8 @@ export type Database = {
           deletion_requested_at: string | null
           display_name: string
           display_no: number
+          equipped_entry: string | null
+          equipped_frame: string | null
           gender: string | null
           id: string
           level: number
@@ -544,6 +546,8 @@ export type Database = {
           deletion_requested_at?: string | null
           display_name?: string
           display_no?: number
+          equipped_entry?: string | null
+          equipped_frame?: string | null
           gender?: string | null
           id: string
           level?: number
@@ -561,6 +565,8 @@ export type Database = {
           deletion_requested_at?: string | null
           display_name?: string
           display_no?: number
+          equipped_entry?: string | null
+          equipped_frame?: string | null
           gender?: string | null
           id?: string
           level?: number
@@ -857,6 +863,39 @@ export type Database = {
           },
         ]
       }
+      store_items: {
+        Row: {
+          asset_key: string
+          created_at: string | null
+          description: string | null
+          id: string
+          kind: string
+          name: string
+          price: number
+          sort_order: number | null
+        }
+        Insert: {
+          asset_key: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          kind: string
+          name: string
+          price: number
+          sort_order?: number | null
+        }
+        Update: {
+          asset_key?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          kind?: string
+          name?: string
+          price?: number
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
       user_blocks: {
         Row: {
           blocked_id: string
@@ -881,6 +920,42 @@ export type Database = {
           {
             foreignKeyName: "user_blocks_blocker_id_fkey"
             columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_items: {
+        Row: {
+          acquired_at: string | null
+          id: string
+          item_id: string
+          user_id: string
+        }
+        Insert: {
+          acquired_at?: string | null
+          id?: string
+          item_id: string
+          user_id: string
+        }
+        Update: {
+          acquired_at?: string | null
+          id?: string
+          item_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "store_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_items_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1029,6 +1104,7 @@ export type Database = {
       }
       admin_stats: { Args: never; Returns: Json }
       ban_user: { Args: { _room: string; _user: string }; Returns: undefined }
+      buy_item: { Args: { _item_id: string }; Returns: number }
       buy_vip: { Args: { _level: number }; Returns: number }
       claim_daily_bonus: { Args: never; Returns: number }
       claim_first_admin: { Args: never; Returns: boolean }
@@ -1048,6 +1124,10 @@ export type Database = {
         Returns: string
       }
       delete_room: { Args: { _room: string }; Returns: undefined }
+      equip_item: {
+        Args: { _equip: boolean; _item_id: string }
+        Returns: undefined
+      }
       family_decide: {
         Args: { _accept: boolean; _family: string; _user: string }
         Returns: undefined
