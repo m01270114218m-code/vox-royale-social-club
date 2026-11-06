@@ -32,7 +32,7 @@ export const Route = createFileRoute("/room/$id")({
 
 const mountCount: Record<string, number> = {};
 
-type Profile = { id: string; display_name: string; avatar_url: string | null; level: number; vip_level: number };
+type Profile = { id: string; display_name: string; avatar_url: string | null; level: number; vip_level: number; equipped_frame?: string | null };
 type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
 type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
 type GiftT = { id: string; name: string; emoji: string; price: number; tier: string; asset_key?: string | null; asset_url?: string | null };
@@ -68,7 +68,7 @@ function RoomPage() {
   const ensureProfiles = useCallback(async (ids: string[]) => {
     const missing = ids.filter((x) => x && !profiles[x]);
     if (!missing.length) return;
-    const { data } = await supabase.from("profiles").select("id,display_name,avatar_url,level,vip_level").in("id", missing);
+    const { data } = await supabase.from("profiles").select("id,display_name,avatar_url,level,vip_level,equipped_frame").in("id", missing);
     if (data) setProfiles((p) => ({ ...p, ...Object.fromEntries(data.map((d) => [d.id, d as Profile])) }));
   }, [profiles]);
 
@@ -266,7 +266,7 @@ function RoomPage() {
           return (
             <Button variant="ghost" key={s.seat_index} aria-label={`المقعد ${s.seat_index + 1}${s.is_locked ? " مقفل" : ""}`} onClick={() => onSeat(s)} className="h-auto min-w-0 flex-col gap-1 p-0 hover:bg-transparent">
               <div className="relative flex h-20 w-20 items-center justify-center">
-                {p ? <UserAvatar src={p.avatar_url} name={p.display_name} vip={p.vip_level} size={72} /> : <img src={s.is_locked ? icons3d.micLocked : voiceControls.mic_asset_url || (s.seat_index === 0 ? icons3d.micHost : icons3d.mic)} alt="" className="h-20 w-20 object-contain" />}
+                {p ? <UserAvatar src={p.avatar_url} name={p.display_name} vip={p.vip_level} size={72} frameKey={p.equipped_frame} /> : <img src={s.is_locked ? icons3d.micLocked : voiceControls.mic_asset_url || (s.seat_index === 0 ? icons3d.micHost : icons3d.mic)} alt="" className="h-20 w-20 object-contain" />}
                 {p && <img src={s.is_muted ? voiceControls.muted_asset_url || icons3d.micMuted : voiceControls.mic_asset_url || (host ? icons3d.micHost : icons3d.mic)} alt={s.is_muted ? "مكتوم" : "على المقعد"} className="absolute -bottom-1 -left-1 h-7 w-7 object-contain" style={{ filter: voiceControls.mic_style === "neon" ? "drop-shadow(0 0 7px #22d3ee)" : voiceControls.mic_style === "gold" ? "drop-shadow(0 0 7px #e8bd63)" : undefined }} />}
                 {p && voiceControls.show_mic_effect && voiceControls.effect_asset_url && <img src={voiceControls.effect_asset_url} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-contain" />}
               </div>
@@ -357,7 +357,7 @@ function RoomPage() {
           <div className="space-y-2 p-4">
             {members.map((m) => (
               <div key={m} className="flex items-center justify-between rounded-xl bg-secondary/50 p-2">
-                <div className="flex items-center gap-2"><UserAvatar src={profiles[m]?.avatar_url} name={profiles[m]?.display_name} vip={profiles[m]?.vip_level} size={44} /><div><span>{profiles[m]?.display_name ?? "…"}</span><IdentityBadges level={profiles[m]?.level} vip={profiles[m]?.vip_level} /></div></div>
+                <div className="flex items-center gap-2"><UserAvatar src={profiles[m]?.avatar_url} name={profiles[m]?.display_name} vip={profiles[m]?.vip_level} size={44} frameKey={profiles[m]?.equipped_frame} /><div><span>{profiles[m]?.display_name ?? "…"}</span><IdentityBadges level={profiles[m]?.level} vip={profiles[m]?.vip_level} /></div></div>
                 {isStaff && m !== uid && m !== room.owner_id && <Button size="sm" variant="destructive" onClick={() => call("ban_user", { _room: id, _user: m })}>حظر</Button>}
               </div>
             ))}
