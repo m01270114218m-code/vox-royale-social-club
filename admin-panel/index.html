@@ -33,7 +33,7 @@ const money=v=>Number(v??0).toLocaleString('ar-EG');
 const date=v=>v?new Date(v).toLocaleString('ar-EG'):'—';
 let db=null,isSuper=false,active='dashboard',sessionUser=null,channel=null,userQuery='';
 const tabs=[
- ['dashboard','لوحة المعلومات'],['users','المستخدمون'],['rooms','الغرف'],['seats','المقاعد'],['vip','VIP'],['wallet','المحافظ'],['gifts','الهدايا'],['banners','البانرات'],['notifications','الإشعارات'],['assets','الأصول ثلاثية الأبعاد'],['audio','المايكات والتأثيرات'],['reports,'البلاغات'],['roles','صلاحيات الإدارة'],['settings','الإعدادات'],['branding','هوية التطبيق والبنرات'],['analytics','التحليلات'],['audit','سجل الإجراءات']
+ ['dashboard','لوحة المعلومات'],['users','المستخدمون'],['rooms','الغرف'],['seats','المقاعد'],['vip','VIP'],['store','المتجر والإطارات والدخوليات'],['wallet','المحافظ'],['gifts','الهدايا'],['banners','البانرات'],['notifications','الإشعارات'],['assets','الأصول ثلاثية الأبعاد'],['audio','المايكات والتأثيرات'],['reports,'البلاغات'],['roles','صلاحيات الإدارة'],['settings','الإعدادات'],['branding','هوية التطبيق والبنرات'],['analytics','التحليلات'],['audit','سجل الإجراءات']
 ];
 function status(id,text,bad=false){const node=$(id);if(node){node.textContent=text;node.className='status'+(bad?' dangerText':'')}}
 function show(which){['setup','login','dashboard'].forEach(id=>$(id).classList.toggle('hidden',id!==which));$('logout').classList.toggle('hidden',which!=='dashboard')}
@@ -99,6 +99,16 @@ async function renderTab(tab){
    host.innerHTML='<h3>مستويات VIP</h3><form id="vip-form" class="item"><div class="fieldgrid"><input name="level" type="number" min="1" max="10" placeholder="المستوى" required><input name="name" placeholder="اسم المستوى" required><input name="price_coins" type="number" min="0" placeholder="السعر بالعملات" required><input name="duration_days" type="number" min="1" value="30" placeholder="المدة بالأيام" required></div><button>حفظ المستوى</button></form>'+
    ((data||[]).map(v=>item('VIP '+v.level+' · '+esc(v.name),'<div class="muted small">'+money(v.price_coins)+' عملة · '+v.duration_days+' يوم</div>','<button class="danger" data-action="delete-vip" data-level="'+v.level+'">حذف</button>')).join('')||noRows());return;
   }
+  if(tab==='store'){
+   const [{data:items,error},{data:assets,error:assetError}]=await Promise.all([
+    db.from('store_items').select('*').order('sort_order').order('created_at',{ascending:false}),
+    db.from('admin_assets').select('asset_key,name,category').in('category',['frame','entry','vip','3d']).eq('is_active',true).order('name')
+   ]);if(error)throw error;if(assetError)throw assetError;
+   const options='<option value="">اختر أصلاً من المكتبة</option>'+(assets||[]).map(a=>'<option value="'+esc(a.asset_key)+'">'+esc(a.name)+' · '+esc(a.category)+'</option>').join('');
+   host.innerHTML='<h3>إدارة المتجر والإطارات والدخوليات</h3><p class="muted small">ارفع الأصل من مكتبة الأصول أولاً، ثم اربطه بعنصر متجر من هنا. يمكن بعد ذلك إرساله للمستخدم من تبويب المستخدمين.</p>'+
+    '<form id="store-form" class="item"><input name="id" type="hidden"><div class="fieldgrid"><input name="name" placeholder="اسم العنصر" required><select name="kind"><option value="frame">إطار صورة</option><option value="entry">دخولية غرفة</option><option value="effect">تأثير</option></select><input name="price" type="number" min="0" value="0" placeholder="السعر"><input name="sort_order" type="number" value="0" placeholder="ترتيب العرض"><select name="asset_key">'+options+'</select><input name="description" placeholder="وصف العنصر"></div><button>حفظ العنصر في المتجر</button><button type="button" class="secondary" data-action="store-reset">عنصر جديد</button></form>'+
+    ((items||[]).map(it=>item(esc(it.name),'<div class="muted small">'+esc(it.kind)+' · '+money(it.price)+' عملة · '+esc(it.asset_key)+'</div><div class="muted small">'+esc(it.description||'')+'</div>','<button class="secondary" data-action="store-edit" data-id="'+it.id+'" data-name="'+esc(it.name)+'" data-kind="'+esc(it.kind)+'" data-price="'+it.price+'" data-sort="'+(it.sort_order||0)+'" data-asset="'+esc(it.asset_key)+'" data-description="'+esc(it.description||'')+'">تعديل</button><button class="danger" data-action="store-delete" data-id="'+it.id+'">حذف</button>')).join('')||noRows());return;
+  }
   if(tab==='wallet'){
    const {data,error}=await db.rpc('admin_list_wallet_tx',{_limit:200});if(error)throw error;
    host.innerHTML='<h3>سجل المحافظ</h3>'+((data||[]).map(t=>item(esc(t.display_name||t.user_id),'<div class="muted small">'+esc(t.kind)+' · '+esc(t.note)+' · '+date(t.created_at)+'</div>','<b class="'+(Number(t.amount)>=0?'good':'dangerText')+'">'+(Number(t.amount)>=0?'+':'')+money(t.amount)+' 🪙</b>')).join('')||noRows());return;
@@ -126,7 +136,7 @@ async function renderTab(tab){
   if(tab==='assets'){
    const {data,error}=await db.from('admin_assets').select('*').order('created_at',{ascending:false}).limit(300);if(error)throw error;
    const cards=await Promise.all((data||[]).map(async a=>{let url='';const path=a.metadata?.storage_path||a.url;if(path){const {data:s}=await db.storage.from('admin-assets').createSignedUrl(path,900);url=s?.signedUrl||''}return item(esc(a.name),'<div class="muted small">'+esc(a.category)+' · '+esc(a.asset_key)+' · '+(a.is_active?'نشط':'متوقف')+'</div>'+(url?'<a href="'+esc(url)+'" target="_blank" rel="noreferrer">معاينة الملف</a>':''),'<button class="secondary" data-action="asset-toggle" data-id="'+a.id+'" data-active="'+(!a.is_active)+'">'+(a.is_active?'إيقاف':'تفعيل')+'</button><button class="danger" data-action="asset-delete" data-id="'+a.id+'">حذف</button>')}));
-   host.innerHTML='<h3>مكتبة الأصول ثلاثية الأبعاد</h3><form id="asset-form" class="item"><div class="fieldgrid"><input name="name" placeholder="اسم الأصل" required><select name="category"><option>general</option><option>ui</option><option>room</option><option>gift</option><option>frame</option><option>vip</option><option>banner</option><option>microphone</option><option>effect</option><option>3d</option></select><input name="files" type="file" multiple accept="image/*,.glb,.gltf,.svga,.gif,.webp,.mp4,.webm,.json" required></div><button>رفع الأصول إلى Storage</button></form>'+ (cards.join('')||noRows());return;
+   host.innerHTML='<h3>مكتبة الأصول ثلاثية الأبعاد</h3><form id="asset-form" class="item"><div class="fieldgrid"><input name="name" placeholder="اسم الأصل" required><select name="category"><option>general</option><option>ui</option><option>room</option><option>gift</option><option>frame</option><option>entry</option><option>vip</option><option>banner</option><option>microphone</option><option>effect</option><option>3d</option></select><input name="files" type="file" multiple accept="image/*,.glb,.gltf,.svga,.gif,.webp,.mp4,.webm,.json" required></div><button>رفع الأصول إلى Storage</button></form>'+ (cards.join('')||noRows());return;
   }
   if(tab==='reports'){
    const {data,error}=await db.rpc('admin_list_reports',{_status:''});if(error)throw error;
@@ -200,6 +210,9 @@ async function action(button){
  if(a==='role'){if(!isSuper)throw new Error('super_admin_required');const {error}=await db.rpc('admin_set_role',{_user:button.dataset.user,_role:button.dataset.role,_grant:button.dataset.grant==='true'});if(error)throw error}
  if(a==='delete-room'){if(!confirm('حذف الغرفة نهائياً؟'))return;const {error}=await db.rpc('admin_delete_room',{_room:id});if(error)throw error}
  if(a==='seat'){const {error}=await db.rpc('admin_seat_action',{_room:button.dataset.room,_seat:Number(button.dataset.seat),_action:button.dataset.command});if(error)throw error}
+ if(a==='store-reset'){const form=document.querySelector('#store-form');form.reset();form.querySelector('[name=id]').value='';return}
+ if(a==='store-edit'){const form=document.querySelector('#store-form');form.querySelector('[name=id]').value=id;form.querySelector('[name=name]').value=button.dataset.name||'';form.querySelector('[name=kind]').value=button.dataset.kind||'frame';form.querySelector('[name=price]').value=button.dataset.price||0;form.querySelector('[name=sort_order]').value=button.dataset.sort||0;form.querySelector('[name=asset_key]').value=button.dataset.asset||'';form.querySelector('[name=description]').value=button.dataset.description||'';form.scrollIntoView({behavior:'smooth',block:'center'});return}
+ if(a==='store-delete'){if(!confirm('حذف عنصر المتجر؟'))return;const {error}=await db.rpc('admin_delete_store_item',{_id:id});if(error)throw error}
  if(a==='delete-vip'){if(!confirm('حذف مستوى VIP؟'))return;const {error}=await db.from('vip_tiers').delete().eq('level',Number(button.dataset.level));if(error)throw error}
  if(a==='gift-asset'){const assetKey=document.querySelector('#gift-asset-'+id)?.value||null;const {error}=await db.from('gifts').update({asset_key:assetKey}).eq('id',id);if(error)throw error}
  if(a==='gift-toggle'){const {error}=await db.from('gifts').update({active:button.dataset.active==='true'}).eq('id',id);if(error)throw error}
@@ -217,6 +230,12 @@ $('panel').addEventListener('click',async e=>{const b=e.target.closest('[data-ac
 $('panel').addEventListener('submit',async e=>{
  const form=e.target;if(!(form instanceof HTMLFormElement))return;e.preventDefault();const v=Object.fromEntries(new FormData(form).entries());
  try{
+  if(form.id==='store-form'){
+   if(!String(v.asset_key||''))throw new Error('اختر أصلاً من مكتبة الأصول');
+   const {data,error}=await db.rpc('admin_save_store_item',{_id:String(v.id||'')||null,_kind:String(v.kind),_name:String(v.name).trim(),_description:String(v.description||''),_price:Number(v.price)||0,_asset_key:String(v.asset_key),_sort_order:Number(v.sort_order)||0});
+   if(error)throw error;
+   alert('تم حفظ عنصر المتجر');
+  }
   if(form.id==='vip-form'){const {error}=await db.from('vip_tiers').upsert({level:Number(v.level),name:String(v.name),price_coins:Number(v.price_coins),duration_days:Number(v.duration_days)});if(error)throw error}
   if(form.id==='gift-form'){const name=String(v.name).trim();const payload={name,emoji:String(v.emoji),price:Number(v.price),active:true,tier:String(v.tier||'normal'),sort:Number(v.sort||0),asset_key:String(v.asset_key||'')||null};const {error}=await db.from('gifts').insert(payload);if(error)throw error}
   if(form.id==='banner-form'){
