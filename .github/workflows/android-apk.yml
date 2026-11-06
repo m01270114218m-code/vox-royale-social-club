@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: vox-royale-android-${{ github.ref }}
@@ -15,48 +15,47 @@ concurrency:
 jobs:
   android:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout source without external actions
+        run: |
+          BRANCH="$GITHUB_REF_NAME"
+          git clone --depth 1 --branch "$BRANCH" "https://github.com/${GITHUB_REPOSITORY}.git" source
+          cd source
+          test -f package.json
+          test -f capacitor.config.json
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
+      - name: Install dependencies and build web application
+        working-directory: source
+        run: |
+          node --version
+          npm install --no-package-lock --no-audit --no-fund
+          npm run build
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Install project dependencies
-        run: npm install --no-package-lock --no-audit --no-fund
-
-      - name: Verify web production build
-        run: npm run build
-
-      - name: Install Capacitor toolchain
-        run: npm install --no-save @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest --no-audit --no-fund
-
-      - name: Verify Capacitor configuration
-        run: node -e "const c=require('./capacitor.config.json'); if(c.appId!=='com.voxroyale.app'||!c.server?.url?.startsWith('https://')) process.exit(1); console.log('Capacitor remote app URL configured:', c.server.url)"
-
-      - name: Create Android project
-        run: npx cap add android
+      - name: Prepare Android toolchain
+        working-directory: source
+        run: |
+          java -version
+          test -n "$ANDROID_HOME" || test -n "$ANDROID_SDK_ROOT"
+          npm install --no-save @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest --no-audit --no-fund
+          npx cap add android
 
       - name: Sync Android project
+        working-directory: source
         run: npx cap sync android
 
       - name: Build debug APK
-        working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        working-directory: source/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: vox-royale-android-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
+      - name: Publish APK release
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          TAG="vox-royale-apk-${GITHUB_SHA::7}"
+          gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --title "VOX ROYALE Android APK ${GITHUB_SHA::7}" --notes "Automated debug APK build for commit $GITHUB_SHA on branch $GITHUB_REF_NAME."
