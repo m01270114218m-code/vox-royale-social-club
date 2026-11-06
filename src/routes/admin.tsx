@@ -28,7 +28,7 @@ export const Route = createFileRoute("/admin")({
   ),
 });
 
-type Tab = "reports" | "rooms" | "posts" | "users" | "wallet" | "gifts" | "store" | "assets" | "broadcast" | "audit";
+type Tab = "reports" | "rooms" | "posts" | "users" | "wallet" | "gifts" | "vip" | "store" | "assets" | "broadcast" | "audit";
 const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
 
 function AdminPage() {
@@ -79,6 +79,7 @@ function AdminPage() {
     { id: "users", label: "المستخدمون", icon: Users },
     { id: "wallet", label: "المحافظ", icon: Wallet },
     { id: "gifts", label: "الهدايا", icon: Gift },
+    { id: "vip", label: "مستويات VIP", icon: Shield },
     { id: "store", label: "المتجر", icon: Store },
     { id: "assets", label: "مكتبة الأصول", icon: ImageIcon },
     { id: "broadcast", label: "إشعار عام", icon: Bell },
@@ -116,6 +117,7 @@ function AdminPage() {
         {tab === "users" && <UsersTab isSuper={isSuper} />}
         {tab === "wallet" && <WalletTab />}
         {tab === "gifts" && <GiftsTab />}
+        {tab === "vip" && <VipTab />}
         {tab === "store" && <StoreTab />}
         {tab === "assets" && <AssetsTab />}
         {tab === "broadcast" && <BroadcastTab />}
@@ -306,24 +308,116 @@ function WalletTab() {
 }
 
 type GiftTx = { sender_name: string | null; receiver_name: string | null; gift_name: string; cost: number; created_at: string };
+type GiftCatalog = { id: string; name: string; emoji: string; price_coins: number; is_active: boolean };
 function GiftsTab() {
   const [rows, setRows] = useState<GiftTx[]>([]);
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase.rpc("admin_list_gift_tx", { _limit: 200 });
-      if (error) toast.error(errMsg(error));
-      setRows((data as GiftTx[]) ?? []);
-    })();
-  }, []);
+  const [catalog, setCatalog] = useState<GiftCatalog[]>([]);
+  const [form, setForm] = useState({ id: "", name: "", emoji: "🎁", price_coins: "100" });
+  async function load() {
+    const [{ data, error }, { data: gifts, error: catalogError }] = await Promise.all([
+      supabase.rpc("admin_list_gift_tx", { _limit: 200 }),
+      supabase.from("gifts").select("id,name,emoji,price_coins,is_active").order("price_coins"),
+    ]);
+    if (error) toast.error(errMsg(error));
+    if (catalogError) toast.error(errMsg(catalogError));
+    setRows((data as GiftTx[]) ?? []);
+    setCatalog((gifts as GiftCatalog[]) ?? []);
+  }
+  useEffect(() => { load(); }, []);
+  async function saveGift() {
+    const id = form.id.trim() || form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    if (!id || !form.name.trim() || !form.emoji.trim() || Number(form.price_coins) < 0) {
+      toast.error("أدخل معرفاً واسم الهدية ورمزها وسعراً صحيحاً"); return;
+    }
+    const { error } = await supabase.from("gifts").upsert({ id, name: form.name.trim(), emoji: form.emoji.trim(), price_coins: Number(form.price_coins), is_active: true });
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تم حفظ الهدية في الكتالوج");
+    setForm({ id: "", name: "", emoji: "🎁", price_coins: "100" });
+    load();
+  }
+  async function toggleGift(g: GiftCatalog) {
+    const { error } = await supabase.from("gifts").update({ is_active: !g.is_active }).eq("id", g.id);
+    if (error) { toast.error(errMsg(error)); return; }
+    load();
+  }
+  async function deleteGift(g: GiftCatalog) {
+    if (!confirm("حذف الهدية من الكتالوج؟")) return;
+    const { error } = await supabase.from("gifts").delete().eq("id", g.id);
+    if (error) { toast.error(errMsg(error)); return; }
+    load();
+  }
   return (
-    <div className="space-y-2">
-      {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد هدايا</p>}
+    <div className="space-y-4">
+      <div className="glass space-y-3 rounded-2xl p-4">
+        <b>إدارة كتالوج الهدايا</b>
+        <div className="grid grid-cols-2 gap-2">
+          <Input placeholder="معرّف اختياري" value={form.id} onChange={(e) => setForm({ ...form, id: e.target.value })} dir="ltr" />
+          <Input placeholder="اسم الهدية" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Input placeholder="الرمز أو الإيموجي" value={form.emoji} onChange={(e) => setForm({ ...form, emoji: e.target.value })} />
+          <Input type="number" min="0" placeholder="السعر بالعملات" value={form.price_coins} onChange={(e) => setForm({ ...form, price_coins: e.target.value })} />
+        </div>
+        <Button className="bg-gold" onClick={saveGift}>حفظ الهدية</Button>
+      </div>
+      {catalog.map((g) => (
+        <div key={g.id} className="glass flex items-center justify-between gap-2 rounded-xl p-3 text-sm">
+          <div><b>{g.emoji} {g.name}</b><div className="text-xs text-muted-foreground" dir="ltr">{g.id} · {g.price_coins} coins</div></div>
+          <div className="flex gap-1"><Button size="sm" variant="outline" onClick={() => toggleGift(g)}>{g.is_active ? "إيقاف" : "تفعيل"}</Button><Button size="sm" variant="destructive" onClick={() => deleteGift(g)}>حذف</Button></div>
+        </div>
+      ))}
+      <div className="border-t border-border pt-3"><b>سجل إرسال الهدايا</b></div>
+      {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد معاملات</p>}
       {rows.map((g, i) => (
         <div key={i} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
-          <div><b>{g.sender_name ?? "—"}</b> أرسل <b className="text-primary">{g.gift_name}</b> إلى <b>{g.receiver_name ?? "—"}</b>
-            <div className="text-xs text-muted-foreground">{fmt(g.created_at)}</div>
-          </div>
+          <div><b>{g.sender_name ?? "—"}</b> أرسل <b className="text-primary">{g.gift_name}</b> إلى <b>{g.receiver_name ?? "—"}</b><div className="text-xs text-muted-foreground">{fmt(g.created_at)}</div></div>
           <b>🪙 {Number(g.cost).toLocaleString()}</b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+type VipTier = { level: number; name: string; price_coins: number; duration_days: number };
+function VipTab() {
+  const [rows, setRows] = useState<VipTier[]>([]);
+  const [form, setForm] = useState({ level: "1", name: "", price_coins: "1000", duration_days: "30" });
+  async function load() {
+    const { data, error } = await supabase.from("vip_tiers").select("level,name,price_coins,duration_days").order("level");
+    if (error) toast.error(errMsg(error));
+    setRows((data as VipTier[]) ?? []);
+  }
+  useEffect(() => { load(); }, []);
+  async function save() {
+    const level = Number(form.level), price = Number(form.price_coins), days = Number(form.duration_days);
+    if (!Number.isInteger(level) || level < 1 || level > 10 || !form.name.trim() || price < 0 || days < 1) {
+      toast.error("تحقق من المستوى والاسم والسعر والمدة"); return;
+    }
+    const { error } = await supabase.from("vip_tiers").upsert({ level, name: form.name.trim(), price_coins: price, duration_days: days });
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تم حفظ مستوى VIP");
+    load();
+  }
+  async function remove(level: number) {
+    if (!confirm("حذف مستوى VIP؟")) return;
+    const { error } = await supabase.from("vip_tiers").delete().eq("level", level);
+    if (error) { toast.error(errMsg(error)); return; }
+    load();
+  }
+  return (
+    <div className="space-y-3">
+      <div className="glass space-y-2 rounded-2xl p-4">
+        <b>إضافة أو تعديل مستوى VIP</b>
+        <div className="grid grid-cols-2 gap-2">
+          <Input type="number" min="1" max="10" placeholder="المستوى" value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} />
+          <Input placeholder="اسم المستوى" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Input type="number" min="0" placeholder="السعر بالعملات" value={form.price_coins} onChange={(e) => setForm({ ...form, price_coins: e.target.value })} />
+          <Input type="number" min="1" placeholder="المدة بالأيام" value={form.duration_days} onChange={(e) => setForm({ ...form, duration_days: e.target.value })} />
+        </div>
+        <Button className="bg-gold" onClick={save}>حفظ المستوى</Button>
+      </div>
+      {rows.map((v) => (
+        <div key={v.level} className="glass flex items-center justify-between gap-2 rounded-xl p-3 text-sm">
+          <div><b>VIP {v.level} · {v.name}</b><div className="text-xs text-muted-foreground">🪙 {v.price_coins.toLocaleString()} · {v.duration_days} يوم</div></div>
+          <Button size="sm" variant="destructive" onClick={() => remove(v.level)}>حذف</Button>
         </div>
       ))}
     </div>
