@@ -58,7 +58,7 @@ function ProfilePage() {
     (async () => {
       const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
       if (data) setP(data as P);
-      const { data: w } = await supabase.from("wallets").select("coins,diamonds").eq("user_id", user!.id).maybeSingle();
+      const { data: w } = await supabase.from("wallet_balances").select("coins,diamonds").eq("user_id", user!.id).maybeSingle();
       loadTx();
       if (w) setWallet({ coins: Number(w.coins), diamonds: Number(w.diamonds) });
     })();
