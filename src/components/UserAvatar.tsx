@@ -1,7 +1,7 @@
 import { useMedia } from "@/lib/media";
 import { avatarFrame, icons3d } from "@/lib/assets3d";
 
-export function UserAvatar({ src, name, size = 48, ring = false, vip = 0 }: { src?: string | null | undefined; name?: string | null | undefined; size?: number; ring?: boolean; vip?: number }) {
+export function UserAvatar({ src, name, size = 48, ring = false, vip = 0 }: { src?: string | null | undefined; name?: string | null | undefined; size?: number; ring?: boolean; vip?: number | undefined }) {
   const url = useMedia(src);
   const frame = avatarFrame(vip);
   return (
