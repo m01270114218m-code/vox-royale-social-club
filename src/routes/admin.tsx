@@ -378,7 +378,7 @@ type GiftCatalog = { id: string; name: string; emoji: string; price: number; act
 function GiftsTab() {
   const [rows, setRows] = useState<GiftTx[]>([]);
   const [catalog, setCatalog] = useState<GiftCatalog[]>([]);
-  const [form, setForm] = useState({ id: "", name: "", emoji: "🎁", price_coins: "100" });
+  const [form, setForm] = useState({ name: "", emoji: "🎁", price_coins: "100" });
   async function load() {
     const [{ data, error }, { data: gifts, error: catalogError }] = await Promise.all([
       supabase.rpc("admin_list_gift_tx", { _limit: 200 }),
@@ -392,14 +392,20 @@ function GiftsTab() {
   useEffect(() => { load(); }, []);
   useAdminRealtime(["gifts", "gift_transactions"], load);
   async function saveGift() {
-    const id = form.id.trim() || form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `gift-${Date.now()}`;
-    if (!id || !form.name.trim() || !form.emoji.trim() || Number(form.price_coins) < 0) {
-      toast.error("أدخل معرفاً واسم الهدية ورمزها وسعراً صحيحاً"); return;
+    if (!form.name.trim() || !form.emoji.trim() || !Number.isFinite(Number(form.price_coins)) || Number(form.price_coins) < 0) {
+      toast.error("أدخل اسم الهدية ورمزها وسعراً صحيحاً");
+      return;
     }
-    const { error } = await supabase.from("gifts").upsert({ id, name: form.name.trim(), emoji: form.emoji.trim(), price: Number(form.price_coins), active: true });
+    // gifts.id is UUID. Let PostgreSQL generate it; never send labels like gift-<timestamp>.
+    const { error } = await supabase.from("gifts").insert({
+      name: form.name.trim(),
+      emoji: form.emoji.trim(),
+      price: Number(form.price_coins),
+      active: true,
+    });
     if (error) { toast.error(errMsg(error)); return; }
     toast.success("تم حفظ الهدية في الكتالوج");
-    setForm({ id: "", name: "", emoji: "🎁", price_coins: "100" });
+    setForm({ name: "", emoji: "🎁", price_coins: "100" });
     load();
   }
   async function toggleGift(g: GiftCatalog) {
@@ -418,7 +424,7 @@ function GiftsTab() {
       <div className="glass space-y-3 rounded-2xl p-4">
         <b>إدارة كتالوج الهدايا</b>
         <div className="grid grid-cols-2 gap-2">
-          <Input placeholder="معرّف اختياري" value={form.id} onChange={(e) => setForm({ ...form, id: e.target.value })} dir="ltr" />
+          
           <Input placeholder="اسم الهدية" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <Input placeholder="الرمز أو الإيموجي" value={form.emoji} onChange={(e) => setForm({ ...form, emoji: e.target.value })} />
           <Input type="number" min="0" placeholder="السعر بالعملات" value={form.price_coins} onChange={(e) => setForm({ ...form, price_coins: e.target.value })} />
