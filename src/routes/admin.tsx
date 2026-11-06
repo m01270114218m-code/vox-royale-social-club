@@ -506,7 +506,6 @@ function AssetsTab() {
       return;
     }
     setUploading(true);
-    const db = supabase as any;
     let uploaded = 0;
     for (const file of files) {
       const cleanName = file.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(-100) || "asset";
@@ -520,7 +519,7 @@ function AssetsTab() {
         continue;
       }
       const assetKey = `${category}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      const { error: rowError } = await db.from("admin_assets").insert({
+      const { error: rowError } = await supabase.from("admin_assets").insert({
         asset_key: assetKey,
         name: name.trim() || file.name.replace(/\.[^.]+$/, ""),
         category,
