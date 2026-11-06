@@ -57,9 +57,10 @@ function Home() {
         const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(brand.logo_path, 3600);
         if (alive) setLogoUrl(signed?.signedUrl ?? null);
       }
-      if (banner.enabled !== false && banner.image_path) {
+      if (banner.enabled !== false && banner.image_path && !sessionStorage.getItem("vox_intro_seen")) {
         const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(banner.image_path, 3600);
         if (alive && signed?.signedUrl) {
+          sessionStorage.setItem("vox_intro_seen", "1");
           setIntroBannerUrl(signed.signedUrl);
           setShowIntroBanner(true);
           timer = setTimeout(() => setShowIntroBanner(false), 5000);
