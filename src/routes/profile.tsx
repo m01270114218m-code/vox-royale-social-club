@@ -39,23 +39,15 @@ function ProfilePage() {
   const [draft, setDraft] = useState<P | null>(null);
   const [wallet, setWallet] = useState({ coins: 0, diamonds: 0 });
   const [editing, setEditing] = useState(false);
-  const [txs, setTxs] = useState<{ id: string; currency: string; amount: number; reason: string; created_at: string }[]>([]);
+  const [txs, setTxs] = useState<{ id: string; currency: string; amount: number; title: string; kind: string; created_at: string }[]>([]);
   const [linkEmail, setLinkEmail] = useState("");
   const isGuest = !!user?.is_anonymous;
   async function loadTx() {
-    const { data, error } = await supabase.from("wallet_transactions").select("id,currency,amount,reason,created_at").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(20);
+    const { data, error } = await supabase.from("wallet_transactions").select("id,currency,amount,title,kind,created_at").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(20);
     if (error) { toast.error(errMsg(error)); return; }
     if (data) setTxs(data.map((d) => ({ ...d, amount: Number(d.amount) })));
   }
-  async function daily() {
-    const { error } = await supabase.rpc("claim_daily_bonus");
-    if (error) { toast.error(errMsg(error)); return; }
-    const { data: w, error: walletError } = await supabase.from("wallets").select("coins,diamonds").eq("user_id", user!.id).single();
-    if (walletError) { toast.error(errMsg(walletError)); return; }
-    setWallet({ coins: Number(w.coins), diamonds: Number(w.diamonds) });
-    toast.success("تم استلام المكافأة اليومية 🎉");
-    await loadTx();
-  }
+
   async function link() {
     const { error } = await supabase.auth.updateUser({ email: linkEmail });
     if (error) { toast.error(error.message); return; }
@@ -146,7 +138,7 @@ function ProfilePage() {
             ))}
           </div>
           <Button variant="outline" onClick={() => { setDraft(p); setEditing(true); }}><img src={icons3d.gear} alt="" className="h-6 w-6 object-contain" /> تعديل الملف</Button>
-          <Button onClick={daily} className="bg-gold font-bold"><img src={icons3d.giftbox} alt="" className="h-7 w-7 object-contain" /> مكافأة يومية +200</Button>
+          <Button disabled className="bg-gold font-bold"><img src={icons3d.giftbox} alt="" className="h-7 w-7 object-contain" /> المكافأة اليومية ستُفعّل مع نظام المحفظة</Button>
           {isGuest && (
             <div className="glass space-y-2 rounded-2xl p-3 text-sm">
               <p className="text-primary">أنت تستخدم حساب الجهاز السريع. اربط بريدك حتى لا تفقد حسابك.</p>
@@ -171,7 +163,7 @@ function ProfilePage() {
           <h3 className="mb-2 font-bold">سجل المحفظة</h3>
           {txs.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد معاملات بعد</p> : txs.map((t) => (
             <div key={t.id} className="flex justify-between border-b border-border py-2 text-sm last:border-0">
-              <span>{({ gift_sent: "هدية مرسلة", gift_received: "هدية مستلمة", daily_bonus: "مكافأة يومية", vip_purchase: "شراء VIP" } as Record<string, string>)[t.reason] ?? t.reason}</span>
+              <span>{({ gift_sent: "هدية مرسلة", gift_received: "هدية مستلمة", purchase: "عملية شراء", recharge: "شحن", exchange: "تحويل", reward: "مكافأة" } as Record<string, string>)[t.kind] ?? t.title}</span>
               <span className={t.amount < 0 ? "text-destructive" : "text-primary"}>{t.amount > 0 ? "+" : ""}{t.amount} {t.currency === "coins" ? "🪙" : "💎"}</span>
             </div>
           ))}
