@@ -29,7 +29,7 @@ function useUnread(uid?: string) {
     if (!uid) return;
     const load = async () => {
       const [{ count: a }, { data: convs }] = await Promise.all([
-        supabase.from("notifications").select("id", { count: "exact", head: true }).eq("is_read", false),
+        supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", uid).eq("is_read", false),
         supabase.from("conversations").select("id"),
       ]);
       let b = 0;
