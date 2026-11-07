@@ -34,6 +34,7 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           bun --version
           bun install
+          bun add @capacitor/app@latest
           export VITE_APP_VERSION="$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")"
           echo "Building app version $VITE_APP_VERSION"
           bun run build
