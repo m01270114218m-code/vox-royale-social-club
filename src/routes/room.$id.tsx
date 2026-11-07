@@ -576,7 +576,7 @@ function RoomPage() {
                   {seatMenu.user_id && (
                     <>
                       {((profiles[seatMenu.user_id]?.vip_level ?? 0) < 5 || isOwner) && <>
-                        {seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && (
+                        {seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && (isOwner || !targetIsModerator) && (
                         <>
                           <Button variant="outline" onClick={() => call("staff_kick_room_user", { _room: id, _user: seatMenu.user_id })}>طرد من الغرفة</Button>
                           <Button variant="outline" onClick={() => call("staff_kick_user_24h", { _room: id, _user: seatMenu.user_id })}>طرد لمدة 24 ساعة</Button>
