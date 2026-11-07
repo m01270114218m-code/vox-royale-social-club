@@ -71,7 +71,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const token = RtcTokenBuilder.buildTokenWithUid(
-      appId, appCertificate, roomId, rtcUid, role, expiresInSeconds, expiresInSeconds,
+      appId, appCertificate, channelName, rtcUid, role, expiresInSeconds, expiresInSeconds,
     );
     return json({ appId, channel: channelName, uid: rtcUid, token, role: canPublish ? "publisher" : "subscriber", expiresAt: Math.floor(Date.now() / 1000) + expiresInSeconds });
   } catch {
