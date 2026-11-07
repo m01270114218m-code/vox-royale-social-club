@@ -1,6 +1,6 @@
 {
   "appId": "com.voxroyale.app",
-  "appName": "صدي شات",
+  "appName": "Saada Chat",
   "webDir": ".output/public",
   "android": {
     "allowMixedContent": false
