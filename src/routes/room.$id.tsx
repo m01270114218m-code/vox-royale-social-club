@@ -82,6 +82,7 @@ function RoomPage() {
   const [myMicRequest, setMyMicRequest] = useState<{ id: string } | null>(null);
   const [chatMutedUser, setChatMutedUser] = useState(false);
   const [targetIsModerator, setTargetIsModerator] = useState(false);
+  const [inviteUserSearch, setInviteUserSearch] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [following, setFollowing] = useState(false);
   const roomCoverUrl = useMedia(room?.cover_url);
@@ -360,7 +361,7 @@ function RoomPage() {
     // Publish a complete authoritative seat snapshot immediately after every mic change.
     // This clears the previous seat when a user moves and prevents stale/vanishing mic UI.
     const seatIndex = typeof args._seat === "number" ? args._seat : undefined;
-    if (seatIndex !== undefined || fn === "leave_seat" || fn === "toggle_my_mute" || fn === "take_seat" || fn === "staff_invite_to_mic") {
+    if (seatIndex !== undefined || fn === "leave_seat" || fn === "toggle_my_mute" || fn === "take_seat" || fn === "staff_invite_to_mic" || fn === "staff_invite_to_seat") {
       await syncRoomSeats();
     }
     if (["staff_kick_room_user", "staff_kick_user_24h", "ban_user"].includes(fn)) {
@@ -372,7 +373,7 @@ function RoomPage() {
   async function onSeat(s: Seat) {
     // The seat the user taps is the seat they must receive. Never substitute
     // another free seat; take_seat validates and moves the user atomically.
-    if (!s.user_id && !s.is_locked) {
+    if (!s.user_id && !s.is_locked && !isStaff) {
       const { error } = await supabase.rpc("take_seat", { _room: id, _seat: s.seat_index });
       if (error) {
         toast.error(errMsg(error));
@@ -564,7 +565,27 @@ function RoomPage() {
           <SheetHeader><SheetTitle>{seatMenu && seatMenu.seat_index >= 0 ? `المقعد ${seatMenu.seat_index + 1}` : "إدارة المستخدم"}</SheetTitle></SheetHeader>
           {seatMenu && (
             <div className="grid gap-2 p-4">
-              {!seatMenu.user_id && !seatMenu.is_locked && <Button onClick={async () => { const { error } = await supabase.rpc("take_seat", { _room: id, _seat: seatMenu.seat_index }); if (error) toast.error(errMsg(error)); else { await syncRoomSeats(); setSeatMenu(null); toast.success("تم الصعود للميك مباشرة"); } }} className="bg-gold">الصعود للميك</Button>}
+              {!seatMenu.user_id && !seatMenu.is_locked && <Button onClick={async () => { const { error } = await supabase.rpc("take_seat", { _room: id, _seat: seatMenu.seat_index }); if (error) toast.error(errMsg(error)); else { await syncRoomSeats(); setSeatMenu(null); toast.success("تم الصعود للميك مباشرة"); } }} className="bg-gold">الصعود للميك بنفسك</Button>}
+              {isStaff && seatMenu.seat_index >= 0 && !seatMenu.user_id && (
+                <div className="space-y-2 rounded-xl border border-primary/20 p-3">
+                  <div className="font-bold text-sm">دعوة مستخدم محدد إلى المقعد {seatMenu.seat_index + 1}</div>
+                  <Input value={inviteUserSearch} onChange={(e) => setInviteUserSearch(e.target.value)} placeholder="ابحث باسم المستخدم أو ID" />
+                  <div className="max-h-48 space-y-1 overflow-y-auto">
+                    {members.filter((memberId) => memberId !== uid && memberId !== room?.owner_id && !seats.some((seat) => seat.user_id === memberId))
+                      .filter((memberId) => {
+                        const p = profiles[memberId];
+                        const q = inviteUserSearch.trim().toLowerCase();
+                        return !q || (p?.display_name || "").toLowerCase().includes(q) || String(p?.display_no ?? "").includes(q);
+                      }).map((memberId) => (
+                        <div key={memberId} className="flex items-center justify-between gap-2 rounded-lg bg-secondary/50 p-2">
+                          <span className="min-w-0 truncate text-sm">{profiles[memberId]?.display_name || "مستخدم"} · ID {profiles[memberId]?.display_no ?? "—"}</span>
+                          <Button size="sm" onClick={() => call("staff_invite_to_seat", { _room: id, _seat: seatMenu.seat_index, _user: memberId })}>دعوة لهذا المقعد</Button>
+                        </div>
+                      ))}
+                    {members.filter((memberId) => memberId !== uid && memberId !== room?.owner_id && !seats.some((seat) => seat.user_id === memberId)).length === 0 && <p className="text-xs text-muted-foreground">لا يوجد أعضاء متاحون للدعوة حالياً</p>}
+                  </div>
+                </div>
+              )}
               {seatMenu.user_id === uid && <Button variant="outline" onClick={() => call("leave_seat", { _room: id })}>مغادرة المقعد</Button>}
               {isStaff && (
                 <>
