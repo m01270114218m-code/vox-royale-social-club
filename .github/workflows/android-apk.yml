@@ -71,7 +71,7 @@ jobs:
           if "android.permission.RECORD_AUDIO" not in xml:
               xml = xml.replace(
                   "<application",
-                  '    <uses-permission android:name="android.permission.RECORD_AUDIO" />\\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\\n    <application',
+                  '    <uses-permission android:name="android.permission.RECORD_AUDIO" />' + chr(10) + '    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' + chr(10) + '    <application',
                   1,
               )
           manifest.write_text(xml)
