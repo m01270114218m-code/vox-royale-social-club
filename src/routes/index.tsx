@@ -119,7 +119,7 @@ function Home() {
   }, [rooms, tab, country, cat, q]);
 
   return (
-    <div className="app-screen w-full px-3 pb-4 pt-2 sm:px-4">
+    <div className="app-screen w-full px-3 pb-3 pt-2 sm:px-4">
       {showIntroBanner && introBannerUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4" role="dialog" aria-label="إعلان البداية">
           <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-gold/40 shadow-2xl">
@@ -130,12 +130,12 @@ function Home() {
         </div>
       )}
       {roomBanners.length > 0 && (
-        <div className="mb-4 overflow-hidden rounded-3xl border border-primary/20 bg-black/20 shadow-lg">
+        <div className="room-list-banner mb-2 overflow-hidden rounded-2xl border border-primary/20 bg-black/20 shadow-lg">
           {(() => {
             const banner = roomBanners[bannerIndex];
             if (!banner) return null;
             const content = (
-              <div className="relative aspect-[16/5] w-full">
+              <div className="relative aspect-[16/5] max-h-32 w-full sm:max-h-40">
                 <img src={banner.image_url} alt={banner.title} className="absolute inset-0 h-full w-full object-cover" />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent px-4 pb-3 pt-10">
                   <div className="truncate text-sm font-bold text-white">{banner.title}</div>
@@ -151,24 +151,24 @@ function Home() {
           })()}
         </div>
       )}
-      <div className="relative mb-4">
+      <div className="relative mb-2">
         <img src={icons3d.search} alt="" className="absolute right-3 top-1.5 h-7 w-7 object-contain" />
         <Input className="pr-10" placeholder="ابحث باسم الغرفة أو رقمها" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
-      <div className="mb-3 flex gap-2">
+      <div className="mb-2 flex gap-2">
         {(["hot", "new"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1.5 text-sm font-bold ${tab === t ? "bg-gold" : "glass text-muted-foreground"}`}>
             {t === "hot" ? "🔥 الشائعة" : "✨ الجديدة"}
           </button>
         ))}
       </div>
-      <div className="mb-2 flex gap-2 overflow-x-auto pb-2">
+      <div className="room-filter-row mb-2 flex flex-wrap items-center gap-1.5">
         <Chip active={!country} onClick={() => setCountry(null)}>🌍 الكل</Chip>
         {COUNTRIES.map((c) => (
           <Chip key={c.code} active={country === c.code} onClick={() => setCountry(c.code)}>{c.flag} {c.name}</Chip>
         ))}
       </div>
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
+      <div className="room-filter-row mb-3 flex flex-wrap items-center gap-1.5">
         <Chip active={!cat} onClick={() => setCat(null)}>كل التصنيفات</Chip>
         {CATEGORIES.map((c) => (
           <Chip key={c.id} active={cat === c.id} onClick={() => setCat(c.id)}>{c.name}</Chip>
@@ -177,7 +177,7 @@ function Home() {
       {list.length === 0 ? (
         <div className="glass rounded-3xl p-10 text-center text-muted-foreground">لا توجد غرف بعد — أنشئ أول غرفة!</div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 justify-items-stretch gap-2 sm:gap-3">
           {list.map((r) => (
             <Link key={r.id} to="/room/$id" params={{ id: r.id }} className="card-3d glass group relative aspect-[3/4] overflow-hidden rounded-3xl p-3">
               <MediaImage src={r.cover_url || roomBackground(r.category)} className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
@@ -204,7 +204,7 @@ function Home() {
 
 function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} className={`shrink-0 rounded-full px-3 py-1 text-sm ${active ? "bg-secondary text-primary ring-1 ring-primary" : "glass text-muted-foreground"}`}>
+    <button onClick={onClick} className={`room-filter-chip shrink-0 rounded-full px-2.5 py-1 text-[13px] leading-5 ${active ? "bg-secondary text-primary ring-1 ring-primary" : "glass text-muted-foreground"}`}>
       {children}
     </button>
   );
