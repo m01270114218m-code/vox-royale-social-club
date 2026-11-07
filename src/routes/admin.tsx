@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText, Image as ImageIcon, Box, Upload, Search, Power, RefreshCw, File as FileIcon, Armchair, PanelsTopLeft, Settings, BarChart3, ShieldCheck, ExternalLink } from "lucide-react";
+import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText, Image as ImageIcon, Box, Upload, Search, Power, RefreshCw, File as FileIcon, Armchair, PanelsTopLeft, Settings, BarChart3, ShieldCheck } from "lucide-react";
 import { AdminRolesTab, AnalyticsTab, AppBuilderTab, BannersTab, NotificationsTab, SeatsTab, SettingsTab } from "@/components/admin/AdminExtendedTabs";
 import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,13 +16,17 @@ export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
       { title: "VOX ROYALE — لوحة التحكم ويب" },
-      { name: "description", content: "لوحة التحكم الأصلية لــ VOX ROYALE معروضة كصفحة ويب مستقلة." },
+      { name: "description", content: "لوحة التحكم الأصلية لــ VOX ROYALE معروضة كواجهة ويب مدمجة داخل التطبيق." },
       { name: "robots", content: "noindex" },
     ],
   }),
   component: () => (
     <RequireAuth>
-      <AdminPage />
+      <div dir="rtl" className="min-h-[100dvh] w-full overflow-y-auto overflow-x-hidden bg-background">
+        <div className="mx-auto min-h-[100dvh] w-full max-w-[1600px]">
+          <AdminPage />
+        </div>
+      </div>
     </RequireAuth>
   ),
 });
@@ -32,7 +36,6 @@ const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
 
 function AdminPage() {
   const { user } = useAuth();
-  const externalAdminUrl = (import.meta.env.VITE_ADMIN_PANEL_URL as string | undefined) || "/control-center/";
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [isSuper, setIsSuper] = useState(false);
   const [stats, setStats] = useState<Record<string, number> | null>(null);
@@ -121,11 +124,7 @@ function AdminPage() {
       <header className="flex flex-wrap items-center justify-between gap-3 py-3">
         <h1 className="font-display text-gold text-3xl">لوحة التحكم</h1>
         <div className="flex items-center gap-2">
-          {externalAdminUrl && (
-            <a href={externalAdminUrl} target="_blank" rel="noreferrer">
-              <Button size="sm" variant="outline"><ExternalLink className="mr-1 h-4 w-4" /> اللوحة الخارجية</Button>
-            </a>
-          )}
+          <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs text-muted-foreground">وضع الويب داخل التطبيق</span>
           <Link to="/" className="text-sm text-muted-foreground">← التطبيق</Link>
         </div>
       </header>
