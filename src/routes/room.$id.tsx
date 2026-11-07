@@ -152,7 +152,7 @@ function RoomPage() {
       if (ms) setMsgs(ms.reverse());
     })();
     const ch = supabase
-      .channel(`room-${id}-${Math.random().toString(36).slice(2)}`)
+      .channel(`room-${id}`)
       .on("broadcast", { event: "chat_message" }, (payload) => {
         const message = payload.payload as Msg & { roomId?: string };
         if (message.roomId !== id || !message.id) return;
