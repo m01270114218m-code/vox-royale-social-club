@@ -51,7 +51,7 @@ function ProfilePage() {
   const [draft, setDraft] = useState<P | null>(null);
   const [wallet, setWallet] = useState({ coins: 0, diamonds: 0 });
   const [editing, setEditing] = useState(false);
-  const [txs, setTxs] = useState<{ id: string; currency: string; amount: number; reason: string; created_at: string }[]>([]);
+  const [txs, setTxs] = useState<{ id: string; currency: string; amount: number; reason: string; created_at: string; display_name?: string | null }[]>([]);
   const [ownedItems, setOwnedItems] = useState<OwnedStoreItem[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [linkEmail, setLinkEmail] = useState("");
@@ -62,8 +62,8 @@ function ProfilePage() {
     setOwnedItems((data ?? []) as unknown as OwnedStoreItem[]);
   }
   async function loadTx() {
-    const { data } = await supabase.from("wallet_transactions").select("id,currency,amount,reason,created_at").order("created_at", { ascending: false }).limit(20);
-    if (data) setTxs(data.map((d) => ({ ...d, amount: Number(d.amount) })));
+    const { data } = await supabase.from("wallet_transactions").select("id,currency,amount,reason,created_at,profiles(display_name)").order("created_at", { ascending: false }).limit(20);
+    if (data) setTxs(data.map((d) => ({ ...d, display_name: (d.profiles as { display_name?: string | null } | null)?.display_name ?? p?.display_name ?? null, amount: Number(d.amount) })));
   }
   async function daily() {
     const { error } = await supabase.rpc("claim_daily_bonus");
@@ -229,7 +229,7 @@ function ProfilePage() {
       )}
       {!editing && (
         <div className="glass mt-4 rounded-3xl p-4">
-          <h3 className="mb-2 font-bold">سجل المحفظة</h3>
+          <h3 className="mb-2 font-bold">سجل المحفظة — {p?.display_name ?? "حسابي"}</h3>
           {txs.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد معاملات بعد</p> : txs.map((t) => (
             <div key={t.id} className="flex justify-between border-b border-border py-2 text-sm last:border-0">
               <span>{({ gift_sent: "هدية مرسلة", gift_received: "هدية مستلمة", daily_bonus: "مكافأة يومية", vip_purchase: "شراء VIP" } as Record<string, string>)[t.reason] ?? t.reason}</span>
