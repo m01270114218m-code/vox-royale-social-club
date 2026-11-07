@@ -34,7 +34,7 @@ export const Route = createFileRoute("/room/$id")({
 
 const mountCount: Record<string, number> = {};
 
-type Profile = { id: string; display_name: string; avatar_url: string | null; level: number; vip_level: number; equipped_frame?: string | null; name_color?: string | null; name_effect?: string | null; name_effect_speed?: number | null };
+type Profile = { id: string; display_name: string; display_no?: number; id_color?: string | null; avatar_url: string | null; level: number; vip_level: number; equipped_frame?: string | null; name_color?: string | null; name_effect?: string | null; name_effect_speed?: number | null };
 type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
 type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
 type GiftT = { id: string; name: string; emoji: string; price: number; tier: string; asset_key?: string | null; asset_url?: string | null };
@@ -74,7 +74,7 @@ function RoomPage() {
   const ensureProfiles = useCallback(async (ids: string[]) => {
     const missing = ids.filter((x) => x && !profiles[x]);
     if (!missing.length) return;
-    const { data } = await supabase.from("profiles").select("id,display_name,avatar_url,level,vip_level,equipped_frame,name_color,name_effect,name_effect_speed").in("id", missing);
+    const { data } = await supabase.from("profiles").select("id,display_name,display_no,id_color,avatar_url,level,vip_level,equipped_frame,name_color,name_effect,name_effect_speed").in("id", missing);
     if (data) setProfiles((p) => ({ ...p, ...Object.fromEntries(data.map((d) => [d.id, d as Profile])) }));
   }, [profiles]);
 
@@ -314,12 +314,13 @@ function RoomPage() {
   return (
     <div className="room-scene mx-auto flex h-dvh max-w-2xl flex-col">
       <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled} />
-      <MediaImage src={room.cover_url || roomBackground(room.category)} className="room-scenery" />
+      <MediaImage src={roomBackground(room.category)} className="room-scenery" />
       <header className="glass m-3 flex items-center gap-3 rounded-2xl p-3">
         <Button variant="ghost" size="icon" onClick={() => nav({ to: "/" })} aria-label="رجوع" title="رجوع"><img src={icons3d.back} alt="" className="h-7 w-7 rotate-180 object-contain" /></Button>
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-bold">{flagOf(room.country)} {room.name}</div>
-          <div className="text-xs text-muted-foreground">#{room.room_no} · {catName(room.category)}</div>
+        <div className="min-w-0 flex-1 flex items-center gap-2">
+          {room.cover_url && <img src={room.cover_url} alt={`صورة ${room.name}`} className="h-11 w-11 shrink-0 rounded-xl object-cover ring-1 ring-primary/40" />}
+          <div className="min-w-0"><div className="truncate font-bold">{flagOf(room.country)} {room.name}</div>
+          <div className="text-xs text-muted-foreground">#{room.room_no} · {catName(room.category)}</div></div>
         </div>
         <Button variant="secondary" size="sm" onClick={() => setShowMembers(true)} className="gap-1 rounded-full px-2"><img src={icons3d.friends} alt="" className="h-5 w-5 object-contain" />{members.length}</Button>
         <Button variant="ghost" size="icon" onClick={share} aria-label="مشاركة" title="مشاركة"><img src={icons3d.share} alt="" className="h-6 w-6 object-contain" /></Button>
@@ -358,7 +359,7 @@ function RoomPage() {
                 {p && <img src={s.is_muted ? voiceControls.muted_asset_url || icons3d.micMuted : voiceControls.mic_asset_url || (host ? icons3d.micHost : icons3d.mic)} alt={s.is_muted ? "مكتوم" : "على المقعد"} className="absolute -bottom-1 -left-1 h-7 w-7 object-contain" style={{ filter: voiceControls.mic_style === "neon" ? "drop-shadow(0 0 7px #22d3ee)" : voiceControls.mic_style === "gold" ? "drop-shadow(0 0 7px #e8bd63)" : undefined }} />}
                 {p && voiceControls.show_mic_effect && voiceControls.effect_asset_url && <img src={voiceControls.effect_asset_url} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-contain" />}
               </div>
-              <span className="max-w-16 truncate text-xs">{p ? p.display_name : s.seat_index + 1}</span>
+              <span className={`max-w-24 truncate text-xs font-bold ${p?.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p?.name_color || undefined, animationDuration: `${p?.name_effect_speed || 1800}ms` }}>{p ? p.display_name : s.seat_index + 1}</span>{p?.display_no && <span className="text-[10px] font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID {p.display_no}</span>}
             </Button>
           );
         })}
