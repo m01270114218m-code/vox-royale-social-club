@@ -138,16 +138,16 @@ function ProfilePage() {
           {shown.avatar_url && <button type="button" onClick={(e) => { e.preventDefault(); void removeAvatar(); }} className="absolute right-0 bottom-0 rounded-full bg-destructive px-2 py-1 text-[10px] text-white">حذف</button>}
           <input type="file" accept="image/*" className="hidden" onChange={(e) => { void changeAvatar(e.target.files?.[0]); e.currentTarget.value = ""; }} />
         </label>
-        <h2 className="mt-3 text-2xl font-bold">{flagOf(shown.country)} {shown.display_name}</h2>
-        <div className="text-sm font-bold" style={{ color: p.id_color || undefined }}>ID: {p.display_no}</div>
-        <IdentityBadges level={p.level} vip={p.vip_level} /><p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
+        <h2 className={`mt-3 text-2xl font-bold ${shown.name_effect && shown.name_effect !== "none" ? `name-effect-${shown.name_effect}` : ""}`} style={{ color: shown.name_color || undefined, animationDuration: `${shown.name_effect_speed || 1800}ms` }}>{flagOf(shown.country)} {shown.display_name}</h2>
+        <div className="text-sm font-bold" style={{ color: shown.id_color || "#D4AF37" }}>ID: {p.display_no}</div>
+        <IdentityBadges level={p.level} vip={p.vip_level} badge={badges.find((b) => b.is_equipped) ?? null} /><p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
         {editing && <div className="mt-2 text-xs text-primary">معاينة — لم يتم الحفظ بعد</div>}
       </div>
 
       <section className="glass mt-4 rounded-2xl p-4 text-right">
         <div className="mb-3 font-bold">شاراتي</div>
         <div className="flex flex-wrap gap-2">{badges.length === 0 ? <span className="text-xs text-muted-foreground">لا توجد شارات بعد</span> : badges.map((b) => <button key={b.id} type="button" onClick={async () => { const { error } = await supabase.rpc("equip_badge", { _badge: b.id, _equip: !b.is_equipped }); if (error) toast.error(errMsg(error)); else { setBadges((xs) => xs.map((x) => ({ ...x, is_equipped: x.id === b.id ? !b.is_equipped : false }))); toast.success(!b.is_equipped ? "تم تعيين الشارة" : "تمت إزالة الشارة"); } }} className="rounded-2xl border p-2 text-center text-xs" style={{ borderColor: b.badge_color }}><div>{b.badge_name}</div>{b.is_equipped && <div className="text-[10px] text-primary">مجهزة</div>}</button>)}</div>
-        <div className="mb-3 font-bold">أغراضي المستلمة</div>
+        <div className="mb-3 mt-4 font-bold">حقيبتي — كل ما أملكه</div>
         {ownedItems.length === 0 ? <p className="text-xs text-muted-foreground">لا توجد إطارات أو دخوليات أو شارات مستلمة حتى الآن.</p> : <div className="flex flex-wrap gap-2">{ownedItems.map((owned) => {
           const item = owned.store_items;
           if (!item) return null;
