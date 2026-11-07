@@ -1,4 +1,4 @@
-name: VOX ROYALE web build
+name: VOX ROYALE Android APK build
 
 on:
   push:
@@ -9,15 +9,15 @@ permissions:
   contents: read
 
 concurrency:
-  group: vox-royale-build-${{ github.ref }}
+  group: vox-royale-android-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
-      - name: Checkout source without external actions
+      - name: Checkout source
         run: |
           BRANCH="$GITHUB_REF_NAME"
           git clone --depth 1 --branch "$BRANCH" "https://github.com/${GITHUB_REPOSITORY}.git" source
@@ -25,14 +25,34 @@ jobs:
           test -f package.json
           test -f bun.lock
 
-      - name: Install locked dependencies and build
+      - name: Install dependencies and build web
         working-directory: source
         run: |
           curl -fsSL https://bun.sh/install | bash
           export PATH="$HOME/.bun/bin:$PATH"
-          bun --version
           bun install
           export NITRO_PRESET=render-com
           bun run build
-          test -s .output/server/index.mjs
           test -s .output/public/control-center/index.html
+
+      - name: Prepare Capacitor Android
+        working-directory: source
+        run: |
+          if [ ! -d android ]; then npx cap add android; fi
+          npx cap sync android
+          test -f android/gradlew
+
+      - name: Build debug APK
+        working-directory: source
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleDebug --no-daemon
+          test -s app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: vox-royale-admin-asset-center-debug
+          path: source/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
