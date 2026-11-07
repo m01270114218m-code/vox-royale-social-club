@@ -490,6 +490,7 @@ function GiftsTab() {
       emoji: form.emoji.trim(),
       price: Number(form.price_coins),
       active: true,
+      asset_url: form.asset_url.trim() || null,
     });
     if (error) { toast.error(errMsg(error)); return; }
     toast.success("تم حفظ الهدية في الكتالوج");
