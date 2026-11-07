@@ -61,7 +61,7 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           java -version 2>&1 | grep -Eq 'version "21([.]|")'
           test -n "$ANDROID_HOME" || test -n "$ANDROID_SDK_ROOT"
-          bun add @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
+          bun add @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/app@latest
           bunx cap add android
           # Declare microphone permissions for Agora/WebView audio capture.
           python3 - <<'PY'
