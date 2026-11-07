@@ -15,36 +15,35 @@ import { getAdminAssetUrl } from "@/lib/media";
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "لوحة التحكم — VOX ROYALE" },
-      { name: "description", content: "لوحة إدارة VOX ROYALE للبلاغات والغرف والمنشورات والمستخدمين." },
-      { property: "og:title", content: "لوحة التحكم — VOX ROYALE" },
-      { property: "og:description", content: "إدارة البلاغات والغرف والمنشورات والمستخدمين." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { title: "VOX ROYALE — لوحة التحكم ويب" },
+      { name: "description", content: "لوحة تحكم ويب مستقلة لإدارة VOX ROYALE." },
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: () => (
-    <RequireAuth>
-      <FullAdminPanel />
-    </RequireAuth>
-  ),
+  component: () => <WebAdminRedirect />,
 });
 
-
-/** Full administration UI embedded in the Android/web app.
- * The static control center is bundled at public/control-center/index.html
- * and shares the same origin + Supabase auth storage as the app.
+/**
+ * The Android/app admin screen must not render an embedded control panel.
+ * It only redirects to the standalone web admin page.
  */
-function FullAdminPanel() {
+function WebAdminRedirect() {
+  useEffect(() => {
+    const url =
+      (import.meta.env.VITE_ADMIN_PANEL_URL as string | undefined)?.trim() ||
+      "/control-center.html";
+    window.location.replace(url);
+  }, []);
+
   return (
-    <main className="fixed inset-0 z-[100] bg-background">
-      <iframe
-        title="لوحة التحكم الكاملة — VOX ROYALE"
-        src="/control-center.html"
-        className="h-[100dvh] w-full border-0"
-        allow="clipboard-read; clipboard-write"
-      />
+    <main className="min-h-screen grid place-items-center bg-background p-6 text-center">
+      <div className="space-y-3">
+        <Shield className="mx-auto h-12 w-12 text-primary" />
+        <h1 className="font-display text-gold text-2xl">جاري فتح لوحة التحكم على الويب…</h1>
+        <p className="text-sm text-muted-foreground">
+          لوحة التحكم لا تُعرض داخل واجهة التطبيق.
+        </p>
+      </div>
     </main>
   );
 }
