@@ -181,7 +181,7 @@ function RoomPage() {
           setTimeout(() => setAnim(null), 2600);
         }
       })
-      \n      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${id}` }, (payload) => { setRoom((current) => current ? ({ ...current, ...(payload.new as Partial<Room>) }) : current); }).subscribe();
+            .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${id}` }, (payload) => { setRoom((current) => current ? ({ ...current, ...(payload.new as Partial<Room>) }) : current); }).subscribe();
     const loadCatalog = async () => {
       const { data: rows } = await supabase.from("gifts").select("id,name,emoji,price,tier,asset_key").eq("active", true).order("sort");
       const keys = (rows || []).map((g) => g.asset_key).filter((key): key is string => !!key);
