@@ -450,7 +450,23 @@ function RoomPage() {
       <form onSubmit={send} className="glass m-3 flex items-center gap-2 rounded-full p-2">
         {!mySeat && !isStaff && <Button type="button" variant="ghost" size="icon" onClick={async () => { const { data: requestId, error } = await supabase.rpc("request_mic", { _room: id }); if (error) toast.error(errMsg(error)); else { if (requestId) setMyMicRequest({ id: String(requestId) }); toast.success("تم إرسال طلب الميك لصاحب الغرفة"); } }} aria-label="طلب الميك" title="طلب الميك"><Mic className="h-7 w-7" /></Button>}
         {mySeat && (
-          <Button type="button" variant="ghost" size="icon" onClick={() => call("toggle_my_mute", { _room: id })} aria-label="المايك" title="المايك"><img src={mySeat.is_muted ? icons3d.micMuted : icons3d.mic} alt="" className="h-8 w-8 object-contain" /></Button>
+          <Button type="button" variant="ghost" size="icon" onClick={async () => {
+            // Request microphone permission from the user's actual tap before Agora publishes audio.
+            if (mySeat.is_muted) {
+              try {
+                if (!navigator.mediaDevices?.getUserMedia) throw new Error("الوصول للميكروفون غير مدعوم على هذا الجهاز");
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach((track) => track.stop());
+              } catch (error) {
+                const name = error instanceof DOMException ? error.name : "";
+                toast.error(name === "NotAllowedError" || name === "PermissionDeniedError"
+                  ? "إذن الميكروفون مرفوض. افتحي إعدادات الهاتف > التطبيقات > صدى شات > الأذونات واسمحي بالميكروفون."
+                  : error instanceof Error ? error.message : "تعذر الوصول إلى الميكروفون");
+                return;
+              }
+            }
+            await call("toggle_my_mute", { _room: id });
+          }} aria-label="المايك" title="المايك"><img src={mySeat.is_muted ? icons3d.micMuted : icons3d.mic} alt="" className="h-8 w-8 object-contain" /></Button>
         )}
         <Button type="button" variant="ghost" size="icon" onClick={() => openGifts()} aria-label="هدية" title="هدية"><img src={icons3d.giftbox} alt="" className="h-8 w-8 object-contain" /></Button>
         <Input value={text} onChange={(e) => setText(e.target.value)} maxLength={500} placeholder="اكتب رسالة…" className="border-0 bg-transparent" />
