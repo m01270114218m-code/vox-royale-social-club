@@ -544,6 +544,7 @@ function RoomPage() {
               {isStaff && (
                 <>
                   <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_locked ? "unlock" : "lock" })}>{seatMenu.is_locked ? "فتح المقعد" : "قفل المقعد"}</Button>
+                  <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_muted ? "unmute" : "mute" })}>{seatMenu.is_muted ? "تشغيل الميك" : "كتم الميك"}{!seatMenu.user_id ? " (المقعد فارغ)" : ""}</Button>
                   {seatMenu.user_id && (
                     <>
                       {((profiles[seatMenu.user_id]?.vip_level ?? 0) < 5 || isOwner) && <>
