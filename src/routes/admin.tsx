@@ -833,23 +833,13 @@ function AssetsTab() {
       if (!user) throw new Error("لم يتم العثور على مستخدم بهذا ID");
       setGrantUserId(user.id);
 
-      const { data: items, error: itemError } = await supabase
-        .from("store_items")
-        .select("id,kind,asset_key,name")
-        .eq("kind", "badge")
-        .eq("asset_key", asset.asset_key)
-        .limit(1);
-      if (itemError) throw itemError;
-      const item = (items ?? [])[0] as { id: string; kind: string; asset_key: string; name: string } | undefined;
-      if (!item) throw new Error("هذه الشارة ليست مرتبطة بعنصر متجر من نوع badge. اربط asset_key أولاً.");
-
-      const { error: grantError } = await supabase.rpc("admin_grant_store_item", {
+      const { error: grantError } = await supabase.rpc("admin_grant_badge_asset", {
         _user: user.id,
-        _item: item.id,
+        _asset_id: asset.id,
         _equip: grantEquip,
       });
       if (grantError) throw grantError;
-      toast.success(`تم إرسال الشارة «${item.name}» إلى ID ${userNo}${grantEquip ? " وتجهيزها" : ""}`);
+      toast.success(`تم إرسال الشارة «${asset.name}» إلى ID ${userNo}${grantEquip ? " وتجهيزها" : ""}`);
       setGrantUserId(user.id);
     } catch (error) {
       toast.error(errMsg(error as never));
