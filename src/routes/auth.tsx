@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Crown } from "lucide-react";
+import { icons3d } from "@/lib/assets3d";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "تسجيل الدخول — VOX ROYALE" },
+      { title: "تسجيل الدخول — صدى شات" },
       { name: "description", content: "سجّل دخولك إلى VOX ROYALE للانضمام للغرف الصوتية." },
       { property: "og:title", content: "تسجيل الدخول — VOX ROYALE" },
       { property: "og:description", content: "انضم للغرف الصوتية المباشرة." },
@@ -186,7 +186,7 @@ function AuthPage() {
         </div>
       )}
       <div className="floaty mb-6 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-gold shadow-gold">
-        {logoUrl ? <img src={logoUrl} alt={appName} className="h-full w-full object-contain p-2" /> : <Crown className="h-12 w-12" />}
+        {logoUrl ? <img src={logoUrl} alt={appName} className="h-full w-full object-contain p-2" /> : <img src={icons3d.micHost} alt={appName} className="h-16 w-16 object-contain" />}
       </div>
       <h1 className="font-display text-gold text-4xl">{appName}</h1>
       <p className="mb-8 mt-2 text-muted-foreground">غرف صوتية بمستوى ملكي</p>
