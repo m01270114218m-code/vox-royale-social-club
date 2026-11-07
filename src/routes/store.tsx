@@ -1,4 +1,4 @@
-import { icons3d, avatarFrame, vipBadge, frameByKey, entryEffects } from "@/lib/assets3d";
+import { icons3d, vipBadge, entryEffects } from "@/lib/assets3d";
 import { UserAvatar } from "@/components/UserAvatar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
