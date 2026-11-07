@@ -1,7 +1,7 @@
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { icons3d } from "@/lib/assets3d";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { uploadImage } from "@/lib/media";
+import { deleteMedia, uploadImage } from "@/lib/media";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useEffect, useState } from "react";
 import { Coins, Gem, LogOut, Pencil, Crown, Store, Users, Shield, LifeBuoy, Bell, Heart, Camera } from "lucide-react";
@@ -60,6 +60,13 @@ function ProfilePage() {
   }
 
   useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    const channel = supabase.channel(`profile-live-${user.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` }, (payload) => {
+        if (!alive) return;
+        setP((current) => current ? ({ ...current, ...(payload.new as P) }) : (payload.new as P));
+      }).subscribe();
     (async () => {
       const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
       if (data) setP(data as P);
@@ -67,12 +74,13 @@ function ProfilePage() {
       loadTx();
       if (w) setWallet({ coins: Number(w.coins), diamonds: Number(w.diamonds) });
     })();
+    return () => { alive = false; void supabase.removeChannel(channel); };
   }, [user]);
 
   async function changeAvatar(f?: File) {
     if (!f || !p) return;
     try {
-      const path = await uploadImage(f, p.id);
+      const path = await uploadImage(f, p.id, "profile");
       const { error } = await supabase.from("profiles").update({ avatar_url: path }).eq("id", p.id);
       if (error) throw error;
       setP({ ...p, avatar_url: path });
@@ -81,6 +89,19 @@ function ProfilePage() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "فشل الرفع");
     }
+  }
+
+  async function removeAvatar() {
+    if (!p?.avatar_url) return;
+    try {
+      const previous = p.avatar_url;
+      const { error } = await supabase.from("profiles").update({ avatar_url: null }).eq("id", p.id);
+      if (error) throw error;
+      setP({ ...p, avatar_url: null });
+      if (draft) setDraft({ ...draft, avatar_url: null });
+      await deleteMedia(previous).catch(() => undefined);
+      toast.success("تم حذف صورة الحساب");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "فشل حذف الصورة"); }
   }
 
   async function save() {
@@ -101,7 +122,8 @@ function ProfilePage() {
         <label className="relative mx-auto block w-fit cursor-pointer">
           <UserAvatar src={shown.avatar_url} name={shown.display_name} size={112} ring vip={p.vip_level} frameKey={p.equipped_frame} />
           <span className="absolute bottom-0 left-0 rounded-full bg-gold p-1.5"><Camera className="h-4 w-4" /></span>
-          <input type="file" accept="image/*" className="hidden" onChange={(e) => changeAvatar(e.target.files?.[0])} />
+          {shown.avatar_url && <button type="button" onClick={(e) => { e.preventDefault(); void removeAvatar(); }} className="absolute right-0 bottom-0 rounded-full bg-destructive px-2 py-1 text-[10px] text-white">حذف</button>}
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => { void changeAvatar(e.target.files?.[0]); e.currentTarget.value = ""; }} />
         </label>
         <h2 className="mt-3 text-2xl font-bold">{flagOf(shown.country)} {shown.display_name}</h2>
         <div className="text-sm font-bold" style={{ color: p.id_color || undefined }}>ID: {p.display_no}</div>
