@@ -252,9 +252,12 @@ export function AnalyticsTab() {
 
 export function AppBuilderTab() {
   const defaults: Record<string, string> = {
-    "ui.branding": JSON.stringify({app_name:"صدى شات",logo_url:"",home_banner_url:""}, null, 2),
+    "ui.branding": JSON.stringify({app_name:"صدى شات",logo_url:"",logo_path:""}, null, 2),
+    "app_branding": JSON.stringify({app_name:"صدى شات",logo_path:"",logo_url:""}, null, 2),
+    "home_banner": JSON.stringify({title:"",image_path:"",enabled:true}, null, 2),
+    "auth_methods": JSON.stringify({email_enabled:true,quick_enabled:true,google_enabled:true}, null, 2),
     "ui.bottom_nav": JSON.stringify({home_label:"الغرف",explore_label:"اللحظات",room_label:"غرفتي",messages_label:"الرسائل",profile_label:"أنا",home_icon:"",explore_icon:"",room_icon:"",messages_icon:"",profile_icon:""}, null, 2),
-    "ui.mic": JSON.stringify({open_asset_url:"",closed_asset_url:"",muted_asset_url:"",host_asset_url:""}, null, 2),
+    "ui.mic": JSON.stringify({mic_style:"neon",show_mic_effect:true,mic_asset_key:"",muted_asset_key:"",effect_asset_key:""}, null, 2),
     "ui.buttons": JSON.stringify({primary_asset_url:"",secondary_asset_url:"",gift_asset_url:"",send_asset_url:""}, null, 2),
     "ui.routes": JSON.stringify({home_title:"الرئيسية",room_title:"الغرفة",store_title:"المتجر",vip_title:"VIP",profile_title:"الملف الشخصي"}, null, 2),
     "features": JSON.stringify({gifts:true,store:true,vip:true,wallet:true,rooms:true,moments:true,messages:true}, null, 2),
@@ -278,7 +281,7 @@ export function AppBuilderTab() {
     const {error}=await supabase.from("admin_settings").upsert({key,value:parsed as never,updated_at:new Date().toISOString(),updated_by:auth.user?.id??null});
     setLoading(false); if(error){toast.error(errMsg(error));return;} toast.success("تم حفظ التعديل وسيظهر للتطبيق عند تحديث الإعدادات");
   }
-  const labels:Record<string,string>={"ui.branding":"هوية التطبيق والرئيسية","ui.bottom_nav":"الشريط السفلي والأيقونات","ui.mic":"شكل الميك المفتوح والمغلق","ui.buttons":"أصول الأزرار","ui.routes":"عناوين وواجهات الصفحات","features":"تشغيل وإيقاف الخدمات"};
+  const labels:Record<string,string>={"ui.branding":"هوية التطبيق والرئيسية","app_branding":"اسم التطبيق وشعاره","home_banner":"بنر شاشة الدخول","auth_methods":"طرق تسجيل الدخول","ui.bottom_nav":"الشريط السفلي والأيقونات","ui.mic":"شكل الميك المفتوح والمغلق","ui.buttons":"أصول الأزرار","ui.routes":"عناوين وواجهات الصفحات","features":"تشغيل وإيقاف الخدمات"};
   return <div className="space-y-3">
     <div className="glass rounded-2xl p-4"><b>مركز تطوير التطبيق</b><p className="mt-1 text-xs text-muted-foreground">تحكم مركزي في الأسماء والروابط والأصول وشكل الميك والأزرار والشريط السفلي والخدمات. استخدم روابط HTTPS أو روابط Supabase Storage.</p></div>
     <div className="flex gap-2 overflow-x-auto">{Object.keys(defaults).map(k=><button key={k} onClick={()=>setActive(k)} className={`whitespace-nowrap rounded-full px-3 py-2 text-xs ${active===k?"bg-gold":"bg-secondary"}`}>{labels[k]}</button>)}</div>
