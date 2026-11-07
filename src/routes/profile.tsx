@@ -1,7 +1,7 @@
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { icons3d } from "@/lib/assets3d";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { deleteMedia, uploadImage } from "@/lib/media";
+import { deleteMedia, uploadImage, useAdminAsset } from "@/lib/media";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useEffect, useState } from "react";
 import { Coins, Gem, LogOut, Pencil, Crown, Store, Users, Shield, LifeBuoy, Bell, Heart, Camera } from "lucide-react";
@@ -33,6 +33,16 @@ export const Route = createFileRoute("/profile")({
 type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; name_color?: string; name_effect?: string; name_effect_speed?: number; equipped_frame?: string | null; equipped_entry?: string | null };
 type OwnedStoreItem = { id: string; acquired_at: string; store_items: { name: string; kind: string; asset_key: string } | null };
 type Badge = { id: string; badge_key: string; badge_name: string; badge_asset_key: string | null; badge_color: string; is_equipped: boolean };
+
+function BagAsset({ name, kind, assetKey, equipped, color }: { name: string; kind: string; assetKey?: string | null; equipped?: boolean; color?: string }) {
+  const src = useAdminAsset(assetKey ?? undefined);
+  return <div className="flex items-center gap-2 rounded-2xl border bg-background/60 p-2" style={{ borderColor: color || undefined }}>
+    <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-secondary">
+      {src ? <img src={src} alt="" className="h-full w-full object-contain" loading="lazy" /> : <span className="text-lg">✦</span>}
+    </div>
+    <div className="min-w-0"><div className="truncate text-xs font-bold">{name}</div><div className="text-[10px] text-muted-foreground">{kind}{equipped ? " · مجهز" : ""}</div></div>
+  </div>;
+}
 
 function ProfilePage() {
   const { user } = useAuth();
@@ -148,13 +158,18 @@ function ProfilePage() {
         <div className="mb-3 font-bold">شاراتي</div>
         <div className="flex flex-wrap gap-2">{badges.length === 0 ? <span className="text-xs text-muted-foreground">لا توجد شارات بعد</span> : badges.map((b) => <button key={b.id} type="button" onClick={async () => { const { error } = await supabase.rpc("equip_badge", { _badge: b.id, _equip: !b.is_equipped }); if (error) toast.error(errMsg(error)); else { setBadges((xs) => xs.map((x) => ({ ...x, is_equipped: x.id === b.id ? !b.is_equipped : false }))); toast.success(!b.is_equipped ? "تم تعيين الشارة" : "تمت إزالة الشارة"); } }} className="rounded-2xl border p-2 text-center text-xs" style={{ borderColor: b.badge_color }}><div>{b.badge_name}</div>{b.is_equipped && <div className="text-[10px] text-primary">مجهزة</div>}</button>)}</div>
         <div className="mb-3 mt-4 font-bold">حقيبتي — كل ما أملكه</div>
-        {ownedItems.length === 0 ? <p className="text-xs text-muted-foreground">لا توجد إطارات أو دخوليات أو شارات مستلمة حتى الآن.</p> : <div className="flex flex-wrap gap-2">{ownedItems.map((owned) => {
-          const item = owned.store_items;
-          if (!item) return null;
-          const equipped = (item.kind === "frame" && p.equipped_frame === item.asset_key) || (item.kind === "entry" && p.equipped_entry === item.asset_key);
-          const kindLabel = item.kind === "frame" ? "إطار" : item.kind === "entry" ? "دخولية" : item.kind === "badge" ? "شارة" : item.kind;
-          return <span key={owned.id} className="rounded-full border border-border bg-background/60 px-3 py-2 text-xs">{item.name} · {kindLabel}{equipped ? " · مجهز" : ""}</span>;
-        })}</div>}
+        {ownedItems.length === 0 && badges.length === 0 ? <p className="text-xs text-muted-foreground">الحقيبة فارغة حالياً.</p> : (
+          <div className="grid grid-cols-2 gap-2">
+            {ownedItems.map((owned) => {
+              const item = owned.store_items;
+              if (!item) return null;
+              const equipped = (item.kind === "frame" && p.equipped_frame === item.asset_key) || (item.kind === "entry" && p.equipped_entry === item.asset_key);
+              const kindLabel = item.kind === "frame" ? "إطار" : item.kind === "entry" ? "دخولية" : item.kind === "badge" ? "شارة" : item.kind;
+              return <BagAsset key={owned.id} name={item.name} kind={kindLabel} assetKey={item.asset_key} equipped={equipped} />;
+            })}
+            {badges.map((b) => <BagAsset key={b.id} name={b.badge_name} kind="شارة" assetKey={b.badge_asset_key} equipped={b.is_equipped} color={b.badge_color} />)}
+          </div>
+        )}
       </section>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
