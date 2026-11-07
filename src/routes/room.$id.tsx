@@ -203,6 +203,10 @@ function RoomPage() {
           return normalizeSeats(exists ? current.map((s) => s.seat_index === seatIndex ? row : s) : [...current, row]);
         });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_moderators", filter: `room_id=eq.${id}` }, (payload) => {
+        const row = (payload.eventType === "DELETE" ? payload.old : payload.new) as { user_id?: string };
+        if (row.user_id === uid) setIsMod(payload.eventType !== "DELETE");
+      })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, (payload) => {
         const userId = (payload.new as { user_id: string }).user_id;
         setMembers((current) => current.includes(userId) ? current : [...current, userId]);
