@@ -73,7 +73,9 @@ function ProfilePage() {
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` }, (payload) => {
         if (!alive) return;
         setP((current) => current ? ({ ...current, ...(payload.new as P) }) : (payload.new as P));
-      }).subscribe();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_items", filter: `user_id=eq.${user.id}` }, () => { void loadOwnedItems(user.id); })
+      .subscribe();
     (async () => {
       const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
       if (data) setP(data as P);
