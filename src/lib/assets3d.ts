@@ -59,7 +59,8 @@ const frames = [frame1, frame2, frame3, frame4, frame5, frame6];
 const vips = [vip1, vip2, vip3, vip4, vip5, vip6];
 const levels = [level1, level2, level3, level4, level5, level6];
 export function avatarFrame(vip: number) { return vip > 0 ? frames[Math.min(5, Math.max(0, Math.floor(vip) - 1))] : undefined; }
-export function frameByKey(key?: string | null) { if (!key) return undefined; const i = Number(key.replace("frame-", "")) - 1; return frames[Math.min(5, Math.max(0, i))]; }
+export function frameByKey(key?: string | null) { if (!key) return undefined; if (key.startsWith("http://") || key.startsWith("https://") || key.startsWith("media:")) return key; const match = /^frame-([1-6])$/.exec(key); return match ? frames[Number(match[1]) - 1] : undefined; }
+export function entryAsset(key?: string | null) { if (!key) return undefined; if (key.startsWith("http://") || key.startsWith("https://") || key.startsWith("media:")) return key; return entryEffects[key]?.image; }
 export const entryEffects: Record<string, { name: string; image: string }> = {
   "entry-bolt": { name: "دخولية البرق", image: diamond },
   "entry-car": { name: "دخولية السيارة", image: car },

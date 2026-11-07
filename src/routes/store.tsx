@@ -1,4 +1,4 @@
-import { icons3d, avatarFrame, vipBadge, frameByKey, entryEffects } from "@/lib/assets3d";
+import { icons3d, vipBadge, entryEffects } from "@/lib/assets3d";
 import { UserAvatar } from "@/components/UserAvatar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -122,9 +122,8 @@ function StorePage() {
               const isEquipped = equippedFrame === item.asset_key;
               return (
                 <div key={item.id} className={`card-3d glass rounded-3xl p-4 text-center ${isEquipped ? "ring-2 ring-primary" : ""}`}>
-                  <div className="relative mx-auto mb-2 h-24 w-24">
-                    <div className="absolute inset-[18%] overflow-hidden rounded-full bg-secondary" />
-                    <img src={frameByKey(item.asset_key)} alt={item.name} className="absolute inset-0 h-full w-full object-contain" />
+                  <div className="mx-auto mb-2 flex h-24 w-24 items-center justify-center">
+                    <UserAvatar size={96} name={item.name} frameKey={item.asset_key} />
                   </div>
                   <b className="text-sm">{item.name}</b>
                   <p className="min-h-8 text-xs text-muted-foreground">{item.description}</p>

@@ -30,7 +30,7 @@ export const Route = createFileRoute("/profile")({
   ),
 });
 
-type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number };
+type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; equipped_frame?: string | null; equipped_entry?: string | null };
 
 function ProfilePage() {
   const { user } = useAuth();
@@ -99,7 +99,7 @@ function ProfilePage() {
       <div className="glass relative overflow-hidden rounded-3xl p-6 text-center">
         <div className="absolute inset-x-0 top-0 h-24 bg-royal" />
         <label className="relative mx-auto block w-fit cursor-pointer">
-          <UserAvatar src={shown.avatar_url} name={shown.display_name} size={112} ring vip={p.vip_level} />
+          <UserAvatar src={shown.avatar_url} name={shown.display_name} size={112} ring vip={p.vip_level} frameKey={shown.equipped_frame} />
           <span className="absolute bottom-0 left-0 rounded-full bg-gold p-1.5"><Camera className="h-4 w-4" /></span>
           <input type="file" accept="image/*" className="hidden" onChange={(e) => changeAvatar(e.target.files?.[0])} />
         </label>
@@ -169,7 +169,7 @@ function ProfilePage() {
           <h3 className="mb-2 font-bold">سجل المحفظة</h3>
           {txs.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد معاملات بعد</p> : txs.map((t) => (
             <div key={t.id} className="flex justify-between border-b border-border py-2 text-sm last:border-0">
-              <span>{({ gift_sent: "هدية مرسلة", gift_received: "هدية مستلمة", daily_bonus: "مكافأة يومية", vip_purchase: "شراء VIP" } as Record<string, string>)[t.reason] ?? t.reason}</span>
+              <span>{({ gift_sent: "هدية مرسلة", gift_received: "هدية مستلمة", daily_bonus: "مكافأة يومية", vip_purchase: "شراء VIP", admin_adjustment: p.display_name, admin: p.display_name } as Record<string, string>)[t.reason] ?? t.reason}</span>
               <span className={t.amount < 0 ? "text-destructive" : "text-primary"}>{t.amount > 0 ? "+" : ""}{t.amount} {t.currency === "coins" ? "🪙" : "💎"}</span>
             </div>
           ))}
