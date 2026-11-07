@@ -422,6 +422,13 @@ function RoomPage() {
         </div>
       )}
 
+      {room.cover_url && (
+        <div className="room-cover-stage mx-auto my-2" aria-label={`صورة غرفة ${room.name}`}>
+          <MediaImage src={room.cover_url} className="room-cover-stage-image" />
+          <div className="room-cover-stage-shade" />
+          <div className="room-cover-stage-label">{room.name}</div>
+        </div>
+      )}
       <div className={`grid ${cols} gap-y-5 px-4 py-4`}>
         {seats.map((s) => {
           const p = s.user_id ? profiles[s.user_id] : null;
