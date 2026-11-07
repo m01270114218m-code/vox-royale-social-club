@@ -75,26 +75,59 @@ export async function getAdminAssetUrl(assetKey?: string | null): Promise<string
   if (!assetKey) return null;
   const cached = adminAssetCache.get(assetKey);
   if (cached) return cached;
-  const { data: asset, error } = await supabase.from("admin_assets").select("url,metadata").eq("asset_key", assetKey).eq("is_active", true).maybeSingle();
-  if (error || !asset) return null;
-  const metadata = asset.metadata as { storage_path?: string } | null;
-  const raw = metadata?.storage_path || asset.url;
-  if (!raw) return null;
-  const marker = "/storage/v1/object/";
-  let path = raw;
-  const markerIndex = raw.indexOf(marker);
-  if (markerIndex >= 0) {
-    const tail = raw.slice(markerIndex + marker.length).split("?")[0];
-    const publicPrefix = "public/admin-assets/";
-    const signPrefix = "sign/admin-assets/";
-    path = tail.startsWith(publicPrefix) ? tail.slice(publicPrefix.length) : tail.startsWith(signPrefix) ? tail.slice(signPrefix.length) : tail;
+
+  // store_items.asset_key may already contain a complete Supabase Storage URL.
+  // Do not look up that URL as an admin_assets.asset_key: it is the actual asset.
+  let raw = assetKey.trim();
+  if (!/^https?:\/\//i.test(raw)) {
+    const { data: asset, error } = await supabase
+      .from("admin_assets")
+      .select("url,metadata")
+      .eq("asset_key", assetKey)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (error || !asset) return null;
+    const metadata = asset.metadata as { storage_path?: string } | null;
+    raw = metadata?.storage_path || asset.url || "";
+    if (!raw) return null;
   }
-  path = decodeURIComponent(path.replace(/^\/+/, ""));
-  if (path.startsWith("admin-assets/")) path = path.slice("admin-assets/".length);
-  const { data: signed, error: signError } = await supabase.storage.from("admin-assets").createSignedUrl(path, 60 * 60);
-  if (signError || !signed?.signedUrl) return null;
-  adminAssetCache.set(assetKey, signed.signedUrl);
-  return signed.signedUrl;
+
+  const marker = "/storage/v1/object/";
+  const markerIndex = raw.indexOf(marker);
+  if (markerIndex < 0) {
+    if (/^https?:\/\//i.test(raw)) {
+      adminAssetCache.set(assetKey, raw);
+      return raw;
+    }
+    return null;
+  }
+
+  const tail = raw.slice(markerIndex + marker.length).split("?")[0];
+  const parts = tail.split("/");
+  const access = parts.shift();
+  const bucket = parts.shift();
+  const storagePath = decodeURIComponent(parts.join("/").replace(/^\/+/, ""));
+  if (!access || !bucket || !storagePath) return null;
+
+  // Public Storage objects should be used directly. Signing a public media
+  // object through the admin-assets bucket was the cause of broken images.
+  if (access === "public") {
+    adminAssetCache.set(assetKey, raw);
+    return raw;
+  }
+
+  // Refresh signed/authenticated Storage URLs from their actual bucket.
+  if (access === "sign" || access === "authenticated") {
+    const { data: signed, error: signError } = await supabase
+      .storage
+      .from(bucket)
+      .createSignedUrl(storagePath, 60 * 60);
+    if (signError || !signed?.signedUrl) return null;
+    adminAssetCache.set(assetKey, signed.signedUrl);
+    return signed.signedUrl;
+  }
+
+  return null;
 }
 
 export function useAdminAsset(assetKey?: string | null): string | null {
