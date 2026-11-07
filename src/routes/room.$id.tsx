@@ -76,6 +76,7 @@ function RoomPage() {
   const [anim, setAnim] = useState<{ key: number; emoji: string } | null>(null);
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
+  const [micPermissionGranted, setMicPermissionGranted] = useState(false);
   const [micRequests, setMicRequests] = useState<{ id: string; user_id: string; created_at: string }[]>([]);
   const [myMicRequest, setMyMicRequest] = useState<{ id: string } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -384,7 +385,7 @@ function RoomPage() {
 
   return (
     <div className="room-scene mx-auto flex h-dvh max-w-2xl flex-col">
-      <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled} />
+      <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} />
       <MediaImage src={roomBackground(room.category)} className="room-scenery" />
       <header className="glass m-3 flex items-center gap-3 rounded-2xl p-3">
         <Button variant="ghost" size="icon" onClick={() => nav({ to: "/" })} aria-label="رجوع" title="رجوع"><img src={icons3d.back} alt="" className="h-7 w-7 rotate-180 object-contain" /></Button>
@@ -451,22 +452,24 @@ function RoomPage() {
         {!mySeat && !isStaff && <Button type="button" variant="ghost" size="icon" onClick={async () => { const { data: requestId, error } = await supabase.rpc("request_mic", { _room: id }); if (error) toast.error(errMsg(error)); else { if (requestId) setMyMicRequest({ id: String(requestId) }); toast.success("تم إرسال طلب الميك لصاحب الغرفة"); } }} aria-label="طلب الميك" title="طلب الميك"><Mic className="h-7 w-7" /></Button>}
         {mySeat && (
           <Button type="button" variant="ghost" size="icon" onClick={async () => {
-            // Request microphone permission from the user's actual tap before Agora publishes audio.
-            if (mySeat.is_muted) {
+            if (!micPermissionGranted) {
               try {
                 if (!navigator.mediaDevices?.getUserMedia) throw new Error("الوصول للميكروفون غير مدعوم على هذا الجهاز");
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 stream.getTracks().forEach((track) => track.stop());
+                setMicPermissionGranted(true);
+                if (mySeat.is_muted) await call("toggle_my_mute", { _room: id });
               } catch (error) {
                 const name = error instanceof DOMException ? error.name : "";
                 toast.error(name === "NotAllowedError" || name === "PermissionDeniedError"
                   ? "إذن الميكروفون مرفوض. افتحي إعدادات الهاتف > التطبيقات > صدى شات > الأذونات واسمحي بالميكروفون."
                   : error instanceof Error ? error.message : "تعذر الوصول إلى الميكروفون");
-                return;
               }
+              return;
             }
-            await call("toggle_my_mute", { _room: id });
-          }} aria-label="المايك" title="المايك"><img src={mySeat.is_muted ? icons3d.micMuted : icons3d.mic} alt="" className="h-8 w-8 object-contain" /></Button>
+            setMicPermissionGranted(false);
+            if (!mySeat.is_muted) await call("toggle_my_mute", { _room: id });
+          }} aria-label="المايك" title="المايك"><img src={mySeat.is_muted || !micPermissionGranted ? icons3d.micMuted : icons3d.mic} alt="" className="h-8 w-8 object-contain" /></Button>
         )}
         <Button type="button" variant="ghost" size="icon" onClick={() => openGifts()} aria-label="هدية" title="هدية"><img src={icons3d.giftbox} alt="" className="h-8 w-8 object-contain" /></Button>
         <Input value={text} onChange={(e) => setText(e.target.value)} maxLength={500} placeholder="اكتب رسالة…" className="border-0 bg-transparent" />
