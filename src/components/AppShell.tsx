@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useAppUiConfig } from "@/hooks/useAppUiConfig";
+import { App as CapacitorApp } from "@capacitor/app";
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -69,7 +70,24 @@ function ShellInner({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const nav = useNavigate();
   const unread = useUnread(user?.id);
-  useEffect(() => { const onPop = () => { if (window.history.length <= 1) { if (!window.confirm("هل تريد فعلاً الخروج من التطبيق؟")) window.history.pushState(null, "", window.location.href); } }; window.addEventListener("popstate", onPop); window.history.pushState(null, "", window.location.href); return () => window.removeEventListener("popstate", onPop); }, []);
+  useEffect(() => {
+    const onPop = () => {
+      if (window.history.length <= 1) return;
+    };
+    window.addEventListener("popstate", onPop);
+    let listener: { remove: () => Promise<void> } | null = null;
+    void CapacitorApp.addListener("backButton", ({ canGoBack }) => {
+      if (canGoBack || window.history.length > 1) {
+        window.history.back();
+      } else {
+        nav({ to: "/" });
+      }
+    }).then((h) => { listener = h; });
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      void listener?.remove();
+    };
+  }, [nav]);
   const ui = useAppUiConfig();
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
