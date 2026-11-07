@@ -1,85 +1,216 @@
+import AgoraRTC, {
+  type IAgoraRTCClient,
+  type IAgoraRTCRemoteUser,
+  type IMicrophoneAudioTrack,
+} from "agora-rtc-sdk-ng";
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type Peer = { pc: RTCPeerConnection; audio?: HTMLAudioElement };
-type Props = { roomId:string; uid:string; members:string[]; micEnabled:boolean };
+type Props = { roomId: string; uid: string; members: string[]; micEnabled: boolean };
 
-const iceServers: RTCConfiguration = { iceServers:[{urls:["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302"]}] };
+type TokenResponse = {
+  appId: string;
+  channel: string;
+  uid: number;
+  token: string;
+  role: "publisher" | "subscriber";
+  expiresAt: number;
+};
 
-export function RoomVoice({roomId,uid,members,micEnabled}:Props){
- const peers=useRef(new Map<string,Peer>()); const stream=useRef<MediaStream|null>(null); const channel=useRef<ReturnType<typeof supabase.channel>|null>(null);
- useEffect(()=>{
-  const ch=supabase.channel(`voice-${roomId}`,{config:{broadcast:{self:false}}});
-  channel.current=ch;
-  ch.on("broadcast",{event:"signal"},async ({payload})=>{
-   if(payload?.roomId!==roomId||payload?.to!==uid)return;
-   const from=String(payload.from); let peer=peers.current.get(from);
-   if(!peer) peer=await makePeer(from,false);
-   const pc=peer.pc;
-   try{
-    if(payload.kind==="offer"){await pc.setRemoteDescription(payload.data); const answer=await pc.createAnswer(); await pc.setLocalDescription(answer); await send(from,"answer",answer);}
-    else if(payload.kind==="answer"){await pc.setRemoteDescription(payload.data);}
-    else if(payload.kind==="ice" && payload.data){await pc.addIceCandidate(payload.data);}
-   }catch{}
-  }).subscribe();
-  return ()=>{supabase.removeChannel(ch);channel.current=null;peers.current.forEach(p=>p.pc.close());peers.current.clear(); if(stream.current){stream.current.getTracks().forEach(t=>t.stop());stream.current=null;}};
- },[roomId,uid]);
+export function RoomVoice({ roomId, uid, members, micEnabled }: Props) {
+  const clientRef = useRef<IAgoraRTCClient | null>(null);
+  const micRef = useRef<IMicrophoneAudioTrack | null>(null);
+  const joinedRef = useRef(false);
+  const publishedRef = useRef(false);
+  const aliveRef = useRef(true);
+  const roleRef = useRef<"host" | "audience">("audience");
+  const operationRef = useRef(Promise.resolve());
+  const tokenRefreshRef = useRef<(() => Promise<void>) | null>(null);
 
- useEffect(()=>{ if(!channel.current)return; void syncPeers(); },[members.join(","),micEnabled]);
+  useEffect(() => {
+    aliveRef.current = true;
+    let client: IAgoraRTCClient | null = null;
 
- async function send(to:string,kind:string,data:unknown){await channel.current?.send({type:"broadcast",event:"signal",payload:{roomId,from:uid,to,kind,data}});}
- async function makePeer(peerId:string,initiator:boolean){
-  const existing=peers.current.get(peerId); if(existing)return existing;
-  const pc=new RTCPeerConnection(iceServers); const audio=new Audio(); audio.autoplay=true; audio.playsInline=true;
-  pc.ontrack=e=>{audio.srcObject=e.streams[0]; void audio.play().catch(()=>{});};
-  pc.onicecandidate=e=>{if(e.candidate)void send(peerId,"ice",e.candidate.toJSON());};
-  peers.current.set(peerId,{pc,audio});
-  if(stream.current)stream.current.getTracks().forEach(t=>pc.addTrack(t,stream.current!));
-  else pc.addTransceiver("audio",{direction:"recvonly"});
-  if(initiator){const offer=await pc.createOffer();await pc.setLocalDescription(offer);await send(peerId,"offer",offer);}
-  return {pc,audio};
- }
- async function syncPeers(){
-  const targets=members.filter(x=>x&&x!==uid);
-  // Keep the peer graph warm. Never tear down/recreate it just because the mic toggled.
-  await Promise.all(targets.filter(id=>!peers.current.has(id)).map(id=>makePeer(id,uid<id)));
-  for(const [id,p] of peers.current){if(!targets.includes(id)){p.pc.close();p.audio?.remove();peers.current.delete(id);}}
-
-  if(micEnabled && !stream.current){
-    try{
-      stream.current=await navigator.mediaDevices.getUserMedia({
-        audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}
+    const getToken = async (): Promise<TokenResponse> => {
+      const { data, error } = await supabase.functions.invoke("agora-rtc-token", {
+        body: { roomId },
       });
-    }catch{toast.error("اسمح للميكروفون من صلاحيات التطبيق");return;}
-  }
-
-  const track=stream.current?.getAudioTracks()[0];
-  if(track) track.enabled=micEnabled;
-
-  await Promise.all([...peers.current.entries()].map(async ([peerId,{pc}])=>{
-    let transceiver=pc.getTransceivers().find(t=>t.receiver.track?.kind==="audio" && t.sender);
-    let sender=transceiver?.sender || pc.getSenders().find(s=>s.track?.kind==="audio" || s.track===null);
-    let needsNegotiation=false;
-
-    if(sender){
-      await sender.replaceTrack(micEnabled ? track ?? null : null);
-      transceiver=pc.getTransceivers().find(t=>t.sender===sender);
-      if(transceiver){
-        const desired=micEnabled ? "sendrecv" : "recvonly";
-        if(transceiver.direction!==desired){transceiver.direction=desired; needsNegotiation=true;}
+      if (error) throw error;
+      if (!data?.token || !data?.appId || !data?.channel || !data?.uid) {
+        throw new Error(data?.error || "تعذر الحصول على رمز Agora");
       }
-    }else if(track){
-      pc.addTrack(track,stream.current!);
-      needsNegotiation=true;
-    }
+      return data as TokenResponse;
+    };
 
-    if(needsNegotiation){
-      const offer=await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      await send(peerId,"offer",offer);
-    }
-  }));
- }
- return null;
+    const refreshToken = async () => {
+      if (!client || !joinedRef.current) return;
+      const access = await getToken();
+      await client.renewToken(access.token);
+      const nextRole = access.role === "publisher" ? "host" : "audience";
+      if (roleRef.current !== nextRole) {
+        await client.setClientRole(nextRole);
+        roleRef.current = nextRole;
+      }
+    };
+    tokenRefreshRef.current = refreshToken;
+
+    const publishMicrophone = async () => {
+      if (!client || !joinedRef.current || !micEnabled || publishedRef.current) return;
+      await refreshToken();
+      if (roleRef.current !== "host") {
+        throw new Error("حسابك ليس لديه إذن الصعود للميك");
+      }
+      const track = micRef.current ?? await AgoraRTC.createMicrophoneAudioTrack({
+        encoderConfig: "speech_low_quality",
+        AEC: true,
+        ANS: true,
+        AGC: true,
+      });
+      micRef.current = track;
+      await client.publish(track);
+      publishedRef.current = true;
+    };
+
+    const unpublishMicrophone = async () => {
+      if (!client || !publishedRef.current) return;
+      const track = micRef.current;
+      if (track) {
+        await client.unpublish(track).catch(() => undefined);
+        track.setEnabled(false);
+      }
+      publishedRef.current = false;
+      await refreshToken();
+    };
+
+    const serialize = (task: () => Promise<void>) => {
+      operationRef.current = operationRef.current
+        .then(task)
+        .catch((error) => {
+          if (aliveRef.current) {
+            console.error("[Agora RTC]", error);
+            toast.error(error instanceof Error ? error.message : "تعذر تشغيل الصوت");
+          }
+        });
+      return operationRef.current;
+    };
+
+    const onUserPublished = async (user: IAgoraRTCRemoteUser, mediaType: "audio" | "video") => {
+      if (!client || mediaType !== "audio") return;
+      try {
+        await client.subscribe(user, mediaType);
+        user.audioTrack?.play();
+      } catch (error) {
+        console.error("[Agora] subscribe failed", error);
+      }
+    };
+    const onUserUnpublished = (user: IAgoraRTCRemoteUser) => {
+      user.audioTrack?.stop();
+    };
+
+    const start = async () => {
+      try {
+        if (!uid || !navigator.mediaDevices?.getUserMedia) {
+          throw new Error("المتصفح أو WebView لا يدعم الوصول للميكروفون");
+        }
+        const access = await getToken();
+        client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
+        clientRef.current = client;
+        client.on("user-published", onUserPublished);
+        client.on("user-unpublished", onUserUnpublished);
+        client.on("token-privilege-will-expire", () => {
+          void serialize(refreshToken);
+        });
+        await client.join(access.appId, access.channel, access.token, access.uid);
+        joinedRef.current = true;
+        const initialRole = access.role === "publisher" ? "host" : "audience";
+        await client.setClientRole(initialRole);
+        roleRef.current = initialRole;
+        if (micEnabled && initialRole === "host") {
+          await publishMicrophone();
+        }
+      } catch (error) {
+        if (aliveRef.current) {
+          console.error("[Agora] join failed", error);
+          toast.error(error instanceof Error ? error.message : "فشل الاتصال بخدمة الصوت");
+        }
+      }
+    };
+
+    void start();
+
+    return () => {
+      aliveRef.current = false;
+      tokenRefreshRef.current = null;
+      joinedRef.current = false;
+      publishedRef.current = false;
+      if (micRef.current) {
+        micRef.current.stop();
+        micRef.current.close();
+        micRef.current = null;
+      }
+      if (client) {
+        client.removeAllListeners();
+        void client.leave().catch(() => undefined);
+      }
+      clientRef.current = null;
+    };
+  // Membership is managed by the server; the token endpoint verifies current membership.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, uid]);
+
+  useEffect(() => {
+    const client = clientRef.current;
+    if (!client || !joinedRef.current) return;
+    operationRef.current = operationRef.current.then(async () => {
+      if (micEnabled) {
+        const access = await (async () => {
+          const { data, error } = await supabase.functions.invoke("agora-rtc-token", { body: { roomId } });
+          if (error) throw error;
+          return data as TokenResponse;
+        })();
+        await client.renewToken(access.token);
+        const nextRole = access.role === "publisher" ? "host" : "audience";
+        if (roleRef.current !== nextRole) {
+          await client.setClientRole(nextRole);
+          roleRef.current = nextRole;
+        }
+        if (nextRole !== "host") throw new Error("انتظر موافقة صاحب الغرفة للصعود إلى الميك");
+        if (!micRef.current) {
+          micRef.current = await AgoraRTC.createMicrophoneAudioTrack({
+            encoderConfig: "speech_low_quality",
+            AEC: true,
+            ANS: true,
+            AGC: true,
+          });
+        }
+        if (!publishedRef.current) {
+          await client.publish(micRef.current);
+          publishedRef.current = true;
+        } else {
+          await micRef.current.setEnabled(true);
+        }
+      } else {
+        if (publishedRef.current && micRef.current) {
+          await client.unpublish(micRef.current).catch(() => undefined);
+          publishedRef.current = false;
+        }
+        if (micRef.current) await micRef.current.setEnabled(false);
+        const { data, error } = await supabase.functions.invoke("agora-rtc-token", { body: { roomId } });
+        if (!error && data?.token) {
+          await client.renewToken(data.token);
+          const nextRole = data.role === "publisher" ? "host" : "audience";
+          if (roleRef.current !== nextRole) {
+            await client.setClientRole(nextRole);
+            roleRef.current = nextRole;
+          }
+        }
+      }
+    }).catch((error) => {
+      console.error("[Agora] microphone state failed", error);
+      if (aliveRef.current) toast.error(error instanceof Error ? error.message : "تعذر تفعيل الميكروفون");
+    });
+  }, [micEnabled, roomId]);
+
+  return null;
 }
