@@ -10,7 +10,7 @@ export type AppUiConfig = {
   features: Record<string, boolean>;
 };
 const fallback: AppUiConfig = {
-  branding:{app_name:"صدي شات"}, bottom_nav:{home_label:"الغرف",explore_label:"اللحظات",room_label:"غرفتي",messages_label:"الرسائل",profile_label:"أنا"},
+  branding:{app_name:"صدى شات"}, bottom_nav:{home_label:"الغرف",explore_label:"اللحظات",room_label:"غرفتي",messages_label:"الرسائل",profile_label:"أنا"},
   mic:{}, buttons:{}, routes:{}, features:{gifts:true,store:true,vip:true,wallet:true,rooms:true,moments:true,messages:true}
 };
 export function useAppUiConfig(){
