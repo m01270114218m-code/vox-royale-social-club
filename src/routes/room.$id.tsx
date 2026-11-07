@@ -243,9 +243,7 @@ function RoomPage() {
         }
       })
             .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${id}` }, (payload) => { setRoom((current) => current ? ({ ...current, ...(payload.new as Partial<Room>) }) : current); })
-      .subscribe();
-    roomLive.current = ch;
-    ch.subscribe((status) => {
+      .subscribe((status) => {
       if (status === "SUBSCRIBED") {
         void Promise.all([loadSeats(), loadMembers(), loadMicRequests()]);
         void supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).order("created_at", { ascending: false }).limit(50)
@@ -256,6 +254,7 @@ function RoomPage() {
           }); });
       }
     });
+    roomLive.current = ch;
     const loadCatalog = async () => {
       const { data: rows } = await supabase.from("gifts").select("id,name,emoji,price,tier,asset_key").eq("active", true).order("sort");
       const keys = (rows || []).map((g) => g.asset_key).filter((key): key is string => !!key);
