@@ -33,7 +33,7 @@ export const Route = createFileRoute("/room/$id")({
 
 const mountCount: Record<string, number> = {};
 
-type Profile = { id: string; display_name: string; avatar_url: string | null; level: number; vip_level: number; equipped_frame?: string | null };
+type Profile = { id: string; display_name: string; avatar_url: string | null; level: number; vip_level: number; equipped_frame?: string | null; name_color?: string | null; name_effect?: string | null; name_effect_speed?: number | null };
 type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
 type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
 type GiftT = { id: string; name: string; emoji: string; price: number; tier: string; asset_key?: string | null; asset_url?: string | null };
@@ -67,12 +67,12 @@ function RoomPage() {
   const chatEnd = useRef<HTMLDivElement>(null);
    const uid = user?.id ?? "";
   const isOwner = room?.owner_id === uid;
-  const isStaff = isOwner || isMod;
+  const isStaff = isOwner || isMod;\n  const publicName = (userId: string, fallback = "…") => { const p = profiles[userId]; if (!p) return fallback; const effect = p.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""; return <span className={effect} style={{ color: p.name_color || undefined, animationDuration: `${p.name_effect_speed || 1800}ms` }}>{p.display_name}</span>; };
 
   const ensureProfiles = useCallback(async (ids: string[]) => {
     const missing = ids.filter((x) => x && !profiles[x]);
     if (!missing.length) return;
-    const { data } = await supabase.from("profiles").select("id,display_name,avatar_url,level,vip_level,equipped_frame").in("id", missing);
+    const { data } = await supabase.from("profiles").select("id,display_name,avatar_url,level,vip_level,equipped_frame,name_color,name_effect,name_effect_speed").in("id", missing);
     if (data) setProfiles((p) => ({ ...p, ...Object.fromEntries(data.map((d) => [d.id, d as Profile])) }));
   }, [profiles]);
 
@@ -333,8 +333,8 @@ function RoomPage() {
           <div className="space-y-2">
             {micRequests.map((r) => (
               <div key={r.id} className="flex items-center gap-2 rounded-xl bg-background/60 p-2">
-                <UserAvatar src={profiles[r.user_id]?.avatar_url} name={profiles[r.user_id]?.display_name} vip={profiles[r.user_id]?.vip_level} size={38} />
-                <span className="min-w-0 flex-1 truncate">{profiles[r.user_id]?.display_name ?? "مستخدم"}</span>
+                <UserAvatar src={profiles[r.user_id]?.avatar_url} name={publicName(r.user_id, "مستخدم") } vip={profiles[r.user_id]?.vip_level} size={38} />
+                <span className="min-w-0 flex-1 truncate">{publicName(r.user_id, "مستخدم") }</span>
                 <Button size="sm" onClick={() => void decideMicRequest(r.id, true)} className="bg-gold">موافقة</Button>
                 <Button size="sm" variant="outline" onClick={() => void decideMicRequest(r.id, false)}>رفض</Button>
               </div>
@@ -364,7 +364,7 @@ function RoomPage() {
         <div className="rounded-xl bg-secondary/60 p-2 text-xs text-primary">📢 مرحباً بك في {room.name}. {room.description}</div>
         {msgs.map((m) => (
           <div key={m.id} className={`w-fit max-w-[85%] rounded-2xl px-3 py-1.5 text-sm ${m.kind === "gift" ? "bg-gold font-bold" : "glass"}`}>
-            <span className="font-bold text-primary">{profiles[m.user_id]?.display_name ?? "…"}: </span>
+            <span className="font-bold text-primary">{publicName(m.user_id)}: </span>
             {m.body}
           </div>
         ))}
@@ -423,7 +423,7 @@ function RoomPage() {
           <div className="space-y-3 p-4">
             <select className="w-full rounded-md border border-input bg-input px-3 py-2 text-sm" value={giftTo ?? ""} onChange={(e) => setGiftTo(e.target.value)}>
               {members.filter((m) => m !== uid).length === 0 && <option value="">لا يوجد أحد غيرك في الغرفة</option>}
-              {members.filter((m) => m !== uid).map((m) => <option key={m} value={m}>إلى: {profiles[m]?.display_name ?? "…"}</option>)}
+              {members.filter((m) => m !== uid).map((m) => <option key={m} value={m}>إلى: {publicName(m)}</option>)}
             </select>
             <div className="grid grid-cols-4 gap-2">
               {gifts.map((g) => (
@@ -448,7 +448,7 @@ function RoomPage() {
           <div className="space-y-2 p-4">
             {members.map((m) => (
               <div key={m} className="flex items-center justify-between rounded-xl bg-secondary/50 p-2">
-                <div className="flex items-center gap-2"><UserAvatar src={profiles[m]?.avatar_url} name={profiles[m]?.display_name} vip={profiles[m]?.vip_level} size={44} frameKey={profiles[m]?.equipped_frame} /><div><span>{profiles[m]?.display_name ?? "…"}</span><IdentityBadges level={profiles[m]?.level} vip={profiles[m]?.vip_level} /></div></div>
+                <div className="flex items-center gap-2"><UserAvatar src={profiles[m]?.avatar_url} name={publicName(m)} vip={profiles[m]?.vip_level} size={44} frameKey={profiles[m]?.equipped_frame} /><div><span>{publicName(m)}</span><IdentityBadges level={profiles[m]?.level} vip={profiles[m]?.vip_level} /></div></div>
                 {isStaff && m !== uid && m !== room.owner_id && <Button size="sm" variant="destructive" onClick={() => call("ban_user", { _room: id, _user: m })}>حظر</Button>}
               </div>
             ))}
