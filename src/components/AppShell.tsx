@@ -17,7 +17,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   if (loading || !user)
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Crown className="h-12 w-12 animate-pulse text-primary" />
+        <img src={icons3d.micHost} alt="صدى شات" className="h-14 w-14 object-contain animate-pulse" />
       </div>
     );
   return <>{children}</>;
