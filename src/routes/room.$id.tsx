@@ -317,6 +317,22 @@ function RoomPage() {
 
   const roomLive = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+  async function syncRoomSeats() {
+    const { data, error } = await supabase.from("room_seats")
+      .select("seat_index,user_id,is_locked,is_muted")
+      .eq("room_id", id)
+      .order("seat_index");
+    if (error || !data) return;
+    const nextSeats = normalizeSeats(data as Seat[]);
+    setSeats(nextSeats);
+    // Broadcast the complete seat snapshot so a moved user also clears their old mic immediately.
+    await Promise.all(nextSeats.map((seat) => roomLive.current?.send({
+      type: "broadcast",
+      event: "seat_state",
+      payload: { roomId: id, seat },
+    })));
+  }
+
   const broadcastSeat = useCallback(async (seatIndex: number) => {
     const seat = seats.find((s) => s.seat_index === seatIndex);
     if (!seat) return;
@@ -334,28 +350,11 @@ function RoomPage() {
       setSeatMenu(null);
       return;
     }
-    // Realtime Postgres remains authoritative; Broadcast makes the UI react immediately
-    // while the database change is propagating to other clients.
+    // Publish a complete authoritative seat snapshot immediately after every mic change.
+    // This clears the previous seat when a user moves and prevents stale/vanishing mic UI.
     const seatIndex = typeof args._seat === "number" ? args._seat : undefined;
-    if (seatIndex !== undefined) {
-      const { data } = await supabase.from("room_seats")
-        .select("seat_index,user_id,is_locked,is_muted")
-        .eq("room_id", id).eq("seat_index", seatIndex).maybeSingle();
-      if (data) {
-        const next = data as Seat;
-        setSeats((current) => normalizeSeats(current.some((s) => s.seat_index === seatIndex)
-          ? current.map((s) => s.seat_index === seatIndex ? next : s)
-          : [...current, next]));
-        await roomLive.current?.send({ type: "broadcast", event: "seat_state", payload: { roomId: id, seat: next } });
-      }
-    } else if (fn === "leave_seat" || fn === "toggle_my_mute" || fn === "take_seat") {
-      await loadSeats();
-      const mine = (await supabase.from("room_seats").select("seat_index,user_id,is_locked,is_muted").eq("room_id", id).eq("user_id", uid).maybeSingle()).data;
-      if (mine) {
-        await roomLive.current?.send({ type: "broadcast", event: "seat_state", payload: { roomId: id, seat: mine } });
-      } else {
-        await roomLive.current?.send({ type: "broadcast", event: "seat_state", payload: { roomId: id, seat: null, userId: uid } });
-      }
+    if (seatIndex !== undefined || fn === "leave_seat" || fn === "toggle_my_mute" || fn === "take_seat") {
+      await syncRoomSeats();
     }
     setSeatMenu(null);
   }
@@ -378,7 +377,7 @@ function RoomPage() {
     const { error } = await supabase.rpc("decide_mic_request", { _request: requestId, _accept: accept });
     if (error) toast.error(errMsg(error));
     else {
-      await Promise.all([loadMicRequests(), loadSeats()]);
+      await Promise.all([loadMicRequests(), syncRoomSeats()]);
       await roomLive.current?.send({ type: "broadcast", event: "mic_request_changed", payload: { roomId: id } });
       await roomLive.current?.send({ type: "broadcast", event: "member_changed", payload: { roomId: id } });
       toast.success(accept ? "تمت الموافقة على طلب الميك" : "تم رفض الطلب");
