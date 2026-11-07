@@ -301,3 +301,49 @@ button, a { touch-action: manipulation; }
   .app-screen { padding-inline: 10px; }
   .room-list-banner { margin-top: 2px; margin-bottom: 10px; }
 }
+
+
+/* Live voice activity indicator around the currently speaking room avatar. */
+.speaker-active { isolation: isolate; }
+.speaker-ring {
+  position: absolute;
+  z-index: -1;
+  inset: -5px;
+  border: 2px solid rgba(216, 180, 88, .92);
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: speaker-ripple 1.35s ease-out infinite;
+}
+.speaker-ring-two {
+  animation-delay: .65s;
+  border-color: rgba(174, 115, 255, .9);
+}
+.speaker-glow {
+  position: absolute;
+  z-index: -2;
+  inset: -3px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(190, 137, 255, .34), rgba(226, 185, 83, .12) 62%, transparent 72%);
+  filter: blur(5px);
+  animation: speaker-glow-pulse .8s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+.speaker-mic-pulse {
+  filter: drop-shadow(0 0 5px #e8bd63) drop-shadow(0 0 9px #b783ff);
+  animation: speaker-mic-bounce .45s ease-in-out infinite alternate;
+}
+@keyframes speaker-ripple {
+  0% { transform: scale(.88); opacity: .95; }
+  100% { transform: scale(1.42); opacity: 0; }
+}
+@keyframes speaker-glow-pulse {
+  from { opacity: .55; transform: scale(.96); }
+  to { opacity: 1; transform: scale(1.08); }
+}
+@keyframes speaker-mic-bounce {
+  from { transform: scale(1); }
+  to { transform: scale(1.14); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .speaker-ring, .speaker-glow, .speaker-mic-pulse { animation: none !important; }
+}
