@@ -3,7 +3,7 @@ import { UserAvatar, MediaImage } from "@/components/UserAvatar";
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Crown, Gift, Settings } from "lucide-react";
+import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Gift, Settings } from "lucide-react";
 import { RoomSettings } from "@/components/RoomSettings";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -305,7 +305,7 @@ function RoomPage() {
     }
   }
 
-  if (!room) return <div className="flex min-h-screen items-center justify-center"><Crown className="h-10 w-10 animate-pulse text-primary" /></div>;
+  if (!room) return <div className="flex min-h-screen items-center justify-center"><img src={icons3d.micHost} alt="صدى شات" className="h-16 w-16 animate-pulse object-contain" /></div>;
   const cols = room.seat_count <= 4 ? "grid-cols-4" : room.seat_count === 6 || room.seat_count === 9 ? "grid-cols-3" : "grid-cols-4";
 
   return (
