@@ -71,7 +71,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const token = RtcTokenBuilder.buildTokenWithUid(appId, appCertificate, roomId, rtcUid, role, privilegeExpiresAt);
-    return json({ appId, channel: roomId, uid: rtcUid, token, role: canPublish ? "publisher" : "subscriber", expiresAt: privilegeExpiresAt });
+    return json({ appId, channel: roomId, uid: rtcUid, token, role: canPublish ? "publisher" : "subscriber", expiresAt: Math.floor(Date.now() / 1000) + expiresInSeconds });
   } catch {
     return json({ error: "Failed to create Agora token" }, 500);
   }
