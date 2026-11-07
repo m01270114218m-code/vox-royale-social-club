@@ -12,6 +12,7 @@ import { type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import appCss from "../styles.css?url";
+import { AppUpdateGate } from "@/components/AppUpdateGate";
 
 function NotFoundComponent() {
   return (
@@ -75,9 +76,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "VOX ROYALE — غرف صوتية فاخرة" },
-      { name: "description", content: "VOX ROYALE: غرف دردشة صوتية مباشرة ومقاعد وأصدقاء." },
-      { property: "og:title", content: "VOX ROYALE" },
+      { title: "صدي شات — غرف صوتية فاخرة" },
+      { name: "description", content: "صدي شات: غرف دردشة صوتية مباشرة ومقاعد وأصدقاء." },
+      { property: "og:title", content: "صدي شات" },
       { property: "og:description", content: "غرف دردشة صوتية مباشرة ومقاعد وأصدقاء." },
       { name: "theme-color", content: "#1a0f24" },
       { property: "og:type", content: "website" },
@@ -122,6 +123,7 @@ function RootComponent() {
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <Toaster position="top-center" />
+      <AppUpdateGate />
     </QueryClientProvider>
   );
 }
