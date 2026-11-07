@@ -26,7 +26,8 @@ export const Route = createFileRoute("/u/$id")({
   ),
 });
 
-type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; vip_level: number };
+type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; vip_level: number; id_color?: string | null; name_color?: string | null; name_effect?: string | null; name_effect_speed?: number | null; equipped_frame?: string | null; equipped_entry?: string | null };
+type Badge = { badge_key: string; badge_name: string; badge_asset_key: string | null; badge_color: string; is_equipped: boolean };
 
 function UserPage() {
   const { id } = Route.useParams();
@@ -36,7 +37,7 @@ function UserPage() {
   const [p, setP] = useState<P | null>(null);
   const [stats, setStats] = useState({ followers: 0, following: 0, posts: 0 });
   const [isFollowing, setIsFollowing] = useState(false);
-  const [blocked, setBlocked] = useState(false);
+  const [blocked, setBlocked] = useState(false);\n  const [badge, setBadge] = useState<Badge | null>(null);
 
   useEffect(() => {
     if (id === uid) {
@@ -44,7 +45,7 @@ function UserPage() {
       return;
     }
     (async () => {
-      const { data } = await supabase.from("profiles").select("id,display_no,display_name,avatar_url,bio,country,level,vip_level").eq("id", id).maybeSingle();
+      const { data } = await supabase.from("profiles").select("id,display_no,display_name,avatar_url,bio,country,level,vip_level,id_color,name_color,name_effect,name_effect_speed,equipped_frame,equipped_entry").eq("id", id).maybeSingle();
       setP(data);
       const [a, b, c, f, bl] = await Promise.all([
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", id),
@@ -94,7 +95,7 @@ function UserPage() {
     <div>
       <PageHeader title="الملف الشخصي" back />
       <div className="glass mx-4 rounded-3xl p-6 text-center">
-        <div className="mx-auto w-fit"><UserAvatar src={p.avatar_url} name={p.display_name} size={112} ring vip={p.vip_level} /></div>
+        <div className="mx-auto w-fit"><UserAvatar src={p.avatar_url} name={p.display_name} size={112} ring vip={p.vip_level} frameKey={p.equipped_frame} /></div>
         <h2 className="mt-3 text-2xl font-bold">{flagOf(p.country)} {p.display_name}</h2>
         <div className="text-sm text-muted-foreground">ID: {p.display_no}</div>
         <IdentityBadges level={p.level} vip={p.vip_level} /><p className="mt-2 text-sm">{p.bio || "لا توجد نبذة"}</p>
