@@ -68,5 +68,5 @@ begin
 end
 $function$;
 
-revoke execute on function public.decide_mic_request(uuid, boolean) from anon;
+revoke execute on function public.decide_mic_request(uuid, boolean) from public, anon;
 grant execute on function public.decide_mic_request(uuid, boolean) to authenticated;
