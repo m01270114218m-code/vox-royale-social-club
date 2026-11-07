@@ -14,9 +14,9 @@ import { getAdminAssetUrl } from "@/lib/media";
 export const Route = createFileRoute("/store")({
   head: () => ({
     meta: [
-      { title: "المتجر وVIP — VOX ROYALE" },
-      { name: "description", content: "اشترِ عضوية VIP واشحن عملاتك في VOX ROYALE." },
-      { property: "og:title", content: "المتجر وVIP — VOX ROYALE" },
+      { title: "المتجر وVIP — صدى شات" },
+      { name: "description", content: "اشترِ عضوية VIP واشحن عملاتك في صدى شات." },
+      { property: "og:title", content: "المتجر وVIP — صدى شات" },
       { property: "og:description", content: "عضويات VIP وباقات الشحن." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
