@@ -50,6 +50,77 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_backups: {
+        Row: {
+          backup_name: string
+          created_at: string
+          created_by: string | null
+          id: string
+          payload: Json
+        }
+        Insert: {
+          backup_name: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          payload?: Json
+        }
+        Update: {
+          backup_name?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          payload?: Json
+        }
+        Relationships: []
+      }
+      admin_notifications: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          scheduled_at: string | null
+          sent_at: string | null
+          target_role: string | null
+          target_user_id: string | null
+          title: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          scheduled_at?: string | null
+          sent_at?: string | null
+          target_role?: string | null
+          target_user_id?: string | null
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          scheduled_at?: string | null
+          sent_at?: string | null
+          target_role?: string | null
+          target_user_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_notifications_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_settings: {
         Row: {
           key: string
@@ -68,6 +139,63 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           value?: Json
+        }
+        Relationships: []
+      }
+      app_feature_flags: {
+        Row: {
+          config: Json
+          enabled: boolean
+          key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          config?: Json
+          enabled?: boolean
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          config?: Json
+          enabled?: boolean
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      app_releases: {
+        Row: {
+          apk_url: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          is_required: boolean
+          release_notes: string
+          version_code: number
+          version_name: string
+        }
+        Insert: {
+          apk_url?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          release_notes?: string
+          version_code: number
+          version_name: string
+        }
+        Update: {
+          apk_url?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          release_notes?: string
+          version_code?: number
+          version_name?: string
         }
         Relationships: []
       }
@@ -137,6 +265,39 @@ export type Database = {
           target_url?: string | null
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      competition_events: {
+        Row: {
+          created_at: string
+          description: string
+          ends_at: string
+          id: string
+          is_active: boolean
+          name: string
+          reward_config: Json
+          starts_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          ends_at: string
+          id?: string
+          is_active?: boolean
+          name: string
+          reward_config?: Json
+          starts_at: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          ends_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          reward_config?: Json
+          starts_at?: string
         }
         Relationships: []
       }
@@ -383,6 +544,7 @@ export type Database = {
       gifts: {
         Row: {
           active: boolean
+          asset_key: string | null
           emoji: string
           id: string
           name: string
@@ -392,6 +554,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          asset_key?: string | null
           emoji: string
           id?: string
           name: string
@@ -401,6 +564,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          asset_key?: string | null
           emoji?: string
           id?: string
           name?: string
@@ -451,6 +615,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      missions: {
+        Row: {
+          created_at: string
+          description: string
+          ends_at: string | null
+          id: string
+          is_active: boolean
+          kind: string
+          name: string
+          reward_coins: number
+          reward_xp: number
+          starts_at: string | null
+          target_count: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name: string
+          reward_coins?: number
+          reward_xp?: number
+          starts_at?: string | null
+          target_count?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name?: string
+          reward_coins?: number
+          reward_xp?: number
+          starts_at?: string | null
+          target_count?: number
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -657,7 +863,11 @@ export type Database = {
           equipped_frame: string | null
           gender: string | null
           id: string
+          id_color: string
           level: number
+          name_color: string
+          name_effect: string
+          name_effect_speed: number
           show_age: boolean
           show_gender: boolean
           vip_level: number
@@ -676,7 +886,11 @@ export type Database = {
           equipped_frame?: string | null
           gender?: string | null
           id: string
+          id_color?: string
           level?: number
+          name_color?: string
+          name_effect?: string
+          name_effect_speed?: number
           show_age?: boolean
           show_gender?: boolean
           vip_level?: number
@@ -695,7 +909,11 @@ export type Database = {
           equipped_frame?: string | null
           gender?: string | null
           id?: string
+          id_color?: string
           level?: number
+          name_color?: string
+          name_effect?: string
+          name_effect_speed?: number
           show_age?: boolean
           show_gender?: boolean
           vip_level?: number
@@ -871,6 +1089,51 @@ export type Database = {
           },
         ]
       }
+      room_mic_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          room_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          room_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          room_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_mic_requests_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_mic_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       room_moderators: {
         Row: {
           room_id: string
@@ -1029,6 +1292,165 @@ export type Database = {
         }
         Relationships: []
       }
+      store_offers: {
+        Row: {
+          created_at: string
+          discount_percent: number
+          ends_at: string
+          id: string
+          is_active: boolean
+          starts_at: string
+          store_item_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          discount_percent: number
+          ends_at: string
+          id?: string
+          is_active?: boolean
+          starts_at: string
+          store_item_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          discount_percent?: number
+          ends_at?: string
+          id?: string
+          is_active?: boolean
+          starts_at?: string
+          store_item_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_offers_store_item_id_fkey"
+            columns: ["store_item_id"]
+            isOneToOne: false
+            referencedRelation: "store_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          admin_reply: string | null
+          assigned_to: string | null
+          created_at: string
+          id: string
+          message: string
+          priority: string
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_reply?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          priority?: string
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_reply?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          priority?: string
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      system_incidents: {
+        Row: {
+          created_at: string
+          details: Json
+          id: string
+          message: string
+          resolved_at: string | null
+          service: string
+          severity: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json
+          id?: string
+          message: string
+          resolved_at?: string | null
+          service: string
+          severity?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json
+          id?: string
+          message?: string
+          resolved_at?: string | null
+          service?: string
+          severity?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      user_badges: {
+        Row: {
+          acquired_at: string
+          badge_asset_key: string | null
+          badge_color: string
+          badge_key: string
+          badge_name: string
+          id: string
+          is_equipped: boolean
+          user_id: string
+        }
+        Insert: {
+          acquired_at?: string
+          badge_asset_key?: string | null
+          badge_color?: string
+          badge_key: string
+          badge_name: string
+          id?: string
+          is_equipped?: boolean
+          user_id: string
+        }
+        Update: {
+          acquired_at?: string
+          badge_asset_key?: string | null
+          badge_color?: string
+          badge_key?: string
+          badge_name?: string
+          id?: string
+          is_equipped?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_badges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_blocks: {
         Row: {
           blocked_id: string
@@ -1095,6 +1517,45 @@ export type Database = {
           },
         ]
       }
+      user_missions: {
+        Row: {
+          claimed_at: string | null
+          completed_at: string | null
+          mission_id: string
+          progress: number
+          user_id: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          completed_at?: string | null
+          mission_id: string
+          progress?: number
+          user_id: string
+        }
+        Update: {
+          claimed_at?: string | null
+          completed_at?: string | null
+          mission_id?: string
+          progress?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_missions_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_missions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -1133,6 +1594,50 @@ export type Database = {
           price_coins?: number
         }
         Relationships: []
+      }
+      wallet_topup_requests: {
+        Row: {
+          admin_note: string | null
+          coins: number
+          created_at: string
+          decided_at: string | null
+          id: string
+          payment_method: string
+          reference: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          coins: number
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          payment_method?: string
+          reference?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          coins?: number
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          payment_method?: string
+          reference?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_topup_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wallet_transactions: {
         Row: {
@@ -1206,6 +1711,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_adjust_wallet: {
+        Args: {
+          _amount: number
+          _currency: string
+          _reason?: string
+          _user: string
+        }
+        Returns: number
+      }
       admin_broadcast: {
         Args: { _body: string; _title: string }
         Returns: number
@@ -1213,9 +1727,23 @@ export type Database = {
       admin_delete_post: { Args: { _post: string }; Returns: undefined }
       admin_delete_room: { Args: { _room: string }; Returns: undefined }
       admin_delete_store_item: { Args: { _id: string }; Returns: undefined }
+      admin_grant_badge: {
+        Args: {
+          _asset_key: string
+          _badge_key: string
+          _badge_name: string
+          _color: string
+          _user: string
+        }
+        Returns: undefined
+      }
       admin_grant_coins: {
         Args: { _amount: number; _user: string }
         Returns: number
+      }
+      admin_grant_store_item: {
+        Args: { _equip?: boolean; _item: string; _user: string }
+        Returns: undefined
       }
       admin_list_audit: {
         Args: { _limit?: number }
@@ -1285,6 +1813,10 @@ export type Database = {
         Args: { _reply: string; _report: string; _status: string }
         Returns: undefined
       }
+      admin_revoke_store_item: {
+        Args: { _item: string; _user: string }
+        Returns: undefined
+      }
       admin_save_store_item: {
         Args: {
           _asset_key: string
@@ -1301,6 +1833,15 @@ export type Database = {
         Args: { _action: string; _room: string; _seat: number }
         Returns: undefined
       }
+      admin_set_profile_style: {
+        Args: {
+          _name_color: string
+          _name_effect: string
+          _speed: number
+          _user: string
+        }
+        Returns: undefined
+      }
       admin_set_role: {
         Args: {
           _grant: boolean
@@ -1314,6 +1855,15 @@ export type Database = {
         Returns: undefined
       }
       admin_stats: { Args: never; Returns: Json }
+      admin_update_user_identity: {
+        Args: {
+          _display_no?: number
+          _id_color?: string
+          _level?: number
+          _user: string
+        }
+        Returns: undefined
+      }
       ban_user: { Args: { _room: string; _user: string }; Returns: undefined }
       buy_item: { Args: { _item_id: string }; Returns: number }
       buy_vip: { Args: { _level: number }; Returns: number }
@@ -1334,7 +1884,15 @@ export type Database = {
         }
         Returns: string
       }
+      decide_mic_request: {
+        Args: { _accept: boolean; _request: string }
+        Returns: undefined
+      }
       delete_room: { Args: { _room: string }; Returns: undefined }
+      equip_badge: {
+        Args: { _badge: string; _equip: boolean }
+        Returns: undefined
+      }
       equip_item: {
         Args: { _equip: boolean; _item_id: string }
         Returns: undefined
@@ -1376,6 +1934,11 @@ export type Database = {
         Returns: undefined
       }
       request_join_family: { Args: { _family: string }; Returns: undefined }
+      request_mic: { Args: { _room: string }; Returns: string }
+      request_wallet_topup: {
+        Args: { _coins: number; _payment_method?: string; _reference?: string }
+        Returns: string
+      }
       send_dm: { Args: { _body: string; _conv: string }; Returns: undefined }
       send_gift: {
         Args: { _gift: string; _qty: number; _receiver: string; _room: string }
