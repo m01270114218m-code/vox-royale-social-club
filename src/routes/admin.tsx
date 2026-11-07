@@ -685,6 +685,7 @@ const ASSET_CATEGORIES: Record<string, string> = {
   gift: "الهدايا",
   frame: "إطارات الصور",
   vip: "شارات VIP",
+  badge: "الشارات المميزة",
   level: "المستويات",
   banner: "البانرات",
   avatar: "الصور الشخصية",
