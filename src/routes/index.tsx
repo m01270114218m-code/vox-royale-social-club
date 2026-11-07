@@ -119,7 +119,7 @@ function Home() {
   }, [rooms, tab, country, cat, q]);
 
   return (
-    <div className="app-screen w-full px-3 pb-3 pt-2 sm:px-4">
+    <div className="app-screen home-discovery w-full px-3 pb-3 pt-2 sm:px-4">
       {showIntroBanner && introBannerUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4" role="dialog" aria-label="إعلان البداية">
           <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-gold/40 shadow-2xl">
