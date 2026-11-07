@@ -252,7 +252,7 @@ export function AnalyticsTab() {
 
 export function AppBuilderTab() {
   const defaults: Record<string, string> = {
-    "ui.branding": JSON.stringify({app_name:"VOX ROYALE",logo_url:"",home_banner_url:""}, null, 2),
+    "ui.branding": JSON.stringify({app_name:"صدى شات",logo_url:"",home_banner_url:""}, null, 2),
     "ui.bottom_nav": JSON.stringify({home_label:"الغرف",explore_label:"اللحظات",room_label:"غرفتي",messages_label:"الرسائل",profile_label:"أنا",home_icon:"",explore_icon:"",room_icon:"",messages_icon:"",profile_icon:""}, null, 2),
     "ui.mic": JSON.stringify({open_asset_url:"",closed_asset_url:"",muted_asset_url:"",host_asset_url:""}, null, 2),
     "ui.buttons": JSON.stringify({primary_asset_url:"",secondary_asset_url:"",gift_asset_url:"",send_asset_url:""}, null, 2),
