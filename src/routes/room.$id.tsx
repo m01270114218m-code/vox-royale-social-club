@@ -294,14 +294,14 @@ function RoomPage() {
               {isStaff && seatMenu.seat_index >= 0 && (
                 <>
                   <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_locked ? "unlock" : "lock" })}>{seatMenu.is_locked ? "فتح المايك" : "قفل المايك"}</Button>
-                  <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_muted ? "unmute" : "mute" })}>{seatMenu.is_muted ? "إلغاء كتم المايك" : "كتم المايك"}</Button>
+                  <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_muted ? "unmute" : "mute" })}>{seatMenu.is_muted ? "إلغاء كتم المستخدم" : "كتم المستخدم"}</Button>
                   {seatMenu.user_id && seatMenu.user_id !== uid && <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick" })}>إنزال المستخدم من المايك</Button>}
                 </>
               )}
               {isStaff && seatMenu.user_id && seatMenu.user_id !== uid && (
                 <>
                   <Button variant="outline" onClick={() => call("staff_set_mic_access", { _room: id, _user: seatMenu.user_id, _blocked: !micBlocked })}>{micBlocked ? "السماح للمستخدم بصعود المايك" : "منع المستخدم من صعود المايك"}</Button>
-                  {seatMenu.user_id !== room.owner_id && <Button variant="destructive" onClick={() => call("ban_user", { _room: id, _user: seatMenu.user_id })}>طرد المستخدم من الغرفة</Button>}
+                  {seatMenu.user_id !== room.owner_id && <Button variant="destructive" onClick={() => call("staff_kick_user", { _room: id, _user: seatMenu.user_id })}>طرد المستخدم من الغرفة</Button>}
                 </>
               )}
                {seatMenu.user_id && seatMenu.user_id !== uid && <Button onClick={() => { if (seatMenu.user_id) openGifts(seatMenu.user_id); }} className="bg-accent text-accent-foreground"><img src={icons3d.giftbox} alt="" className="h-6 w-6 object-contain" /> إرسال هدية</Button>}
@@ -356,7 +356,7 @@ function RoomPage() {
                   <UserAvatar src={profiles[m]?.avatar_url} name={profiles[m]?.display_name} vip={profiles[m]?.vip_level} frameKey={profiles[m]?.equipped_frame} size={44} />
                   <div><span>{profiles[m]?.display_name ?? "…"}</span><IdentityBadges level={profiles[m]?.level} vip={profiles[m]?.vip_level} /></div>
                 </button>
-                {isStaff && m !== uid && m !== room.owner_id && <Button size="sm" variant="destructive" onClick={() => call("ban_user", { _room: id, _user: m })}>حظر</Button>}
+                {isStaff && m !== uid && m !== room.owner_id && <Button size="sm" variant="outline" onClick={() => openUserMenu(m)}>إدارة</Button>}
               </div>
             ))}
           </div>
