@@ -7,7 +7,7 @@ import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type Props = { roomId: string; uid: string; members: string[]; micEnabled: boolean };
+type Props = { roomId: string; uid: string; members: string[]; micEnabled: boolean; onSpeakingUsers?: (users: string[]) => void };
 
 type TokenResponse = {
   appId: string;
@@ -18,7 +18,9 @@ type TokenResponse = {
   expiresAt: number;
 };
 
-export function RoomVoice({ roomId, uid, members, micEnabled }: Props) {
+function numericRtcUid(userId: string): number { let hash = 0x811c9dc5; for (let i = 0; i < userId.length; i++) { hash ^= userId.charCodeAt(i); hash = Math.imul(hash, 0x01000193); } return (hash >>> 1) || 1; }
+
+export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }: Props) {
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const micRef = useRef<IMicrophoneAudioTrack | null>(null);
   const joinedRef = useRef(false);
@@ -120,6 +122,13 @@ export function RoomVoice({ roomId, uid, members, micEnabled }: Props) {
         clientRef.current = client;
         client.on("user-published", onUserPublished);
         client.on("user-unpublished", onUserUnpublished);
+        const rtcToUser = new Map(members.map((memberId) => [numericRtcUid(memberId), memberId]));
+        rtcToUser.set(numericRtcUid(uid), uid);
+        client.enableAudioVolumeIndicator();
+        client.on("volume-indicator", (speakers) => {
+          const active = speakers.filter((speaker) => speaker.level >= 18).map((speaker) => rtcToUser.get(Number(speaker.uid))).filter((userId): userId is string => !!userId);
+          onSpeakingUsers?.([...new Set(active)]);
+        });
         client.on("token-privilege-will-expire", () => {
           void serialize(refreshToken);
         });
@@ -159,7 +168,7 @@ export function RoomVoice({ roomId, uid, members, micEnabled }: Props) {
     };
   // Membership is managed by the server; the token endpoint verifies current membership.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, uid]);
+  }, [roomId, uid, members, onSpeakingUsers]);
 
   useEffect(() => {
     const client = clientRef.current;
