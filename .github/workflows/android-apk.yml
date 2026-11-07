@@ -3,6 +3,8 @@ name: Build VOX ROYALE Android APK
 on:
   push:
     branches: [admin-asset-center]
+  pull_request:
+    branches: [admin-asset-center]
   workflow_dispatch:
 
 permissions:
@@ -17,11 +19,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60 # verified rebuild after storage/gift/security fixes
     steps:
-      - name: Checkout source without external actions
+      - name: Checkout exact workflow revision
         run: |
-          BRANCH="$GITHUB_REF_NAME"
-          git clone --depth 1 --branch "$BRANCH" "https://github.com/${GITHUB_REPOSITORY}.git" source
+          git init source
           cd source
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth 1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
           test -f package.json
           test -f bun.lock
           test -f capacitor.config.json
@@ -64,7 +68,6 @@ jobs:
           test -n "$ANDROID_HOME" || test -n "$ANDROID_SDK_ROOT"
           bun add @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/app@latest
           bunx cap add android
-          # Declare microphone permissions for Agora/WebView audio capture.
           python3 - <<'PY'
           from pathlib import Path
           manifest = Path("android/app/src/main/AndroidManifest.xml")
@@ -103,6 +106,7 @@ jobs:
           ./gradlew assembleDebug --no-daemon
 
       - name: Publish APK release
+        if: github.event_name != 'pull_request'
         working-directory: source
         env:
           GH_TOKEN: ${{ github.token }}
@@ -111,6 +115,3 @@ jobs:
           test -s "$APK"
           TAG="vox-royale-apk-${GITHUB_SHA::7}"
           gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --title "VOX ROYALE Android APK ${GITHUB_SHA::7}" --notes "Bundled Android APK for commit $GITHUB_SHA on branch $GITHUB_REF_NAME. App UI is packaged locally; Supabase services require internet access."
-
-
-# Build trigger 2026-11-07 — standalone web admin routing verified
