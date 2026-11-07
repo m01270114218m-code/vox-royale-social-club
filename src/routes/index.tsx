@@ -14,9 +14,9 @@ import { CATEGORIES, COUNTRIES, SEAT_OPTIONS, catName, errMsg, flagOf } from "@/
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "الغرف الصوتية — VOX ROYALE" },
+      { title: "الغرف الصوتية — صدي شات" },
       { name: "description", content: "اكتشف الغرف الصوتية الشائعة والجديدة حسب الدولة والتصنيف." },
-      { property: "og:title", content: "الغرف الصوتية — VOX ROYALE" },
+      { property: "og:title", content: "الغرف الصوتية — صدي شات" },
       { property: "og:description", content: "اكتشف الغرف الصوتية الشائعة والجديدة." },
     ],
   }),
@@ -29,6 +29,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Room = { id: string; room_no: number; name: string; description: string | null; category: string; country: string; member_count: number; is_private: boolean; seat_count: number; created_at: string; cover_url?: string | null };
+type RoomBanner = { id: string; title: string; image_url: string; target_url?: string | null; sort_order: number; is_active: boolean; starts_at?: string | null; ends_at?: string | null };
 
 function Home() {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -41,6 +42,8 @@ function Home() {
   const [introBanner, setIntroBanner] = useState<{ title?: string; image_path?: string; enabled?: boolean } | null>(null);
   const [introBannerUrl, setIntroBannerUrl] = useState<string | null>(null);
   const [showIntroBanner, setShowIntroBanner] = useState(false);
+  const [roomBanners, setRoomBanners] = useState<RoomBanner[]>([]);
+  const [bannerIndex, setBannerIndex] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -72,14 +75,42 @@ function Home() {
   }, []);
 
 
+  async function loadBanners() {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("banners")
+      .select("id,title,image_url,target_url,sort_order,is_active,starts_at,ends_at")
+      .eq("is_active", true)
+      .order("sort_order")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) return;
+    const active = ((data ?? []) as RoomBanner[]).filter((b) => (!b.starts_at || b.starts_at <= now) && (!b.ends_at || b.ends_at >= now));
+    setRoomBanners(active);
+    setBannerIndex(0);
+  }
+
   async function load() {
     const { data, error } = await supabase.from("rooms").select("*").limit(100);
     if (error) toast.error(error.message);
     else setRooms(data as Room[]);
   }
   useEffect(() => {
-    load();
+    void load();
+    void loadBanners();
+    const channel = supabase
+      .channel("home-room-list-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "rooms" }, () => { void load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "banners" }, () => { void loadBanners(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
+
+  useEffect(() => {
+    if (roomBanners.length < 2) return;
+    const timer = window.setInterval(() => setBannerIndex((i) => (i + 1) % roomBanners.length), 5000);
+    return () => window.clearInterval(timer);
+  }, [roomBanners.length]);
 
   const list = useMemo(() => {
     let r = rooms.filter((x) => (!country || x.country === country) && (!cat || x.category === cat));
@@ -98,35 +129,38 @@ function Home() {
           </div>
         </div>
       )}
-      <section className="royale-hero card-3d relative mb-5 overflow-hidden rounded-[2rem] p-5">
-        <div className="royale-orb royale-orb-a" />
-        <div className="royale-orb royale-orb-b" />
-        <div className="relative z-10 flex items-center gap-4">
-          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-3xl bg-black/20 ring-1 ring-primary/40 shadow-gold">
-            {logoUrl ? <img src={logoUrl} alt="" className="h-16 w-16 object-contain drop-shadow-2xl" /> : <img src={icons3d.micHost} alt="" className="h-16 w-16 object-contain drop-shadow-2xl" />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-xs font-bold uppercase tracking-[0.2em] text-primary/90">Voice Chat • Social • Royal</div>
-            <h2 className="mt-1 truncate font-display text-3xl text-white">{appBranding?.app_name || "VOX ROYALE"}</h2>
-            <p className="mt-1 text-sm text-white/70">تواصل، دردش، ادخل غرفتك واصنع مجتمعك الخاص.</p>
-          </div>
-        </div>
-        <div className="relative z-10 mt-4 grid grid-cols-3 gap-2">
-          <div className="hero-stat"><b>{rooms.length}</b><span>غرفة</span></div>
-          <div className="hero-stat"><b>{rooms.reduce((n, r) => n + Number(r.member_count || 0), 0)}</b><span>متصل الآن</span></div>
-          <div className="hero-stat"><b>24/7</b><span>Realtime</span></div>
-        </div>
-      </section>
       <header className="mb-4 flex items-center justify-between">
         <div className="flex min-w-0 items-center gap-2">
           {logoUrl && <img src={logoUrl} alt="" className="h-10 w-10 rounded-xl object-contain" />}
-          <h1 className="font-display text-gold text-3xl">{appBranding?.app_name || "VOX ROYALE"}</h1>
+          <h1 className="font-display text-gold text-3xl">{appBranding?.app_name || "صدي شات"}</h1>
         </div>
         <div className="flex items-center gap-2">
           <Link to="/notifications" aria-label="الإشعارات" className="glass rounded-full p-2"><img src={icons3d.bell} alt="" className="h-7 w-7 object-contain" /></Link>
           <CreateRoom />
         </div>
       </header>
+      {roomBanners.length > 0 && (
+        <div className="mb-4 overflow-hidden rounded-3xl border border-primary/20 bg-black/20 shadow-lg">
+          {(() => {
+            const banner = roomBanners[bannerIndex];
+            if (!banner) return null;
+            const content = (
+              <div className="relative aspect-[16/5] w-full">
+                <img src={banner.image_url} alt={banner.title} className="absolute inset-0 h-full w-full object-cover" />
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent px-4 pb-3 pt-10">
+                  <div className="truncate text-sm font-bold text-white">{banner.title}</div>
+                </div>
+                {roomBanners.length > 1 && (
+                  <div className="absolute bottom-2 left-3 flex gap-1.5">
+                    {roomBanners.map((b, i) => <span key={b.id} className={`h-1.5 rounded-full ${i === bannerIndex ? "w-5 bg-gold" : "w-1.5 bg-white/60"}`} />)}
+                  </div>
+                )}
+              </div>
+            );
+            return banner.target_url ? <a href={banner.target_url} target="_blank" rel="noreferrer">{content}</a> : content;
+          })()}
+        </div>
+      )}
       <div className="relative mb-4">
         <img src={icons3d.search} alt="" className="absolute right-3 top-1.5 h-7 w-7 object-contain" />
         <Input className="pr-10" placeholder="ابحث باسم الغرفة أو رقمها" value={q} onChange={(e) => setQ(e.target.value)} />
