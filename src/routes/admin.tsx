@@ -415,26 +415,47 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
 type WalletTx = { user_id: string; display_name: string | null; amount: number; kind: string; note: string; created_at: string };
 function WalletTab() {
   const [rows, setRows] = useState<WalletTx[]>([]);
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase.rpc("admin_list_wallet_tx", { _limit: 200 });
-      if (error) toast.error(errMsg(error));
-      setRows((data as WalletTx[]) ?? []);
-    })();
-  }, []);
-  useAdminRealtime(["wallet_transactions", "wallets"], () => { void supabase.rpc("admin_list_wallet_tx", { _limit: 200 }).then(({ data, error }) => { if (error) toast.error(errMsg(error)); setRows((data as WalletTx[]) ?? []); }); });
+  const [topups, setTopups] = useState<{ id: string; user_id: string; coins: number; payment_method: string; reference: string | null; status: string; admin_note: string | null; created_at: string }[]>([]);
+  async function load() {
+    const [{ data, error }, { data: requests, error: reqError }] = await Promise.all([
+      supabase.rpc("admin_list_wallet_tx", { _limit: 200 }),
+      supabase.from("wallet_topup_requests").select("id,user_id,coins,payment_method,reference,status,admin_note,created_at").order("created_at", { ascending: false }).limit(100),
+    ]);
+    if (error) toast.error(errMsg(error));
+    if (reqError) toast.error(errMsg(reqError));
+    setRows((data as WalletTx[]) ?? []);
+    setTopups((requests ?? []) as typeof topups);
+  }
+  useEffect(() => { void load(); }, []);
+  useAdminRealtime(["wallet_transactions", "wallets", "wallet_topup_requests"], load);
+  async function decide(id: string, status: "approved" | "rejected") {
+    const note = prompt(status === "approved" ? "ملاحظة الشحن (اختياري)" : "سبب الرفض (اختياري)") ?? "";
+    const { error } = await supabase.rpc("admin_decide_wallet_topup", { _request: id, _status: status, _note: note });
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success(status === "approved" ? "تم اعتماد الشحن وإضافة العملات" : "تم رفض طلب الشحن");
+    load();
+  }
   return (
-    <div className="space-y-2">
-      {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد معاملات</p>}
-      {rows.map((t, i) => (
-        <div key={i} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
-          <div>
-            <b>{t.display_name ?? "مستخدم"}</b>
-            <div className="text-xs text-muted-foreground">{t.kind} · {t.note} · {fmt(t.created_at)}</div>
+    <div className="space-y-4">
+      <section className="glass rounded-2xl p-4">
+        <h3 className="mb-3 font-bold">طلبات شحن المحفظة</h3>
+        {topups.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد طلبات شحن</p> : topups.map((r) => (
+          <div key={r.id} className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-background/50 p-3 text-sm">
+            <div><b>{Number(r.coins).toLocaleString()} 🪙</b><div className="text-xs text-muted-foreground" dir="ltr">{r.user_id} · {r.payment_method} · {r.reference || "بدون مرجع"} · {fmt(r.created_at)}</div></div>
+            <div className="flex items-center gap-2"><span className="text-xs">{r.status}</span>{r.status === "pending" && <><Button size="sm" className="bg-gold" onClick={() => void decide(r.id, "approved")}>اعتماد</Button><Button size="sm" variant="destructive" onClick={() => void decide(r.id, "rejected")}>رفض</Button></>}</div>
           </div>
-          <b className={t.amount >= 0 ? "text-green-400" : "text-red-400"}>{t.amount >= 0 ? "+" : ""}{Number(t.amount).toLocaleString()} 🪙</b>
-        </div>
-      ))}
+        ))}
+      </section>
+      <section className="space-y-2">
+        <h3 className="font-bold">سجل معاملات المحافظ</h3>
+        {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد معاملات</p>}
+        {rows.map((t, i) => (
+          <div key={i} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
+            <div><b>{t.display_name ?? "مستخدم"}</b><div className="text-xs text-muted-foreground">{t.kind} · {t.note} · {fmt(t.created_at)}</div></div>
+            <b className={t.amount >= 0 ? "text-green-400" : "text-red-400"}>{t.amount >= 0 ? "+" : ""}{Number(t.amount).toLocaleString()} 🪙</b>
+          </div>
+        ))}
+      </section>
     </div>
   );
 }
