@@ -266,7 +266,7 @@ function Rooms() {
             <div className="truncate font-bold">{r.name} {r.is_private && "🔒"}</div>
             <div className="text-xs text-muted-foreground">#{r.room_no} · {r.member_count} عضو · {fmt(r.created_at)}</div>
           </Link>
-          <Button size="icon" variant="destructive" onClick={() => del(r.id)} aria-label="حذف"><Trash2 className="h-4 w-4" /></Button>
+          <Button size="sm" variant="destructive" onClick={() => void del(r.id)} aria-label={`حذف ${r.name}`}><Trash2 className="ml-1 h-4 w-4" />حذف</Button>
         </div>
       ))}
     </div>
@@ -591,7 +591,8 @@ function StoreTab() {
   const [rows, setRows] = useState<StoreRow[]>([]);
   const [form, setForm] = useState({ kind: "frame", name: "", description: "", price: "100", asset_key: "", sort_order: "0" });
   async function load() {
-    const { data } = await supabase.from("store_items").select("*").order("kind").order("sort_order");
+    const { data, error } = await supabase.from("store_items").select("*").order("kind").order("sort_order");
+    if (error) { toast.error(errMsg(error)); return; }
     setRows((data as StoreRow[]) ?? []);
   }
   useEffect(() => { load(); }, []);
@@ -610,7 +611,8 @@ function StoreTab() {
     if (!confirm("حذف العنصر من المتجر؟")) return;
     const { error } = await supabase.rpc("admin_delete_store_item", { _id: id });
     if (error) { toast.error(errMsg(error)); return; }
-    load();
+    toast.success("تم حذف العنصر من المتجر");
+    await load();
   }
   return (
     <div className="space-y-3">
