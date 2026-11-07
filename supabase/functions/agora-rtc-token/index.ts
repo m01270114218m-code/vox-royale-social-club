@@ -64,6 +64,7 @@ Deno.serve(async (req: Request) => {
   if (seatError) return json({ error: "Unable to verify microphone permissions" }, 500);
 
   const canPublish = !!seat && seat.is_muted !== true;
+  const channelName = roomId.replaceAll("-", "");
   const rtcUid = numericUid(user.id);
   const expiresInSeconds = 60 * 60;
   const role = canPublish ? RtcRole.PUBLISHER : RtcRole.SUBSCRIBER;
@@ -72,7 +73,7 @@ Deno.serve(async (req: Request) => {
     const token = RtcTokenBuilder.buildTokenWithUid(
       appId, appCertificate, roomId, rtcUid, role, expiresInSeconds, expiresInSeconds,
     );
-    return json({ appId, channel: roomId, uid: rtcUid, token, role: canPublish ? "publisher" : "subscriber", expiresAt: Math.floor(Date.now() / 1000) + expiresInSeconds });
+    return json({ appId, channel: channelName, uid: rtcUid, token, role: canPublish ? "publisher" : "subscriber", expiresAt: Math.floor(Date.now() / 1000) + expiresInSeconds });
   } catch {
     return json({ error: "Failed to create Agora token" }, 500);
   }
