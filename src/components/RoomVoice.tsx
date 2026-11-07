@@ -57,20 +57,27 @@ export function RoomVoice({roomId,uid,members,micEnabled}:Props){
   const track=stream.current?.getAudioTracks()[0];
   if(track) track.enabled=micEnabled;
 
-  await Promise.all([...peers.current.values()].map(async ({pc})=>{
-    let sender=pc.getSenders().find(s=>s.track?.kind==="audio" || s.track===null);
-    if(!sender && track){
-      const transceiver=pc.getTransceivers().find(t=>t.receiver.track?.kind==="audio" && t.sender);
-      sender=transceiver?.sender;
-    }
+  await Promise.all([...peers.current.entries()].map(async ([peerId,{pc}])=>{
+    let transceiver=pc.getTransceivers().find(t=>t.receiver.track?.kind==="audio" && t.sender);
+    let sender=transceiver?.sender || pc.getSenders().find(s=>s.track?.kind==="audio" || s.track===null);
+    let needsNegotiation=false;
+
     if(sender){
       await sender.replaceTrack(micEnabled ? track ?? null : null);
+      transceiver=pc.getTransceivers().find(t=>t.sender===sender);
+      if(transceiver){
+        const desired=micEnabled ? "sendrecv" : "recvonly";
+        if(transceiver.direction!==desired){transceiver.direction=desired; needsNegotiation=true;}
+      }
     }else if(track){
       pc.addTrack(track,stream.current!);
+      needsNegotiation=true;
+    }
+
+    if(needsNegotiation){
       const offer=await pc.createOffer();
       await pc.setLocalDescription(offer);
-      const peerId=[...peers.current.entries()].find(([,v])=>v.pc===pc)?.[0];
-      if(peerId) await send(peerId,"offer",offer);
+      await send(peerId,"offer",offer);
     }
   }));
  }
