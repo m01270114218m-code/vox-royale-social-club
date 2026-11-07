@@ -31,7 +31,8 @@ export const Route = createFileRoute("/profile")({
 });
 
 type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; name_color?: string; name_effect?: string; name_effect_speed?: number; equipped_frame?: string | null; equipped_entry?: string | null };
-type OwnedStoreItem = { id: string; acquired_at: string; store_items: { name: string; kind: string; asset_key: string } | null };\ntype Badge = { id: string; badge_key: string; badge_name: string; badge_asset_key: string | null; badge_color: string; is_equipped: boolean };
+type OwnedStoreItem = { id: string; acquired_at: string; store_items: { name: string; kind: string; asset_key: string } | null };
+type Badge = { id: string; badge_key: string; badge_name: string; badge_asset_key: string | null; badge_color: string; is_equipped: boolean };
 
 function ProfilePage() {
   const { user } = useAuth();
@@ -41,7 +42,8 @@ function ProfilePage() {
   const [wallet, setWallet] = useState({ coins: 0, diamonds: 0 });
   const [editing, setEditing] = useState(false);
   const [txs, setTxs] = useState<{ id: string; currency: string; amount: number; reason: string; created_at: string }[]>([]);
-  const [ownedItems, setOwnedItems] = useState<OwnedStoreItem[]>([]);\n  const [badges, setBadges] = useState<Badge[]>([]);
+  const [ownedItems, setOwnedItems] = useState<OwnedStoreItem[]>([]);
+  const [badges, setBadges] = useState<Badge[]>([]);
   const [linkEmail, setLinkEmail] = useState("");
   const isGuest = !!user?.is_anonymous;
   async function loadOwnedItems(userId: string) {
@@ -74,7 +76,8 @@ function ProfilePage() {
         if (!alive) return;
         setP((current) => current ? ({ ...current, ...(payload.new as P) }) : (payload.new as P));
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "user_items", filter: `user_id=eq.${user.id}` }, () => { void loadOwnedItems(user.id); })\n      .on("postgres_changes", { event: "*", schema: "public", table: "user_badges", filter: `user_id=eq.${user.id}` }, async () => { const { data: rows } = await supabase.from("user_badges").select("id,badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", user.id); setBadges((rows ?? []) as Badge[]); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_items", filter: `user_id=eq.${user.id}` }, () => { void loadOwnedItems(user.id); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_badges", filter: `user_id=eq.${user.id}` }, async () => { const { data: rows } = await supabase.from("user_badges").select("id,badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", user.id); setBadges((rows ?? []) as Badge[]); })
       .subscribe();
     (async () => {
       const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
@@ -141,7 +144,9 @@ function ProfilePage() {
         {editing && <div className="mt-2 text-xs text-primary">معاينة — لم يتم الحفظ بعد</div>}
       </div>
 
-      <section className="glass mt-4 rounded-2xl p-4 text-right">\n        <div className="mb-3 font-bold">شاراتي</div>\n        <div className="flex flex-wrap gap-2">{badges.length === 0 ? <span className="text-xs text-muted-foreground">لا توجد شارات بعد</span> : badges.map((b) => <button key={b.id} type="button" onClick={async () => { const { error } = await supabase.rpc("equip_badge", { _badge: b.id, _equip: !b.is_equipped }); if (error) toast.error(errMsg(error)); else { setBadges((xs) => xs.map((x) => ({ ...x, is_equipped: x.id === b.id ? !b.is_equipped : false }))); toast.success(!b.is_equipped ? "تم تعيين الشارة" : "تمت إزالة الشارة"); } }} className="rounded-2xl border p-2 text-center text-xs" style={{ borderColor: b.badge_color }}><div>{b.badge_name}</div>{b.is_equipped && <div className="text-[10px] text-primary">مجهزة</div>}</button>)}</div>
+      <section className="glass mt-4 rounded-2xl p-4 text-right">
+        <div className="mb-3 font-bold">شاراتي</div>
+        <div className="flex flex-wrap gap-2">{badges.length === 0 ? <span className="text-xs text-muted-foreground">لا توجد شارات بعد</span> : badges.map((b) => <button key={b.id} type="button" onClick={async () => { const { error } = await supabase.rpc("equip_badge", { _badge: b.id, _equip: !b.is_equipped }); if (error) toast.error(errMsg(error)); else { setBadges((xs) => xs.map((x) => ({ ...x, is_equipped: x.id === b.id ? !b.is_equipped : false }))); toast.success(!b.is_equipped ? "تم تعيين الشارة" : "تمت إزالة الشارة"); } }} className="rounded-2xl border p-2 text-center text-xs" style={{ borderColor: b.badge_color }}><div>{b.badge_name}</div>{b.is_equipped && <div className="text-[10px] text-primary">مجهزة</div>}</button>)}</div>
         <div className="mb-3 font-bold">أغراضي المستلمة</div>
         {ownedItems.length === 0 ? <p className="text-xs text-muted-foreground">لا توجد إطارات أو دخوليات أو شارات مستلمة حتى الآن.</p> : <div className="flex flex-wrap gap-2">{ownedItems.map((owned) => {
           const item = owned.store_items;
