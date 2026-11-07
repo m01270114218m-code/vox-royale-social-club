@@ -305,45 +305,105 @@ function Posts() {
 }
 
 type U = { id: string; display_name: string; display_no: number; level: number; vip_level: number; coins: number; roles: string[]; created_at: string };
+type AdminStoreItem = { id: string; name: string; kind: string; asset_key: string };
+type UserIdentityEdit = { display_no: string; level: string; id_color: string };
 function UsersTab({ isSuper }: { isSuper: boolean }) {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<U[]>([]);
   const [amt, setAmt] = useState<Record<string, string>>({});
+  const [catalog, setCatalog] = useState<AdminStoreItem[]>([]);
+  const [identity, setIdentity] = useState<Record<string, UserIdentityEdit>>({});
+  const [selectedItem, setSelectedItem] = useState<Record<string, string>>({});
+  const [equipItem, setEquipItem] = useState<Record<string, boolean>>({});
   async function load() {
-    const { data, error } = await supabase.rpc("admin_list_users", { _q: q });
+    const [{ data, error }, { data: items, error: itemsError }, { data: profiles, error: profilesError }] = await Promise.all([
+      supabase.rpc("admin_list_users", { _q: q }),
+      supabase.from("store_items").select("id,name,kind,asset_key").order("name"),
+      supabase.from("profiles").select("id,id_color"),
+    ]);
     if (error) toast.error(errMsg(error));
-    setRows((data as U[]) ?? []);
+    if (itemsError) toast.error(errMsg(itemsError));
+    if (profilesError) toast.error(errMsg(profilesError));
+    const users = (data as U[]) ?? [];
+    setRows(users);
+    setCatalog((items as AdminStoreItem[]) ?? []);
+    const colors = Object.fromEntries(((profiles ?? []) as { id: string; id_color: string | null }[]).map((p) => [p.id, p.id_color || "#D4AF37"]));
+    setIdentity((current) => {
+      const next = { ...current };
+      users.forEach((u) => {
+        next[u.id] ??= { display_no: String(u.display_no), level: String(u.level), id_color: colors[u.id] || "#D4AF37" };
+      });
+      return next;
+    });
   }
-  useEffect(() => { load(); }, []);
-  useAdminRealtime(["profiles", "wallets", "user_roles"], load);
+  useEffect(() => { void load(); }, []);
+  useAdminRealtime(["profiles", "wallets", "user_roles", "store_items", "user_items"], load);
   async function run(p: PromiseLike<{ error: unknown }>, msg: string) {
     const { error } = await p;
     if (error) { toast.error(errMsg(error as never)); return; }
     toast.success(msg);
-    load();
+    await load();
+  }
+  async function saveIdentity(u: U) {
+    const value = identity[u.id] ?? { display_no: String(u.display_no), level: String(u.level), id_color: "#D4AF37" };
+    const displayNo = Number(value.display_no), level = Number(value.level);
+    if (!Number.isSafeInteger(displayNo) || displayNo < 100000 || !Number.isInteger(level) || level < 1 || level > 999) {
+      toast.error("تحقق من رقم ID والمستوى");
+      return;
+    }
+    await run(supabase.rpc("admin_update_user_identity" as never, {
+      _user: u.id, _display_no: displayNo, _level: level, _id_color: value.id_color,
+    } as never), "تم حفظ ID المميز ولونه والمستوى");
+  }
+  async function grantItem(u: U) {
+    const itemId = selectedItem[u.id];
+    if (!itemId) { toast.error("اختر إطاراً أو دخولية أو شارة أولاً"); return; }
+    const item = catalog.find((entry) => entry.id === itemId);
+    if (equipItem[u.id] && item?.kind !== "frame" && item?.kind !== "entry") {
+      toast.error("يمكن تجهيز الإطار أو الدخولية فقط؛ الشارات تُضاف للمخزون");
+      return;
+    }
+    await run(supabase.rpc("admin_grant_store_item" as never, {
+      _user: u.id, _item: itemId, _equip: !!equipItem[u.id],
+    } as never), "تم إرسال العنصر إلى مخزون المستخدم");
   }
   return (
-    <div className="space-y-2">
-      <div className="flex gap-2"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="بحث بالاسم أو ID" /><Button onClick={load}>بحث</Button></div>
-      {rows.map((u) => (
-        <div key={u.id} className="glass space-y-2 rounded-2xl p-3 text-sm">
+    <div className="space-y-3">
+      <div className="flex gap-2"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="بحث بالاسم أو ID" /><Button onClick={() => void load()}>بحث</Button></div>
+      {rows.map((u) => {
+        const edit = identity[u.id] ?? { display_no: String(u.display_no), level: String(u.level), id_color: "#D4AF37" };
+        return <div key={u.id} className="glass space-y-3 rounded-2xl p-3 text-sm">
           <div className="flex flex-wrap justify-between gap-2">
             <Link to="/u/$id" params={{ id: u.id }} className="font-bold">{u.display_name} <span className="text-xs text-muted-foreground">ID {u.display_no}</span></Link>
             <span className="text-xs">Lv {u.level} · VIP {u.vip_level} · 🪙 {Number(u.coins).toLocaleString()} {u.roles.length > 0 && `· ${u.roles.join(", ")}`}</span>
           </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <label className="text-xs text-muted-foreground">ID المميز<Input type="number" min="100000" value={edit.display_no} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, display_no: e.target.value } }))} /></label>
+            <label className="text-xs text-muted-foreground">المستوى<Input type="number" min="1" max="999" value={edit.level} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, level: e.target.value } }))} /></label>
+            <label className="text-xs text-muted-foreground">لون ID<input aria-label="لون ID المميز" type="color" value={edit.id_color} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, id_color: e.target.value } }))} className="h-10 w-full rounded-md border border-input bg-input p-1" /></label>
+            <Button className="self-end" size="sm" onClick={() => void saveIdentity(u)}>حفظ الهوية المميزة</Button>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <Input className="w-28" type="number" placeholder="عملات ±" value={amt[u.id] ?? ""} onChange={(e) => setAmt({ ...amt, [u.id]: e.target.value })} />
-            <Button size="sm" onClick={() => run(supabase.rpc("admin_grant_coins", { _user: u.id, _amount: Number(amt[u.id] || 0) }), "تم تعديل الرصيد")}>تطبيق</Button>
-            <select className="rounded-md border border-input bg-input px-2 py-1.5 text-xs" value={u.vip_level} onChange={(e) => run(supabase.rpc("admin_set_vip", { _user: u.id, _vip: Number(e.target.value) }), "تم تعديل VIP")}>
+            <Button size="sm" onClick={() => void run(supabase.rpc("admin_grant_coins", { _user: u.id, _amount: Number(amt[u.id] || 0) }), "تم تعديل الرصيد")}>تطبيق</Button>
+            <select aria-label="مستوى VIP" className="rounded-md border border-input bg-input px-2 py-1.5 text-xs" value={u.vip_level} onChange={(e) => void run(supabase.rpc("admin_set_vip", { _user: u.id, _vip: Number(e.target.value) }), "تم تعديل VIP")}>
               {Array.from({ length: 11 }, (_, i) => <option key={i} value={i}>VIP {i}</option>)}
             </select>
-            {isSuper && (["admin", "moderator"] as const).map((r) => {
-              const has = u.roles.includes(r);
-              return <Button key={r} size="sm" variant={has ? "destructive" : "outline"} onClick={() => run(supabase.rpc("admin_set_role", { _user: u.id, _role: r, _grant: !has }), "تم تحديث الصلاحية")}>{has ? `إزالة ${r}` : `منح ${r}`}</Button>;
-            })}
           </div>
-        </div>
-      ))}
+          <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+            <select aria-label="اختر عنصراً لإرساله" className="min-w-0 rounded-md border border-input bg-input px-2 py-2 text-xs" value={selectedItem[u.id] ?? ""} onChange={(e) => setSelectedItem((s) => ({ ...s, [u.id]: e.target.value }))}>
+              <option value="">اختر إطاراً أو دخولية أو شارة</option>
+              {catalog.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.kind}</option>)}
+            </select>
+            <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!equipItem[u.id]} onChange={(e) => setEquipItem((s) => ({ ...s, [u.id]: e.target.checked }))} /> تجهيز فوراً (إطار/دخولية)</label>
+            <Button size="sm" onClick={() => void grantItem(u)}>إرسال للمستخدم</Button>
+          </div>
+          {isSuper && <div className="flex flex-wrap gap-1">{(["admin", "moderator"] as const).map((r) => {
+            const has = u.roles.includes(r);
+            return <Button key={r} size="sm" variant={has ? "destructive" : "outline"} onClick={() => void run(supabase.rpc("admin_set_role", { _user: u.id, _role: r, _grant: !has }), "تم تحديث الصلاحية")}>{has ? `إزالة ${r}` : `منح ${r}`}</Button>;
+          })}</div>}
+        </div>;
+      })}
     </div>
   );
 }
