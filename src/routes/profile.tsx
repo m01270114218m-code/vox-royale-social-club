@@ -30,7 +30,8 @@ export const Route = createFileRoute("/profile")({
   ),
 });
 
-type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; equipped_frame?: string | null };
+type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; equipped_frame?: string | null; equipped_entry?: string | null };
+type OwnedStoreItem = { id: string; acquired_at: string; store_items: { name: string; kind: string; asset_key: string } | null };
 
 function ProfilePage() {
   const { user } = useAuth();
@@ -40,8 +41,14 @@ function ProfilePage() {
   const [wallet, setWallet] = useState({ coins: 0, diamonds: 0 });
   const [editing, setEditing] = useState(false);
   const [txs, setTxs] = useState<{ id: string; currency: string; amount: number; reason: string; created_at: string }[]>([]);
+  const [ownedItems, setOwnedItems] = useState<OwnedStoreItem[]>([]);
   const [linkEmail, setLinkEmail] = useState("");
   const isGuest = !!user?.is_anonymous;
+  async function loadOwnedItems(userId: string) {
+    const { data, error } = await supabase.from("user_items").select("id,acquired_at,store_items(name,kind,asset_key)").eq("user_id", userId).order("acquired_at", { ascending: false });
+    if (error) { toast.error(errMsg(error)); return; }
+    setOwnedItems((data ?? []) as unknown as OwnedStoreItem[]);
+  }
   async function loadTx() {
     const { data } = await supabase.from("wallet_transactions").select("id,currency,amount,reason,created_at").order("created_at", { ascending: false }).limit(20);
     if (data) setTxs(data.map((d) => ({ ...d, amount: Number(d.amount) })));
@@ -70,6 +77,7 @@ function ProfilePage() {
     (async () => {
       const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
       if (data) setP(data as P);
+      await loadOwnedItems(user!.id);
       const { data: w } = await supabase.from("wallets").select("coins,diamonds").eq("user_id", user!.id).maybeSingle();
       loadTx();
       if (w) setWallet({ coins: Number(w.coins), diamonds: Number(w.diamonds) });
@@ -130,6 +138,17 @@ function ProfilePage() {
         <IdentityBadges level={p.level} vip={p.vip_level} /><p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
         {editing && <div className="mt-2 text-xs text-primary">معاينة — لم يتم الحفظ بعد</div>}
       </div>
+
+      <section className="glass mt-4 rounded-2xl p-4 text-right">
+        <div className="mb-3 font-bold">أغراضي المستلمة</div>
+        {ownedItems.length === 0 ? <p className="text-xs text-muted-foreground">لا توجد إطارات أو دخوليات أو شارات مستلمة حتى الآن.</p> : <div className="flex flex-wrap gap-2">{ownedItems.map((owned) => {
+          const item = owned.store_items;
+          if (!item) return null;
+          const equipped = (item.kind === "frame" && p.equipped_frame === item.asset_key) || (item.kind === "entry" && p.equipped_entry === item.asset_key);
+          const kindLabel = item.kind === "frame" ? "إطار" : item.kind === "entry" ? "دخولية" : item.kind === "badge" ? "شارة" : item.kind;
+          return <span key={owned.id} className="rounded-full border border-border bg-background/60 px-3 py-2 text-xs">{item.name} · {kindLabel}{equipped ? " · مجهز" : ""}</span>;
+        })}</div>}
+      </section>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="glass flex items-center gap-3 rounded-2xl p-4"><img src={icons3d.coin} alt="" className="h-12 w-12 object-contain" /><div><div className="text-xl font-bold">{wallet.coins}</div><div className="text-xs text-muted-foreground">عملات ذهبية</div></div></div>
