@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { errMsg } from "@/lib/vox";
+import { getAdminAssetUrl } from "@/lib/media";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -748,14 +749,12 @@ function AssetsTab() {
     }
     const assets = (data ?? []) as unknown as AdminAsset[];
     setRows(assets);
-    const signed: Record<string, string> = {};
+    const resolved: Record<string, string> = {};
     await Promise.all(assets.map(async (asset) => {
-      const path = asset.metadata?.storage_path ?? asset.url;
-      if (!path) return;
-      const { data: result } = await supabase.storage.from(ASSET_BUCKET).createSignedUrl(path, 3600);
-      if (result?.signedUrl) signed[asset.id] = result.signedUrl;
+      const url = await getAdminAssetUrl(asset.asset_key);
+      if (url) resolved[asset.id] = url;
     }));
-    setPreviews(signed);
+    setPreviews(resolved);
     setLoading(false);
   }
 
