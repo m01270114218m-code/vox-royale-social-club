@@ -27,6 +27,8 @@ export function RoomVoice({ roomId, uid, members, micEnabled }: Props) {
   const roleRef = useRef<"host" | "audience">("audience");
   const operationRef = useRef(Promise.resolve());
   const tokenRefreshRef = useRef<(() => Promise<void>) | null>(null);
+  const micEnabledRef = useRef(micEnabled);
+  micEnabledRef.current = micEnabled;
 
   useEffect(() => {
     aliveRef.current = true;
@@ -121,12 +123,12 @@ export function RoomVoice({ roomId, uid, members, micEnabled }: Props) {
         client.on("token-privilege-will-expire", () => {
           void serialize(refreshToken);
         });
-        await client.join(access.appId, access.channel, access.token, access.uid);
-        joinedRef.current = true;
         const initialRole = access.role === "publisher" ? "host" : "audience";
         await client.setClientRole(initialRole);
         roleRef.current = initialRole;
-        if (micEnabled && initialRole === "host") {
+        await client.join(access.appId, access.channel, access.token, access.uid);
+        joinedRef.current = true;
+        if (micEnabledRef.current && initialRole === "host") {
           await publishMicrophone();
         }
       } catch (error) {
