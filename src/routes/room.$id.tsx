@@ -80,7 +80,8 @@ function RoomPage() {
   const [speakingUsers, setSpeakingUsers] = useState<string[]>([]);
   const [micRequests, setMicRequests] = useState<{ id: string; user_id: string; created_at: string }[]>([]);
   const [myMicRequest, setMyMicRequest] = useState<{ id: string } | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);\n  const [following, setFollowing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [following, setFollowing] = useState(false);
   const roomCoverUrl = useMedia(room?.cover_url);
   const chatEnd = useRef<HTMLDivElement>(null);
    const uid = user?.id ?? "";
@@ -384,7 +385,9 @@ function RoomPage() {
     }
   }
 
-  async function toggleFollow(target?: string) { if (!target || target === uid) return; const { data: existing } = await supabase.from("follows").select("follower_id,following_id").eq("follower_id", uid).eq("following_id", target).maybeSingle(); if (existing) { const { error } = await supabase.from("follows").delete().eq("follower_id", uid).eq("following_id", target); if (error) toast.error(errMsg(error)); else { setFollowing(false); toast.success("تم إلغاء المتابعة"); } } else { const { error } = await supabase.from("follows").insert({ follower_id: uid, following_id: target }); if (error) toast.error(errMsg(error)); else { setFollowing(true); toast.success("تمت المتابعة"); } } }\n\n  async function openGifts(target?: string) {
+  async function toggleFollow(target?: string) { if (!target || target === uid) return; const { data: existing } = await supabase.from("follows").select("follower_id,following_id").eq("follower_id", uid).eq("following_id", target).maybeSingle(); if (existing) { const { error } = await supabase.from("follows").delete().eq("follower_id", uid).eq("following_id", target); if (error) toast.error(errMsg(error)); else { setFollowing(false); toast.success("تم إلغاء المتابعة"); } } else { const { error } = await supabase.from("follows").insert({ follower_id: uid, following_id: target }); if (error) toast.error(errMsg(error)); else { setFollowing(true); toast.success("تمت المتابعة"); } } }
+
+  async function openGifts(target?: string) {
     const { data } = await supabase.from("wallets").select("coins").eq("user_id", uid).maybeSingle();
     setCoins(Number(data?.coins ?? 0));
     const others = members.filter((m) => m !== uid);
