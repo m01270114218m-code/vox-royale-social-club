@@ -1,6 +1,6 @@
 {
-  "name": "صدي شات",
-  "short_name": "صدي شات",
+  "name": "Saada Chat",
+  "short_name": "Saada Chat",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a0f24",
@@ -14,5 +14,6 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "description": "Saada Chat — صوتنا يجمعنا"
 }
