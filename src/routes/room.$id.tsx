@@ -132,6 +132,17 @@ function RoomPage() {
     })();
     const ch = supabase
       .channel(`room-${id}-${Math.random().toString(36).slice(2)}`)
+      .on("broadcast", { event: "seat_state" }, (payload) => {
+        const data = payload.payload as { roomId?: string; seat?: Seat | null; userId?: string };
+        if (data.roomId !== id) return;
+        if (data.seat) {
+          setSeats((current) => current.some((s) => s.seat_index === data.seat!.seat_index)
+            ? current.map((s) => s.seat_index === data.seat!.seat_index ? data.seat! : s)
+            : [...current, data.seat!].sort((a,b) => a.seat_index-b.seat_index));
+        } else if (data.userId) {
+          setSeats((current) => current.map((s) => s.user_id === data.userId ? { ...s, user_id: null, is_muted: false } : s));
+        }
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "room_seats", filter: `room_id=eq.${id}` }, (payload) => {
         const next = payload.new as Partial<Seat> & { room_id?: string };
         const prev = payload.old as Partial<Seat> & { room_id?: string };
@@ -183,7 +194,9 @@ function RoomPage() {
           setTimeout(() => setAnim(null), 2600);
         }
       })
-            .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${id}` }, (payload) => { setRoom((current) => current ? ({ ...current, ...(payload.new as Partial<Room>) }) : current); }).subscribe();
+            .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${id}` }, (payload) => { setRoom((current) => current ? ({ ...current, ...(payload.new as Partial<Room>) }) : current); })
+      .subscribe();
+    roomLive.current = ch;
     const loadCatalog = async () => {
       const { data: rows } = await supabase.from("gifts").select("id,name,emoji,price,tier,asset_key").eq("active", true).order("sort");
       const keys = (rows || []).map((g) => g.asset_key).filter((key): key is string => !!key);
@@ -215,6 +228,7 @@ function RoomPage() {
     void loadVoiceControls();
     return () => {
       alive = false;
+      roomLive.current = null;
       supabase.removeChannel(ch);
       // Defer leaving so a quick remount (dev double-mount, reconnect) doesn't kick us out.
       mountCount[id] = (mountCount[id] ?? 1) - 1;
@@ -242,9 +256,48 @@ function RoomPage() {
   const mySeat = seats.find((s) => s.user_id === uid);
   const myMicEnabled = !!mySeat && !mySeat.is_muted;
 
+  const roomLive = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  const broadcastSeat = useCallback(async (seatIndex: number) => {
+    const seat = seats.find((s) => s.seat_index === seatIndex);
+    if (!seat) return;
+    await roomLive.current?.send({
+      type: "broadcast",
+      event: "seat_state",
+      payload: { roomId: id, seat },
+    });
+  }, [id, seats]);
+
   async function call(fn: string, args: Record<string, unknown>) {
     const { error } = await supabase.rpc(fn as never, args as never);
-    if (error) toast.error(errMsg(error));
+    if (error) {
+      toast.error(errMsg(error));
+      setSeatMenu(null);
+      return;
+    }
+    // Realtime Postgres remains authoritative; Broadcast makes the UI react immediately
+    // while the database change is propagating to other clients.
+    const seatIndex = typeof args._seat === "number" ? args._seat : undefined;
+    if (seatIndex !== undefined) {
+      const { data } = await supabase.from("room_seats")
+        .select("seat_index,user_id,is_locked,is_muted")
+        .eq("room_id", id).eq("seat_index", seatIndex).maybeSingle();
+      if (data) {
+        const next = data as Seat;
+        setSeats((current) => current.some((s) => s.seat_index === seatIndex)
+          ? current.map((s) => s.seat_index === seatIndex ? next : s)
+          : [...current, next].sort((a,b) => a.seat_index-b.seat_index));
+        await roomLive.current?.send({ type: "broadcast", event: "seat_state", payload: { roomId: id, seat: next } });
+      }
+    } else if (fn === "leave_seat" || fn === "toggle_my_mute" || fn === "take_seat") {
+      await loadSeats();
+      const mine = (await supabase.from("room_seats").select("seat_index,user_id,is_locked,is_muted").eq("room_id", id).eq("user_id", uid).maybeSingle()).data;
+      if (mine) {
+        await roomLive.current?.send({ type: "broadcast", event: "seat_state", payload: { roomId: id, seat: mine } });
+      } else {
+        await roomLive.current?.send({ type: "broadcast", event: "seat_state", payload: { roomId: id, seat: null, userId: uid } });
+      }
+    }
     setSeatMenu(null);
   }
 
