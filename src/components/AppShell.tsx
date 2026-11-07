@@ -1,11 +1,12 @@
 import { icons3d } from "@/lib/assets3d";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { Home, User, Crown, Sparkles, MessageCircle, Mic } from "lucide-react";
+import { Home, User, Crown, Sparkles, MessageCircle, Mic, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { useAppUiConfig } from "@/hooks/useAppUiConfig";
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -16,7 +17,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   if (loading || !user)
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Crown className="h-12 w-12 animate-pulse text-primary" />
+        <img src={icons3d.micHost} alt="صدى شات" className="h-14 w-14 object-contain animate-pulse" />
       </div>
     );
   return <>{children}</>;
@@ -28,8 +29,8 @@ function useUnread(uid?: string) {
     if (!uid) return;
     const load = async () => {
       const [{ count: a }, { data: convs }] = await Promise.all([
-        supabase.from("notifications").select("id", { count: "exact", head: true }).eq("is_read", false),
-        supabase.from("conversations").select("id"),
+        supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", uid).eq("is_read", false),
+        supabase.from("conversations").select("id").or(`user_a.eq.${uid},user_b.eq.${uid}`),
       ]);
       let b = 0;
       if (convs?.length) {
@@ -68,11 +69,21 @@ function ShellInner({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const nav = useNavigate();
   const unread = useUnread(user?.id);
+  const ui = useAppUiConfig();
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    let active = true;
+    if (!user?.id) { setIsAdmin(false); return; }
+    supabase.rpc("is_admin", { _uid: user.id }).then(({ data, error }) => {
+      if (active) setIsAdmin(!error && !!data);
+    });
+    return () => { active = false; };
+  }, [user?.id]);
   const item = "flex flex-1 flex-col items-center gap-0.5 text-[11px] text-muted-foreground";
   const active = { className: "text-primary" };
 
   async function myRoom() {
-    const { data } = await supabase.from("rooms").select("id").eq("owner_id", user!.id).order("created_at").limit(1).maybeSingle();
+    const { data } = await supabase.from("rooms").select("id").eq("owner_id", user!.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (data) nav({ to: "/room/$id", params: { id: data.id } });
     else {
       toast("أنشئ غرفتك الأولى");
@@ -82,28 +93,34 @@ function ShellInner({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <div className="mx-auto min-h-screen max-w-2xl pb-28">{children}</div>
-      <nav className="glass fixed inset-x-3 bottom-3 z-40 mx-auto flex max-w-md items-end justify-around rounded-full px-2 py-2.5">
+      <div className="app-shell-content min-h-dvh w-full pb-24">{children}</div>
+      <nav className="app-bottom-nav glass fixed inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md items-end justify-around gap-1 rounded-full px-2 py-2">
         <Link to="/" className={item} activeProps={active} activeOptions={{ exact: true }}>
-          <img src={icons3d.home} alt="" className="h-8 w-8 drop-shadow-lg" />
-          الغرف
+          <img src={ui.bottom_nav.home_icon || icons3d.home} alt="" className="h-7 w-7 drop-shadow-lg" />
+          {ui.bottom_nav.home_label || "الغرف"}
         </Link>
         <Link to="/moments" className={item} activeProps={active}>
-          <img src={icons3d.explore} alt="" className="h-8 w-8 drop-shadow-lg" />
-          اللحظات
+          <img src={ui.bottom_nav.explore_icon || icons3d.explore} alt="" className="h-8 w-8 drop-shadow-lg" />
+          {ui.bottom_nav.explore_label || "اللحظات"}
         </Link>
         <Button onClick={myRoom} aria-label="غرفتي" title="غرفتي" className="-mt-8 h-16 w-16 rounded-full bg-gold p-1 shadow-gold">
-          <img src={icons3d.micHost} alt="" className="h-14 w-14 object-contain" />
+          <img src={ui.bottom_nav.room_icon || ui.mic.host_asset_url || icons3d.micHost} alt="" className="h-14 w-14 object-contain" />
         </Button>
         <Link to="/messages" className={`${item} relative`} activeProps={active}>
-          <img src={icons3d.messages} alt="" className="h-8 w-8 drop-shadow-lg" />
+          <img src={ui.bottom_nav.messages_icon || icons3d.messages} alt="" className="h-8 w-8 drop-shadow-lg" />
           {unread > 0 && <span className="absolute -top-1 right-3 min-w-5 rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground">{unread > 99 ? "99+" : unread}</span>}
-          الرسائل
+          {ui.bottom_nav.messages_label || "الرسائل"}
         </Link>
         <Link to="/profile" className={item} activeProps={active}>
-          <img src={icons3d.profile} alt="" className="h-8 w-8 drop-shadow-lg" />
-          أنا
+          <img src={ui.bottom_nav.profile_icon || icons3d.profile} alt="" className="h-8 w-8 drop-shadow-lg" />
+          {ui.bottom_nav.profile_label || "أنا"}
         </Link>
+        {isAdmin && (
+          <Link to="/admin" className={item} activeProps={active}>
+            <Shield className="h-7 w-7" />
+            الإدارة
+          </Link>
+        )}
       </nav>
     </>
   );

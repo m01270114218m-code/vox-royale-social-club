@@ -9,13 +9,14 @@ import { AppShell, PageHeader } from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { errMsg } from "@/lib/vox";
+import { getAdminAssetUrl } from "@/lib/media";
 
 export const Route = createFileRoute("/store")({
   head: () => ({
     meta: [
-      { title: "المتجر وVIP — VOX ROYALE" },
-      { name: "description", content: "اشترِ عضوية VIP واشحن عملاتك في VOX ROYALE." },
-      { property: "og:title", content: "المتجر وVIP — VOX ROYALE" },
+      { title: "المتجر وVIP — صدى شات" },
+      { name: "description", content: "اشترِ عضوية VIP واشحن عملاتك في صدى شات." },
+      { property: "og:title", content: "المتجر وVIP — صدى شات" },
       { property: "og:description", content: "عضويات VIP وباقات الشحن." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -43,7 +44,7 @@ const PACKS = [
   { coins: 350000, price: "$49.99" },
 ];
 
-type StoreItem = { id: string; kind: string; name: string; description: string | null; price: number; asset_key: string };
+type StoreItem = { id: string; kind: string; name: string; description: string | null; price: number; asset_key: string; asset_url?: string | null };
 
 function StorePage() {
   const { user } = useAuth();
@@ -53,7 +54,24 @@ function StorePage() {
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [equippedFrame, setEquippedFrame] = useState<string | null>(null);
   const [equippedEntry, setEquippedEntry] = useState<string | null>(null);
+  const [txs, setTxs] = useState<{id:string;amount:number;currency:string;reason:string;created_at:string}[]>([]);
+  const [topupCoins, setTopupCoins] = useState("6000");
   useEffect(() => {
+    if (!user) return;
+    const live = supabase.channel(`store-live-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "wallets", filter: `user_id=eq.${user.id}` }, (payload) => {
+        const row = payload.new as { coins?: number };
+        if (row && row.coins !== undefined) setCoins(Number(row.coins));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "wallet_transactions", filter: `user_id=eq.${user.id}` }, async () => {
+        const { data: tx } = await supabase.from("wallet_transactions").select("id,amount,currency,reason,created_at").eq("user_id", user.id).order("created_at",{ascending:false}).limit(30);
+        setTxs((tx ?? []).map((x)=>({...x,amount:Number(x.amount)})));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_items", filter: `user_id=eq.${user.id}` }, async () => {
+        const { data: ui } = await supabase.from("user_items").select("item_id").eq("user_id", user.id);
+        setOwned(new Set((ui ?? []).map((r) => r.item_id)));
+      })
+      .subscribe();
     (async () => {
       const [{ data: w }, { data: p }, { data: si }, { data: ui }] = await Promise.all([
         supabase.from("wallets").select("coins").eq("user_id", user!.id).maybeSingle(),
@@ -65,9 +83,13 @@ function StorePage() {
       setVip(p?.vip_level ?? 0);
       setEquippedFrame(p?.equipped_frame ?? null);
       setEquippedEntry(p?.equipped_entry ?? null);
-      setItems(si ?? []);
+      const enrichedItems = await Promise.all((si ?? []).map(async (item) => ({ ...item, asset_url: await getAdminAssetUrl(item.asset_key) })));
+      setItems(enrichedItems);
       setOwned(new Set((ui ?? []).map((r) => r.item_id)));
+      const { data: tx } = await supabase.from("wallet_transactions").select("id,amount,currency,reason,created_at").eq("user_id", user!.id).order("created_at",{ascending:false}).limit(30);
+      setTxs((tx ?? []).map((x)=>({...x,amount:Number(x.amount)})));
     })();
+    return () => { void supabase.removeChannel(live); };
   }, [user]);
   async function buyItem(item: StoreItem) {
     const { data, error } = await supabase.rpc("buy_item", { _item_id: item.id });
@@ -99,7 +121,15 @@ function StorePage() {
           <span className="rounded-full bg-gold px-3 py-1 text-sm font-bold">VIP {vip}</span>
         </div>
         <section>
-          <h2 className="mb-2 font-bold">عضويات VIP</h2>
+          <h2 className="mb-2 font-bold">قسم VIP</h2>
+          {vip <= 0 ? (
+            <div className="card-3d glass rounded-3xl p-5 text-center">
+              <img src={vipBadge(1)} alt="" className="mx-auto h-24 w-24 object-contain" />
+              <div className="mt-2 font-display text-2xl text-gold">قسم VIP</div>
+              <p className="mt-1 text-sm text-muted-foreground">هذا القسم مخصص لأعضاء VIP فقط.</p>
+              <p className="mt-2 text-xs text-muted-foreground">يمكن تفعيل VIP من خلال الإدارة أو نظام الترقية المعتمد في الحساب.</p>
+            </div>
+          ) : (
           <div className="grid grid-cols-2 gap-3">
             {VIP.map((v) => (
               <div key={v.lv} className={`card-3d glass rounded-3xl p-4 text-center ${vip >= v.lv ? "ring-2 ring-primary" : ""}`}>
@@ -113,6 +143,7 @@ function StorePage() {
               </div>
             ))}
           </div>
+          )}
         </section>
         <section>
           <h2 className="mb-2 font-bold">إطارات الصورة</h2>
@@ -124,7 +155,7 @@ function StorePage() {
                 <div key={item.id} className={`card-3d glass rounded-3xl p-4 text-center ${isEquipped ? "ring-2 ring-primary" : ""}`}>
                   <div className="relative mx-auto mb-2 h-24 w-24">
                     <div className="absolute inset-[18%] overflow-hidden rounded-full bg-secondary" />
-                    <img src={frameByKey(item.asset_key)} alt={item.name} className="absolute inset-0 h-full w-full object-contain" />
+                    <img src={item.asset_url || frameByKey(item.asset_key)} alt={item.name} className="absolute inset-0 h-full w-full object-contain" />
                   </div>
                   <b className="text-sm">{item.name}</b>
                   <p className="min-h-8 text-xs text-muted-foreground">{item.description}</p>
@@ -150,7 +181,7 @@ function StorePage() {
               const isEquipped = equippedEntry === item.asset_key;
               return (
                 <div key={item.id} className={`card-3d glass rounded-3xl p-4 text-center ${isEquipped ? "ring-2 ring-primary" : ""}`}>
-                  <img src={entryEffects[item.asset_key]?.image ?? icons3d.giftbox} alt={item.name} className="mx-auto mb-2 h-20 w-20 object-contain" />
+                  <img src={item.asset_url || entryEffects[item.asset_key]?.image || icons3d.giftbox} alt={item.name} className="mx-auto mb-2 h-20 w-20 object-contain" />
                   <b className="text-sm">{item.name}</b>
                   <p className="min-h-8 text-xs text-muted-foreground">{item.description}</p>
                   {isOwned ? (
@@ -175,7 +206,7 @@ function StorePage() {
                 <img src={icons3d.chest} alt="" className="mx-auto h-20 w-20 object-contain" />
                 <b>{p.coins.toLocaleString()}</b>
                 <div className="text-sm text-muted-foreground">{p.price}</div>
-                <Button size="sm" variant="outline" className="mt-2 w-full" onClick={() => toast("الدفع الإلكتروني غير مفعّل بعد — تواصل مع الإدارة للشحن")}>شحن</Button>
+                <Button size="sm" variant="outline" className="mt-2 w-full" onClick={async () => { const { error } = await supabase.rpc("request_wallet_topup", { _coins: p.coins, _payment_method: "manual" }); if(error) toast.error(errMsg(error)); else toast.success("تم إرسال طلب الشحن للإدارة"); }}>طلب شحن</Button>
               </div>
             ))}
           </div>

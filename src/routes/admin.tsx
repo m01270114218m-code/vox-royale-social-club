@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText } from "lucide-react";
+import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText, Image as ImageIcon, Box, Upload, Search, Power, RefreshCw, File as FileIcon, Armchair, PanelsTopLeft, Settings, BarChart3, ShieldCheck, ExternalLink } from "lucide-react";
+import { AdminRolesTab, AnalyticsTab, AppBuilderTab, BannersTab, NotificationsTab, SeatsTab, SettingsTab } from "@/components/admin/AdminExtendedTabs";
+import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 import { supabase } from "@/integrations/supabase/client";
 import { RequireAuth } from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,11 +30,30 @@ export const Route = createFileRoute("/admin")({
   ),
 });
 
-type Tab = "reports" | "rooms" | "posts" | "users" | "wallet" | "gifts" | "store" | "broadcast" | "audit";
+
+/** Full administration UI embedded in the Android/web app.
+ * The static control center is bundled at public/control-center/index.html
+ * and shares the same origin + Supabase auth storage as the app.
+ */
+function FullAdminPanel() {
+  return (
+    <main className="fixed inset-0 z-[100] bg-background">
+      <iframe
+        title="لوحة التحكم الكاملة — VOX ROYALE"
+        src="/control-center/"
+        className="h-[100dvh] w-full border-0"
+        allow="clipboard-read; clipboard-write"
+      />
+    </main>
+  );
+}
+
+type Tab = "reports" | "rooms" | "seats" | "posts" | "users" | "wallet" | "gifts" | "vip" | "store" | "assets" | "banners" | "notifications" | "roles" | "settings" | "app_builder" | "analytics" | "audit";
 const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
 
 function AdminPage() {
   const { user } = useAuth();
+  const externalAdminUrl = (import.meta.env.VITE_ADMIN_PANEL_URL as string | undefined) || "/control-center/";
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [isSuper, setIsSuper] = useState(false);
   const [stats, setStats] = useState<Record<string, number> | null>(null);
@@ -50,7 +71,17 @@ function AdminPage() {
       setStats(data as Record<string, number>);
     }
   }
-  useEffect(() => { check(); }, [user]);
+  useEffect(() => { void check(); }, [user?.id]);
+
+  async function refreshStats() {
+    if (!allowed) return;
+    const { data, error } = await supabase.rpc("admin_stats");
+    if (!error && data) setStats(data as Record<string, number>);
+  }
+  useAdminRealtime(
+    allowed ? ["profiles", "wallets", "wallet_transactions", "rooms", "room_members", "room_seats", "gifts", "gift_transactions", "vip_tiers", "banners", "notifications", "admin_assets", "reports", "user_roles", "admin_settings", "audit_log", "store_items", "posts"] : [],
+    refreshStats,
+  );
 
   async function claim() {
     const { data, error } = await supabase.rpc("claim_first_admin");
@@ -75,21 +106,49 @@ function AdminPage() {
   const tabs: { id: Tab; label: string; icon: typeof Flag }[] = [
     { id: "reports", label: "البلاغات", icon: Flag },
     { id: "rooms", label: "الغرف", icon: DoorOpen },
+    { id: "seats", label: "المقاعد", icon: Armchair },
     { id: "posts", label: "المنشورات", icon: FileText },
     { id: "users", label: "المستخدمون", icon: Users },
     { id: "wallet", label: "المحافظ", icon: Wallet },
     { id: "gifts", label: "الهدايا", icon: Gift },
+    { id: "vip", label: "مستويات VIP", icon: Shield },
     { id: "store", label: "المتجر", icon: Store },
-    { id: "broadcast", label: "إشعار عام", icon: Bell },
+    { id: "assets", label: "الأصول ثلاثية الأبعاد", icon: ImageIcon },
+    { id: "banners", label: "البانرات", icon: PanelsTopLeft },
+    { id: "notifications", label: "الإشعارات", icon: Bell },
+    { id: "roles", label: "صلاحيات الإدارة", icon: ShieldCheck },
+    { id: "settings", label: "الإعدادات", icon: Settings },
+    { id: "app_builder", label: "تطوير التطبيق", icon: PanelsTopLeft },
+    { id: "analytics", label: "التحليلات", icon: BarChart3 },
     { id: "audit", label: "سجل الإجراءات", icon: ScrollText },
   ];
-  const statLabels: Record<string, string> = { users: "المستخدمون", rooms: "الغرف", posts: "المنشورات", families: "العائلات", open_reports: "بلاغات مفتوحة", gifts: "الهدايا", coins: "إجمالي العملات" };
+  // Keep dashboard cards aligned with the keys returned by public.admin_stats().
+  const statLabels: Record<string, string> = {
+    users: "المستخدمون",
+    rooms: "الغرف",
+    seats: "المقاعد",
+    vip_users: "مستخدمو VIP",
+    wallet_coins: "إجمالي العملات",
+    wallet_diamonds: "إجمالي الماسات",
+    gifts: "الهدايا",
+    reports_open: "البلاغات المفتوحة",
+    assets: "الأصول",
+    banners: "الإعلانات",
+    notifications: "الإشعارات",
+  };
 
   return (
     <div className="mx-auto max-w-6xl p-4">
-      <header className="flex items-center justify-between py-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 py-3">
         <h1 className="font-display text-gold text-3xl">لوحة التحكم</h1>
-        <Link to="/" className="text-sm text-muted-foreground">← التطبيق</Link>
+        <div className="flex items-center gap-2">
+          {externalAdminUrl && (
+            <a href={externalAdminUrl} target="_blank" rel="noreferrer">
+              <Button size="sm" variant="outline"><ExternalLink className="mr-1 h-4 w-4" /> اللوحة الخارجية</Button>
+            </a>
+          )}
+          <Link to="/" className="text-sm text-muted-foreground">← التطبيق</Link>
+        </div>
       </header>
       {stats && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
@@ -111,12 +170,20 @@ function AdminPage() {
       <div className="mt-4">
         {tab === "reports" && <Reports />}
         {tab === "rooms" && <Rooms />}
+        {tab === "seats" && <SeatsTab />}
         {tab === "posts" && <Posts />}
         {tab === "users" && <UsersTab isSuper={isSuper} />}
         {tab === "wallet" && <WalletTab />}
         {tab === "gifts" && <GiftsTab />}
+        {tab === "vip" && <VipTab />}
         {tab === "store" && <StoreTab />}
-        {tab === "broadcast" && <BroadcastTab />}
+        {tab === "assets" && <AssetsTab />}
+        {tab === "banners" && <BannersTab />}
+        {tab === "notifications" && <NotificationsTab />}
+        {tab === "roles" && <AdminRolesTab isSuper={isSuper} />}
+        {tab === "settings" && <SettingsTab />}
+        {tab === "app_builder" && <AppBuilderTab />}
+        {tab === "analytics" && <AnalyticsTab />}
         {tab === "audit" && <AuditTab />}
       </div>
     </div>
@@ -136,6 +203,7 @@ function Reports() {
     setRows((data as Report[]) ?? []);
   }
   useEffect(() => { load(); }, [status]);
+  useAdminRealtime(["reports"], load);
   async function act(id: string, s: string) {
     const { error } = await supabase.rpc("admin_resolve_report", { _report: id, _status: s, _reply: reply[id] ?? "" });
     if (error) { toast.error(errMsg(error)); return; }
@@ -181,6 +249,7 @@ function Rooms() {
     setRows(data ?? []);
   }
   useEffect(() => { load(); }, []);
+  useAdminRealtime(["rooms", "room_members"], load);
   async function del(id: string) {
     if (!confirm("حذف الغرفة نهائياً؟")) return;
     const { error } = await supabase.rpc("admin_delete_room", { _room: id });
@@ -197,7 +266,7 @@ function Rooms() {
             <div className="truncate font-bold">{r.name} {r.is_private && "🔒"}</div>
             <div className="text-xs text-muted-foreground">#{r.room_no} · {r.member_count} عضو · {fmt(r.created_at)}</div>
           </Link>
-          <Button size="icon" variant="destructive" onClick={() => del(r.id)} aria-label="حذف"><Trash2 className="h-4 w-4" /></Button>
+          <Button size="sm" variant="destructive" onClick={() => void del(r.id)} aria-label={`حذف ${r.name}`}><Trash2 className="ml-1 h-4 w-4" />حذف</Button>
         </div>
       ))}
     </div>
@@ -207,10 +276,11 @@ function Rooms() {
 function Posts() {
   const [rows, setRows] = useState<{ id: string; body: string; like_count: number; created_at: string; profiles: { display_name: string } | null }[]>([]);
   async function load() {
-    const { data } = await supabase.from("posts").select("id,body,like_count,created_at,profiles(display_name)").order("created_at", { ascending: false }).limit(100);
+    const { data } = await supabase.from("posts").select("id,body,like_count,created_at,profiles!posts_user_id_fkey(display_name)").order("created_at", { ascending: false }).limit(100);
     setRows((data as never) ?? []);
   }
   useEffect(() => { load(); }, []);
+  useAdminRealtime(["posts"], load);
   async function del(id: string) {
     if (!confirm("حذف المنشور؟")) return;
     const { error } = await supabase.rpc("admin_delete_post", { _post: id });
@@ -235,44 +305,109 @@ function Posts() {
 }
 
 type U = { id: string; display_name: string; display_no: number; level: number; vip_level: number; coins: number; roles: string[]; created_at: string };
+type AdminStoreItem = { id: string; name: string; kind: string; asset_key: string };
+type UserIdentityEdit = { display_no: string; level: string; id_color: string; name_color: string; name_effect: string; name_effect_speed: string };
 function UsersTab({ isSuper }: { isSuper: boolean }) {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<U[]>([]);
   const [amt, setAmt] = useState<Record<string, string>>({});
+  const [catalog, setCatalog] = useState<AdminStoreItem[]>([]);
+  const [identity, setIdentity] = useState<Record<string, UserIdentityEdit>>({});
+  const [selectedItem, setSelectedItem] = useState<Record<string, string>>({});
+  const [equipItem, setEquipItem] = useState<Record<string, boolean>>({});
   async function load() {
-    const { data, error } = await supabase.rpc("admin_list_users", { _q: q });
+    const [{ data, error }, { data: items, error: itemsError }, { data: profiles, error: profilesError }] = await Promise.all([
+      supabase.rpc("admin_list_users", { _q: q }),
+      supabase.from("store_items").select("id,name,kind,asset_key").order("name"),
+      supabase.from("profiles").select("id,id_color"),
+    ]);
     if (error) toast.error(errMsg(error));
-    setRows((data as U[]) ?? []);
+    if (itemsError) toast.error(errMsg(itemsError));
+    if (profilesError) toast.error(errMsg(profilesError));
+    const users = (data as U[]) ?? [];
+    setRows(users);
+    setCatalog((items as AdminStoreItem[]) ?? []);
+    const colors = Object.fromEntries(((profiles ?? []) as { id: string; id_color: string | null }[]).map((p) => [p.id, p.id_color || "#D4AF37"]));
+    setIdentity((current) => {
+      const next = { ...current };
+      users.forEach((u) => {
+        next[u.id] ??= { display_no: String(u.display_no), level: String(u.level), id_color: colors[u.id] || "#D4AF37", name_color: colors[u.id] || "#D4AF37", name_effect: "none", name_effect_speed: "1800" };
+      });
+      return next;
+    });
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
+  useAdminRealtime(["profiles", "wallets", "user_roles", "store_items", "user_items"], load);
   async function run(p: PromiseLike<{ error: unknown }>, msg: string) {
     const { error } = await p;
     if (error) { toast.error(errMsg(error as never)); return; }
     toast.success(msg);
-    load();
+    await load();
+  }
+  async function saveIdentity(u: U) {
+    const value = identity[u.id] ?? { display_no: String(u.display_no), level: String(u.level), id_color: "#D4AF37", name_color: "#D4AF37", name_effect: "none", name_effect_speed: "1800" };
+    const displayNo = Number(value.display_no), level = Number(value.level);
+    if (!Number.isSafeInteger(displayNo) || displayNo < 100000 || !Number.isInteger(level) || level < 1 || level > 999) {
+      toast.error("تحقق من رقم ID والمستوى");
+      return;
+    }
+    await run(supabase.rpc("admin_update_user_identity" as never, {
+      _user: u.id, _display_no: displayNo, _level: level, _id_color: value.id_color,
+    } as never), "تم حفظ ID المميز ولونه والمستوى");
+    await run(supabase.rpc("admin_set_profile_style" as never, { _user: u.id, _name_color: value.name_color, _name_effect: value.name_effect, _speed: Number(value.name_effect_speed) } as never), "تم حفظ لون الاسم وتأثيره");
+  }
+  async function grantItem(u: U) {
+    const itemId = selectedItem[u.id];
+    if (!itemId) { toast.error("اختر إطاراً أو دخولية أو شارة أولاً"); return; }
+    const item = catalog.find((entry) => entry.id === itemId);
+    if (equipItem[u.id] && item?.kind !== "frame" && item?.kind !== "entry") {
+      toast.error("يمكن تجهيز الإطار أو الدخولية فقط؛ الشارات تُضاف للمخزون");
+      return;
+    }
+    await run(supabase.rpc("admin_grant_store_item" as never, {
+      _user: u.id, _item: itemId, _equip: !!equipItem[u.id],
+    } as never), "تم إرسال العنصر إلى مخزون المستخدم");
   }
   return (
-    <div className="space-y-2">
-      <div className="flex gap-2"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="بحث بالاسم أو ID" /><Button onClick={load}>بحث</Button></div>
-      {rows.map((u) => (
-        <div key={u.id} className="glass space-y-2 rounded-2xl p-3 text-sm">
+    <div className="space-y-3">
+      <div className="flex gap-2"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="بحث بالاسم أو ID" /><Button onClick={() => void load()}>بحث</Button></div>
+      {rows.map((u) => {
+        const edit = identity[u.id] ?? { display_no: String(u.display_no), level: String(u.level), id_color: "#D4AF37", name_color: "#D4AF37", name_effect: "none", name_effect_speed: "1800" };
+        return <div key={u.id} className="glass space-y-3 rounded-2xl p-3 text-sm">
           <div className="flex flex-wrap justify-between gap-2">
             <Link to="/u/$id" params={{ id: u.id }} className="font-bold">{u.display_name} <span className="text-xs text-muted-foreground">ID {u.display_no}</span></Link>
             <span className="text-xs">Lv {u.level} · VIP {u.vip_level} · 🪙 {Number(u.coins).toLocaleString()} {u.roles.length > 0 && `· ${u.roles.join(", ")}`}</span>
           </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <label className="text-xs text-muted-foreground">ID المميز<Input type="number" min="100000" value={edit.display_no} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, display_no: e.target.value } }))} /></label>
+            <label className="text-xs text-muted-foreground">المستوى<Input type="number" min="1" max="999" value={edit.level} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, level: e.target.value } }))} /></label>
+            <label className="text-xs text-muted-foreground">لون ID<input aria-label="لون ID المميز" type="color" value={edit.id_color} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, id_color: e.target.value } }))} className="h-10 w-full rounded-md border border-input bg-input p-1" /></label>
+            <label className="text-xs text-muted-foreground">لون الاسم<input aria-label="لون الاسم" type="color" value={edit.name_color} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, name_color: e.target.value } }))} className="h-10 w-full rounded-md border border-input bg-input p-1" /></label>
+            <select aria-label="تأثير الاسم" value={edit.name_effect} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, name_effect: e.target.value } }))} className="rounded-md border border-input bg-input px-2 py-2 text-xs"><option value="none">اسم ثابت</option><option value="shimmer">لمعة متحركة</option><option value="pulse">نبض</option><option value="rainbow">ألوان متحركة</option></select>
+            <Input type="number" min="500" max="5000" aria-label="سرعة تأثير الاسم" value={edit.name_effect_speed} onChange={(e) => setIdentity((s) => ({ ...s, name_effect_speed: e.target.value }))} />
+            <Button className="self-end" size="sm" onClick={() => void saveIdentity(u)}>حفظ الهوية المميزة</Button>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <Input className="w-28" type="number" placeholder="عملات ±" value={amt[u.id] ?? ""} onChange={(e) => setAmt({ ...amt, [u.id]: e.target.value })} />
-            <Button size="sm" onClick={() => run(supabase.rpc("admin_grant_coins", { _user: u.id, _amount: Number(amt[u.id] || 0) }), "تم تعديل الرصيد")}>تطبيق</Button>
-            <select className="rounded-md border border-input bg-input px-2 py-1.5 text-xs" value={u.vip_level} onChange={(e) => run(supabase.rpc("admin_set_vip", { _user: u.id, _vip: Number(e.target.value) }), "تم تعديل VIP")}>
+            <Button size="sm" onClick={() => void run(supabase.rpc("admin_grant_coins", { _user: u.id, _amount: Number(amt[u.id] || 0) }), "تم تعديل الرصيد")}>تطبيق</Button>
+            <select aria-label="مستوى VIP" className="rounded-md border border-input bg-input px-2 py-1.5 text-xs" value={u.vip_level} onChange={(e) => void run(supabase.rpc("admin_set_vip", { _user: u.id, _vip: Number(e.target.value) }), "تم تعديل VIP")}>
               {Array.from({ length: 11 }, (_, i) => <option key={i} value={i}>VIP {i}</option>)}
             </select>
-            {isSuper && (["admin", "moderator"] as const).map((r) => {
-              const has = u.roles.includes(r);
-              return <Button key={r} size="sm" variant={has ? "destructive" : "outline"} onClick={() => run(supabase.rpc("admin_set_role", { _user: u.id, _role: r, _grant: !has }), "تم تحديث الصلاحية")}>{has ? `إزالة ${r}` : `منح ${r}`}</Button>;
-            })}
           </div>
-        </div>
-      ))}
+          <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+            <select aria-label="اختر عنصراً لإرساله" className="min-w-0 rounded-md border border-input bg-input px-2 py-2 text-xs" value={selectedItem[u.id] ?? ""} onChange={(e) => setSelectedItem((s) => ({ ...s, [u.id]: e.target.value }))}>
+              <option value="">اختر إطاراً أو دخولية أو شارة</option>
+              {catalog.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.kind}</option>)}
+            </select>
+            <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!equipItem[u.id]} onChange={(e) => setEquipItem((s) => ({ ...s, [u.id]: e.target.checked }))} /> تجهيز فوراً (إطار/دخولية)</label>
+            <Button size="sm" onClick={() => void grantItem(u)}>إرسال للمستخدم</Button>
+          </div>
+          {isSuper && <div className="flex flex-wrap gap-1">{(["admin", "moderator"] as const).map((r) => {
+            const has = u.roles.includes(r);
+            return <Button key={r} size="sm" variant={has ? "destructive" : "outline"} onClick={() => void run(supabase.rpc("admin_set_role", { _user: u.id, _role: r, _grant: !has }), "تم تحديث الصلاحية")}>{has ? `إزالة ${r}` : `منح ${r}`}</Button>;
+          })}</div>}
+        </div>;
+      })}
     </div>
   );
 }
@@ -280,48 +415,170 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
 type WalletTx = { user_id: string; display_name: string | null; amount: number; kind: string; note: string; created_at: string };
 function WalletTab() {
   const [rows, setRows] = useState<WalletTx[]>([]);
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase.rpc("admin_list_wallet_tx", { _limit: 200 });
-      if (error) toast.error(errMsg(error));
-      setRows((data as WalletTx[]) ?? []);
-    })();
-  }, []);
+  const [topups, setTopups] = useState<{ id: string; user_id: string; coins: number; payment_method: string; reference: string | null; status: string; admin_note: string | null; created_at: string }[]>([]);
+  async function load() {
+    const [{ data, error }, { data: requests, error: reqError }] = await Promise.all([
+      supabase.rpc("admin_list_wallet_tx", { _limit: 200 }),
+      supabase.from("wallet_topup_requests").select("id,user_id,coins,payment_method,reference,status,admin_note,created_at").order("created_at", { ascending: false }).limit(100),
+    ]);
+    if (error) toast.error(errMsg(error));
+    if (reqError) toast.error(errMsg(reqError));
+    setRows((data as WalletTx[]) ?? []);
+    setTopups((requests ?? []) as typeof topups);
+  }
+  useEffect(() => { void load(); }, []);
+  useAdminRealtime(["wallet_transactions", "wallets", "wallet_topup_requests"], load);
+  async function decide(id: string, status: "approved" | "rejected") {
+    const note = prompt(status === "approved" ? "ملاحظة الشحن (اختياري)" : "سبب الرفض (اختياري)") ?? "";
+    const { error } = await supabase.rpc("admin_decide_wallet_topup", { _request: id, _status: status, _note: note });
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success(status === "approved" ? "تم اعتماد الشحن وإضافة العملات" : "تم رفض طلب الشحن");
+    load();
+  }
   return (
-    <div className="space-y-2">
-      {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد معاملات</p>}
-      {rows.map((t, i) => (
-        <div key={i} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
-          <div>
-            <b>{t.display_name ?? "مستخدم"}</b>
-            <div className="text-xs text-muted-foreground">{t.kind} · {t.note} · {fmt(t.created_at)}</div>
+    <div className="space-y-4">
+      <section className="glass rounded-2xl p-4">
+        <h3 className="mb-3 font-bold">طلبات شحن المحفظة</h3>
+        {topups.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد طلبات شحن</p> : topups.map((r) => (
+          <div key={r.id} className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-background/50 p-3 text-sm">
+            <div><b>{Number(r.coins).toLocaleString()} 🪙</b><div className="text-xs text-muted-foreground" dir="ltr">{r.user_id} · {r.payment_method} · {r.reference || "بدون مرجع"} · {fmt(r.created_at)}</div></div>
+            <div className="flex items-center gap-2"><span className="text-xs">{r.status}</span>{r.status === "pending" && <><Button size="sm" className="bg-gold" onClick={() => void decide(r.id, "approved")}>اعتماد</Button><Button size="sm" variant="destructive" onClick={() => void decide(r.id, "rejected")}>رفض</Button></>}</div>
           </div>
-          <b className={t.amount >= 0 ? "text-green-400" : "text-red-400"}>{t.amount >= 0 ? "+" : ""}{Number(t.amount).toLocaleString()} 🪙</b>
+        ))}
+      </section>
+      <section className="space-y-2">
+        <h3 className="font-bold">سجل معاملات المحافظ</h3>
+        {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد معاملات</p>}
+        {rows.map((t, i) => (
+          <div key={i} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
+            <div><b>{t.display_name ?? "مستخدم"}</b><div className="text-xs text-muted-foreground">{t.kind} · {t.note} · {fmt(t.created_at)}</div></div>
+            <b className={t.amount >= 0 ? "text-green-400" : "text-red-400"}>{t.amount >= 0 ? "+" : ""}{Number(t.amount).toLocaleString()} 🪙</b>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+type GiftTx = { sender_name: string | null; receiver_name: string | null; gift_name: string; cost: number; created_at: string };
+type GiftCatalog = { id: string; name: string; emoji: string; price: number; active: boolean };
+function GiftsTab() {
+  const [rows, setRows] = useState<GiftTx[]>([]);
+  const [catalog, setCatalog] = useState<GiftCatalog[]>([]);
+  const [form, setForm] = useState({ name: "", emoji: "🎁", price_coins: "100" });
+  async function load() {
+    const [{ data, error }, { data: gifts, error: catalogError }] = await Promise.all([
+      supabase.rpc("admin_list_gift_tx", { _limit: 200 }),
+      supabase.from("gifts").select("id,name,emoji,price,active").order("price"),
+    ]);
+    if (error) toast.error(errMsg(error));
+    if (catalogError) toast.error(errMsg(catalogError));
+    setRows((data as GiftTx[]) ?? []);
+    setCatalog((gifts as GiftCatalog[]) ?? []);
+  }
+  useEffect(() => { load(); }, []);
+  useAdminRealtime(["gifts", "gift_transactions"], load);
+  async function saveGift() {
+    if (!form.name.trim() || !form.emoji.trim() || !Number.isFinite(Number(form.price_coins)) || Number(form.price_coins) < 0) {
+      toast.error("أدخل اسم الهدية ورمزها وسعراً صحيحاً");
+      return;
+    }
+    // gifts.id is UUID. Let PostgreSQL generate it; never send labels like gift-<timestamp>.
+    const { error } = await supabase.from("gifts").insert({
+      name: form.name.trim(),
+      emoji: form.emoji.trim(),
+      price: Number(form.price_coins),
+      active: true,
+    });
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تم حفظ الهدية في الكتالوج");
+    setForm({ name: "", emoji: "🎁", price_coins: "100" });
+    load();
+  }
+  async function toggleGift(g: GiftCatalog) {
+    const { error } = await supabase.from("gifts").update({ active: !g.active }).eq("id", g.id);
+    if (error) { toast.error(errMsg(error)); return; }
+    load();
+  }
+  async function deleteGift(g: GiftCatalog) {
+    if (!confirm("حذف الهدية من الكتالوج؟")) return;
+    const { error } = await supabase.from("gifts").delete().eq("id", g.id);
+    if (error) { toast.error(errMsg(error)); return; }
+    load();
+  }
+  return (
+    <div className="space-y-4">
+      <div className="glass space-y-3 rounded-2xl p-4">
+        <b>إدارة كتالوج الهدايا</b>
+        <div className="grid grid-cols-2 gap-2">
+          
+          <Input placeholder="اسم الهدية" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Input placeholder="الرمز أو الإيموجي" value={form.emoji} onChange={(e) => setForm({ ...form, emoji: e.target.value })} />
+          <Input type="number" min="0" placeholder="السعر بالعملات" value={form.price_coins} onChange={(e) => setForm({ ...form, price_coins: e.target.value })} />
+        </div>
+        <Button className="bg-gold" onClick={saveGift}>حفظ الهدية</Button>
+      </div>
+      {catalog.map((g) => (
+        <div key={g.id} className="glass flex items-center justify-between gap-2 rounded-xl p-3 text-sm">
+          <div><b>{g.emoji} {g.name}</b><div className="text-xs text-muted-foreground" dir="ltr">{g.id} · {g.price} coins</div></div>
+          <div className="flex gap-1"><Button size="sm" variant="outline" onClick={() => toggleGift(g)}>{g.active ? "إيقاف" : "تفعيل"}</Button><Button size="sm" variant="destructive" onClick={() => deleteGift(g)}>حذف</Button></div>
+        </div>
+      ))}
+      <div className="border-t border-border pt-3"><b>سجل إرسال الهدايا</b></div>
+      {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد معاملات</p>}
+      {rows.map((g, i) => (
+        <div key={i} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
+          <div><b>{g.sender_name ?? "—"}</b> أرسل <b className="text-primary">{g.gift_name}</b> إلى <b>{g.receiver_name ?? "—"}</b><div className="text-xs text-muted-foreground">{fmt(g.created_at)}</div></div>
+          <b>🪙 {Number(g.cost).toLocaleString()}</b>
         </div>
       ))}
     </div>
   );
 }
 
-type GiftTx = { sender_name: string | null; receiver_name: string | null; gift_name: string; cost: number; created_at: string };
-function GiftsTab() {
-  const [rows, setRows] = useState<GiftTx[]>([]);
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase.rpc("admin_list_gift_tx", { _limit: 200 });
-      if (error) toast.error(errMsg(error));
-      setRows((data as GiftTx[]) ?? []);
-    })();
-  }, []);
+type VipTier = { level: number; name: string; price_coins: number; duration_days: number };
+function VipTab() {
+  const [rows, setRows] = useState<VipTier[]>([]);
+  const [form, setForm] = useState({ level: "1", name: "", price_coins: "1000", duration_days: "30" });
+  async function load() {
+    const { data, error } = await supabase.from("vip_tiers").select("level,name,price_coins,duration_days").order("level");
+    if (error) toast.error(errMsg(error));
+    setRows((data as VipTier[]) ?? []);
+  }
+  useEffect(() => { load(); }, []);
+  useAdminRealtime(["vip_tiers", "profiles"], load);
+  async function save() {
+    const level = Number(form.level), price = Number(form.price_coins), days = Number(form.duration_days);
+    if (!Number.isInteger(level) || level < 1 || level > 10 || !form.name.trim() || price < 0 || days < 1) {
+      toast.error("تحقق من المستوى والاسم والسعر والمدة"); return;
+    }
+    const { error } = await supabase.from("vip_tiers").upsert({ level, name: form.name.trim(), price_coins: price, duration_days: days });
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تم حفظ مستوى VIP");
+    load();
+  }
+  async function remove(level: number) {
+    if (!confirm("حذف مستوى VIP؟")) return;
+    const { error } = await supabase.from("vip_tiers").delete().eq("level", level);
+    if (error) { toast.error(errMsg(error)); return; }
+    load();
+  }
   return (
-    <div className="space-y-2">
-      {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد هدايا</p>}
-      {rows.map((g, i) => (
-        <div key={i} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
-          <div><b>{g.sender_name ?? "—"}</b> أرسل <b className="text-primary">{g.gift_name}</b> إلى <b>{g.receiver_name ?? "—"}</b>
-            <div className="text-xs text-muted-foreground">{fmt(g.created_at)}</div>
-          </div>
-          <b>🪙 {Number(g.cost).toLocaleString()}</b>
+    <div className="space-y-3">
+      <div className="glass space-y-2 rounded-2xl p-4">
+        <b>إضافة أو تعديل مستوى VIP</b>
+        <div className="grid grid-cols-2 gap-2">
+          <Input type="number" min="1" max="10" placeholder="المستوى" value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} />
+          <Input placeholder="اسم المستوى" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Input type="number" min="0" placeholder="السعر بالعملات" value={form.price_coins} onChange={(e) => setForm({ ...form, price_coins: e.target.value })} />
+          <Input type="number" min="1" placeholder="المدة بالأيام" value={form.duration_days} onChange={(e) => setForm({ ...form, duration_days: e.target.value })} />
+        </div>
+        <Button className="bg-gold" onClick={save}>حفظ المستوى</Button>
+      </div>
+      {rows.map((v) => (
+        <div key={v.level} className="glass flex items-center justify-between gap-2 rounded-xl p-3 text-sm">
+          <div><b>VIP {v.level} · {v.name}</b><div className="text-xs text-muted-foreground">🪙 {v.price_coins.toLocaleString()} · {v.duration_days} يوم</div></div>
+          <Button size="sm" variant="destructive" onClick={() => remove(v.level)}>حذف</Button>
         </div>
       ))}
     </div>
@@ -334,10 +591,12 @@ function StoreTab() {
   const [rows, setRows] = useState<StoreRow[]>([]);
   const [form, setForm] = useState({ kind: "frame", name: "", description: "", price: "100", asset_key: "", sort_order: "0" });
   async function load() {
-    const { data } = await supabase.from("store_items").select("*").order("kind").order("sort_order");
+    const { data, error } = await supabase.from("store_items").select("*").order("kind").order("sort_order");
+    if (error) { toast.error(errMsg(error)); return; }
     setRows((data as StoreRow[]) ?? []);
   }
   useEffect(() => { load(); }, []);
+  useAdminRealtime(["store_items"], load);
   async function save() {
     const { error } = await supabase.rpc("admin_save_store_item", {
       _id: null as unknown as string, _kind: form.kind, _name: form.name, _description: form.description,
@@ -350,9 +609,11 @@ function StoreTab() {
   }
   async function del(id: string) {
     if (!confirm("حذف العنصر من المتجر؟")) return;
-    const { error } = await supabase.rpc("admin_delete_store_item", { _id: id });
+    const { data, error } = await supabase.rpc("admin_delete_store_item", { _id: id });
     if (error) { toast.error(errMsg(error)); return; }
-    load();
+    if (data !== true) { toast.error("لم يتم العثور على العنصر أو لم يتم حذفه"); await load(); return; }
+    toast.success("تم حذف العنصر من المتجر");
+    await load();
   }
   return (
     <div className="space-y-3">
@@ -417,6 +678,7 @@ function AuditTab() {
       setRows((data as AuditRow[]) ?? []);
     })();
   }, []);
+  useAdminRealtime(["audit_log"], () => { void supabase.rpc("admin_list_audit", { _limit: 200 }).then(({ data, error }) => { if (error) toast.error(errMsg(error)); setRows((data as AuditRow[]) ?? []); }); });
   return (
     <div className="space-y-2">
       {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد إجراءات مسجلة بعد</p>}
@@ -429,6 +691,283 @@ function AuditTab() {
           <div className="text-xs text-muted-foreground">{a.target_type} <span dir="ltr">{a.target_id}</span> {a.details}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+
+type AdminAsset = {
+  id: string;
+  asset_key: string;
+  name: string;
+  category: string;
+  url: string | null;
+  metadata: { storage_path?: string; content_type?: string; size?: number } | null;
+  is_active: boolean;
+  created_at: string;
+};
+const ASSET_CATEGORIES: Record<string, string> = {
+  general: "عام",
+  ui: "عناصر الواجهة",
+  room: "الغرف والخلفيات",
+  gift: "الهدايا",
+  frame: "إطارات الصور",
+  vip: "شارات VIP",
+  badge: "الشارات المميزة",
+  level: "المستويات",
+  banner: "البانرات",
+  avatar: "الصور الشخصية",
+  "3d": "مجسمات ثلاثية الأبعاد",
+};
+const ASSET_BUCKET = "admin-assets";
+const MAX_ASSET_SIZE = 50 * 1024 * 1024;
+
+function AssetsTab() {
+  const [rows, setRows] = useState<AdminAsset[]>([]);
+  const [grantUserId, setGrantUserId] = useState("");
+  const [grantUserNo, setGrantUserNo] = useState("");
+  const [grantItemId, setGrantItemId] = useState("");
+  const [grantEquip, setGrantEquip] = useState(false);
+  const [grantBusy, setGrantBusy] = useState(false);
+  const [category, setCategory] = useState("general");
+  const [name, setName] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    const { data, error } = await supabase.from("admin_assets").select("*").order("created_at", { ascending: false }).limit(300);
+    if (error) {
+      toast.error(errMsg(error));
+      setLoading(false);
+      return;
+    }
+    const assets = (data ?? []) as unknown as AdminAsset[];
+    setRows(assets);
+    const signed: Record<string, string> = {};
+    await Promise.all(assets.map(async (asset) => {
+      const path = asset.metadata?.storage_path ?? asset.url;
+      if (!path) return;
+      const { data: result } = await supabase.storage.from(ASSET_BUCKET).createSignedUrl(path, 3600);
+      if (result?.signedUrl) signed[asset.id] = result.signedUrl;
+    }));
+    setPreviews(signed);
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+  useAdminRealtime(["admin_assets"], load);
+
+  async function uploadAssets() {
+    if (!files.length) {
+      toast.error("اختر ملفاً واحداً على الأقل");
+      return;
+    }
+    const invalid = files.find((file) => file.size > MAX_ASSET_SIZE);
+    if (invalid) {
+      toast.error(`حجم ${invalid.name} أكبر من الحد المسموح (50 ميجابايت)`);
+      return;
+    }
+    setUploading(true);
+    let uploaded = 0;
+    for (const file of files) {
+      const cleanName = file.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(-100) || "asset";
+      const path = `${category}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${cleanName}`;
+      const { error: storageError } = await supabase.storage.from(ASSET_BUCKET).upload(path, file, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+      if (storageError) {
+        toast.error(`فشل رفع ${file.name}: ${storageError.message}`);
+        continue;
+      }
+      const assetKey = `${category}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const { error: rowError } = await supabase.from("admin_assets").insert({
+        asset_key: assetKey,
+        name: name.trim() || file.name.replace(/\.[^.]+$/, ""),
+        category,
+        url: path,
+        metadata: { storage_path: path, content_type: file.type || "application/octet-stream", size: file.size, original_name: file.name },
+        is_active: true,
+      });
+      if (rowError) {
+        await supabase.storage.from(ASSET_BUCKET).remove([path]);
+        toast.error(`تم رفع الملف لكن تعذرت إضافته للمكتبة: ${rowError.message}`);
+        continue;
+      }
+      uploaded += 1;
+    }
+    setUploading(false);
+    setFiles([]);
+    setName("");
+    const picker = document.getElementById("admin-asset-files") as HTMLInputElement | null;
+    if (picker) picker.value = "";
+    if (uploaded) toast.success(`تم رفع وإضافة ${uploaded} أصل بنجاح`);
+    await load();
+  }
+
+  async function toggleAsset(asset: AdminAsset) {
+    const { error } = await supabase.from("admin_assets").update({ is_active: !asset.is_active, updated_at: new Date().toISOString() }).eq("id", asset.id);
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success(asset.is_active ? "تم إيقاف الأصل عن الظهور في التطبيق" : "تم تفعيل الأصل");
+    await load();
+  }
+
+  async function grantBadgeToUser() {
+    const userNo = Number(grantUserNo.trim());
+    if (!Number.isSafeInteger(userNo) || userNo < 1) {
+      toast.error("أدخل ID المستخدم الصحيح");
+      return;
+    }
+    const asset = rows.find((a) => a.id === grantItemId);
+    if (!asset || asset.category !== "badge") {
+      toast.error("اختر شارة من مكتبة الأصول أولاً");
+      return;
+    }
+    setGrantBusy(true);
+    try {
+      const { data: users, error: userError } = await supabase.rpc("admin_list_users", { _q: grantUserNo.trim() });
+      if (userError) throw userError;
+      const user = ((users ?? []) as { id: string; display_no: number }[]).find((u) => Number(u.display_no) === userNo);
+      if (!user) throw new Error("لم يتم العثور على مستخدم بهذا ID");
+      setGrantUserId(user.id);
+
+      const { error: grantError } = await supabase.rpc("admin_grant_badge_asset", {
+        _user: user.id,
+        _asset_id: asset.id,
+        _equip: grantEquip,
+      });
+      if (grantError) throw grantError;
+      toast.success(`تم إرسال الشارة «${asset.name}» إلى ID ${userNo}${grantEquip ? " وتجهيزها" : ""}`);
+      setGrantUserId(user.id);
+    } catch (error) {
+      toast.error(errMsg(error as never));
+    } finally {
+      setGrantBusy(false);
+    }
+  }
+
+  async function deleteAsset(asset: AdminAsset) {
+    if (!confirm(`حذف الأصل «${asset.name}» نهائياً؟`)) return;
+    const path = asset.metadata?.storage_path ?? asset.url;
+    if (path) {
+      const { error } = await supabase.storage.from(ASSET_BUCKET).remove([path]);
+      if (error) { toast.error(`تعذر حذف الملف: ${error.message}`); return; }
+    }
+    const { error } = await supabase.from("admin_assets").delete().eq("id", asset.id);
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تم حذف الأصل والملف المرتبط به");
+    await load();
+  }
+
+  const visible = rows.filter((asset) =>
+    (filter === "all" || asset.category === filter) &&
+    (asset.name.toLowerCase().includes(search.toLowerCase()) || asset.asset_key.toLowerCase().includes(search.toLowerCase()))
+  );
+  const isImage = (asset: AdminAsset) => (asset.metadata?.content_type ?? "").startsWith("image/");
+  const isModel = (asset: AdminAsset) => /model\/gltf|octet-stream/i.test(asset.metadata?.content_type ?? "") || /\.(glb|gltf)$/i.test(asset.name);
+
+  return (
+    <div className="space-y-4">
+      <div className="glass space-y-3 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h2 className="font-bold">مكتبة أصول التطبيق</h2>
+            <p className="text-xs text-muted-foreground">ارفع الصور ومجسمات GLB/GLTF لتخزينها وربطها بمحتوى التطبيق.</p>
+          </div>
+          <span className="rounded-full bg-secondary px-3 py-1 text-xs">{rows.length} أصل</span>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="space-y-1 text-xs">
+            <span className="text-muted-foreground">تصنيف الأصل</span>
+            <select className="w-full rounded-md border border-input bg-input px-3 py-2" value={category} onChange={(e) => setCategory(e.target.value)}>
+              {Object.entries(ASSET_CATEGORIES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs">
+            <span className="text-muted-foreground">اسم الأصل (اختياري)</span>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="مثال: تاج VIP ذهبي" />
+          </label>
+        </div>
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-secondary/40 p-5 text-center">
+          <Upload className="h-7 w-7 text-primary" />
+          <span className="text-sm font-semibold">اختر صوراً أو ملفات ثلاثية الأبعاد</span>
+          <span className="text-xs text-muted-foreground">PNG · JPG · WEBP · GIF · SVG · GLB · GLTF — حتى 50 MB للملف</span>
+          <input id="admin-asset-files" className="max-w-full text-xs" type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.glb,.gltf,model/gltf-binary,model/gltf+json,application/octet-stream" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
+        </label>
+        {files.length > 0 && <p className="text-xs text-muted-foreground">{files.length} ملف محدد · {files.map((f) => f.name).join("، ")}</p>}
+        <Button className="w-full bg-gold" onClick={uploadAssets} disabled={uploading || files.length === 0}>
+          {uploading ? "جارٍ رفع الأصول…" : `رفع وإضافة ${files.length || ""} أصل`}
+        </Button>
+      </div>
+
+      <div className="glass space-y-3 rounded-2xl p-4">
+        <div>
+          <h3 className="font-bold">إرسال شارة لمستخدم</h3>
+          <p className="text-xs text-muted-foreground">اختر شارة من مكتبة الأصول وأرسلها مباشرة إلى المستخدم بالـ ID. ستظهر تحت الـ ID في الملف العام بعد الاستلام.</p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <Input value={grantUserNo} onChange={(e) => setGrantUserNo(e.target.value.replace(/\D/g, ""))} placeholder="ID المستخدم" inputMode="numeric" dir="ltr" />
+          <select className="rounded-md border border-input bg-input px-3 py-2 text-xs" value={grantItemId} onChange={(e) => setGrantItemId(e.target.value)}>
+            <option value="">اختر شارة</option>
+            {rows.filter((a) => a.category === "badge" && a.is_active).map((a) => <option key={a.id} value={a.id}>{a.name} · {a.asset_key}</option>)}
+          </select>
+          <Button className="bg-gold" onClick={() => void grantBadgeToUser()} disabled={grantBusy || !grantUserNo || !grantItemId}>
+            {grantBusy ? "جارٍ الإرسال…" : "إرسال الشارة"}
+          </Button>
+        </div>
+        <label className="flex items-center gap-2 text-xs">
+          <input type="checkbox" checked={grantEquip} onChange={(e) => setGrantEquip(e.target.checked)} />
+          تجهيز الشارة فوراً وإظهارها تحت ID المستخدم
+        </label>
+        {grantUserId && <div className="text-[11px] text-muted-foreground" dir="ltr">user_id: {grantUserId}</div>}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <div className="min-w-40 flex-1"><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث باسم الأصل أو مفتاحه" /></div>
+        <select className="rounded-md border border-input bg-input px-3 text-xs" value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <option value="all">كل التصنيفات</option>
+          {Object.entries(ASSET_CATEGORIES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select>
+        <Button size="icon" variant="outline" onClick={load} disabled={loading} aria-label="تحديث"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
+      </div>
+
+      {visible.length === 0 && <p className="glass rounded-2xl p-8 text-center text-sm text-muted-foreground">{loading ? "جارٍ تحميل المكتبة…" : "لا توجد أصول مطابقة. ارفع أول أصل من النموذج أعلاه."}</p>}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {visible.map((asset) => (
+          <div key={asset.id} className="glass min-w-0 overflow-hidden rounded-2xl">
+            <div className="flex aspect-square items-center justify-center bg-secondary/60 p-2">
+              {previews[asset.id] && isImage(asset) ? (
+                <img src={previews[asset.id]} alt={asset.name} className="h-full w-full object-contain" />
+              ) : isModel(asset) ? (
+                <div className="text-center"><Box className="mx-auto h-12 w-12 text-primary" /><span className="mt-2 block text-xs">مجسم ثلاثي الأبعاد</span></div>
+              ) : (
+                <div className="text-center"><FileIcon className="mx-auto h-10 w-10 text-muted-foreground" /><span className="mt-2 block text-xs">ملف أصل</span></div>
+              )}
+            </div>
+            <div className="space-y-2 p-3">
+              <div className="truncate text-sm font-semibold" title={asset.name}>{asset.name}</div>
+              <div className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                <span>{ASSET_CATEGORIES[asset.category] ?? asset.category}</span>
+                <span>{asset.metadata?.size ? `${(asset.metadata.size / 1024 / 1024).toFixed(1)} MB` : ""}</span>
+              </div>
+              <div className="flex items-center justify-between gap-1">
+                <span className={`rounded-full px-2 py-1 text-[10px] ${asset.is_active ? "bg-green-500/15 text-green-500" : "bg-muted text-muted-foreground"}`}>{asset.is_active ? "نشط" : "متوقف"}</span>
+                <div className="flex gap-1">
+                  {previews[asset.id] && <a href={previews[asset.id]} target="_blank" rel="noreferrer" className="rounded-md p-1.5 hover:bg-secondary" title="فتح الملف"><Search className="h-4 w-4" /></a>}
+                  <button onClick={() => toggleAsset(asset)} className="rounded-md p-1.5 hover:bg-secondary" title={asset.is_active ? "إيقاف" : "تفعيل"}><Power className="h-4 w-4" /></button>
+                  <button onClick={() => deleteAsset(asset)} className="rounded-md p-1.5 text-destructive hover:bg-secondary" title="حذف"><Trash2 className="h-4 w-4" /></button>
+                </div>
+              </div>
+              <div className="truncate text-[10px] text-muted-foreground" dir="ltr">{asset.asset_key}</div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

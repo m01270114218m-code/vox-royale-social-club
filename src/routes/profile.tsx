@@ -1,7 +1,7 @@
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { icons3d } from "@/lib/assets3d";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { uploadImage } from "@/lib/media";
+import { deleteMedia, uploadImage, useAdminAsset } from "@/lib/media";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useEffect, useState } from "react";
 import { Coins, Gem, LogOut, Pencil, Crown, Store, Users, Shield, LifeBuoy, Bell, Heart, Camera } from "lucide-react";
@@ -30,7 +30,19 @@ export const Route = createFileRoute("/profile")({
   ),
 });
 
-type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number };
+type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; name_color?: string; name_effect?: string; name_effect_speed?: number; equipped_frame?: string | null; equipped_entry?: string | null };
+type OwnedStoreItem = { id: string; acquired_at: string; store_items: { name: string; kind: string; asset_key: string } | null };
+type Badge = { id: string; badge_key: string; badge_name: string; badge_asset_key: string | null; badge_color: string; is_equipped: boolean };
+
+function BagAsset({ name, kind, assetKey, equipped, color }: { name: string; kind: string; assetKey?: string | null; equipped?: boolean; color?: string }) {
+  const src = useAdminAsset(assetKey ?? undefined);
+  return <div className="flex items-center gap-2 rounded-2xl border bg-background/60 p-2" style={{ borderColor: color || undefined }}>
+    <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-secondary">
+      {src ? <img src={src} alt="" className="h-full w-full object-contain" loading="lazy" /> : <span className="text-lg">✦</span>}
+    </div>
+    <div className="min-w-0"><div className="truncate text-xs font-bold">{name}</div><div className="text-[10px] text-muted-foreground">{kind}{equipped ? " · مجهز" : ""}</div></div>
+  </div>;
+}
 
 function ProfilePage() {
   const { user } = useAuth();
@@ -40,8 +52,15 @@ function ProfilePage() {
   const [wallet, setWallet] = useState({ coins: 0, diamonds: 0 });
   const [editing, setEditing] = useState(false);
   const [txs, setTxs] = useState<{ id: string; currency: string; amount: number; reason: string; created_at: string }[]>([]);
+  const [ownedItems, setOwnedItems] = useState<OwnedStoreItem[]>([]);
+  const [badges, setBadges] = useState<Badge[]>([]);
   const [linkEmail, setLinkEmail] = useState("");
   const isGuest = !!user?.is_anonymous;
+  async function loadOwnedItems(userId: string) {
+    const { data, error } = await supabase.from("user_items").select("id,acquired_at,store_items(name,kind,asset_key)").eq("user_id", userId).order("acquired_at", { ascending: false });
+    if (error) { toast.error(errMsg(error)); return; }
+    setOwnedItems((data ?? []) as unknown as OwnedStoreItem[]);
+  }
   async function loadTx() {
     const { data } = await supabase.from("wallet_transactions").select("id,currency,amount,reason,created_at").order("created_at", { ascending: false }).limit(20);
     if (data) setTxs(data.map((d) => ({ ...d, amount: Number(d.amount) })));
@@ -60,19 +79,31 @@ function ProfilePage() {
   }
 
   useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    const channel = supabase.channel(`profile-live-${user.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` }, (payload) => {
+        if (!alive) return;
+        setP((current) => current ? ({ ...current, ...(payload.new as P) }) : (payload.new as P));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_items", filter: `user_id=eq.${user.id}` }, () => { void loadOwnedItems(user.id); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_badges", filter: `user_id=eq.${user.id}` }, async () => { const { data: rows } = await supabase.from("user_badges").select("id,badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", user.id); setBadges((rows ?? []) as Badge[]); })
+      .subscribe();
     (async () => {
       const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
       if (data) setP(data as P);
+      await loadOwnedItems(user!.id);
       const { data: w } = await supabase.from("wallets").select("coins,diamonds").eq("user_id", user!.id).maybeSingle();
       loadTx();
       if (w) setWallet({ coins: Number(w.coins), diamonds: Number(w.diamonds) });
     })();
+    return () => { alive = false; void supabase.removeChannel(channel); };
   }, [user]);
 
   async function changeAvatar(f?: File) {
     if (!f || !p) return;
     try {
-      const path = await uploadImage(f, p.id);
+      const path = await uploadImage(f, p.id, "profile");
       const { error } = await supabase.from("profiles").update({ avatar_url: path }).eq("id", p.id);
       if (error) throw error;
       setP({ ...p, avatar_url: path });
@@ -81,6 +112,19 @@ function ProfilePage() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "فشل الرفع");
     }
+  }
+
+  async function removeAvatar() {
+    if (!p?.avatar_url) return;
+    try {
+      const previous = p.avatar_url;
+      const { error } = await supabase.from("profiles").update({ avatar_url: null }).eq("id", p.id);
+      if (error) throw error;
+      setP({ ...p, avatar_url: null });
+      if (draft) setDraft({ ...draft, avatar_url: null });
+      await deleteMedia(previous).catch(() => undefined);
+      toast.success("تم حذف صورة الحساب");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "فشل حذف الصورة"); }
   }
 
   async function save() {
@@ -99,15 +143,34 @@ function ProfilePage() {
       <div className="glass relative overflow-hidden rounded-3xl p-6 text-center">
         <div className="absolute inset-x-0 top-0 h-24 bg-royal" />
         <label className="relative mx-auto block w-fit cursor-pointer">
-          <UserAvatar src={shown.avatar_url} name={shown.display_name} size={112} ring vip={p.vip_level} />
+          <UserAvatar src={shown.avatar_url} name={shown.display_name} size={112} ring vip={p.vip_level} frameKey={p.equipped_frame} />
           <span className="absolute bottom-0 left-0 rounded-full bg-gold p-1.5"><Camera className="h-4 w-4" /></span>
-          <input type="file" accept="image/*" className="hidden" onChange={(e) => changeAvatar(e.target.files?.[0])} />
+          {shown.avatar_url && <button type="button" onClick={(e) => { e.preventDefault(); void removeAvatar(); }} className="absolute right-0 bottom-0 rounded-full bg-destructive px-2 py-1 text-[10px] text-white">حذف</button>}
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => { void changeAvatar(e.target.files?.[0]); e.currentTarget.value = ""; }} />
         </label>
-        <h2 className="mt-3 text-2xl font-bold">{flagOf(shown.country)} {shown.display_name}</h2>
-        <div className="text-sm text-muted-foreground">ID: {p.display_no}</div>
-        <IdentityBadges level={p.level} vip={p.vip_level} /><p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
+        <h2 className={`mt-3 text-2xl font-bold ${shown.name_effect && shown.name_effect !== "none" ? `name-effect-${shown.name_effect}` : ""}`} style={{ color: shown.name_color || undefined, animationDuration: `${shown.name_effect_speed || 1800}ms` }}>{flagOf(shown.country)} {shown.display_name}</h2>
+        <div className="text-sm font-bold" style={{ color: shown.id_color || "#D4AF37" }}>ID: {p.display_no}</div>
+        <IdentityBadges level={p.level} vip={p.vip_level} badge={badges.find((b) => b.is_equipped) ?? null} /><p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
         {editing && <div className="mt-2 text-xs text-primary">معاينة — لم يتم الحفظ بعد</div>}
       </div>
+
+      <section className="glass mt-4 rounded-2xl p-4 text-right">
+        <div className="mb-3 font-bold">شاراتي</div>
+        <div className="flex flex-wrap gap-2">{badges.length === 0 ? <span className="text-xs text-muted-foreground">لا توجد شارات بعد</span> : badges.map((b) => <button key={b.id} type="button" onClick={async () => { const { error } = await supabase.rpc("equip_badge", { _badge: b.id, _equip: !b.is_equipped }); if (error) toast.error(errMsg(error)); else { setBadges((xs) => xs.map((x) => ({ ...x, is_equipped: x.id === b.id ? !b.is_equipped : false }))); toast.success(!b.is_equipped ? "تم تعيين الشارة" : "تمت إزالة الشارة"); } }} className="rounded-2xl border p-2 text-center text-xs" style={{ borderColor: b.badge_color }}><div>{b.badge_name}</div>{b.is_equipped && <div className="text-[10px] text-primary">مجهزة</div>}</button>)}</div>
+        <div className="mb-3 mt-4 font-bold">حقيبتي — كل ما أملكه</div>
+        {ownedItems.length === 0 && badges.length === 0 ? <p className="text-xs text-muted-foreground">الحقيبة فارغة حالياً.</p> : (
+          <div className="grid grid-cols-2 gap-2">
+            {ownedItems.map((owned) => {
+              const item = owned.store_items;
+              if (!item) return null;
+              const equipped = (item.kind === "frame" && p.equipped_frame === item.asset_key) || (item.kind === "entry" && p.equipped_entry === item.asset_key);
+              const kindLabel = item.kind === "frame" ? "إطار" : item.kind === "entry" ? "دخولية" : item.kind === "badge" ? "شارة" : item.kind;
+              return <BagAsset key={owned.id} name={item.name} kind={kindLabel} assetKey={item.asset_key} equipped={equipped} />;
+            })}
+            {badges.map((b) => <BagAsset key={b.id} name={b.badge_name} kind="شارة" assetKey={b.badge_asset_key} equipped={b.is_equipped} color={b.badge_color} />)}
+          </div>
+        )}
+      </section>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="glass flex items-center gap-3 rounded-2xl p-4"><img src={icons3d.coin} alt="" className="h-12 w-12 object-contain" /><div><div className="text-xl font-bold">{wallet.coins}</div><div className="text-xs text-muted-foreground">عملات ذهبية</div></div></div>
