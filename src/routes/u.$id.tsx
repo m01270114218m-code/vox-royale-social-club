@@ -37,7 +37,8 @@ function UserPage() {
   const [p, setP] = useState<P | null>(null);
   const [stats, setStats] = useState({ followers: 0, following: 0, posts: 0 });
   const [isFollowing, setIsFollowing] = useState(false);
-  const [blocked, setBlocked] = useState(false);\n  const [badge, setBadge] = useState<Badge | null>(null);
+  const [blocked, setBlocked] = useState(false);
+  const [badge, setBadge] = useState<Badge | null>(null);
 
   useEffect(() => {
     if (id === uid) {
