@@ -434,3 +434,36 @@ button, a { touch-action: manipulation; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+
+/* Ensure every app page can scroll vertically on Android WebView. */
+html, body, #root {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: auto !important;
+}
+body {
+  position: relative;
+  touch-action: pan-y pinch-zoom !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+#root,
+.app-shell-content {
+  display: flow-root;
+  height: auto !important;
+  min-height: 100dvh !important;
+  overflow: visible !important;
+}
+.app-shell-content {
+  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
+}
+.app-screen {
+  height: auto !important;
+  min-height: 100dvh;
+  overflow: visible !important;
+  padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px)) !important;
+}
+.app-bottom-nav {
+  position: fixed !important;
+}
