@@ -395,3 +395,42 @@ button, a { touch-action: manipulation; }
   .app-bottom-nav > a { font-size: 10px; }
   .app-bottom-nav > button { flex-basis: 54px; width: 54px; height: 54px; }
 }
+
+
+/* Circular room cover artwork centered inside the voice-room stage. */
+.room-cover-stage {
+  position: relative;
+  width: min(62vw, 248px);
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  overflow: hidden;
+  isolation: isolate;
+  border: 3px solid rgba(226, 190, 111, .78);
+  box-shadow: 0 0 0 7px rgba(226, 190, 111, .10), 0 12px 38px rgba(0,0,0,.48), inset 0 0 24px rgba(0,0,0,.3);
+}
+.room-cover-stage-image {
+  position: absolute !important;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: inherit;
+}
+.room-cover-stage-shade {
+  position: absolute;
+  inset: 35% 0 0;
+  background: linear-gradient(transparent, rgba(12, 4, 24, .78));
+  pointer-events: none;
+}
+.room-cover-stage-label {
+  position: absolute;
+  inset-inline: 12px;
+  bottom: 18px;
+  color: white;
+  text-align: center;
+  font-weight: 800;
+  text-shadow: 0 2px 8px #000;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
