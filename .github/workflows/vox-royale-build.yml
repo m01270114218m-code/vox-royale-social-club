@@ -32,6 +32,7 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           bun --version
           bun install --frozen-lockfile
+          bun add agora-rtc-sdk-ng@4.24.1
           export NITRO_PRESET=render-com
           bun run build
           test -s .output/server/index.mjs
