@@ -347,3 +347,51 @@ button, a { touch-action: manipulation; }
 @media (prefers-reduced-motion: reduce) {
   .speaker-ring, .speaker-glow, .speaker-mic-pulse { animation: none !important; }
 }
+
+
+/* Keep the primary service dock visible in Android WebView on every app screen. */
+.app-bottom-nav {
+  position: fixed !important;
+  inset-inline: 10px !important;
+  left: 10px !important;
+  right: 10px !important;
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  z-index: 9999 !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: space-around !important;
+  width: auto !important;
+  max-width: 560px !important;
+  min-height: 78px !important;
+  margin-inline: auto !important;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  border: 1px solid oklch(0.82 0.14 85 / .32) !important;
+  background: linear-gradient(145deg, oklch(0.22 0.055 300 / .97), oklch(0.10 0.035 295 / .98)) !important;
+  box-shadow: 0 12px 36px #000b, inset 0 1px 0 #ffffff20 !important;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+.app-bottom-nav > a {
+  min-width: 0;
+  flex: 1 1 0;
+  justify-content: center;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.2;
+}
+.app-bottom-nav > button {
+  flex: 0 0 62px;
+  width: 62px;
+  height: 62px;
+  margin-top: -24px;
+}
+.app-shell-content {
+  padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+}
+@media (max-width: 380px) {
+  .app-bottom-nav { inset-inline: 6px !important; padding-inline: 5px !important; }
+  .app-bottom-nav > a { font-size: 10px; }
+  .app-bottom-nav > button { flex-basis: 54px; width: 54px; height: 54px; }
+}
