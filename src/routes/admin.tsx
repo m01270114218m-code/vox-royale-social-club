@@ -353,7 +353,8 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
     }
     await run(supabase.rpc("admin_update_user_identity" as never, {
       _user: u.id, _display_no: displayNo, _level: level, _id_color: value.id_color,
-    } as never), "تم حفظ ID المميز ولونه والمستوى");\n    await run(supabase.rpc("admin_set_profile_style" as never, { _user: u.id, _name_color: value.name_color, _name_effect: value.name_effect, _speed: Number(value.name_effect_speed) } as never), "تم حفظ لون الاسم وتأثيره");
+    } as never), "تم حفظ ID المميز ولونه والمستوى");
+    await run(supabase.rpc("admin_set_profile_style" as never, { _user: u.id, _name_color: value.name_color, _name_effect: value.name_effect, _speed: Number(value.name_effect_speed) } as never), "تم حفظ لون الاسم وتأثيره");
   }
   async function grantItem(u: U) {
     const itemId = selectedItem[u.id];
