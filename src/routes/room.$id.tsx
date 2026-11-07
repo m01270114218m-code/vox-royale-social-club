@@ -507,7 +507,7 @@ function RoomPage() {
       </div>
 
       <form onSubmit={send} className="glass m-3 flex items-center gap-2 rounded-full p-2">
-        {!mySeat && !isStaff && room.mic_mode === "request" && <Button type="button" variant="ghost" size="icon" onClick={async () => { const { data: requestId, error } = await supabase.rpc("request_mic", { _room: id }); if (error) toast.error(errMsg(error)); else { if (requestId) setMyMicRequest({ id: String(requestId) }); toast.success("تم إرسال طلب الميك لصاحب الغرفة"); } }} aria-label="طلب الميك" title="طلب الميك"><Mic className="h-7 w-7" /></Button>}{!mySeat && !isStaff && room.mic_mode === "direct" && <Button type="button" variant="ghost" size="icon" onClick={async () => { const { error } = await supabase.rpc("take_seat", { _room: id, _seat: 0 }); if (error) toast.error(errMsg(error)); else { await syncRoomSeats(); toast.success("تم الصعود للميك مباشرة"); } }} aria-label="صعود مباشر للميك" title="صعود مباشر للميك"><Mic className="h-7 w-7" /></Button>}
+        {!mySeat && <Button type="button" variant="ghost" size="icon" onClick={async () => { const { error } = await supabase.rpc("take_any_seat", { _room: id }); if (error) toast.error(errMsg(error)); else { await syncRoomSeats(); toast.success("تم الصعود للميك مباشرة"); } }} aria-label="صعود مباشر للميك" title="صعود مباشر للميك"><Mic className="h-7 w-7" /></Button>}
         {mySeat && (
           <Button type="button" variant="ghost" size="icon" onClick={async () => {
             if (!micPermissionGranted) {
@@ -539,7 +539,7 @@ function RoomPage() {
           <SheetHeader><SheetTitle>المقعد {seatMenu ? seatMenu.seat_index + 1 : ""}</SheetTitle></SheetHeader>
           {seatMenu && (
             <div className="grid gap-2 p-4">
-              {!seatMenu.user_id && (!seatMenu.is_locked || isStaff) && (isStaff ? <Button onClick={() => call("take_seat", { _room: id, _seat: seatMenu.seat_index })} className="bg-gold">الجلوس هنا</Button> : <Button onClick={() => { void supabase.rpc("request_mic", { _room: id }).then(({ error }) => { if (error) toast.error(errMsg(error)); else toast.success("تم إرسال طلب الميك لصاحب الغرفة"); return loadMicRequests(); }); }} className="bg-gold">طلب الصعود للميك</Button>)}
+              {!seatMenu.user_id && !seatMenu.is_locked && <Button onClick={async () => { const { error } = await supabase.rpc("take_seat", { _room: id, _seat: seatMenu.seat_index }); if (error) toast.error(errMsg(error)); else { await syncRoomSeats(); setSeatMenu(null); toast.success("تم الصعود للميك مباشرة"); } }} className="bg-gold">الصعود للميك</Button>}
               {seatMenu.user_id === uid && <Button variant="outline" onClick={() => call("leave_seat", { _room: id })}>مغادرة المقعد</Button>}
               {isStaff && (
                 <>
@@ -551,7 +551,7 @@ function RoomPage() {
                         {seatMenu.user_id !== uid && <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick" })}>إنزال من المقعد</Button>}
                         {seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && <Button variant="destructive" onClick={() => call("ban_user", { _room: id, _user: seatMenu.user_id })}>حظر من الغرفة</Button>}
                       </>}
-                      {(profiles[seatMenu.user_id]?.vip_level ?? 0) >= 5 && <div className="rounded-xl border border-gold/40 bg-gold/10 p-2 text-center text-xs font-bold text-gold">🛡️ VIP {profiles[seatMenu.user_id]?.vip_level} — محمي من الكتم والطرد</div>}
+                      {(profiles[seatMenu.user_id]?.vip_level ?? 0) >= 5 && !isOwner && <div className="rounded-xl border border-gold/40 bg-gold/10 p-2 text-center text-xs font-bold text-gold">🛡️ VIP {profiles[seatMenu.user_id]?.vip_level} — محمي من الكتم والطرد</div>}
                     </>
                   )}
                 </>
