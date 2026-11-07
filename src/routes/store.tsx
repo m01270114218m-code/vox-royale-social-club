@@ -53,7 +53,7 @@ function StorePage() {
   const [items, setItems] = useState<StoreItem[]>([]);
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [equippedFrame, setEquippedFrame] = useState<string | null>(null);
-  const [equippedEntry, setEquippedEntry] = useState<string | null>(null);
+  const [equippedEntry, setEquippedEntry] = useState<string | null>(null);\n  const [txs, setTxs] = useState<{id:string;amount:number;currency:string;reason:string;created_at:string}[]>([]);\n  const [topupCoins, setTopupCoins] = useState("6000");
   useEffect(() => {
     (async () => {
       const [{ data: w }, { data: p }, { data: si }, { data: ui }] = await Promise.all([
@@ -68,7 +68,7 @@ function StorePage() {
       setEquippedEntry(p?.equipped_entry ?? null);
       const enrichedItems = await Promise.all((si ?? []).map(async (item) => ({ ...item, asset_url: await getAdminAssetUrl(item.asset_key) })));
       setItems(enrichedItems);
-      setOwned(new Set((ui ?? []).map((r) => r.item_id)));
+      setOwned(new Set((ui ?? []).map((r) => r.item_id)));\n      const { data: tx } = await supabase.from("wallet_transactions").select("id,amount,currency,reason,created_at").eq("user_id", user!.id).order("created_at",{ascending:false}).limit(30);\n      setTxs((tx ?? []).map((x)=>({...x,amount:Number(x.amount)})));
     })();
   }, [user]);
   async function buyItem(item: StoreItem) {
@@ -177,7 +177,7 @@ function StorePage() {
                 <img src={icons3d.chest} alt="" className="mx-auto h-20 w-20 object-contain" />
                 <b>{p.coins.toLocaleString()}</b>
                 <div className="text-sm text-muted-foreground">{p.price}</div>
-                <Button size="sm" variant="outline" className="mt-2 w-full" onClick={() => toast("الدفع الإلكتروني غير مفعّل بعد — تواصل مع الإدارة للشحن")}>شحن</Button>
+                <Button size="sm" variant="outline" className="mt-2 w-full" onClick={async () => { const { error } = await supabase.rpc("request_wallet_topup", { _coins: p.coins, _payment_method: "manual" }); if(error) toast.error(errMsg(error)); else toast.success("تم إرسال طلب الشحن للإدارة"); }}>طلب شحن</Button>
               </div>
             ))}
           </div>
