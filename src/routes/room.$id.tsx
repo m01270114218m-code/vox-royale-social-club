@@ -392,6 +392,7 @@ function RoomPage() {
       <header className="glass m-3 flex items-center gap-3 rounded-2xl p-3">
         <Button variant="ghost" size="icon" onClick={() => nav({ to: "/" })} aria-label="رجوع" title="رجوع"><img src={icons3d.back} alt="" className="h-7 w-7 rotate-180 object-contain" /></Button>
         <div className="min-w-0 flex-1 flex items-center gap-2">
+          {room.cover_url && <img src={room.cover_url} alt={`صورة ${room.name}`} className="h-11 w-11 shrink-0 rounded-xl object-cover ring-1 ring-primary/40" />}
           <div className="min-w-0"><div className="truncate font-bold">{flagOf(room.country)} {room.name}</div>
           <div className="text-xs text-muted-foreground">#{room.room_no} · {catName(room.category)}</div></div>
         </div>
@@ -422,11 +423,7 @@ function RoomPage() {
       )}
 
       {room.cover_url && (
-        <div className="room-cover-stage mx-auto my-3 shrink-0" aria-label={`صورة غرفة ${room.name}`}>
-          <img src={room.cover_url} alt={`صورة غرفة ${room.name}`} className="room-cover-stage-image" />
-          <div className="room-cover-stage-shade" />
-          <div className="room-cover-stage-label">{room.name}</div>
-        </div>
+        
       )}
       <div className={`grid ${cols} gap-y-5 px-4 py-4`}>
         {seats.map((s) => {
