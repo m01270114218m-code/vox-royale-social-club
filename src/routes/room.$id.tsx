@@ -39,7 +39,7 @@ type Badge = { badge_name: string; badge_asset_key?: string | null; badge_color?
 type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
 type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
 type GiftT = { id: string; name: string; emoji: string; price: number; tier: string; asset_key?: string | null; asset_url?: string | null };
-type Room = { id: string; room_no: number; owner_id: string; name: string; description: string | null; category: string; country: string; seat_count: number; is_private?: boolean; cover_url?: string | null };
+type Room = { id: string; room_no: number; owner_id: string; name: string; description: string | null; category: string; country: string; seat_count: number; is_private?: boolean; cover_url?: string | null; mic_mode?: "request" | "direct" };
 
 function normalizeSeats(rows: Seat[]): Seat[] {
   const seenUsers = new Set<string>();
@@ -504,7 +504,7 @@ function RoomPage() {
       </div>
 
       <form onSubmit={send} className="glass m-3 flex items-center gap-2 rounded-full p-2">
-        {!mySeat && !isStaff && <Button type="button" variant="ghost" size="icon" onClick={async () => { const { data: requestId, error } = await supabase.rpc("request_mic", { _room: id }); if (error) toast.error(errMsg(error)); else { if (requestId) setMyMicRequest({ id: String(requestId) }); toast.success("تم إرسال طلب الميك لصاحب الغرفة"); } }} aria-label="طلب الميك" title="طلب الميك"><Mic className="h-7 w-7" /></Button>}
+        {!mySeat && !isStaff && room.mic_mode === "request" && <Button type="button" variant="ghost" size="icon" onClick={async () => { const { data: requestId, error } = await supabase.rpc("request_mic", { _room: id }); if (error) toast.error(errMsg(error)); else { if (requestId) setMyMicRequest({ id: String(requestId) }); toast.success("تم إرسال طلب الميك لصاحب الغرفة"); } }} aria-label="طلب الميك" title="طلب الميك"><Mic className="h-7 w-7" /></Button>}{!mySeat && !isStaff && room.mic_mode === "direct" && <Button type="button" variant="ghost" size="icon" onClick={async () => { const { error } = await supabase.rpc("take_seat", { _room: id, _seat: 0 }); if (error) toast.error(errMsg(error)); else { await syncRoomSeats(); toast.success("تم الصعود للميك مباشرة"); } }} aria-label="صعود مباشر للميك" title="صعود مباشر للميك"><Mic className="h-7 w-7" /></Button>}
         {mySeat && (
           <Button type="button" variant="ghost" size="icon" onClick={async () => {
             if (!micPermissionGranted) {
