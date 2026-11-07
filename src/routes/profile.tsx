@@ -30,7 +30,7 @@ export const Route = createFileRoute("/profile")({
   ),
 });
 
-type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; name_color?: string; name_effect?: string; name_effect_speed?: number; equipped_frame?: string | null; equipped_entry?: string | null };
+type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; name_color?: string; name_effect?: string; name_effect_speed?: number; equipped_frame?: string | null; equipped_entry?: string | null; chat_bubble_color?: string | null };
 type OwnedStoreItem = { id: string; acquired_at: string; store_items: { name: string; kind: string; asset_key: string } | null };
 type Badge = { id: string; badge_key: string; badge_name: string; badge_asset_key: string | null; badge_color: string; is_equipped: boolean };
 
@@ -150,7 +150,7 @@ function ProfilePage() {
         </label>
         <h2 className={`mt-3 text-2xl font-bold ${shown.name_effect && shown.name_effect !== "none" ? `name-effect-${shown.name_effect}` : ""}`} style={{ color: shown.name_color || undefined, animationDuration: `${shown.name_effect_speed || 1800}ms` }}>{flagOf(shown.country)} {shown.display_name}</h2>
         <div className="text-sm font-bold" style={{ color: shown.id_color || "#D4AF37" }}>ID: {p.display_no}</div>
-        <IdentityBadges level={p.level} vip={p.vip_level} badge={badges.find((b) => b.is_equipped) ?? null} /><p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
+        <IdentityBadges level={p.level} vip={p.vip_level} badge={badges.find((b) => b.is_equipped) ?? null} />{p.vip_level > 0 && <div className="mx-auto mt-3 max-w-sm rounded-2xl border border-primary/30 bg-background/70 p-3 text-right shadow-sm"><div className="text-xs text-muted-foreground">بطاقة VIP</div><div className="mt-1 flex items-center justify-between"><span className="font-bold" style={{ color: p.name_color || undefined }}>VIP {p.vip_level}</span><span className="text-xs" style={{ color: p.id_color || undefined }}>ID {p.display_no}</span></div><div className="mt-2 text-[11px] text-muted-foreground">{p.vip_level >= 5 ? "🛡️ حماية من الطرد والكتم داخل الغرف" : "✨ اسم وID ملونان ومزايا VIP"}</div></div>}<p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
         {editing && <div className="mt-2 text-xs text-primary">معاينة — لم يتم الحفظ بعد</div>}
       </div>
 
