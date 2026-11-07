@@ -57,6 +57,21 @@ function StorePage() {
   const [txs, setTxs] = useState<{id:string;amount:number;currency:string;reason:string;created_at:string}[]>([]);
   const [topupCoins, setTopupCoins] = useState("6000");
   useEffect(() => {
+    if (!user) return;
+    const live = supabase.channel(`store-live-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "wallets", filter: `user_id=eq.${user.id}` }, (payload) => {
+        const row = payload.new as { coins?: number };
+        if (row && row.coins !== undefined) setCoins(Number(row.coins));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "wallet_transactions", filter: `user_id=eq.${user.id}` }, async () => {
+        const { data: tx } = await supabase.from("wallet_transactions").select("id,amount,currency,reason,created_at").eq("user_id", user.id).order("created_at",{ascending:false}).limit(30);
+        setTxs((tx ?? []).map((x)=>({...x,amount:Number(x.amount)})));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_items", filter: `user_id=eq.${user.id}` }, async () => {
+        const { data: ui } = await supabase.from("user_items").select("item_id").eq("user_id", user.id);
+        setOwned(new Set((ui ?? []).map((r) => r.item_id)));
+      })
+      .subscribe();
     (async () => {
       const [{ data: w }, { data: p }, { data: si }, { data: ui }] = await Promise.all([
         supabase.from("wallets").select("coins").eq("user_id", user!.id).maybeSingle(),
@@ -74,6 +89,7 @@ function StorePage() {
       const { data: tx } = await supabase.from("wallet_transactions").select("id,amount,currency,reason,created_at").eq("user_id", user!.id).order("created_at",{ascending:false}).limit(30);
       setTxs((tx ?? []).map((x)=>({...x,amount:Number(x.amount)})));
     })();
+    return () => { void supabase.removeChannel(live); };
   }, [user]);
   async function buyItem(item: StoreItem) {
     const { data, error } = await supabase.rpc("buy_item", { _item_id: item.id });
