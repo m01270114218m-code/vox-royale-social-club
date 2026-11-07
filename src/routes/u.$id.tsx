@@ -45,6 +45,15 @@ function UserPage() {
       nav({ to: "/profile" });
       return;
     }
+    const live = supabase.channel(`public-profile-${id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${id}` }, (payload) => {
+        setP((current) => current ? ({ ...current, ...(payload.new as P) }) : (payload.new as P));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_badges", filter: `user_id=eq.${id}` }, async () => {
+        const { data: rows } = await supabase.from("user_badges").select("badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", id).eq("is_equipped", true);
+        setBadges((rows ?? []) as Badge[]);
+      })
+      .subscribe();
     (async () => {
       const { data } = await supabase.from("profiles").select("id,display_no,display_name,avatar_url,bio,country,level,vip_level,id_color,name_color,name_effect,name_effect_speed,equipped_frame,equipped_entry").eq("id", id).maybeSingle();
       setP(data);
@@ -62,6 +71,7 @@ function UserPage() {
       setBadges((badgeRows.data ?? []) as Badge[]);
       supabase.rpc("visit_profile", { _profile: id });
     })();
+    return () => { void supabase.removeChannel(live); };
   }, [id, uid, nav]);
 
   async function toggleFollow() {
