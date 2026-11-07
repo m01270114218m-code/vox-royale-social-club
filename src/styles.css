@@ -249,3 +249,55 @@ body {
   .room-filter-chip { padding-inline: .55rem; font-size: 12px; }
   .app-bottom-nav { inset-inline: .5rem; }
 }
+
+
+/* Full-screen, phone-first app shell for Capacitor Android */
+:root { color-scheme: dark; }
+html, body, #root { min-height: 100%; width: 100%; max-width: 100vw; }
+html, body { overscroll-behavior: none; }
+body {
+  min-height: 100dvh;
+  padding: 0;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: pan-y;
+}
+#root { min-height: 100dvh; }
+.app-shell-content {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding-top: env(safe-area-inset-top);
+  box-sizing: border-box;
+}
+.app-screen {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  padding-inline: 12px;
+  padding-bottom: calc(104px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+.app-bottom-nav {
+  width: calc(100% - 20px);
+  max-width: 520px;
+  min-height: 70px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  border-radius: 26px;
+  box-shadow: 0 10px 35px #0008, inset 0 1px 0 #ffffff18;
+}
+button, a, input, select { -webkit-tap-highlight-color: transparent; }
+button, a { touch-action: manipulation; }
+.room-list-banner {
+  width: 100%;
+  border-radius: 18px;
+  min-height: 88px;
+  box-shadow: 0 8px 24px #0006, inset 0 1px 0 #ffffff20;
+}
+.room-list-banner img { display:block; }
+@media (max-width: 480px) {
+  .app-screen { padding-inline: 10px; }
+  .room-list-banner { margin-top: 2px; margin-bottom: 10px; }
+}
