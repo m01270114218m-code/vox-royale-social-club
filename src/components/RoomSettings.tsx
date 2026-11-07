@@ -9,13 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { roomThemes, roomBackground } from "@/lib/assets3d";
 
-export type EditableRoom = { id: string; name: string; description: string | null; category: string; is_private?: boolean; cover_url?: string | null };
+export type EditableRoom = { id: string; name: string; description: string | null; category: string; is_private?: boolean; cover_url?: string | null; mic_mode?: "request" | "direct" };
 
 export function RoomSettings({ room, uid, open, onOpenChange, onSaved }: { room: EditableRoom; uid: string; open: boolean; onOpenChange: (o: boolean) => void; onSaved: (r: EditableRoom) => void }) {
   const [name, setName] = useState(room.name);
   const [desc, setDesc] = useState(room.description ?? "");
   const [cat, setCat] = useState(room.category);
-  const [priv, setPriv] = useState(!!room.is_private);
+  const [priv, setPriv] = useState(!!room.is_private); const [micMode, setMicMode] = useState<"request" | "direct">(room.mic_mode ?? "request");
   const [cover, setCover] = useState<string | null>(room.cover_url ?? null);
   const [busy, setBusy] = useState(false);
   const coverUrl = useMedia(cover);
@@ -40,7 +40,7 @@ export function RoomSettings({ room, uid, open, onOpenChange, onSaved }: { room:
       return;
     }
     toast.success("تم حفظ إعدادات الغرفة");
-    onSaved({ ...room, name: name.trim(), description: desc, category: cat, is_private: priv, cover_url: cover });
+    onSaved({ ...room, name: name.trim(), description: desc, category: cat, is_private: priv, cover_url: cover, mic_mode: micMode });
     onOpenChange(false);
   }
   return (
