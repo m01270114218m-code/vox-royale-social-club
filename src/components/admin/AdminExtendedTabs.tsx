@@ -71,6 +71,7 @@ export function SeatsTab() {
 type Banner = { id: string; title: string; image_url: string; target_url: string | null; is_active: boolean; sort_order: number; starts_at: string | null; ends_at: string | null };
 export function BannersTab() {
   const [rows, setRows] = useState<Banner[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", image_url: "", target_url: "", sort_order: "0" });
   async function load() {
     const { data, error } = await supabase.from("banners").select("*").order("sort_order").order("created_at", { ascending: false }).limit(200);
@@ -81,12 +82,13 @@ export function BannersTab() {
   useAdminRealtime(["banners"], load);
   async function save() {
     if (!form.title.trim() || !/^https?:\/\//i.test(form.image_url.trim())) { toast.error("أدخل عنواناً ورابط صورة صحيحاً"); return; }
-    const { error } = await supabase.from("banners").insert({
-      title: form.title.trim(), image_url: form.image_url.trim(),
-      target_url: form.target_url.trim() || null, sort_order: Number(form.sort_order) || 0, is_active: true,
-    });
+    const payload = { title: form.title.trim(), image_url: form.image_url.trim(), target_url: form.target_url.trim() || null, sort_order: Number(form.sort_order) || 0, updated_at: new Date().toISOString() };
+    const { error } = editingId
+      ? await supabase.from("banners").update(payload).eq("id", editingId)
+      : await supabase.from("banners").insert({ ...payload, is_active: true });
     if (error) { toast.error(errMsg(error)); return; }
-    toast.success("تم نشر البانر في قاعدة بيانات التطبيق");
+    toast.success(editingId ? "تم تغيير البانر" : "تم نشر البانر في قاعدة بيانات التطبيق");
+    setEditingId(null);
     setForm({ title: "", image_url: "", target_url: "", sort_order: "0" });
     await load();
   }
@@ -99,21 +101,26 @@ export function BannersTab() {
     if (!confirm("حذف هذا البانر؟")) return;
     const { error } = await supabase.from("banners").delete().eq("id", row.id);
     if (error) { toast.error(errMsg(error)); return; }
+    if (editingId === row.id) { setEditingId(null); setForm({ title: "", image_url: "", target_url: "", sort_order: "0" }); }
     await load();
   }
   return <div className="space-y-3">
     <div className="glass space-y-2 rounded-2xl p-4">
-      <b>إضافة بانر يظهر داخل التطبيق</b>
+      <b>{editingId ? "تغيير بانر الغرف" : "إضافة بانر يظهر داخل قائمة الغرف"}</b>
       <Input placeholder="عنوان البانر" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
       <Input placeholder="رابط الصورة HTTPS" dir="ltr" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
       <Input placeholder="رابط الوجهة (اختياري)" dir="ltr" value={form.target_url} onChange={(e) => setForm({ ...form, target_url: e.target.value })} />
       <Input type="number" placeholder="الترتيب" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: e.target.value })} />
-      <Button className="bg-gold" onClick={() => void save()}>نشر البانر</Button>
+      <div className="flex gap-2"><Button className="bg-gold" onClick={() => void save()}>{editingId ? "حفظ تغيير البانر" : "نشر البانر"}</Button>{editingId && <Button variant="outline" onClick={() => { setEditingId(null); setForm({ title: "", image_url: "", target_url: "", sort_order: "0" }); }}>إلغاء</Button>}</div>
     </div>
     {rows.map((row) => <div key={row.id} className="glass flex items-center gap-3 rounded-xl p-3 text-sm">
       <img src={row.image_url} alt="" className="h-14 w-20 rounded-lg object-cover" />
       <div className="min-w-0 flex-1"><b>{row.title}</b><div className="truncate text-xs text-muted-foreground" dir="ltr">{row.image_url}</div><span className="text-xs">{row.is_active ? "نشط" : "متوقف"} · ترتيب {row.sort_order}</span></div>
-      <div className="flex flex-col gap-1"><Button size="sm" variant="outline" onClick={() => void toggle(row)}>{row.is_active ? "إيقاف" : "تفعيل"}</Button><Button size="sm" variant="destructive" onClick={() => void remove(row)}>حذف</Button></div>
+      <div className="flex flex-col gap-1">
+        <Button size="sm" variant="outline" onClick={() => { setEditingId(row.id); setForm({ title: row.title, image_url: row.image_url, target_url: row.target_url || "", sort_order: String(row.sort_order) }); }}>تغيير</Button>
+        <Button size="sm" variant="outline" onClick={() => void toggle(row)}>{row.is_active ? "إيقاف" : "تفعيل"}</Button>
+        <Button size="sm" variant="destructive" onClick={() => void remove(row)}>حذف</Button>
+      </div>
     </div>)}
   </div>;
 }
@@ -261,6 +268,7 @@ export function AppBuilderTab() {
     "ui.buttons": JSON.stringify({primary_asset_url:"",secondary_asset_url:"",gift_asset_url:"",send_asset_url:""}, null, 2),
     "ui.routes": JSON.stringify({home_title:"الرئيسية",room_title:"الغرفة",store_title:"المتجر",vip_title:"VIP",profile_title:"الملف الشخصي"}, null, 2),
     "features": JSON.stringify({gifts:true,store:true,vip:true,wallet:true,rooms:true,moments:true,messages:true}, null, 2),
+    "app_update_policy": JSON.stringify({enabled:false,min_version:"1.0.0",blocked_versions:[],latest_version:"1.0.0",download_url:"",message:"يتوفر إصدار جديد من صدي شات. يرجى تحديث التطبيق للمتابعة."}, null, 2),
   };
   const [rows,setRows]=useState<Record<string,string>>(defaults);
   const [active,setActive]=useState("ui.branding");
@@ -281,7 +289,7 @@ export function AppBuilderTab() {
     const {error}=await supabase.from("admin_settings").upsert({key,value:parsed as never,updated_at:new Date().toISOString(),updated_by:auth.user?.id??null});
     setLoading(false); if(error){toast.error(errMsg(error));return;} toast.success("تم حفظ التعديل وسيظهر للتطبيق عند تحديث الإعدادات");
   }
-  const labels:Record<string,string>={"ui.branding":"هوية التطبيق والرئيسية","app_branding":"اسم التطبيق وشعاره","home_banner":"بنر شاشة الدخول","auth_methods":"طرق تسجيل الدخول","ui.bottom_nav":"الشريط السفلي والأيقونات","ui.mic":"شكل الميك المفتوح والمغلق","ui.buttons":"أصول الأزرار","ui.routes":"عناوين وواجهات الصفحات","features":"تشغيل وإيقاف الخدمات"};
+  const labels:Record<string,string>={"ui.branding":"هوية التطبيق والرئيسية","app_branding":"اسم التطبيق وشعاره","home_banner":"بنر شاشة الدخول","auth_methods":"طرق تسجيل الدخول","ui.bottom_nav":"الشريط السفلي والأيقونات","ui.mic":"شكل الميك المفتوح والمغلق","ui.buttons":"أصول الأزرار","ui.routes":"عناوين وواجهات الصفحات","features":"تشغيل وإيقاف الخدمات","app_update_policy":"قفل الإصدارات وطلب التحديث"};
   return <div className="space-y-3">
     <div className="glass rounded-2xl p-4"><b>مركز تطوير التطبيق</b><p className="mt-1 text-xs text-muted-foreground">تحكم مركزي في الأسماء والروابط والأصول وشكل الميك والأزرار والشريط السفلي والخدمات. استخدم روابط HTTPS أو روابط Supabase Storage.</p></div>
     <div className="flex gap-2 overflow-x-auto">{Object.keys(defaults).map(k=><button key={k} onClick={()=>setActive(k)} className={`whitespace-nowrap rounded-full px-3 py-2 text-xs ${active===k?"bg-gold":"bg-secondary"}`}>{labels[k]}</button>)}</div>
