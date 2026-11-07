@@ -80,3 +80,5 @@ on conflict (key) do update set value=public.admin_settings.value || jsonb_build
 insert into public.admin_settings(key,value,updated_at)
 values ('ui.branding', jsonb_build_object('app_name','صدي شات','logo_path','','logo_url',''), now())
 on conflict (key) do update set value=public.admin_settings.value || jsonb_build_object('app_name','صدي شات'), updated_at=now();
+
+revoke execute on function public.decide_mic_request(uuid, boolean) from anon;
