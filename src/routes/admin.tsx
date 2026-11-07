@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { errMsg } from "@/lib/vox";
 import { getAdminAssetUrl } from "@/lib/media";
 
+// Build marker: keep the original admin panel embedded at /admin and let the Android workflow rebuild this branch.
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
