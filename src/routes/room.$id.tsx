@@ -361,16 +361,20 @@ function RoomPage() {
   }
 
   async function onSeat(s: Seat) {
-    // Empty seats are direct-access: no request/approval step.
-    // Use the authoritative RPC so a stale seat snapshot cannot surface "seat not found".
+    // The seat the user taps is the seat they must receive. Never substitute
+    // another free seat; take_seat validates and moves the user atomically.
     if (!s.user_id && !s.is_locked) {
-      const { error } = await supabase.rpc("take_any_seat", { _room: id });
+      const { error } = await supabase.rpc("take_seat", { _room: id, _seat: s.seat_index });
       if (error) {
         toast.error(errMsg(error));
       } else {
         await syncRoomSeats();
-        toast.success("تم الصعود للميك مباشرة");
+        toast.success(`تم الصعود إلى الميك رقم ${s.seat_index + 1}`);
       }
+      return;
+    }
+    if (s.is_locked && !isStaff) {
+      toast.error("هذا الميك مقفول من صاحب الغرفة");
       return;
     }
     setSeatMenu(s);
