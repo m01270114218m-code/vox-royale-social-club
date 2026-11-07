@@ -721,6 +721,11 @@ const MAX_ASSET_SIZE = 50 * 1024 * 1024;
 
 function AssetsTab() {
   const [rows, setRows] = useState<AdminAsset[]>([]);
+  const [grantUserId, setGrantUserId] = useState("");
+  const [grantUserNo, setGrantUserNo] = useState("");
+  const [grantItemId, setGrantItemId] = useState("");
+  const [grantEquip, setGrantEquip] = useState(false);
+  const [grantBusy, setGrantBusy] = useState(false);
   const [category, setCategory] = useState("general");
   const [name, setName] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -809,6 +814,50 @@ function AssetsTab() {
     await load();
   }
 
+  async function grantBadgeToUser() {
+    const userNo = Number(grantUserNo.trim());
+    if (!Number.isSafeInteger(userNo) || userNo < 1) {
+      toast.error("أدخل ID المستخدم الصحيح");
+      return;
+    }
+    const asset = rows.find((a) => a.id === grantItemId);
+    if (!asset || asset.category !== "badge") {
+      toast.error("اختر شارة من مكتبة الأصول أولاً");
+      return;
+    }
+    setGrantBusy(true);
+    try {
+      const { data: users, error: userError } = await supabase.rpc("admin_list_users", { _q: grantUserNo.trim() });
+      if (userError) throw userError;
+      const user = ((users ?? []) as { id: string; display_no: number }[]).find((u) => Number(u.display_no) === userNo);
+      if (!user) throw new Error("لم يتم العثور على مستخدم بهذا ID");
+      setGrantUserId(user.id);
+
+      const { data: items, error: itemError } = await supabase
+        .from("store_items")
+        .select("id,kind,asset_key,name")
+        .eq("kind", "badge")
+        .eq("asset_key", asset.asset_key)
+        .limit(1);
+      if (itemError) throw itemError;
+      const item = (items ?? [])[0] as { id: string; kind: string; asset_key: string; name: string } | undefined;
+      if (!item) throw new Error("هذه الشارة ليست مرتبطة بعنصر متجر من نوع badge. اربط asset_key أولاً.");
+
+      const { error: grantError } = await supabase.rpc("admin_grant_store_item", {
+        _user: user.id,
+        _item: item.id,
+        _equip: grantEquip,
+      });
+      if (grantError) throw grantError;
+      toast.success(`تم إرسال الشارة «${item.name}» إلى ID ${userNo}${grantEquip ? " وتجهيزها" : ""}`);
+      setGrantUserId(user.id);
+    } catch (error) {
+      toast.error(errMsg(error as never));
+    } finally {
+      setGrantBusy(false);
+    }
+  }
+
   async function deleteAsset(asset: AdminAsset) {
     if (!confirm(`حذف الأصل «${asset.name}» نهائياً؟`)) return;
     const path = asset.metadata?.storage_path ?? asset.url;
@@ -861,6 +910,28 @@ function AssetsTab() {
         <Button className="w-full bg-gold" onClick={uploadAssets} disabled={uploading || files.length === 0}>
           {uploading ? "جارٍ رفع الأصول…" : `رفع وإضافة ${files.length || ""} أصل`}
         </Button>
+      </div>
+
+      <div className="glass space-y-3 rounded-2xl p-4">
+        <div>
+          <h3 className="font-bold">إرسال شارة لمستخدم</h3>
+          <p className="text-xs text-muted-foreground">اختر شارة من مكتبة الأصول وأرسلها مباشرة إلى المستخدم بالـ ID. ستظهر تحت الـ ID في الملف العام بعد الاستلام.</p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <Input value={grantUserNo} onChange={(e) => setGrantUserNo(e.target.value.replace(/\D/g, ""))} placeholder="ID المستخدم" inputMode="numeric" dir="ltr" />
+          <select className="rounded-md border border-input bg-input px-3 py-2 text-xs" value={grantItemId} onChange={(e) => setGrantItemId(e.target.value)}>
+            <option value="">اختر شارة</option>
+            {rows.filter((a) => a.category === "badge" && a.is_active).map((a) => <option key={a.id} value={a.id}>{a.name} · {a.asset_key}</option>)}
+          </select>
+          <Button className="bg-gold" onClick={() => void grantBadgeToUser()} disabled={grantBusy || !grantUserNo || !grantItemId}>
+            {grantBusy ? "جارٍ الإرسال…" : "إرسال الشارة"}
+          </Button>
+        </div>
+        <label className="flex items-center gap-2 text-xs">
+          <input type="checkbox" checked={grantEquip} onChange={(e) => setGrantEquip(e.target.checked)} />
+          تجهيز الشارة فوراً وإظهارها تحت ID المستخدم
+        </label>
+        {grantUserId && <div className="text-[11px] text-muted-foreground" dir="ltr">user_id: {grantUserId}</div>}
       </div>
 
       <div className="flex flex-wrap gap-2">
