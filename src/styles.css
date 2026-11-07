@@ -234,3 +234,18 @@ body {
 @media (max-width: 420px) {
   .app-screen { padding-inline: .75rem; }
 }
+
+
+/* Compact Android room discovery layout */
+.app-shell-content { width: 100%; box-sizing: border-box; }
+.app-bottom-nav { padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
+.room-filter-row { overflow: visible; }
+.room-filter-chip { white-space: nowrap; }
+.room-list-banner { width: 100%; }
+@media (max-width: 480px) {
+  .app-screen { padding-top: .35rem; padding-inline: .65rem; }
+  .room-list-banner { margin-bottom: .5rem; }
+  .room-filter-row { column-gap: .35rem; row-gap: .35rem; }
+  .room-filter-chip { padding-inline: .55rem; font-size: 12px; }
+  .app-bottom-nav { inset-inline: .5rem; }
+}
