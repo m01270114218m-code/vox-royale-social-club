@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { catName, errMsg, flagOf } from "@/lib/vox";
-import { getAdminAssetUrl } from "@/lib/media";\nimport { RoomVoice } from "@/components/RoomVoice";
+import { getAdminAssetUrl } from "@/lib/media";
+import { RoomVoice } from "@/components/RoomVoice";
 
 export const Route = createFileRoute("/room/$id")({
   head: () => ({
@@ -67,7 +68,8 @@ function RoomPage() {
   const chatEnd = useRef<HTMLDivElement>(null);
    const uid = user?.id ?? "";
   const isOwner = room?.owner_id === uid;
-  const isStaff = isOwner || isMod;\n  const publicName = (userId: string, fallback = "…") => { const p = profiles[userId]; if (!p) return fallback; const effect = p.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""; return <span className={effect} style={{ color: p.name_color || undefined, animationDuration: `${p.name_effect_speed || 1800}ms` }}>{p.display_name}</span>; };
+  const isStaff = isOwner || isMod;
+  const publicName = (userId: string, fallback = "…") => { const p = profiles[userId]; if (!p) return fallback; const effect = p.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""; return <span className={effect} style={{ color: p.name_color || undefined, animationDuration: `${p.name_effect_speed || 1800}ms` }}>{p.display_name}</span>; };
 
   const ensureProfiles = useCallback(async (ids: string[]) => {
     const missing = ids.filter((x) => x && !profiles[x]);
@@ -237,7 +239,8 @@ function RoomPage() {
     }
   }, [members, room, uid, nav]);
 
-  const mySeat = seats.find((s) => s.user_id === uid);\n  const myMicEnabled = !!mySeat && !mySeat.is_muted;
+  const mySeat = seats.find((s) => s.user_id === uid);
+  const myMicEnabled = !!mySeat && !mySeat.is_muted;
 
   async function call(fn: string, args: Record<string, unknown>) {
     const { error } = await supabase.rpc(fn as never, args as never);
@@ -309,7 +312,8 @@ function RoomPage() {
   const cols = room.seat_count <= 4 ? "grid-cols-4" : room.seat_count === 6 || room.seat_count === 9 ? "grid-cols-3" : "grid-cols-4";
 
   return (
-    <div className="room-scene mx-auto flex h-dvh max-w-2xl flex-col">\n      <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled} />
+    <div className="room-scene mx-auto flex h-dvh max-w-2xl flex-col">
+      <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled} />
       <MediaImage src={room.cover_url || roomBackground(room.category)} className="room-scenery" />
       <header className="glass m-3 flex items-center gap-3 rounded-2xl p-3">
         <Button variant="ghost" size="icon" onClick={() => nav({ to: "/" })} aria-label="رجوع" title="رجوع"><img src={icons3d.back} alt="" className="h-7 w-7 rotate-180 object-contain" /></Button>
