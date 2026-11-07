@@ -119,7 +119,7 @@ function Home() {
   }, [rooms, tab, country, cat, q]);
 
   return (
-    <div className="px-4 pt-6">
+    <div className="app-screen w-full px-3 pb-4 pt-2 sm:px-4">
       {showIntroBanner && introBannerUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4" role="dialog" aria-label="إعلان البداية">
           <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-gold/40 shadow-2xl">
@@ -129,16 +129,6 @@ function Home() {
           </div>
         </div>
       )}
-      <header className="mb-4 flex items-center justify-between">
-        <div className="flex min-w-0 items-center gap-2">
-          {logoUrl && <img src={logoUrl} alt="" className="h-10 w-10 rounded-xl object-contain" />}
-          <h1 className="font-display text-gold text-3xl">{appBranding?.app_name || "صدي شات"}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link to="/notifications" aria-label="الإشعارات" className="glass rounded-full p-2"><img src={icons3d.bell} alt="" className="h-7 w-7 object-contain" /></Link>
-          <CreateRoom />
-        </div>
-      </header>
       {roomBanners.length > 0 && (
         <div className="mb-4 overflow-hidden rounded-3xl border border-primary/20 bg-black/20 shadow-lg">
           {(() => {
@@ -187,7 +177,7 @@ function Home() {
       {list.length === 0 ? (
         <div className="glass rounded-3xl p-10 text-center text-muted-foreground">لا توجد غرف بعد — أنشئ أول غرفة!</div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
           {list.map((r) => (
             <Link key={r.id} to="/room/$id" params={{ id: r.id }} className="card-3d glass group relative aspect-[3/4] overflow-hidden rounded-3xl p-3">
               <MediaImage src={r.cover_url || roomBackground(r.category)} className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
