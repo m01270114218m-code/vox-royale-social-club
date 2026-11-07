@@ -66,11 +66,12 @@ Deno.serve(async (req: Request) => {
   const canPublish = !!seat && seat.is_muted !== true;
   const rtcUid = numericUid(user.id);
   const expiresInSeconds = 60 * 60;
-  const privilegeExpiresAt = Math.floor(Date.now() / 1000) + expiresInSeconds;
   const role = canPublish ? RtcRole.PUBLISHER : RtcRole.SUBSCRIBER;
 
   try {
-    const token = RtcTokenBuilder.buildTokenWithUid(appId, appCertificate, roomId, rtcUid, role, privilegeExpiresAt);
+    const token = RtcTokenBuilder.buildTokenWithUid(
+      appId, appCertificate, roomId, rtcUid, role, expiresInSeconds, expiresInSeconds,
+    );
     return json({ appId, channel: roomId, uid: rtcUid, token, role: canPublish ? "publisher" : "subscriber", expiresAt: Math.floor(Date.now() / 1000) + expiresInSeconds });
   } catch {
     return json({ error: "Failed to create Agora token" }, 500);
