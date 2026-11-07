@@ -72,7 +72,7 @@ async function renderTab(tab){
    const q=userQuery;
    const [{data,error},{data:items,error:itemsError},{data:profiles,error:profilesError},{data:wallets,error:walletsError}]=await Promise.all([
     db.rpc('admin_list_users',{_q:q}),db.from('store_items').select('id,name,kind,asset_key').order('name').limit(300),
-    db.from('profiles').select('id,id_color,avatar_url').limit(1000),db.from('wallets').select('user_id,diamonds').limit(1000)
+    db.from('profiles').select('id,id_color,name_color,name_effect,name_effect_speed,avatar_url').limit(1000),db.from('wallets').select('user_id,diamonds').limit(1000)
    ]);
    if(error)throw error;if(itemsError)throw itemsError;if(profilesError)throw profilesError;if(walletsError)throw walletsError;
    const meta=Object.fromEntries((profiles||[]).map(p=>[p.id,p]));const balances=Object.fromEntries((wallets||[]).map(w=>[w.user_id,w]));
@@ -80,7 +80,7 @@ async function renderTab(tab){
    host.innerHTML='<h3>إدارة المستخدمين الشاملة</h3><div class="row"><input id="user-q" placeholder="بحث بالاسم أو رقم المستخدم" value="'+esc(q)+'"><button data-action="search-users">بحث</button></div>'+
    ((data||[]).map(u=>{const m=meta[u.id]||{};return item(esc(u.display_name)+' · ID '+esc(u.display_no),
     '<div class="muted small">المستوى '+u.level+' · VIP '+u.vip_level+' · '+money(u.coins)+' عملة · '+money(balances[u.id]?.diamonds||0)+' ماسة · '+esc((u.roles||[]).join(', '))+'</div>'+
-    '<div class="fieldgrid"><label>رقم ID<input id="idno-'+u.id+'" type="number" min="100000" value="'+esc(u.display_no)+'"></label><label>المستوى<input id="level-'+u.id+'" type="number" min="1" max="999" value="'+esc(u.level)+'"></label><label>لون ID<input id="idcolor-'+u.id+'" type="color" value="'+esc(m.id_color||'#D4AF37')+'"></label><button data-action="identity" data-user="'+u.id+'">حفظ الهوية والمستوى</button></div>'+
+    '<div class="fieldgrid"><label>رقم ID<input id="idno-'+u.id+'" type="number" min="100000" value="'+esc(u.display_no)+'"></label><label>المستوى<input id="level-'+u.id+'" type="number" min="1" max="999" value="'+esc(u.level)+'"></label><label>لون ID<input id="idcolor-'+u.id+'" type="color" value="'+esc(m.id_color||'#D4AF37')+'"></label><label>لون الاسم<input id="namecolor-'+u.id+'" type="color" value="'+esc(m.name_color||'#D4AF37')+'"></label><select id="nameeffect-'+u.id+'"><option value="none">بدون</option><option value="shimmer">لمعان</option><option value="pulse">نبض</option><option value="rainbow">قوس ألوان</option></select><input id="namespeed-'+u.id+'" type="number" min="500" max="5000" value="'+esc(m.name_effect_speed||1800)+'"><button data-action="identity" data-user="'+u.id+'">حفظ الهوية والاسم</button></div>'+
     '<div class="fieldgrid"><select id="currency-'+u.id+'"><option value="coins">عملات</option><option value="diamonds">ماسات</option></select><input id="amount-'+u.id+'" type="number" placeholder="قيمة (+ إضافة / - خصم)"><input id="reason-'+u.id+'" placeholder="سبب العملية"><button data-action="wallet-adjust" data-user="'+u.id+'">تعديل الرصيد</button></div>'+
     '<div class="fieldgrid"><select id="vip-'+u.id+'">'+Array.from({length:11},(_,i)=>'<option value="'+i+'" '+(i===u.vip_level?'selected':'')+'>VIP '+i+'</option>').join('')+'</select><button data-action="set-vip" data-user="'+u.id+'">حفظ VIP</button><select id="item-'+u.id+'"><option value="">اختر إطاراً أو دخولية أو شارة لإرسالها</option>'+itemOptions+'</select><label><input id="equip-'+u.id+'" type="checkbox" style="width:auto"> تجهيز العنصر فوراً</label><button data-action="grant-item" data-user="'+u.id+'">إرسال العنصر</button></div>'+
     (isSuper?'<div class="actions">'+['admin','moderator'].map(role=>'<button class="secondary" data-action="role" data-user="'+u.id+'" data-role="'+role+'" data-grant="'+(!(u.roles||[]).includes(role))+'">'+((u.roles||[]).includes(role)?'إزالة ':'منح ')+role+'</button>').join('')+'</div>':'')
@@ -232,9 +232,9 @@ async function action(button){
  const a=button.dataset.action,id=button.dataset.id;
  if(a==='search-users'){userQuery=document.querySelector('#user-q')?.value||'';await renderTab('users');return}
  if(a==='identity'){
-  const displayNo=Number(document.querySelector('#idno-'+button.dataset.user)?.value),level=Number(document.querySelector('#level-'+button.dataset.user)?.value),color=document.querySelector('#idcolor-'+button.dataset.user)?.value||'#D4AF37';
+  const displayNo=Number(document.querySelector('#idno-'+button.dataset.user)?.value),level=Number(document.querySelector('#level-'+button.dataset.user)?.value),color=document.querySelector('#idcolor-'+button.dataset.user)?.value||'#D4AF37',nameColor=document.querySelector('#namecolor-'+button.dataset.user)?.value||'#D4AF37',nameEffect=document.querySelector('#nameeffect-'+button.dataset.user)?.value||'none',nameSpeed=Number(document.querySelector('#namespeed-'+button.dataset.user)?.value||1800);
   if(!Number.isInteger(displayNo)||!Number.isInteger(level))throw new Error('أدخل ID ومستوى صحيحين');
-  const {error}=await db.rpc('admin_update_user_identity',{_user:button.dataset.user,_display_no:displayNo,_level:level,_id_color:color});if(error)throw error;
+  const {error}=await db.rpc('admin_update_user_identity',{_user:button.dataset.user,_display_no:displayNo,_level:level,_id_color:color});if(error)throw error; const style=await db.rpc('admin_set_profile_style',{_user:button.dataset.user,_name_color:nameColor,_name_effect:nameEffect,_speed:nameSpeed});if(style.error)throw style.error;
  }
  if(a==='wallet-adjust'){
   const amount=Number(document.querySelector('#amount-'+button.dataset.user)?.value),currency=document.querySelector('#currency-'+button.dataset.user)?.value,reason=document.querySelector('#reason-'+button.dataset.user)?.value||'admin_adjustment';
