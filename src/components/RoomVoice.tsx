@@ -49,7 +49,7 @@ export function RoomVoice({roomId,uid,members,micEnabled}:Props){
    for(const [id,{pc}] of peers.current){
     const sender=pc.getSenders().find(s=>s.track?.kind==="audio");
     if(sender){await sender.replaceTrack(stream.current.getAudioTracks()[0]);}
-    else pc.addTrack(stream.current.getAudioTracks()[0],stream.current);
+    else { pc.addTrack(stream.current.getAudioTracks()[0],stream.current); const offer=await pc.createOffer(); await pc.setLocalDescription(offer); await send(id,"offer",offer); }
    }
   }else if(stream.current){
    stream.current.getTracks().forEach(t=>t.stop());stream.current=null;
