@@ -34,7 +34,7 @@ export const Route = createFileRoute("/room/$id")({
 
 const mountCount: Record<string, number> = {};
 
-type Profile = { id: string; display_name: string; display_no?: number; id_color?: string | null; avatar_url: string | null; level: number; vip_level: number; equipped_frame?: string | null; name_color?: string | null; name_effect?: string | null; name_effect_speed?: number | null };
+type Profile = { id: string; display_name: string; display_no?: number; id_color?: string | null; avatar_url: string | null; level: number; vip_level: number; equipped_frame?: string | null; name_color?: string | null; name_effect?: string | null; name_effect_speed?: number | null; chat_bubble_color?: string | null };
 type Badge = { badge_name: string; badge_asset_key?: string | null; badge_color?: string | null; is_equipped?: boolean };
 type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
 type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
@@ -92,7 +92,7 @@ function RoomPage() {
     const missing = ids.filter((x) => x && !profiles[x]);
     if (!missing.length) return;
     const [{ data }, { data: badgeRows }] = await Promise.all([
-      supabase.from("profiles").select("id,display_name,display_no,id_color,avatar_url,level,vip_level,equipped_frame,name_color,name_effect,name_effect_speed").in("id", missing),
+      supabase.from("profiles").select("id,display_name,display_no,id_color,avatar_url,level,vip_level,equipped_frame,name_color,name_effect,name_effect_speed,chat_bubble_color").in("id", missing),
       supabase.from("user_badges").select("user_id,badge_name,badge_asset_key,badge_color,is_equipped").in("user_id", missing).eq("is_equipped", true),
     ]);
     if (data) setProfiles((p) => ({ ...p, ...Object.fromEntries(data.map((d) => [d.id, d as Profile])) }));
@@ -346,7 +346,7 @@ function RoomPage() {
   async function call(fn: string, args: Record<string, unknown>) {
     const { error } = await supabase.rpc(fn as never, args as never);
     if (error) {
-      toast.error(errMsg(error));
+      toast.error(error.message === "vip_protected" ? "VIP 5+ محمي من الكتم والطرد" : errMsg(error));
       setSeatMenu(null);
       return;
     }
@@ -495,8 +495,8 @@ function RoomPage() {
       <div className="flex-1 space-y-2 overflow-y-auto px-4">
         <div className="rounded-xl bg-secondary/60 p-2 text-xs text-primary">📢 مرحباً بك في {room.name}. {room.description}</div>
         {msgs.map((m) => (
-          <div key={m.id} className={`w-fit max-w-[85%] rounded-2xl px-3 py-1.5 text-sm ${m.kind === "gift" ? "bg-gold font-bold" : "glass"}`}>
-            <span className="font-bold text-primary">{publicName(m.user_id)}: </span>
+          <div key={m.id} className={`w-fit max-w-[85%] rounded-2xl px-3 py-1.5 text-sm ${m.kind === "gift" ? "bg-gold font-bold" : "glass"}`} style={{ backgroundColor: m.kind === "gift" ? undefined : profiles[m.user_id]?.chat_bubble_color || undefined }}>
+            <span className="font-bold" style={{ color: profiles[m.user_id]?.name_color || undefined }}>{publicName(m.user_id)}: </span>
             {m.body}
           </div>
         ))}
@@ -551,7 +551,7 @@ function RoomPage() {
                 </>
               )}
                {seatMenu.user_id && seatMenu.user_id !== uid && <Button onClick={() => { if (seatMenu.user_id) openGifts(seatMenu.user_id); }} className="bg-accent text-accent-foreground"><img src={icons3d.giftbox} alt="" className="h-6 w-6 object-contain" /> إرسال هدية</Button>}
-               {seatMenu.user_id && <IdentityBadges level={profiles[seatMenu.user_id]?.level} vip={profiles[seatMenu.user_id]?.vip_level} />}
+               {seatMenu.user_id && <div className="rounded-2xl border border-primary/20 bg-background/70 p-3 text-right"><div className="text-xs text-muted-foreground">بطاقة تعريف</div><div className="mt-1 font-bold" style={{ color: profiles[seatMenu.user_id]?.name_color || undefined }}>{profiles[seatMenu.user_id]?.display_name}</div><div className="mt-1 text-xs" style={{ color: profiles[seatMenu.user_id]?.id_color || undefined }}>ID {profiles[seatMenu.user_id]?.display_no}</div><IdentityBadges level={profiles[seatMenu.user_id]?.level} vip={profiles[seatMenu.user_id]?.vip_level} /><div className="mt-2 text-[11px] text-muted-foreground">{(profiles[seatMenu.user_id]?.vip_level ?? 0) >= 5 ? "🛡️ VIP 5+ — محمي من الطرد والكتم" : (profiles[seatMenu.user_id]?.vip_level ?? 0) > 0 ? `👑 VIP ${profiles[seatMenu.user_id]?.vip_level} — اسم وID ودخولية/إطار حسب المقتنيات` : "عضو عادي"}</div></div>}
             </div>
           )}
         </SheetContent>
