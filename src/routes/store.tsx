@@ -53,7 +53,9 @@ function StorePage() {
   const [items, setItems] = useState<StoreItem[]>([]);
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [equippedFrame, setEquippedFrame] = useState<string | null>(null);
-  const [equippedEntry, setEquippedEntry] = useState<string | null>(null);\n  const [txs, setTxs] = useState<{id:string;amount:number;currency:string;reason:string;created_at:string}[]>([]);\n  const [topupCoins, setTopupCoins] = useState("6000");
+  const [equippedEntry, setEquippedEntry] = useState<string | null>(null);
+  const [txs, setTxs] = useState<{id:string;amount:number;currency:string;reason:string;created_at:string}[]>([]);
+  const [topupCoins, setTopupCoins] = useState("6000");
   useEffect(() => {
     (async () => {
       const [{ data: w }, { data: p }, { data: si }, { data: ui }] = await Promise.all([
@@ -68,7 +70,9 @@ function StorePage() {
       setEquippedEntry(p?.equipped_entry ?? null);
       const enrichedItems = await Promise.all((si ?? []).map(async (item) => ({ ...item, asset_url: await getAdminAssetUrl(item.asset_key) })));
       setItems(enrichedItems);
-      setOwned(new Set((ui ?? []).map((r) => r.item_id)));\n      const { data: tx } = await supabase.from("wallet_transactions").select("id,amount,currency,reason,created_at").eq("user_id", user!.id).order("created_at",{ascending:false}).limit(30);\n      setTxs((tx ?? []).map((x)=>({...x,amount:Number(x.amount)})));
+      setOwned(new Set((ui ?? []).map((r) => r.item_id)));
+      const { data: tx } = await supabase.from("wallet_transactions").select("id,amount,currency,reason,created_at").eq("user_id", user!.id).order("created_at",{ascending:false}).limit(30);
+      setTxs((tx ?? []).map((x)=>({...x,amount:Number(x.amount)})));
     })();
   }, [user]);
   async function buyItem(item: StoreItem) {
