@@ -18,9 +18,9 @@ import { getAdminAssetUrl } from "@/lib/media";
 export const Route = createFileRoute("/room/$id")({
   head: () => ({
     meta: [
-      { title: "غرفة صوتية — VOX ROYALE" },
+      { title: "غرفة صوتية — صدى شات" },
       { name: "description", content: "انضم إلى الغرفة الصوتية، اجلس على المقاعد وتحدث مباشرة." },
-      { property: "og:title", content: "غرفة صوتية — VOX ROYALE" },
+      { property: "og:title", content: "غرفة صوتية — صدى شات" },
       { property: "og:description", content: "انضم إلى الغرفة الصوتية وتحدث مباشرة." },
     ],
   }),
@@ -298,7 +298,7 @@ function RoomPage() {
 
   async function share() {
     const url = window.location.href;
-    if (navigator.share) await navigator.share({ title: room?.name ?? "VOX ROYALE", url }).catch(() => {});
+    if (navigator.share) await navigator.share({ title: room?.name ?? "صدى شات", url }).catch(() => {});
     else {
       await navigator.clipboard.writeText(url);
       toast.success("تم نسخ رابط الغرفة");
