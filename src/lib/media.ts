@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_BYTES = 5 * 1024 * 1024;
+
 type CachedUrl = { url: string; expiresAt: number };
 const cache = new Map<string, CachedUrl>();
 const adminAssetCache = new Map<string, CachedUrl>();
+
 const cacheGet = (map: Map<string, CachedUrl>, key: string) => {
   const hit = map.get(key);
   if (!hit) return null;
@@ -13,6 +17,7 @@ const cacheGet = (map: Map<string, CachedUrl>, key: string) => {
   }
   return hit.url;
 };
+
 const cacheSet = (map: Map<string, CachedUrl>, key: string, url: string, ttlMs: number) => {
   map.set(key, { url, expiresAt: Date.now() + ttlMs });
 };
@@ -45,7 +50,10 @@ export async function uploadImage(file: File, userId: string, folder = "profile"
   const path = folder === "profile"
     ? `${userId}/${crypto.randomUUID()}.webp`
     : `${userId}/${folder}/${crypto.randomUUID()}.webp`;
-  const { error } = await supabase.storage.from("media").upload(path, compressed, { contentType: "image/webp", upsert: false });
+  const { error } = await supabase.storage.from("media").upload(path, compressed, {
+    contentType: "image/webp",
+    upsert: false,
+  });
   if (error) throw error;
   return `media:${path}`;
 }
@@ -64,28 +72,49 @@ export function useMedia(value?: string | null): string | null {
     if (!value.startsWith("media:")) return value;
     return cacheGet(cache, value);
   });
+
   useEffect(() => {
-    if (!value) { setUrl(null); return; }
-    if (!value.startsWith("media:")) { setUrl(value); return; }
+    if (!value) {
+      setUrl(null);
+      return;
+    }
+    if (!value.startsWith("media:")) {
+      setUrl(value);
+      return;
+    }
+
     const hit = cacheGet(cache, value);
-    if (hit) { setUrl(hit); return; }
+    if (hit) {
+      setUrl(hit);
+      return;
+    }
+
     let alive = true;
-    supabase.storage.from("media").createSignedUrl(value.slice(6).replace(/^\/+/, ""), 60 * 60 * 6).then(({ data }) => {
-      if (data?.signedUrl && alive) {
+    const path = value.slice(6).replace(/^\/+/, "");
+    void supabase.storage.from("media").createSignedUrl(path, 60 * 60 * 6).then(({ data }) => {
+      if (!alive) return;
+      if (data?.signedUrl) {
         cacheSet(cache, value, data.signedUrl, 5 * 60 * 60 * 1000);
         setUrl(data.signedUrl);
-      } else if (alive) {
+      } else {
         setUrl(null);
       }
     });
-    retuexport async function getAdminAssetUrl(assetKey?: string | null): Promise<string | null> {
+
+    return () => { alive = false; };
+  }, [value]);
+
+  return url;
+}
+
+export async function getAdminAssetUrl(assetKey?: string | null): Promise<string | null> {
   if (!assetKey) return null;
   const cached = cacheGet(adminAssetCache, assetKey);
   if (cached) return cached;
 
   let raw = assetKey.trim();
 
-  // Accept media:path references and resolve them through the public media bucket.
+  // A media:<path> value is a valid reference to the public media bucket.
   if (raw.startsWith("media:")) {
     const path = raw.slice(6).replace(/^\/+/, "");
     if (!path) return null;
@@ -95,6 +124,7 @@ export function useMedia(value?: string | null): string | null {
     return data.signedUrl;
   }
 
+  // If this is an asset key, resolve it from the admin asset registry.
   if (!/^https?:\/\//i.test(raw)) {
     const { data: asset, error } = await supabase
       .from("admin_assets")
@@ -103,6 +133,7 @@ export function useMedia(value?: string | null): string | null {
       .eq("is_active", true)
       .maybeSingle();
     if (error || !asset) return null;
+
     const metadata = asset.metadata as { storage_path?: string } | null;
     raw = metadata?.storage_path || asset.url || "";
     if (!raw) return null;
@@ -110,6 +141,8 @@ export function useMedia(value?: string | null): string | null {
 
   const marker = "/storage/v1/object/";
   const markerIndex = raw.indexOf(marker);
+
+  // Plain HTTPS image/CDN URLs are already usable.
   if (markerIndex < 0) {
     if (/^https?:\/\//i.test(raw)) {
       cacheSet(adminAssetCache, assetKey, raw, 24 * 60 * 60 * 1000);
@@ -125,16 +158,19 @@ export function useMedia(value?: string | null): string | null {
   const storagePath = decodeURIComponent(parts.join("/").replace(/^\/+/, ""));
   if (!access || !bucket || !storagePath) return null;
 
+  // Public objects, such as media/<path>, must be used directly.
   if (access === "public") {
     cacheSet(adminAssetCache, assetKey, raw, 24 * 60 * 60 * 1000);
     return raw;
   }
 
+  // Private/signed objects: recreate a fresh signed URL from the actual bucket.
   if (access === "sign" || access === "authenticated") {
     const { data: signed, error: signError } = await supabase
       .storage
       .from(bucket)
       .createSignedUrl(storagePath, 60 * 60);
+
     if (signError || !signed?.signedUrl) return null;
     cacheSet(adminAssetCache, assetKey, signed.signedUrl, 50 * 60 * 1000);
     return signed.signedUrl;
@@ -143,18 +179,32 @@ export function useMedia(value?: string | null): string | null {
   return null;
 }
 
-
-
 export function useAdminAsset(assetKey?: string | null): string | null {
-  const [url, setUrl] = useState<string | null>(() => (assetKey ? cacheGet(adminAssetCache, assetKey) : null));
+  const [url, setUrl] = useState<string | null>(() => (
+    assetKey ? cacheGet(adminAssetCache, assetKey) : null
+  ));
+
   useEffect(() => {
     let alive = true;
-    if (!assetKey) { setUrl(null); return; }
+
+    if (!assetKey) {
+      setUrl(null);
+      return;
+    }
+
     const hit = cacheGet(adminAssetCache, assetKey);
-    if (hit) { setUrl(hit); return; }
+    if (hit) {
+      setUrl(hit);
+      return;
+    }
+
     setUrl(null);
-    void getAdminAssetUrl(assetKey).then((next) => { if (alive) setUrl(next); });
+    void getAdminAssetUrl(assetKey).then((next) => {
+      if (alive) setUrl(next);
+    });
+
     return () => { alive = false; };
   }, [assetKey]);
+
   return url;
 }
