@@ -726,6 +726,10 @@ const MAX_ASSET_SIZE = 50 * 1024 * 1024;
 
 function AssetsTab() {
   const [rows, setRows] = useState<AdminAsset[]>([]);
+  const [storeItems, setStoreItems] = useState<{ id: string; name: string; kind: string; price: number; asset_key: string }[]>([]);
+  const [editingAsset, setEditingAsset] = useState<AdminAsset | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState("general");
   const [grantUserId, setGrantUserId] = useState("");
   const [grantUserNo, setGrantUserNo] = useState("");
   const [grantItemId, setGrantItemId] = useState("");
@@ -742,7 +746,12 @@ function AssetsTab() {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase.from("admin_assets").select("*").order("created_at", { ascending: false }).limit(300);
+    const [{ data, error }, { data: linkedItems, error: linkedItemsError }] = await Promise.all([
+      supabase.from("admin_assets").select("*").order("created_at", { ascending: false }).range(0, 9999),
+      supabase.from("store_items").select("id,name,kind,price,asset_key").order("name"),
+    ]);
+    if (linkedItemsError) toast.error(`تعذر تحميل روابط المتجر: ${errMsg(linkedItemsError)}`);
+    setStoreItems((linkedItems ?? []) as { id: string; name: string; kind: string; price: number; asset_key: string }[]);
     if (error) {
       toast.error(errMsg(error));
       setLoading(false);
@@ -851,17 +860,33 @@ function AssetsTab() {
     }
   }
 
+  function beginEditAsset(asset: AdminAsset) {
+    setEditingAsset(asset); setEditName(asset.name); setEditCategory(asset.category);
+  }
+
+  async function saveAssetEdit() {
+    if (!editingAsset || !editName.trim()) { toast.error("اكتب اسم الأصل"); return; }
+    const { error } = await supabase.from("admin_assets").update({ name: editName.trim(), category: editCategory, updated_at: new Date().toISOString() }).eq("id", editingAsset.id);
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تم تعديل بيانات الأصل"); setEditingAsset(null); await load();
+  }
+
   async function deleteAsset(asset: AdminAsset) {
-    if (!confirm(`حذف الأصل «${asset.name}» نهائياً؟`)) return;
+    const linked = storeItems.filter((item) => item.asset_key === asset.asset_key);
+    const warning = linked.length ? `\\nسيتم حذف ${linked.length} عنصر متجر مرتبط بهذا الأصل أيضاً.` : "";
+    if (!confirm(`حذف الأصل «${asset.name}» نهائياً؟${warning}`)) return;
+    for (const item of linked) {
+      const { error } = await supabase.rpc("admin_delete_store_item", { _id: item.id });
+      if (error) { toast.error(`تعذر حذف عنصر المتجر «${item.name}»: ${errMsg(error)}`); return; }
+    }
+    const { error: rowError } = await supabase.from("admin_assets").delete().eq("id", asset.id);
+    if (rowError) { toast.error(errMsg(rowError)); return; }
     const path = asset.metadata?.storage_path ?? asset.url;
     if (path) {
-      const { error } = await supabase.storage.from(ASSET_BUCKET).remove([path]);
-      if (error) { toast.error(`تعذر حذف الملف: ${error.message}`); return; }
+      const { error: storageError } = await supabase.storage.from(ASSET_BUCKET).remove([path]);
+      if (storageError) { toast.warning(`تم حذف سجل الأصل والمتجر، لكن تعذر حذف ملف التخزين: ${storageError.message}`); await load(); return; }
     }
-    const { error } = await supabase.from("admin_assets").delete().eq("id", asset.id);
-    if (error) { toast.error(errMsg(error)); return; }
-    toast.success("تم حذف الأصل والملف المرتبط به");
-    await load();
+    toast.success("تم حذف الأصل والملف وكل عناصر المتجر المرتبطة به"); await load();
   }
 
   const visible = rows.filter((asset) =>
@@ -936,6 +961,16 @@ function AssetsTab() {
         <Button size="icon" variant="outline" onClick={load} disabled={loading} aria-label="تحديث"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
       </div>
 
+      {editingAsset && (
+        <div className="glass space-y-3 rounded-2xl border border-primary/30 p-4">
+          <div className="flex items-center justify-between gap-2"><b>تعديل الأصل: {editingAsset.name}</b><Button size="sm" variant="ghost" onClick={() => setEditingAsset(null)}>إلغاء</Button></div>
+          <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="اسم الأصل" />
+          <select className="w-full rounded-md border border-input bg-input px-3 py-2 text-sm" value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
+            {Object.entries(ASSET_CATEGORIES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          </select>
+          <Button className="w-full bg-gold" onClick={() => void saveAssetEdit()}>حفظ التعديلات</Button>
+        </div>
+      )}
       {visible.length === 0 && <p className="glass rounded-2xl p-8 text-center text-sm text-muted-foreground">{loading ? "جارٍ تحميل المكتبة…" : "لا توجد أصول مطابقة. ارفع أول أصل من النموذج أعلاه."}</p>}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {visible.map((asset) => (
@@ -955,12 +990,21 @@ function AssetsTab() {
                 <span>{ASSET_CATEGORIES[asset.category] ?? asset.category}</span>
                 <span>{asset.metadata?.size ? `${(asset.metadata.size / 1024 / 1024).toFixed(1)} MB` : ""}</span>
               </div>
+              {storeItems.filter((item) => item.asset_key === asset.asset_key).length > 0 ? (
+                <div className="space-y-1 rounded-lg bg-primary/5 p-2">
+                  <div className="text-[10px] font-semibold text-primary">المتجر المرتبط</div>
+                  {storeItems.filter((item) => item.asset_key === asset.asset_key).map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-1 text-[10px]"><span className="truncate">{item.name} · {KINDS[item.kind] ?? item.kind}</span><span className="shrink-0">🪙 {Number(item.price).toLocaleString()}</span></div>
+                  ))}
+                </div>
+              ) : <div className="text-[10px] text-muted-foreground">المتجر: غير مرتبط بأي عنصر</div>}
               <div className="flex items-center justify-between gap-1">
                 <span className={`rounded-full px-2 py-1 text-[10px] ${asset.is_active ? "bg-green-500/15 text-green-500" : "bg-muted text-muted-foreground"}`}>{asset.is_active ? "نشط" : "متوقف"}</span>
                 <div className="flex gap-1">
                   {previews[asset.id] && <a href={previews[asset.id]} target="_blank" rel="noreferrer" className="rounded-md p-1.5 hover:bg-secondary" title="فتح الملف"><Search className="h-4 w-4" /></a>}
+                  <button onClick={() => beginEditAsset(asset)} className="rounded-md p-1.5 hover:bg-secondary" title="تعديل الأصل"><Settings className="h-4 w-4" /></button>
                   <button onClick={() => toggleAsset(asset)} className="rounded-md p-1.5 hover:bg-secondary" title={asset.is_active ? "إيقاف" : "تفعيل"}><Power className="h-4 w-4" /></button>
-                  <button onClick={() => deleteAsset(asset)} className="rounded-md p-1.5 text-destructive hover:bg-secondary" title="حذف"><Trash2 className="h-4 w-4" /></button>
+                  <button onClick={() => void deleteAsset(asset)} className="rounded-md p-1.5 text-destructive hover:bg-secondary" title="حذف الأصل"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
               <div className="truncate text-[10px] text-muted-foreground" dir="ltr">{asset.asset_key}</div>
