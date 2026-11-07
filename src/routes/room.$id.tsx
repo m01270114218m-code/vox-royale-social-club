@@ -41,6 +41,18 @@ type Msg = { id: string; user_id: string; body: string; created_at: string; kind
 type GiftT = { id: string; name: string; emoji: string; price: number; tier: string; asset_key?: string | null; asset_url?: string | null };
 type Room = { id: string; room_no: number; owner_id: string; name: string; description: string | null; category: string; country: string; seat_count: number; is_private?: boolean; cover_url?: string | null };
 
+function normalizeSeats(rows: Seat[]): Seat[] {
+  const seenUsers = new Set<string>();
+  return [...rows]
+    .sort((a, b) => a.seat_index - b.seat_index)
+    .filter((seat) => {
+      if (!seat.user_id) return true;
+      if (seenUsers.has(seat.user_id)) return false;
+      seenUsers.add(seat.user_id);
+      return true;
+    });
+}
+
 function RoomPage() {
   const { id } = Route.useParams();
   const { user } = useAuth();
@@ -86,7 +98,7 @@ function RoomPage() {
 
   const loadSeats = useCallback(async () => {
     const { data } = await supabase.from("room_seats").select("seat_index,user_id,is_locked,is_muted").eq("room_id", id).order("seat_index");
-    if (data) setSeats(data);
+    if (data) setSeats(normalizeSeats(data as Seat[]));
   }, [id]);
   async function playEntryFor(userId: string) {
     const { data: profile } = await supabase.from("profiles").select("equipped_entry").eq("id", userId).maybeSingle();
@@ -142,9 +154,9 @@ function RoomPage() {
         const data = payload.payload as { roomId?: string; seat?: Seat | null; userId?: string };
         if (data.roomId !== id) return;
         if (data.seat) {
-          setSeats((current) => current.some((s) => s.seat_index === data.seat!.seat_index)
+          setSeats((current) => normalizeSeats(current.some((s) => s.seat_index === data.seat!.seat_index)
             ? current.map((s) => s.seat_index === data.seat!.seat_index ? data.seat! : s)
-            : [...current, data.seat!].sort((a,b) => a.seat_index-b.seat_index));
+            : [...current, data.seat!]));
         } else if (data.userId) {
           setSeats((current) => current.map((s) => s.user_id === data.userId ? { ...s, user_id: null, is_muted: false } : s));
         }
@@ -158,7 +170,7 @@ function RoomPage() {
           if (payload.eventType === "DELETE") return current.filter((s) => s.seat_index !== seatIndex);
           const row = { seat_index: seatIndex, user_id: (next.user_id ?? null) as string | null, is_locked: !!next.is_locked, is_muted: !!next.is_muted };
           const exists = current.some((s) => s.seat_index === seatIndex);
-          return exists ? current.map((s) => s.seat_index === seatIndex ? row : s) : [...current, row].sort((a,b) => a.seat_index-b.seat_index);
+          return normalizeSeats(exists ? current.map((s) => s.seat_index === seatIndex ? row : s) : [...current, row]);
         });
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, (payload) => {
@@ -290,9 +302,9 @@ function RoomPage() {
         .eq("room_id", id).eq("seat_index", seatIndex).maybeSingle();
       if (data) {
         const next = data as Seat;
-        setSeats((current) => current.some((s) => s.seat_index === seatIndex)
+        setSeats((current) => normalizeSeats(current.some((s) => s.seat_index === seatIndex)
           ? current.map((s) => s.seat_index === seatIndex ? next : s)
-          : [...current, next].sort((a,b) => a.seat_index-b.seat_index));
+          : [...current, next]));
         await roomLive.current?.send({ type: "broadcast", event: "seat_state", payload: { roomId: id, seat: next } });
       }
     } else if (fn === "leave_seat" || fn === "toggle_my_mute" || fn === "take_seat") {
