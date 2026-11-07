@@ -207,3 +207,30 @@
   .card-3d:hover { transform: none; }
   .card-3d:active { transform: scale(.985); }
 }
+
+
+/* Android-first viewport: content scrolls naturally under a compact bottom navigation. */
+html, body, #root {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+html { background: var(--background); }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  overscroll-behavior-x: none;
+  -webkit-overflow-scrolling: touch;
+}
+.app-screen {
+  width: 100%;
+  max-width: 680px;
+  margin-inline: auto;
+  min-height: calc(100dvh - 8px);
+  box-sizing: border-box;
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+}
+@media (max-width: 420px) {
+  .app-screen { padding-inline: .75rem; }
+}
