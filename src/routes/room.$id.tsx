@@ -557,19 +557,21 @@ function RoomPage() {
 
       <Sheet open={!!seatMenu} onOpenChange={(o) => !o && setSeatMenu(null)}>
         <SheetContent side="bottom" dir="rtl" className="rounded-t-3xl">
-          <SheetHeader><SheetTitle>المقعد {seatMenu ? seatMenu.seat_index + 1 : ""}</SheetTitle></SheetHeader>
+          <SheetHeader><SheetTitle>{seatMenu && seatMenu.seat_index >= 0 ? `المقعد ${seatMenu.seat_index + 1}` : "إدارة المستخدم"}</SheetTitle></SheetHeader>
           {seatMenu && (
             <div className="grid gap-2 p-4">
               {!seatMenu.user_id && !seatMenu.is_locked && <Button onClick={async () => { const { error } = await supabase.rpc("take_seat", { _room: id, _seat: seatMenu.seat_index }); if (error) toast.error(errMsg(error)); else { await syncRoomSeats(); setSeatMenu(null); toast.success("تم الصعود للميك مباشرة"); } }} className="bg-gold">الصعود للميك</Button>}
               {seatMenu.user_id === uid && <Button variant="outline" onClick={() => call("leave_seat", { _room: id })}>مغادرة المقعد</Button>}
               {isStaff && (
                 <>
-                  <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_locked ? "unlock" : "lock" })}>{seatMenu.is_locked ? "فتح المقعد" : "قفل المقعد"}</Button>
-                  <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_muted ? "unmute" : "mute" })}>{seatMenu.is_muted ? "تشغيل الميك" : "كتم الميك"}{!seatMenu.user_id ? " (المقعد فارغ)" : ""}</Button>
+                  {seatMenu.seat_index >= 0 && <>
+                    <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_locked ? "unlock" : "lock" })}>{seatMenu.is_locked ? "فتح المايك" : "قفل المايك"}</Button>
+                    <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_muted ? "unmute" : "mute" })}>{seatMenu.is_muted ? "إلغاء الكتم" : "كتم المايك"}</Button>
+                    {seatMenu.user_id && seatMenu.user_id !== uid && <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick" })}>إنزال من المايك</Button>}
+                  </>}
                   {seatMenu.user_id && (
                     <>
                       {((profiles[seatMenu.user_id]?.vip_level ?? 0) < 5 || isOwner) && <>
-                        {seatMenu.user_id !== uid && <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick" })}>إنزال من المقعد</Button>}
                         {seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && (
                         <>
                           <Button variant="outline" onClick={() => call("staff_kick_room_user", { _room: id, _user: seatMenu.user_id })}>طرد من الغرفة</Button>
