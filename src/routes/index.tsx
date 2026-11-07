@@ -98,6 +98,25 @@ function Home() {
           </div>
         </div>
       )}
+      <section className="royale-hero card-3d relative mb-5 overflow-hidden rounded-[2rem] p-5">
+        <div className="royale-orb royale-orb-a" />
+        <div className="royale-orb royale-orb-b" />
+        <div className="relative z-10 flex items-center gap-4">
+          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-3xl bg-black/20 ring-1 ring-primary/40 shadow-gold">
+            {logoUrl ? <img src={logoUrl} alt="" className="h-16 w-16 object-contain drop-shadow-2xl" /> : <img src={icons3d.micHost} alt="" className="h-16 w-16 object-contain drop-shadow-2xl" />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-bold uppercase tracking-[0.2em] text-primary/90">Voice Chat • Social • Royal</div>
+            <h2 className="mt-1 truncate font-display text-3xl text-white">{appBranding?.app_name || "VOX ROYALE"}</h2>
+            <p className="mt-1 text-sm text-white/70">تواصل، دردش، ادخل غرفتك واصنع مجتمعك الخاص.</p>
+          </div>
+        </div>
+        <div className="relative z-10 mt-4 grid grid-cols-3 gap-2">
+          <div className="hero-stat"><b>{rooms.length}</b><span>غرفة</span></div>
+          <div className="hero-stat"><b>{rooms.reduce((n, r) => n + Number(r.member_count || 0), 0)}</b><span>متصل الآن</span></div>
+          <div className="hero-stat"><b>24/7</b><span>Realtime</span></div>
+        </div>
+      </section>
       <header className="mb-4 flex items-center justify-between">
         <div className="flex min-w-0 items-center gap-2">
           {logoUrl && <img src={logoUrl} alt="" className="h-10 w-10 rounded-xl object-contain" />}
