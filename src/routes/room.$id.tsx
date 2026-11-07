@@ -290,7 +290,7 @@ function RoomPage() {
                   <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_muted ? "unmute" : "mute" })}>{seatMenu.is_muted ? "إلغاء كتم المايك" : "كتم المايك"}</Button>
                   {seatMenu.user_id && seatMenu.user_id !== uid && (
                     <>
-                      <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick_seat" })}>إنزال المستخدم من المايك</Button>
+                      <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick" })}>إنزال المستخدم من المايك</Button>
                       <Button variant="outline" onClick={() => call("staff_set_mic_access", { _room: id, _user: seatMenu.user_id, _blocked: !micBlocked })}>{micBlocked ? "السماح للمستخدم بصعود المايك" : "منع المستخدم من صعود المايك"}</Button>
                       {seatMenu.user_id !== room.owner_id && <Button variant="destructive" onClick={() => call("ban_user", { _room: id, _user: seatMenu.user_id })}>طرد المستخدم من الغرفة</Button>}
                     </>
