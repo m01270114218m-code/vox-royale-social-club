@@ -70,3 +70,12 @@ $function$;
 
 revoke execute on function public.decide_mic_request(uuid, boolean) from public, anon;
 grant execute on function public.decide_mic_request(uuid, boolean) to authenticated;
+
+
+-- SECURITY: these privileged SECURITY DEFINER RPCs are never public/anonymous.
+revoke execute on function public.admin_decide_wallet_topup(uuid,text,text) from public, anon;
+revoke execute on function public.admin_grant_badge(uuid,text,text,text,text) from public, anon;
+revoke execute on function public.admin_set_profile_style(uuid,text,text,integer) from public, anon;
+revoke execute on function public.equip_badge(uuid,boolean) from public, anon;
+revoke execute on function public.request_wallet_topup(bigint,text,text) from public, anon;
+revoke execute on function public.update_room(uuid,text,text,text,text,boolean,text) from public, anon;
