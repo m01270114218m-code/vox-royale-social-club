@@ -42,19 +42,37 @@ export function RoomVoice({roomId,uid,members,micEnabled}:Props){
  }
  async function syncPeers(){
   const targets=members.filter(x=>x&&x!==uid);
-  for(const id of targets) if(!peers.current.has(id)) await makePeer(id,uid<id);
+  // Keep the peer graph warm. Never tear down/recreate it just because the mic toggled.
+  await Promise.all(targets.filter(id=>!peers.current.has(id)).map(id=>makePeer(id,uid<id)));
   for(const [id,p] of peers.current){if(!targets.includes(id)){p.pc.close();p.audio?.remove();peers.current.delete(id);}}
-  if(micEnabled){
-   if(!stream.current){try{stream.current=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});}catch{toast.error("اسمح للميكروفون من صلاحيات التطبيق");return;}}
-   for(const [id,{pc}] of peers.current){
-    const sender=pc.getSenders().find(s=>s.track?.kind==="audio");
-    if(sender){await sender.replaceTrack(stream.current.getAudioTracks()[0]);}
-    else { pc.addTrack(stream.current.getAudioTracks()[0],stream.current); const offer=await pc.createOffer(); await pc.setLocalDescription(offer); await send(id,"offer",offer); }
-   }
-  }else if(stream.current){
-   stream.current.getTracks().forEach(t=>t.stop());stream.current=null;
-   for(const {pc} of peers.current){const sender=pc.getSenders().find(s=>s.track?.kind==="audio"); if(sender)await sender.replaceTrack(null);}
+
+  if(micEnabled && !stream.current){
+    try{
+      stream.current=await navigator.mediaDevices.getUserMedia({
+        audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}
+      });
+    }catch{toast.error("اسمح للميكروفون من صلاحيات التطبيق");return;}
   }
+
+  const track=stream.current?.getAudioTracks()[0];
+  if(track) track.enabled=micEnabled;
+
+  await Promise.all([...peers.current.values()].map(async ({pc})=>{
+    let sender=pc.getSenders().find(s=>s.track?.kind==="audio" || s.track===null);
+    if(!sender && track){
+      const transceiver=pc.getTransceivers().find(t=>t.receiver.track?.kind==="audio" && t.sender);
+      sender=transceiver?.sender;
+    }
+    if(sender){
+      await sender.replaceTrack(micEnabled ? track ?? null : null);
+    }else if(track){
+      pc.addTrack(track,stream.current!);
+      const offer=await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      const peerId=[...peers.current.entries()].find(([,v])=>v.pc===pc)?.[0];
+      if(peerId) await send(peerId,"offer",offer);
+    }
+  }));
  }
  return null;
 }
