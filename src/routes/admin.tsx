@@ -306,7 +306,7 @@ function Posts() {
 
 type U = { id: string; display_name: string; display_no: number; level: number; vip_level: number; coins: number; roles: string[]; created_at: string };
 type AdminStoreItem = { id: string; name: string; kind: string; asset_key: string };
-type UserIdentityEdit = { display_no: string; level: string; id_color: string };
+type UserIdentityEdit = { display_no: string; level: string; id_color: string; name_color: string; name_effect: string; name_effect_speed: string };
 function UsersTab({ isSuper }: { isSuper: boolean }) {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<U[]>([]);
@@ -331,7 +331,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
     setIdentity((current) => {
       const next = { ...current };
       users.forEach((u) => {
-        next[u.id] ??= { display_no: String(u.display_no), level: String(u.level), id_color: colors[u.id] || "#D4AF37" };
+        next[u.id] ??= { display_no: String(u.display_no), level: String(u.level), id_color: colors[u.id] || "#D4AF37", name_color: colors[u.id] || "#D4AF37", name_effect: "none", name_effect_speed: "1800" };
       });
       return next;
     });
