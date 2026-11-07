@@ -68,7 +68,7 @@ export function AppUpdateGate() {
         <p className="mt-3 text-sm leading-7 text-muted-foreground">
           {policy.message || "هذا الإصدار لم يعد مدعوماً. حدّث تطبيق صدي شات للمتابعة."}
         </p>
-        <div className="mt-3 text-xs text-muted-foreground">الإصدار الحالي: {APP_VERSION}{policy.latest_version ? \` · المتاح: \${policy.latest_version}\` : ""}</div>
+        <div className="mt-3 text-xs text-muted-foreground">الإصدار الحالي: {APP_VERSION}{policy.latest_version ? " · المتاح: " + policy.latest_version : ""}</div>
         {url ? (
           <Button className="mt-6 w-full bg-gold font-bold text-black" onClick={() => { window.location.href = url; }}>
             تحديث التطبيق
