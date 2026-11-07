@@ -73,7 +73,7 @@ function RoomPage() {
   const [giftSel, setGiftSel] = useState<GiftT | null>(null);
   const [qty, setQty] = useState(1);
   const [coins, setCoins] = useState(0);
-  const [anim, setAnim] = useState<{ key: number; emoji: string } | null>(null);
+  const [anim, setAnim] = useState<{ key: number; emoji: string; name: string } | null>(null);
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
   const [micPermissionGranted, setMicPermissionGranted] = useState(false);
@@ -173,7 +173,7 @@ function RoomPage() {
             image = signed?.signedUrl || image;
           }
         }
-        setAnim({ key: Date.now(), emoji: image });
+        setAnim({ key: Date.now(), emoji: image, name: g.name });
         setTimeout(() => setAnim(null), 2600);
       })
       .on("broadcast", { event: "mic_request_changed" }, () => { void loadMicRequests(); })
@@ -571,7 +571,7 @@ function RoomPage() {
       )}
 
       {anim && (
-        <div key={anim.key} className="gift-pop pointer-events-none fixed inset-0 z-50 flex items-center justify-center"><img src={anim.emoji} alt="" className="h-64 w-64 object-contain" /></div>
+        <div key={anim.key} className="gift-pop pointer-events-none fixed inset-0 z-50 flex flex-col items-center justify-center gap-3"><img src={anim.emoji} alt={anim.name} className="h-64 w-64 object-contain" /><div className="rounded-full bg-black/65 px-5 py-2 text-lg font-black text-white">{anim.name}</div></div>
       )}
 
       <Sheet open={giftOpen} onOpenChange={setGiftOpen}>
