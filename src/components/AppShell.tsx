@@ -93,7 +93,7 @@ function ShellInner({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <div className="app-shell-content mx-auto min-h-dvh max-w-2xl pb-24">{children}</div>
+      <div className="app-shell-content min-h-dvh w-full pb-24">{children}</div>
       <nav className="app-bottom-nav glass fixed inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md items-end justify-around gap-1 rounded-full px-2 py-2">
         <Link to="/" className={item} activeProps={active} activeOptions={{ exact: true }}>
           <img src={ui.bottom_nav.home_icon || icons3d.home} alt="" className="h-7 w-7 drop-shadow-lg" />
