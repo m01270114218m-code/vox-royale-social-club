@@ -259,8 +259,8 @@ export function AnalyticsTab() {
 
 export function AppBuilderTab() {
   const defaults: Record<string, string> = {
-    "ui.branding": JSON.stringify({app_name:"صدى شات",logo_url:"",logo_path:""}, null, 2),
-    "app_branding": JSON.stringify({app_name:"صدى شات",logo_path:"",logo_url:""}, null, 2),
+    "ui.branding": JSON.stringify({app_name:"صدي شات",logo_url:"",logo_path:""}, null, 2),
+    "app_branding": JSON.stringify({app_name:"صدي شات",logo_path:"",logo_url:""}, null, 2),
     "home_banner": JSON.stringify({title:"",image_path:"",enabled:true}, null, 2),
     "auth_methods": JSON.stringify({email_enabled:true,quick_enabled:true,google_enabled:true}, null, 2),
     "ui.bottom_nav": JSON.stringify({home_label:"الغرف",explore_label:"اللحظات",room_label:"غرفتي",messages_label:"الرسائل",profile_label:"أنا",home_icon:"",explore_icon:"",room_icon:"",messages_icon:"",profile_icon:""}, null, 2),
