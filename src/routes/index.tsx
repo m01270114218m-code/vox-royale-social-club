@@ -130,12 +130,12 @@ function Home() {
         </div>
       )}
       {roomBanners.length > 0 && (
-        <div className="room-list-banner mb-3 overflow-hidden rounded-2xl border border-primary/20 bg-black/20 shadow-lg">
+        <div className="room-list-banner mb-2 overflow-hidden rounded-xl border border-primary/20 bg-black/20 shadow-lg">
           {(() => {
             const banner = roomBanners[bannerIndex];
             if (!banner) return null;
             const content = (
-              <div className="relative h-[104px] w-full sm:h-40">
+              <div className="relative h-[88px] w-full sm:h-32">
                 <img src={banner.image_url} alt={banner.title} className="absolute inset-0 h-full w-full object-cover" />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent px-4 pb-3 pt-10">
                   <div className="truncate text-sm font-bold text-white">{banner.title}</div>
@@ -177,9 +177,9 @@ function Home() {
       {list.length === 0 ? (
         <div className="glass rounded-3xl p-10 text-center text-muted-foreground">لا توجد غرف بعد — أنشئ أول غرفة!</div>
       ) : (
-        <div className="grid grid-cols-2 justify-items-stretch gap-2 sm:gap-3">
+        <div className="grid grid-cols-2 justify-items-stretch gap-1.5 sm:gap-2">
           {list.map((r) => (
-            <Link key={r.id} to="/room/$id" params={{ id: r.id }} className="card-3d glass group relative aspect-[3/4] overflow-hidden rounded-3xl p-3">
+            <Link key={r.id} to="/room/$id" params={{ id: r.id }} className="card-3d glass group relative aspect-[4/5] overflow-hidden rounded-2xl p-2.5">
               <MediaImage src={r.cover_url || roomBackground(r.category)} className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
               <div className="relative flex h-full flex-col justify-between">
                 <span className="w-fit rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">{catName(r.category)}</span>
