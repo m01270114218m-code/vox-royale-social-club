@@ -93,10 +93,10 @@ function ShellInner({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <div className="mx-auto min-h-screen max-w-2xl pb-28">{children}</div>
-      <nav className="glass fixed inset-x-3 bottom-3 z-40 mx-auto flex max-w-md items-end justify-around rounded-full px-2 py-2.5">
+      <div className="app-shell-content mx-auto min-h-dvh max-w-2xl pb-24">{children}</div>
+      <nav className="app-bottom-nav glass fixed inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md items-end justify-around gap-1 rounded-full px-2 py-2">
         <Link to="/" className={item} activeProps={active} activeOptions={{ exact: true }}>
-          <img src={ui.bottom_nav.home_icon || icons3d.home} alt="" className="h-8 w-8 drop-shadow-lg" />
+          <img src={ui.bottom_nav.home_icon || icons3d.home} alt="" className="h-7 w-7 drop-shadow-lg" />
           {ui.bottom_nav.home_label || "الغرف"}
         </Link>
         <Link to="/moments" className={item} activeProps={active}>
