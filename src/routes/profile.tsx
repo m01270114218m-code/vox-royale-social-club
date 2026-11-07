@@ -169,7 +169,7 @@ function ProfilePage() {
           <h3 className="mb-2 font-bold">سجل المحفظة</h3>
           {txs.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد معاملات بعد</p> : txs.map((t) => (
             <div key={t.id} className="flex justify-between border-b border-border py-2 text-sm last:border-0">
-              <span>{({ gift_sent: "هدية مرسلة", gift_received: "هدية مستلمة", daily_bonus: "مكافأة يومية", vip_purchase: "شراء VIP", admin_adjustment: p.display_name } as Record<string, string>)[t.reason] ?? t.reason}</span>
+              <span>{({ gift_sent: "هدية مرسلة", gift_received: "هدية مستلمة", daily_bonus: "مكافأة يومية", vip_purchase: "شراء VIP", admin_adjustment: p.display_name, admin: p.display_name } as Record<string, string>)[t.reason] ?? t.reason}</span>
               <span className={t.amount < 0 ? "text-destructive" : "text-primary"}>{t.amount > 0 ? "+" : ""}{t.amount} {t.currency === "coins" ? "🪙" : "💎"}</span>
             </div>
           ))}
