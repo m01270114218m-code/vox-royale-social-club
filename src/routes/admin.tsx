@@ -462,15 +462,15 @@ function WalletTab() {
 }
 
 type GiftTx = { sender_name: string | null; receiver_name: string | null; gift_name: string; cost: number; created_at: string };
-type GiftCatalog = { id: string; name: string; emoji: string; price: number; active: boolean };
+type GiftCatalog = { id: string; name: string; emoji: string; price: number; active: boolean; asset_url?: string | null };
 function GiftsTab() {
   const [rows, setRows] = useState<GiftTx[]>([]);
   const [catalog, setCatalog] = useState<GiftCatalog[]>([]);
-  const [form, setForm] = useState({ name: "", emoji: "🎁", price_coins: "100" });
+  const [form, setForm] = useState({ name: "", emoji: "🎁", price_coins: "100", asset_url: "" });
   async function load() {
     const [{ data, error }, { data: gifts, error: catalogError }] = await Promise.all([
       supabase.rpc("admin_list_gift_tx", { _limit: 200 }),
-      supabase.from("gifts").select("id,name,emoji,price,active").order("price"),
+      supabase.from("gifts").select("id,name,emoji,price,active,asset_url").order("price"),
     ]);
     if (error) toast.error(errMsg(error));
     if (catalogError) toast.error(errMsg(catalogError));
@@ -493,7 +493,7 @@ function GiftsTab() {
     });
     if (error) { toast.error(errMsg(error)); return; }
     toast.success("تم حفظ الهدية في الكتالوج");
-    setForm({ name: "", emoji: "🎁", price_coins: "100" });
+    setForm({ name: "", emoji: "🎁", price_coins: "100", asset_url: "" });
     load();
   }
   async function toggleGift(g: GiftCatalog) {
@@ -515,13 +515,13 @@ function GiftsTab() {
           
           <Input placeholder="اسم الهدية" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <Input placeholder="الرمز أو الإيموجي" value={form.emoji} onChange={(e) => setForm({ ...form, emoji: e.target.value })} />
-          <Input type="number" min="0" placeholder="السعر بالعملات" value={form.price_coins} onChange={(e) => setForm({ ...form, price_coins: e.target.value })} />
+          <Input type="number" min="0" placeholder="السعر بالعملات" value={form.price_coins} onChange={(e) => setForm({ ...form, price_coins: e.target.value })} /><Input placeholder="رابط تخزين Supabase للهدية" value={form.asset_url} onChange={(e) => setForm({ ...form, asset_url: e.target.value })} dir="ltr" className="col-span-2" />
         </div>
         <Button className="bg-gold" onClick={saveGift}>حفظ الهدية</Button>
       </div>
       {catalog.map((g) => (
         <div key={g.id} className="glass flex items-center justify-between gap-2 rounded-xl p-3 text-sm">
-          <div><b>{g.emoji} {g.name}</b><div className="text-xs text-muted-foreground" dir="ltr">{g.id} · {g.price} coins</div></div>
+          <div className="flex items-center gap-2"><img src={g.asset_url || ""} alt="" className="h-10 w-10 rounded-lg object-contain" /><div><b>{g.emoji} {g.name}</b><div className="text-xs text-muted-foreground" dir="ltr">{g.id} · {g.price} coins</div></div></div>
           <div className="flex gap-1"><Button size="sm" variant="outline" onClick={() => toggleGift(g)}>{g.active ? "إيقاف" : "تفعيل"}</Button><Button size="sm" variant="destructive" onClick={() => deleteGift(g)}>حذف</Button></div>
         </div>
       ))}
