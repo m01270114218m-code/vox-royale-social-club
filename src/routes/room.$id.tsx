@@ -166,13 +166,20 @@ function RoomPage() {
     setSeatMenu(null);
   }
 
-  async function onSeat(s: Seat) {
-    if (!s.user_id && !s.is_locked && !isStaff) return call("take_seat", { _room: id, _seat: s.seat_index });
+  async function openUserMenu(userId: string) {
+    const occupiedSeat = seats.find((seat) => seat.user_id === userId);
     setMicBlocked(false);
-    if (isStaff && s.user_id && s.user_id !== uid) {
-      const { data } = await supabase.rpc("staff_is_mic_blocked" as never, { _room: id, _user: s.user_id } as never);
+    if (isStaff && userId !== uid) {
+      const { data } = await supabase.rpc("staff_is_mic_blocked" as never, { _room: id, _user: userId } as never);
       setMicBlocked(Boolean(data));
     }
+    setSeatMenu(occupiedSeat ?? { seat_index: -1, user_id: userId, is_locked: false, is_muted: false });
+  }
+
+  async function onSeat(s: Seat) {
+    if (!s.user_id && !s.is_locked && !isStaff) return call("take_seat", { _room: id, _seat: s.seat_index });
+    if (s.user_id && isStaff && s.user_id !== uid) return openUserMenu(s.user_id);
+    setMicBlocked(false);
     setSeatMenu(s);
   }
 
@@ -279,22 +286,22 @@ function RoomPage() {
 
       <Sheet open={!!seatMenu} onOpenChange={(o) => !o && setSeatMenu(null)}>
         <SheetContent side="bottom" dir="rtl" className="rounded-t-3xl">
-          <SheetHeader><SheetTitle>المقعد {seatMenu ? seatMenu.seat_index + 1 : ""}</SheetTitle></SheetHeader>
+          <SheetHeader><SheetTitle>{seatMenu && seatMenu.seat_index >= 0 ? `المقعد ${seatMenu.seat_index + 1}` : "إدارة المستخدم"}</SheetTitle></SheetHeader>
           {seatMenu && (
             <div className="grid gap-2 p-4">
               {!seatMenu.user_id && (!seatMenu.is_locked || isStaff) && <Button onClick={() => call("take_seat", { _room: id, _seat: seatMenu.seat_index })} className="bg-gold">الجلوس هنا</Button>}
               {seatMenu.user_id === uid && <Button variant="outline" onClick={() => call("leave_seat", { _room: id })}>مغادرة المقعد</Button>}
-              {isStaff && (
+              {isStaff && seatMenu.seat_index >= 0 && (
                 <>
                   <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_locked ? "unlock" : "lock" })}>{seatMenu.is_locked ? "فتح المايك" : "قفل المايك"}</Button>
                   <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_muted ? "unmute" : "mute" })}>{seatMenu.is_muted ? "إلغاء كتم المايك" : "كتم المايك"}</Button>
-                  {seatMenu.user_id && seatMenu.user_id !== uid && (
-                    <>
-                      <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick" })}>إنزال المستخدم من المايك</Button>
-                      <Button variant="outline" onClick={() => call("staff_set_mic_access", { _room: id, _user: seatMenu.user_id, _blocked: !micBlocked })}>{micBlocked ? "السماح للمستخدم بصعود المايك" : "منع المستخدم من صعود المايك"}</Button>
-                      {seatMenu.user_id !== room.owner_id && <Button variant="destructive" onClick={() => call("ban_user", { _room: id, _user: seatMenu.user_id })}>طرد المستخدم من الغرفة</Button>}
-                    </>
-                  )}
+                  {seatMenu.user_id && seatMenu.user_id !== uid && <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick" })}>إنزال المستخدم من المايك</Button>}
+                </>
+              )}
+              {isStaff && seatMenu.user_id && seatMenu.user_id !== uid && (
+                <>
+                  <Button variant="outline" onClick={() => call("staff_set_mic_access", { _room: id, _user: seatMenu.user_id, _blocked: !micBlocked })}>{micBlocked ? "السماح للمستخدم بصعود المايك" : "منع المستخدم من صعود المايك"}</Button>
+                  {seatMenu.user_id !== room.owner_id && <Button variant="destructive" onClick={() => call("ban_user", { _room: id, _user: seatMenu.user_id })}>طرد المستخدم من الغرفة</Button>}
                 </>
               )}
                {seatMenu.user_id && seatMenu.user_id !== uid && <Button onClick={() => { if (seatMenu.user_id) openGifts(seatMenu.user_id); }} className="bg-accent text-accent-foreground"><img src={icons3d.giftbox} alt="" className="h-6 w-6 object-contain" /> إرسال هدية</Button>}
@@ -345,7 +352,10 @@ function RoomPage() {
           <div className="space-y-2 p-4">
             {members.map((m) => (
               <div key={m} className="flex items-center justify-between rounded-xl bg-secondary/50 p-2">
-                <div className="flex items-center gap-2"><UserAvatar src={profiles[m]?.avatar_url} name={profiles[m]?.display_name} vip={profiles[m]?.vip_level} size={44} /><div><span>{profiles[m]?.display_name ?? "…"}</span><IdentityBadges level={profiles[m]?.level} vip={profiles[m]?.vip_level} /></div></div>
+                <button type="button" className="flex min-w-0 items-center gap-2 text-right" onClick={() => isStaff && m !== uid && m !== room.owner_id && openUserMenu(m)}>
+                  <UserAvatar src={profiles[m]?.avatar_url} name={profiles[m]?.display_name} vip={profiles[m]?.vip_level} frameKey={profiles[m]?.equipped_frame} size={44} />
+                  <div><span>{profiles[m]?.display_name ?? "…"}</span><IdentityBadges level={profiles[m]?.level} vip={profiles[m]?.vip_level} /></div>
+                </button>
                 {isStaff && m !== uid && m !== room.owner_id && <Button size="sm" variant="destructive" onClick={() => call("ban_user", { _room: id, _user: m })}>حظر</Button>}
               </div>
             ))}
