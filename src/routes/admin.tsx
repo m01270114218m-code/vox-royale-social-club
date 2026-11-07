@@ -41,7 +41,7 @@ function FullAdminPanel() {
     <main className="fixed inset-0 z-[100] bg-background">
       <iframe
         title="لوحة التحكم الكاملة — VOX ROYALE"
-        src="/control-center/index.html"
+        src="/control-center.html"
         className="h-[100dvh] w-full border-0"
         allow="clipboard-read; clipboard-write"
       />
