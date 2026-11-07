@@ -34,7 +34,6 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           bun --version
           bun install
-          bun add @capacitor/app@latest
           export VITE_APP_VERSION="$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")"
           echo "Building app version $VITE_APP_VERSION"
           bun run build
@@ -62,7 +61,7 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           java -version 2>&1 | grep -Eq 'version "21([.]|")'
           test -n "$ANDROID_HOME" || test -n "$ANDROID_SDK_ROOT"
-          bun add @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/app@latest
+          # Use the pinned Capacitor 7 packages from package.json; do not upgrade across major versions.
           bunx cap add android
           # Declare microphone permissions for Agora/WebView audio capture.
           python3 - <<'PY'
