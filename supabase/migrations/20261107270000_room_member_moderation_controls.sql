@@ -90,6 +90,9 @@ begin
   if v_actor<>v_owner and exists(select 1 from public.room_moderators where room_id=_room and user_id=_user) then
     raise exception 'cannot_moderate_peer';
   end if;
+  if _muted and v_actor<>v_owner and public.vip_has_moderation_protection(
+    (select coalesce(vip_level,0) from public.profiles where id=_user)
+  ) then raise exception 'vip_protected'; end if;
   if _muted then
     insert into public.room_chat_mutes(room_id,user_id,muted_by) values(_room,_user,v_actor)
     on conflict(room_id,user_id) do update set muted_by=excluded.muted_by,created_at=now();
