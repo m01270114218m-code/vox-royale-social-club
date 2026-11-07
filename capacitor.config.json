@@ -1,5 +1,8 @@
 {
   "appId": "com.voxroyale.app",
-  "appName": "VOX ROYALE",
-  "webDir": ".output/public"
+  "appName": "Saada Chat",
+  "webDir": ".output/public",
+  "android": {
+    "allowMixedContent": false
+  }
 }

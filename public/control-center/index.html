@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>صدي شات | Admin Center</title>
+<style>
+:root{color-scheme:dark;--bg:#090b12;--panel:#121724;--line:#273044;--gold:#e8bd63;--muted:#9aa5b8;--red:#f87171;--green:#4ade80}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,#222033 0,#090b12 48%);color:#f5f2ea;font:15px system-ui,sans-serif;min-height:100vh}
+.wrap{max-width:1240px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid var(--line);padding-bottom:18px}
+.brand{font-size:22px;font-weight:800;color:var(--gold);letter-spacing:1px}.muted{color:var(--muted)}.card{background:#121724ef;border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:14px;box-shadow:0 18px 50px #0005}
+input,textarea,select,button{font:inherit;border-radius:9px;padding:10px;border:1px solid var(--line)}input,textarea,select{background:#0b101a;color:white;width:100%;margin:5px 0 10px}textarea{min-height:88px;resize:vertical}
+button{background:var(--gold);color:#17130b;border:0;font-weight:700;cursor:pointer}button.secondary{background:#202a3c;color:#fff;border:1px solid var(--line)}button.danger{background:#4b2028;color:#ffd9dd;border:1px solid #75313d}button:disabled{opacity:.5;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}.stat{font-size:25px;color:var(--gold);font-weight:800}.tabs{display:flex;gap:7px;overflow:auto;padding:5px 0 12px}.tabs button{white-space:nowrap}.tabs button.active{outline:2px solid var(--gold);background:#5c4824;color:#fff}
+.hidden{display:none!important}.status{padding:11px;border-radius:9px;background:#1a2434;margin-top:10px;white-space:pre-wrap}.dangerText{color:#ff9999}.section{min-height:140px}.small{font-size:12px}.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.item{background:#0c121e;border:1px solid var(--line);border-radius:12px;padding:12px;margin:9px 0}.actions{display:flex;gap:6px;flex-wrap:wrap}.actions button{padding:7px 10px;font-size:12px}.fieldgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.thumb{width:76px;height:58px;object-fit:cover;border-radius:8px;background:#202a3c}.tag{display:inline-block;background:#202a3c;border-radius:20px;padding:4px 8px;font-size:11px;margin:2px}.good{color:var(--green)}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#090e18;padding:10px;border-radius:9px;font-size:12px}
+</style>
+</head>
+<body><main class="wrap">
+<header class="top"><div><div class="brand">صدي شات</div><div class="muted">EXTERNAL ADMIN CENTER · LIVE SUPABASE</div></div><button id="logout" class="secondary hidden">تسجيل الخروج</button></header>
+<section id="setup" class="card hidden"><h2>إعداد الاتصال</h2><p class="muted">الاتصال مضبوط على قاعدة بيانات صدي شات الحالية. المفتاح المستخدم Publishable عام ومخصص للواجهة، ولا تستخدم service_role هنا.</p><label>Project URL</label><input id="url"><label>Publishable Key</label><input id="key" type="password" autocomplete="off"><button id="save">حفظ الاتصال</button><div id="setupMsg" class="status"></div></section>
+<section id="login" class="card hidden"><h2>دخول المشرف</h2><label>البريد الإلكتروني</label><input id="email" type="email" autocomplete="username"><label>كلمة المرور</label><input id="password" type="password" autocomplete="current-password"><div class="actions"><button id="signin">تسجيل الدخول</button></div><div id="loginMsg" class="status"></div><div id="claimBox" class="hidden"><p class="muted">لا يوجد مشرف مسجل حالياً. إذا كان هذا أول حساب إدارة يمكنك المطالبة بصلاحية المشرف الأعلى.</p><button id="claim">المطالبة بصلاحية أول مشرف</button></div></section>
+<section id="dashboard" class="hidden">
+<div class="card"><div class="row"><div><h2>لوحة إدارة صدي شات</h2><p id="who" class="muted small"></p></div><span class="tag good">متصل بقاعدة البيانات الحقيقية</span></div><div class="grid" id="stats"></div><div class="tabs" id="tabs"></div><div class="card section" id="panel"><p class="muted">اختر قسماً لعرض البيانات الحقيقية.</p></div></div>
+</section>
+<footer class="muted small" style="padding:20px 4px">البيانات تُقرأ وتُكتب مباشرة في Supabase • صلاحيات الإدارة يتم التحقق منها داخل قاعدة البيانات</footer>
+</main>
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const DEFAULT_URL="https://gxkdptwkyhwbxyaspagd.supabase.co";
+const DEFAULT_KEY="sb_publishable_tLtMpyWHcotmyTpaToTNYQ_M2sWXk1r";
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=v=>Number(v??0).toLocaleString('ar-EG');
+const date=v=>v?new Date(v).toLocaleString('ar-EG'):'—';
+let db=null,isSuper=false,active='dashboard',sessionUser=null,channel=null,userQuery='';
+const tabs=[
+ ['dashboard','لوحة المعلومات'],['users','المستخدمون'],['rooms','الغرف'],['seats','المقاعد'],['vip','VIP'],['store','المتجر والإطارات والدخوليات'],['wallet','المحافظ'],['gifts','الهدايا'],['banners','البانرات'],['notifications','الإشعارات'],['assets','الأصول ثلاثية الأبعاد'],['audio','المايكات والتأثيرات'],['reports','البلاغات'],['roles','صلاحيات الإدارة'],['settings','الإعدادات'],['auth','طرق تسجيل الدخول'],['branding','هوية التطبيق والبنرات'],['analytics','التحليلات'],['audit','سجل الإجراءات']
+];
+function status(id,text,bad=false){const node=$(id);if(node){node.textContent=text;node.className='status'+(bad?' dangerText':'')}}
+function show(which){['setup','login','dashboard'].forEach(id=>$(id).classList.toggle('hidden',id!==which));$('logout').classList.toggle('hidden',which!=='dashboard')}
+function connect(url,key){db=createClient(url,key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})}
+async function checkAdmin(){
+ const {data:{session},error:sessionError}=await db.auth.getSession();
+ if(sessionError||!session){show('login');return false}
+ sessionUser=session.user;
+ const {data:allowed,error}=await db.rpc('is_admin',{_uid:session.user.id});
+ if(error){show('login');status('loginMsg','تعذر التحقق من الصلاحية: '+error.message,true);return false}
+ if(!allowed){show('login');$('claimBox').classList.remove('hidden');return false}
+ const {data:superRole}=await db.rpc('has_role',{_user_id:session.user.id,_role:'super_admin'});
+ isSuper=!!superRole;
+ $('claimBox').classList.add('hidden');
+ $('who').textContent='مسجل الدخول: '+(session.user.email||session.user.id)+' · '+(isSuper?'المشرف الأعلى':'مشرف');
+ show('dashboard');buildTabs();subscribeLive();await renderTab(active);return true;
+}
+async function refreshStats(){
+ const {data,error}=await db.rpc('admin_stats');
+ const host=$('stats');host.innerHTML='';
+ if(error){host.innerHTML='<div class="item dangerText">تعذر تحميل الإحصائيات: '+esc(error.message)+'</div>';return}
+ const labels={users:'المستخدمون',rooms:'الغرف',seats:'المقاعد',vip_users:'مستخدمو VIP',wallet_coins:'العملات',wallet_diamonds:'الماسات',gifts:'الهدايا',reports_open:'البلاغات المفتوحة',assets:'الأصول',banners:'البانرات',notifications:'الإشعارات'};
+ Object.entries(labels).forEach(([key,label])=>{const d=document.createElement('div');d.className='item';d.innerHTML='<div class="stat">'+money(data?.[key])+'</div><div class="muted small">'+label+'</div>';host.append(d)});
+}
+function buildTabs(){
+ $('tabs').innerHTML='';
+ tabs.forEach(([id,label])=>{const b=document.createElement('button');b.className='secondary'+(id===active?' active':'');b.textContent=label;b.dataset.tab=id;b.onclick=()=>{active=id;buildTabs();renderTab(id)};$('tabs').append(b)});
+}
+function item(title,body,actions=''){return '<div class="item"><div class="row"><b>'+title+'</b><div class="actions">'+actions+'</div></div>'+body+'</div>'}
+function noRows(text='لا توجد بيانات مسجلة'){return '<div class="item muted">'+text+'</div>'}
+async function renderTab(tab){
+ active=tab;const host=$('panel');host.innerHTML='<p class="muted">جارٍ تحميل بيانات Supabase…</p>';
+ try{
+  if(tab==='dashboard'){host.innerHTML='<h3>ملخص النظام</h3><p class="muted">الأرقام أعلاه من الجداول الفعلية. التغييرات القادمة من التطبيق تظهر تلقائياً عبر Realtime.</p>';return}
+  if(tab==='users'){
+   const q=userQuery;
+   const [{data,error},{data:items,error:itemsError},{data:profiles,error:profilesError},{data:wallets,error:walletsError}]=await Promise.all([
+    db.rpc('admin_list_users',{_q:q}),db.from('store_items').select('id,name,kind,asset_key').order('name').limit(300),
+    db.from('profiles').select('id,id_color,name_color,name_effect,name_effect_speed,avatar_url').limit(1000),db.from('wallets').select('user_id,diamonds').limit(1000)
+   ]);
+   if(error)throw error;if(itemsError)throw itemsError;if(profilesError)throw profilesError;if(walletsError)throw walletsError;
+   const meta=Object.fromEntries((profiles||[]).map(p=>[p.id,p]));const balances=Object.fromEntries((wallets||[]).map(w=>[w.user_id,w]));
+   const itemOptions=(items||[]).map(i=>'<option value="'+i.id+'">'+esc(i.name)+' · '+esc(i.kind)+'</option>').join('');
+   host.innerHTML='<h3>إدارة المستخدمين الشاملة</h3><div class="row"><input id="user-q" placeholder="بحث بالاسم أو رقم المستخدم" value="'+esc(q)+'"><button data-action="search-users">بحث</button></div>'+
+   ((data||[]).map(u=>{const m=meta[u.id]||{};return item(esc(u.display_name)+' · ID '+esc(u.display_no),
+    '<div class="muted small">المستوى '+u.level+' · VIP '+u.vip_level+' · '+money(u.coins)+' عملة · '+money(balances[u.id]?.diamonds||0)+' ماسة · '+esc((u.roles||[]).join(', '))+'</div>'+
+    '<div class="fieldgrid"><label>رقم ID<input id="idno-'+u.id+'" type="number" min="100000" value="'+esc(u.display_no)+'"></label><label>المستوى<input id="level-'+u.id+'" type="number" min="1" max="999" value="'+esc(u.level)+'"></label><label>لون ID<input id="idcolor-'+u.id+'" type="color" value="'+esc(m.id_color||'#D4AF37')+'"></label><label>لون الاسم<input id="namecolor-'+u.id+'" type="color" value="'+esc(m.name_color||'#D4AF37')+'"></label><select id="nameeffect-'+u.id+'"><option value="none">بدون</option><option value="shimmer">لمعان</option><option value="pulse">نبض</option><option value="rainbow">قوس ألوان</option></select><input id="namespeed-'+u.id+'" type="number" min="500" max="5000" value="'+esc(m.name_effect_speed||1800)+'"><button data-action="identity" data-user="'+u.id+'">حفظ الهوية والاسم</button></div>'+
+    '<div class="fieldgrid"><select id="currency-'+u.id+'"><option value="coins">عملات</option><option value="diamonds">ماسات</option></select><input id="amount-'+u.id+'" type="number" placeholder="قيمة (+ إضافة / - خصم)"><input id="reason-'+u.id+'" placeholder="سبب العملية"><button data-action="wallet-adjust" data-user="'+u.id+'">تعديل الرصيد</button></div>'+
+    '<div class="fieldgrid"><select id="vip-'+u.id+'">'+Array.from({length:11},(_,i)=>'<option value="'+i+'" '+(i===u.vip_level?'selected':'')+'>VIP '+i+'</option>').join('')+'</select><button data-action="set-vip" data-user="'+u.id+'">حفظ VIP</button><select id="item-'+u.id+'"><option value="">اختر إطاراً أو دخولية أو شارة لإرسالها</option>'+itemOptions+'</select><label><input id="equip-'+u.id+'" type="checkbox" style="width:auto"> تجهيز العنصر فوراً</label><button data-action="grant-item" data-user="'+u.id+'">إرسال العنصر</button></div>'+
+    (isSuper?'<div class="actions">'+['admin','moderator'].map(role=>'<button class="secondary" data-action="role" data-user="'+u.id+'" data-role="'+role+'" data-grant="'+(!(u.roles||[]).includes(role))+'">'+((u.roles||[]).includes(role)?'إزالة ':'منح ')+role+'</button>').join('')+'</div>':'')
+   )}).join('')||noRows())+'<p class="muted small">كل التعديلات تُنفّذ عبر دوال محمية في قاعدة البيانات وتُسجّل في سجل الإدارة.</p>';return;
+  }
+  if(tab==='rooms'){
+   const {data,error}=await db.from('rooms').select('id,room_no,name,member_count,seat_count,is_private,created_at').order('created_at',{ascending:false}).limit(200);if(error)throw error;
+   host.innerHTML='<h3>الغرف</h3>'+((data||[]).map(r=>item(esc(r.name)+' · #'+r.room_no,'<div class="muted small">'+r.member_count+' عضو · '+r.seat_count+' مقعد · '+(r.is_private?'خاصة':'عامة')+' · '+date(r.created_at)+'</div>','<button class="danger" data-action="delete-room" data-id="'+r.id+'">حذف الغرفة</button>')).join('')||noRows());return;
+  }
+  if(tab==='seats'){
+   const {data,error}=await db.from('room_seats').select('room_id,seat_index,is_locked,is_muted,user_id,rooms(name,room_no),profiles(display_name,display_no)').order('seat_index').limit(300);if(error)throw error;
+   host.innerHTML='<h3>المقاعد الصوتية</h3>'+((data||[]).map(s=>item(esc(s.rooms?.name||'غرفة')+' · المقعد '+(s.seat_index+1),'<div class="muted small">'+esc(s.profiles?.display_name||'فارغ')+' · '+(s.is_locked?'مقفل':'مفتوح')+' · '+(s.is_muted?'مكتوم':'الصوت متاح')+'</div>','<button class="secondary" data-action="seat" data-room="'+s.room_id+'" data-seat="'+s.seat_index+'" data-command="'+(s.is_locked?'unlock':'lock')+'">'+(s.is_locked?'فتح':'قفل')+'</button><button class="secondary" data-action="seat" data-room="'+s.room_id+'" data-seat="'+s.seat_index+'" data-command="'+(s.is_muted?'unmute':'mute')+'">'+(s.is_muted?'إلغاء الكتم':'كتم')+'</button>'+(s.user_id?'<button class="danger" data-action="seat" data-room="'+s.room_id+'" data-seat="'+s.seat_index+'" data-command="kick">إخلاء</button>':''))).join('')||noRows());return;
+  }
+  if(tab==='vip'){
+   const {data,error}=await db.from('vip_tiers').select('*').order('level');if(error)throw error;
+   host.innerHTML='<h3>مستويات VIP</h3><form id="vip-form" class="item"><div class="fieldgrid"><input name="level" type="number" min="1" max="10" placeholder="المستوى" required><input name="name" placeholder="اسم المستوى" required><input name="price_coins" type="number" min="0" placeholder="السعر بالعملات" required><input name="duration_days" type="number" min="1" value="30" placeholder="المدة بالأيام" required></div><button>حفظ المستوى</button></form>'+
+   ((data||[]).map(v=>item('VIP '+v.level+' · '+esc(v.name),'<div class="muted small">'+money(v.price_coins)+' عملة · '+v.duration_days+' يوم</div>','<button class="danger" data-action="delete-vip" data-level="'+v.level+'">حذف</button>')).join('')||noRows());return;
+  }
+  if(tab==='store'){
+   const [{data:items,error},{data:assets,error:assetError}]=await Promise.all([
+    db.from('store_items').select('*').order('sort_order').order('created_at',{ascending:false}),
+    db.from('admin_assets').select('asset_key,name,category').in('category',['frame','entry','badge','vip','3d']).eq('is_active',true).order('name')
+   ]);if(error)throw error;if(assetError)throw assetError;
+   const options='<option value="">اختر أصلاً من المكتبة</option>'+(assets||[]).map(a=>'<option value="'+esc(a.asset_key)+'">'+esc(a.name)+' · '+esc(a.category)+'</option>').join('');
+   host.innerHTML='<h3>إدارة المتجر والإطارات والدخوليات</h3><p class="muted small">ارفع الأصل من مكتبة الأصول أولاً، ثم اربطه بعنصر متجر من هنا. يمكن بعد ذلك إرساله للمستخدم من تبويب المستخدمين.</p>'+
+    '<form id="store-form" class="item"><input name="id" type="hidden"><div class="fieldgrid"><input name="name" placeholder="اسم العنصر" required><select name="kind"><option value="frame">إطار صورة</option><option value="entry">دخولية غرفة</option><option value="badge">شارة مميزة</option><option value="effect">تأثير</option></select><input name="price" type="number" min="0" value="0" placeholder="السعر"><input name="sort_order" type="number" value="0" placeholder="ترتيب العرض"><select name="asset_key">'+options+'</select><input name="description" placeholder="وصف العنصر"></div><button>حفظ العنصر في المتجر</button><button type="button" class="secondary" data-action="store-reset">عنصر جديد</button></form>'+
+    ((items||[]).map(it=>item(esc(it.name),'<div class="muted small">'+esc(it.kind)+' · '+money(it.price)+' عملة · '+esc(it.asset_key)+'</div><div class="muted small">'+esc(it.description||'')+'</div>','<button class="secondary" data-action="store-edit" data-id="'+it.id+'" data-name="'+esc(it.name)+'" data-kind="'+esc(it.kind)+'" data-price="'+it.price+'" data-sort="'+(it.sort_order||0)+'" data-asset="'+esc(it.asset_key)+'" data-description="'+esc(it.description||'')+'">تعديل</button><button class="danger" data-action="store-delete" data-id="'+it.id+'">حذف</button>')).join('')||noRows());return;
+  }
+  if(tab==='wallet'){
+   const [{data,error},{data:requests,error:reqError}]=await Promise.all([
+    db.rpc('admin_list_wallet_tx',{_limit:200}),
+    db.from('wallet_topup_requests').select('id,user_id,coins,payment_method,reference,status,admin_note,created_at').order('created_at',{ascending:false}).limit(100)
+   ]);if(error)throw error;if(reqError)throw reqError;
+   host.innerHTML='<h3>المحافظ والشحن</h3><div class="item"><h4>طلبات الشحن</h4>'+((requests||[]).map(r=>item(money(r.coins)+' 🪙 · '+esc(r.user_id),'<div class="muted small">'+esc(r.payment_method||'')+' · '+esc(r.reference||'بدون مرجع')+' · '+date(r.created_at)+' · الحالة: '+esc(r.status)+'</div>',r.status==='pending'?'<button class="secondary" data-action="topup" data-id="'+r.id+'" data-status="approved">اعتماد وإضافة العملات</button><button class="danger" data-action="topup" data-id="'+r.id+'" data-status="rejected">رفض</button>':'')).join('')||noRows())+'</div><h4>سجل المحافظ</h4>'+((data||[]).map(t=>item(esc(t.display_name||t.user_id),'<div class="muted small">'+esc(t.kind)+' · '+esc(t.note)+' · '+date(t.created_at)+'</div>','<b class="'+(Number(t.amount)>=0?'good':'dangerText')+'">'+(Number(t.amount)>=0?'+':'')+money(t.amount)+' 🪙</b>')).join('')||noRows());return;
+  }
+  if(tab==='gifts'){
+   const [{data:gifts,error:e1},{data:tx,error:e2},{data:giftAssets,error:e3}]=await Promise.all([
+    db.from('gifts').select('*').order('price'),db.rpc('admin_list_gift_tx',{_limit:100}),
+    db.from('admin_assets').select('asset_key,name').eq('category','gift').eq('is_active',true).order('name')
+   ]);if(e1)throw e1;if(e2)throw e2;if(e3)throw e3;
+   const assetOptions='<option value="">الصورة الافتراضية</option>'+(giftAssets||[]).map(a=>'<option value="'+esc(a.asset_key)+'">'+esc(a.name)+'</option>').join('');
+   host.innerHTML='<h3>كتالوج الهدايا</h3><p class="muted small">ارفع شكل الهدية من مكتبة الأصول بتصنيف gift ثم اختره هنا لربطه بالهدية.</p><form id="gift-form" class="item"><div class="fieldgrid"><input name="name" placeholder="اسم الهدية" required><input name="emoji" placeholder="رمز الهدية" value="🎁" required><input name="price" type="number" min="0" placeholder="السعر" required><input name="tier" placeholder="الفئة" value="normal"><input name="sort" type="number" value="0" placeholder="الترتيب"><select name="asset_key">'+assetOptions+'</select></div><button>إضافة الهدية</button></form>'+
+   ((gifts||[]).map(g=>item(esc(g.emoji)+' '+esc(g.name),'<div class="muted small">'+money(g.price)+' عملة · '+esc(g.tier||'')+' · أصل: '+esc(g.asset_key||'افتراضي')+'</div><select id="gift-asset-'+g.id+'">'+assetOptions.replace('value="'+esc(g.asset_key||'')+'"','value="'+esc(g.asset_key||'')+'" selected')+'</select>','<button class="secondary" data-action="gift-asset" data-id="'+esc(g.id)+'">حفظ شكل الهدية</button><button class="secondary" data-action="gift-toggle" data-id="'+esc(g.id)+'" data-active="'+(!g.active)+'">'+(g.active?'إيقاف':'تفعيل')+'</button><button class="danger" data-action="gift-delete" data-id="'+esc(g.id)+'">حذف</button>')).join('')||noRows())+
+   '<h3>معاملات إرسال الهدايا</h3>'+((tx||[]).map(g=>item(esc(g.sender_name)+' أرسل '+esc(g.gift_name)+' إلى '+esc(g.receiver_name),'<div class="muted small">'+date(g.created_at)+'</div>','<b>🪙 '+money(g.cost)+'</b>')).join('')||noRows('لا توجد معاملات هدايا بعد'));return;
+  }
+  if(tab==='banners'){
+   const {data,error}=await db.from('banners').select('*').order('sort_order').limit(200);if(error)throw error;
+   host.innerHTML='<h3>بانرات قائمة الغرف</h3><p class="muted small">البانرات النشطة تظهر مباشرة أعلى البحث في قائمة الغرف، ويمكن تغييرها دون إعادة بناء التطبيق.</p><form id="banner-form" class="item"><input type="hidden" name="id" value=""><div class="fieldgrid"><input name="title" placeholder="العنوان" required><input name="image_url" placeholder="رابط الصورة HTTPS (اختياري)"><input name="image_file" type="file" accept="image/*"><input name="target_url" placeholder="رابط الوجهة (اختياري)"><input name="sort_order" type="number" value="0"></div><div class="actions"><button>نشر البانر</button><button type="button" class="secondary" data-action="banner-reset">جديد</button></div></form>'+
+   ((data||[]).map(b=>item(esc(b.title),'<div class="muted small">'+esc(b.image_url)+' · '+(b.is_active?'نشط':'متوقف')+'</div>','<button class="secondary" data-action="banner-edit" data-id="'+b.id+'" data-title="'+esc(b.title)+'" data-image="'+esc(b.image_url)+'" data-target="'+esc(b.target_url||'')+'" data-sort="'+b.sort_order+'">تغيير</button><button class="secondary" data-action="banner-toggle" data-id="'+b.id+'" data-active="'+(!b.is_active)+'">'+(b.is_active?'إيقاف':'تفعيل')+'</button><button class="danger" data-action="banner-delete" data-id="'+b.id+'">حذف</button>')).join('')||noRows());return;
+  }
+  if(tab==='notifications'){
+   const {data,error}=await db.from('notifications').select('id,user_id,title,body,kind,is_read,created_at').order('created_at',{ascending:false}).limit(100);if(error)throw error;
+   host.innerHTML='<h3>الإشعارات</h3><form id="broadcast-form" class="item"><input name="title" placeholder="عنوان الإشعار" required><textarea name="body" placeholder="نص الإشعار" required></textarea><button>إرسال إشعار لكل المستخدمين</button></form>'+
+   ((data||[]).map(n=>item(esc(n.title),'<div>'+esc(n.body)+'</div><div class="muted small">'+date(n.created_at)+' · '+esc(n.kind)+' · '+(n.is_read?'مقروء':'غير مقروء')+' · '+esc(n.user_id)+'</div>')).join('')||noRows());return;
+  }
+  if(tab==='assets'){
+   const {data,error}=await db.from('admin_assets').select('*').order('created_at',{ascending:false}).limit(300);if(error)throw error;
+   const cards=await Promise.all((data||[]).map(async a=>{let url='';const path=a.metadata?.storage_path||a.url;if(path){const {data:s}=await db.storage.from('admin-assets').createSignedUrl(path,900);url=s?.signedUrl||''}return item(esc(a.name),'<div class="muted small">'+esc(a.category)+' · '+esc(a.asset_key)+' · '+(a.is_active?'نشط':'متوقف')+'</div>'+(url?'<a href="'+esc(url)+'" target="_blank" rel="noreferrer">معاينة الملف</a>':''),'<button class="secondary" data-action="asset-toggle" data-id="'+a.id+'" data-active="'+(!a.is_active)+'">'+(a.is_active?'إيقاف':'تفعيل')+'</button><button class="danger" data-action="asset-delete" data-id="'+a.id+'">حذف</button>')}));
+   host.innerHTML='<h3>مكتبة الأصول ثلاثية الأبعاد</h3><form id="asset-form" class="item"><div class="fieldgrid"><input name="name" placeholder="اسم الأصل" required><select name="category"><option>general</option><option>ui</option><option>room</option><option>gift</option><option>frame</option><option>entry</option><option>badge</option><option>vip</option><option>banner</option><option>microphone</option><option>effect</option><option>3d</option></select><input name="files" type="file" multiple accept="image/*,.glb,.gltf,.svga,.gif,.webp,.mp4,.webm,.json" required></div><button>رفع الأصول إلى Storage</button></form>'+ (cards.join('')||noRows());return;
+  }
+  if(tab==='reports'){
+   const {data,error}=await db.rpc('admin_list_reports',{_status:''});if(error)throw error;
+   host.innerHTML='<h3>البلاغات</h3>'+((data||[]).map(r=>item(esc(r.category)+' · '+esc(r.target_type),'<div>'+esc(r.details)+'</div><div class="muted small">'+esc(r.reporter_name||r.reporter_id)+' · '+esc(r.status)+' · '+date(r.created_at)+'</div><input id="reply-'+r.id+'" placeholder="رد المشرف" value="'+esc(r.admin_reply||'')+'">','<button class="secondary" data-action="report" data-id="'+r.id+'" data-status="reviewing">مراجعة</button><button data-action="report" data-id="'+r.id+'" data-status="resolved">حل</button><button class="danger" data-action="report" data-id="'+r.id+'" data-status="rejected">رفض</button>')).join('')||noRows());return;
+  }
+  if(tab==='roles'){
+   if(!isSuper){host.innerHTML='<p class="dangerText">هذا القسم للمشرف الأعلى فقط.</p>';return}
+   const {data,error}=await db.rpc('admin_list_users',{_q:''});if(error)throw error;
+   host.innerHTML='<h3>أدوار الإدارة</h3>'+((data||[]).filter(u=>(u.roles||[]).length).map(u=>item(esc(u.display_name)+' · '+u.display_no,'<div class="muted small">'+esc((u.roles||[]).join(', '))+'</div>','<button class="secondary" data-action="role" data-user="'+u.id+'" data-role="admin" data-grant="'+(!(u.roles||[]).includes('admin'))+'">'+((u.roles||[]).includes('admin')?'إزالة admin':'منح admin')+'</button><button class="secondary" data-action="role" data-user="'+u.id+'" data-role="moderator" data-grant="'+(!(u.roles||[]).includes('moderator'))+'">'+((u.roles||[]).includes('moderator')?'إزالة moderator':'منح moderator')+'</button>')).join('')||noRows());return;
+  }
+  if(tab==='settings'){
+   const {data,error}=await db.from('admin_settings').select('*').order('key');if(error)throw error;
+   host.innerHTML='<h3>إعدادات التطبيق</h3><form id="settings-form" class="item"><input name="key" placeholder="مفتاح الإعداد" required><textarea name="value" placeholder="قيمة JSON" required>{}</textarea><button>حفظ الإعداد</button></form>'+
+   ((data||[]).map(s=>item(esc(s.key),'<pre>'+esc(JSON.stringify(s.value,null,2))+'</pre><div class="muted small">'+date(s.updated_at)+'</div>','<button class="secondary" data-action="setting-edit" data-key="'+esc(s.key)+'" data-value="'+esc(JSON.stringify(s.value))+'">تعديل</button><button class="danger" data-action="setting-delete" data-key="'+esc(s.key)+'">حذف</button>')).join('')||noRows());return;
+  }
+  if(tab==='auth'){
+   const {data,error}=await db.from('admin_settings').select('value').eq('key','auth_methods').maybeSingle();if(error)throw error;
+   const cfg=data?.value||{};
+   host.innerHTML='<h3>إدارة طرق تسجيل الدخول</h3><p class="muted small">هذه المفاتيح تتحكم في إظهار وإخفاء طرق الدخول داخل التطبيق. تفعيل مزود Google أو Anonymous على خوادم Supabase يحتاج إعداده أيضاً من لوحة Supabase كما هو موضح أسفل الإعدادات.</p>'+
+    '<form id="auth-methods-form" class="item"><label><input name="email_enabled" type="checkbox" '+(cfg.email_enabled!==false?'checked':'')+' style="width:auto"> تفعيل تسجيل الدخول بالبريد وكلمة المرور عبر Supabase</label><label><input name="quick_enabled" type="checkbox" '+(cfg.quick_enabled!==false?'checked':'')+' style="width:auto"> تفعيل الدخول السريع (حساب مجهول مرتبط بالجهاز)</label><label><input name="google_enabled" type="checkbox" '+(cfg.google_enabled!==false?'checked':'')+' style="width:auto"> تفعيل المتابعة باستخدام Google</label><button type="submit">حفظ ونشر طرق الدخول</button></form>'+
+    item('إعدادات Supabase المطلوبة','<ol><li>من Authentication ثم Sign In / Providers فعّل Anonymous Sign-ins للدخول السريع.</li><li>فعّل Google وأدخل Client ID وClient Secret من Google Cloud.</li><li>من Authentication ثم URL Configuration أضف رابط الموقع ورابط العودة/deep link الخاص بتطبيق Android إلى Redirect URLs.</li><li>اختبر كل طريقة على نسخة التطبيق بعد الحفظ.</li></ol><p class="muted small">لا يتم تخزين Client Secret أو مفاتيح خاصة داخل لوحة الإدارة أو التطبيق.</p>');
+   return;
+  }
+  if(tab==='branding'){
+   const {data,error}=await db.from('admin_settings').select('key,value').in('key',['app_branding','home_banner','app_update_policy']);if(error)throw error;
+   const cfg=Object.fromEntries((data||[]).map(x=>[x.key,x.value||{}]));
+   const brand=cfg.app_branding||{},banner=cfg.home_banner||{},update=cfg.app_update_policy||{};
+   host.innerHTML='<h3>هوية التطبيق والصفحة الرئيسية</h3><p class="muted small">اختر الصور مباشرة من ذاكرة الهاتف. تُرفع إلى Supabase Storage وتظهر في التطبيق دون إعادة بناء APK.</p>'+
+    '<form id="branding-form" class="item"><h4>اسم التطبيق وشعاره</h4><label>اسم التطبيق</label><input name="app_name" maxlength="40" value="'+esc(brand.app_name||'صدي شات')+'" required><label>اختيار شعار من الهاتف</label><input name="logo_file" type="file" accept="image/*"><div class="muted small">'+(brand.logo_path?'يوجد شعار محفوظ حالياً':'لم يتم رفع شعار بعد')+'</div><hr><h4>بنر شاشة البداية</h4><label>عنوان البنر</label><input name="banner_title" maxlength="100" value="'+esc(banner.title||'مرحباً بك في صدي شات')+'"><label>اختيار صورة البنر من الهاتف</label><input name="banner_file" type="file" accept="image/*"><label><input name="banner_enabled" type="checkbox" '+(banner.enabled!==false?'checked':'')+' style="width:auto"> تفعيل بنر البداية</label><div class="muted small">مدة العرض ثابتة 5 ثوانٍ عند فتح التطبيق.</div><hr><h4>قفل الإصدارات والتحديث الإجباري</h4><label><input name="update_enabled" type="checkbox" '+(update.enabled===true?'checked':'')+' style="width:auto"> تفعيل طلب التحديث</label><label>الحد الأدنى للإصدار</label><input name="min_version" value="'+esc(update.min_version||'1.0.0')+'" placeholder="1.0.0"><label>الإصدارات المقفولة (مفصولة بفواصل)</label><input name="blocked_versions" value="'+esc((update.blocked_versions||[]).join(', '))+'"><label>أحدث إصدار</label><input name="latest_version" value="'+esc(update.latest_version||'1.0.0')+'"><label>رابط تنزيل التطبيق APK</label><input name="download_url" dir="ltr" value="'+esc(update.download_url||'')+'" placeholder="https://.../app-debug.apk"><label>رسالة التحديث</label><input name="update_message" value="'+esc(update.message||'يتوفر إصدار جديد من صدي شات. يرجى تحديث التطبيق للمتابعة.')+'"><button type="submit">حفظ ونشر الهوية والتحديث</button></form>'+
+    item('حالة الإعدادات','<div class="muted small">الشعار: '+(brand.logo_path?'مرفوع':'غير مرفوع')+' · بنر البداية: '+(banner.image_path?'مرفوع':'غير مرفوع')+' · '+(banner.enabled===false?'متوقف':'مفعّل')+'</div>');
+   return;
+  }
+  if(tab==='audio'){
+   const {data,error}=await db.from('admin_settings').select('value').eq('key','voice_controls').maybeSingle();if(error)throw error;
+   const cfg=data?.value||{};
+   const {data:assets,error:assetError}=await db.from('admin_assets').select('asset_key,name,category,is_active').in('category',['microphone','effect']).eq('is_active',true).order('name');if(assetError)throw assetError;
+   const opts=(category,selected)=>'<option value="">استخدام الافتراضي</option>'+(assets||[]).filter(a=>a.category===category).map(a=>'<option value="'+esc(a.asset_key)+'" '+(selected===a.asset_key?'selected':'')+'>'+esc(a.name)+'</option>').join('');
+   host.innerHTML='<h3>إعدادات المايك والمظهر الصوتي</h3><p class="muted small">ارفع ملفات المايك والتأثيرات أولاً من مكتبة الأصول مع اختيار تصنيف microphone أو effect. هذه الإعدادات تتحكم في شكل عناصر المايك ومؤشراته. مؤثرات معالجة الصوت الحقيقية تحتاج محرك صوت مباشر داخل التطبيق.</p>'+
+    '<form id="audio-form" class="item"><label>شكل المايك</label><select name="mic_asset_key">'+opts('microphone',cfg.mic_asset_key)+'</select><label>شكل المايك المكتوم</label><select name="muted_asset_key">'+opts('microphone',cfg.muted_asset_key)+'</select><label>تأثير مرئي للمايك</label><select name="effect_asset_key">'+opts('effect',cfg.effect_asset_key)+'</select><label>نمط الإضاءة</label><select name="mic_style"><option value="classic" '+((cfg.mic_style||'classic')==='classic'?'selected':'')+'>كلاسيكي</option><option value="gold" '+(cfg.mic_style==='gold'?'selected':'')+'>ذهبي</option><option value="neon" '+(cfg.mic_style==='neon'?'selected':'')+'>نيون</option><option value="minimal" '+(cfg.mic_style==='minimal'?'selected':'')+'>بسيط</option></select><label><input name="show_mic_effect" type="checkbox" style="width:auto" '+(cfg.show_mic_effect?'checked':'')+'> إظهار التأثير المرئي</label><button type="submit">حفظ إعدادات المايك</button></form>';
+   return;
+  }
+  if(tab==='analytics'){
+   const {data,error}=await db.rpc('get_analytics');if(error)throw error;
+   host.innerHTML='<h3>التحليلات</h3><pre>'+esc(JSON.stringify(data,null,2))+'</pre>';return;
+  }
+  if(tab==='audit'){
+   const {data,error}=await db.rpc('admin_list_audit',{_limit:300});if(error)throw error;
+   host.innerHTML='<h3>سجل الإدارة</h3>'+((data||[]).map(a=>item(esc(a.admin_name||a.admin_id)+' · '+esc(a.action),'<div class="muted small">'+esc(a.target_type||'')+' '+esc(a.target_id||'')+' · '+esc(a.details||'')+' · '+date(a.created_at)+'</div>')).join('')||noRows());return;
+  }
+ }catch(error){host.innerHTML='<div class="item dangerText">تعذر تحميل القسم: '+esc(error.message||error)+'</div>'}
+}
+function subscribeLive(){
+ if(channel)db.removeChannel(channel);
+ const names=['profiles','wallets','wallet_transactions','wallet_topup_requests','rooms','room_members','room_seats','gifts','gift_transactions','vip_tiers','banners','notifications','admin_assets','reports','user_roles','admin_settings','audit_log','store_items','posts'];
+ const tabTables={
+  users:['profiles','wallets','store_items','user_roles'],
+  rooms:['rooms','room_members'],
+  seats:['room_seats','room_members'],
+  vip:['vip_tiers'],
+  store:['store_items','admin_assets'],
+  wallet:['wallets','wallet_transactions','wallet_topup_requests'],
+  gifts:['gifts','gift_transactions','admin_assets'],
+  banners:['banners','admin_assets'],
+  notifications:['notifications'],
+  assets:['admin_assets'],
+  audio:['admin_assets','admin_settings'],
+  reports:['reports'],
+  roles:['user_roles','profiles'],
+  settings:['admin_settings'],
+  auth:['admin_settings'],
+  branding:['admin_settings','admin_assets'],
+  analytics:['profiles','rooms','wallets','gift_transactions','reports'],
+  audit:['audit_log']
+ };
+ let timer=null;
+ let pending=new Set();
+ const schedule=(table)=>{
+  pending.add(table);
+  if(timer)clearTimeout(timer);
+  timer=setTimeout(async()=>{
+   timer=null;
+   await refreshStats();
+   const relevant=tabTables[active]||[];
+   if(active!=='dashboard' && relevant.some(t=>pending.has(t))) await renderTab(active);
+   pending.clear();
+  },180);
+ };
+ channel=db.channel('vox-admin-panel-live');
+ names.forEach(table=>channel.on('postgres_changes',{event:'*',schema:'public',table},()=>schedule(table)));
+ channel.subscribe();
+}
+async function action(button){
+ const a=button.dataset.action,id=button.dataset.id;
+ if(a==='search-users'){userQuery=document.querySelector('#user-q')?.value||'';await renderTab('users');return}
+ if(a==='identity'){
+  const displayNo=Number(document.querySelector('#idno-'+button.dataset.user)?.value),level=Number(document.querySelector('#level-'+button.dataset.user)?.value),color=document.querySelector('#idcolor-'+button.dataset.user)?.value||'#D4AF37',nameColor=document.querySelector('#namecolor-'+button.dataset.user)?.value||'#D4AF37',nameEffect=document.querySelector('#nameeffect-'+button.dataset.user)?.value||'none',nameSpeed=Number(document.querySelector('#namespeed-'+button.dataset.user)?.value||1800);
+  if(!Number.isInteger(displayNo)||!Number.isInteger(level))throw new Error('أدخل ID ومستوى صحيحين');
+  const {error}=await db.rpc('admin_update_user_identity',{_user:button.dataset.user,_display_no:displayNo,_level:level,_id_color:color});if(error)throw error; const style=await db.rpc('admin_set_profile_style',{_user:button.dataset.user,_name_color:nameColor,_name_effect:nameEffect,_speed:nameSpeed});if(style.error)throw style.error;
+ }
+ if(a==='topup'){const note=prompt(button.dataset.status==='approved'?'ملاحظة الشحن (اختياري)':'سبب الرفض (اختياري)')||'';const {error}=await db.rpc('admin_decide_wallet_topup',{_request:id,_status:button.dataset.status,_note:note});if(error)throw error}
+ if(a==='wallet-adjust'){
+  const amount=Number(document.querySelector('#amount-'+button.dataset.user)?.value),currency=document.querySelector('#currency-'+button.dataset.user)?.value,reason=document.querySelector('#reason-'+button.dataset.user)?.value||'admin_adjustment';
+  if(!Number.isSafeInteger(amount)||amount===0)throw new Error('أدخل مبلغاً صحيحاً غير صفر');
+  const {error}=await db.rpc('admin_adjust_wallet',{_user:button.dataset.user,_currency:currency,_amount:amount,_reason:reason});if(error)throw error;
+ }
+ if(a==='grant-item'){
+  const itemId=document.querySelector('#item-'+button.dataset.user)?.value,equip=!!document.querySelector('#equip-'+button.dataset.user)?.checked;
+  if(!itemId)throw new Error('اختر العنصر أولاً');
+  const {error}=await db.rpc('admin_grant_store_item',{_user:button.dataset.user,_item:itemId,_equip:equip});if(error)throw error;
+ }
+ if(a==='coins'){const amount=Number(document.querySelector('#coins-'+button.dataset.user)?.value);if(!Number.isFinite(amount)||amount===0){alert('أدخل قيمة صحيحة غير صفرية');return}const {error}=await db.rpc('admin_grant_coins',{_user:button.dataset.user,_amount:amount});if(error)throw error}
+ if(a==='set-vip'){const level=Number(document.querySelector('#vip-'+button.dataset.user)?.value);const {error}=await db.rpc('admin_set_vip',{_user:button.dataset.user,_vip:level});if(error)throw error}
+ if(a==='role'){if(!isSuper)throw new Error('super_admin_required');const {error}=await db.rpc('admin_set_role',{_user:button.dataset.user,_role:button.dataset.role,_grant:button.dataset.grant==='true'});if(error)throw error}
+ if(a==='delete-room'){if(!confirm('حذف الغرفة نهائياً؟'))return;const {error}=await db.rpc('admin_delete_room',{_room:id});if(error)throw error}
+ if(a==='seat'){const {error}=await db.rpc('admin_seat_action',{_room:button.dataset.room,_seat:Number(button.dataset.seat),_action:button.dataset.command});if(error)throw error}
+ if(a==='store-reset'){const form=document.querySelector('#store-form');form.reset();form.querySelector('[name=id]').value='';return}
+ if(a==='store-edit'){const form=document.querySelector('#store-form');form.querySelector('[name=id]').value=id;form.querySelector('[name=name]').value=button.dataset.name||'';form.querySelector('[name=kind]').value=button.dataset.kind||'frame';form.querySelector('[name=price]').value=button.dataset.price||0;form.querySelector('[name=sort_order]').value=button.dataset.sort||0;form.querySelector('[name=asset_key]').value=button.dataset.asset||'';form.querySelector('[name=description]').value=button.dataset.description||'';form.scrollIntoView({behavior:'smooth',block:'center'});return}
+ if(a==='store-delete'){if(!confirm('حذف عنصر المتجر؟'))return;const {error}=await db.rpc('admin_delete_store_item',{_id:id});if(error)throw error}
+ if(a==='delete-vip'){if(!confirm('حذف مستوى VIP؟'))return;const {error}=await db.from('vip_tiers').delete().eq('level',Number(button.dataset.level));if(error)throw error}
+ if(a==='gift-asset'){const assetKey=document.querySelector('#gift-asset-'+id)?.value||null;const {error}=await db.from('gifts').update({asset_key:assetKey}).eq('id',id);if(error)throw error}
+ if(a==='gift-toggle'){const {error}=await db.from('gifts').update({active:button.dataset.active==='true'}).eq('id',id);if(error)throw error}
+ if(a==='gift-delete'){if(!confirm('حذف الهدية؟'))return;const {error}=await db.from('gifts').delete().eq('id',id);if(error)throw error}
+ if(a==='banner-edit'){const form=document.querySelector('#banner-form');form.querySelector('[name=id]').value=id;form.querySelector('[name=title]').value=button.dataset.title||'';form.querySelector('[name=image_url]').value=button.dataset.image||'';form.querySelector('[name=target_url]').value=button.dataset.target||'';form.querySelector('[name=sort_order]').value=button.dataset.sort||'0';form.scrollIntoView({behavior:'smooth',block:'center'});return}
+ if(a==='banner-reset'){const form=document.querySelector('#banner-form');form.reset();form.querySelector('[name=id]').value='';return}
+ if(a==='banner-toggle'){const {error}=await db.from('banners').update({is_active:button.dataset.active==='true',updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error}
+ if(a==='banner-delete'){if(!confirm('حذف البانر؟'))return;const {error}=await db.from('banners').delete().eq('id',id);if(error)throw error}
+ if(a==='asset-toggle'){const {error}=await db.from('admin_assets').update({is_active:button.dataset.active==='true',updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error}
+ if(a==='asset-delete'){if(!confirm('حذف الأصل والملف؟'))return;const {data}=await db.from('admin_assets').select('url,metadata').eq('id',id).single();const path=data?.metadata?.storage_path||data?.url;if(path){const {error}=await db.storage.from('admin-assets').remove([path]);if(error)throw error}const {error}=await db.from('admin_assets').delete().eq('id',id);if(error)throw error}
+ if(a==='report'){const reply=document.querySelector('#reply-'+id)?.value||'';const {error}=await db.rpc('admin_resolve_report',{_report:id,_status:button.dataset.status,_reply:reply});if(error)throw error}
+ if(a==='setting-edit'){document.querySelector('#settings-form [name=key]').value=button.dataset.key;document.querySelector('#settings-form [name=value]').value=JSON.stringify(JSON.parse(button.dataset.value),null,2);return}
+ if(a==='setting-delete'){if(!confirm('حذف الإعداد؟'))return;const {error}=await db.from('admin_settings').delete().eq('key',button.dataset.key);if(error)throw error}
+ await refreshStats();await renderTab(active);
+}
+$('panel').addEventListener('click',async e=>{const b=e.target.closest('[data-action]');if(!b)return;try{await action(b)}catch(error){alert(error.message||String(error))}});
+$('panel').addEventListener('submit',async e=>{
+ const form=e.target;if(!(form instanceof HTMLFormElement))return;e.preventDefault();const v=Object.fromEntries(new FormData(form).entries());
+ try{
+  if(form.id==='store-form'){
+   if(!String(v.asset_key||''))throw new Error('اختر أصلاً من مكتبة الأصول');
+   const {data,error}=await db.rpc('admin_save_store_item',{_id:String(v.id||'')||null,_kind:String(v.kind),_name:String(v.name).trim(),_description:String(v.description||''),_price:Number(v.price)||0,_asset_key:String(v.asset_key),_sort_order:Number(v.sort_order)||0});
+   if(error)throw error;
+   alert('تم حفظ عنصر المتجر');
+  }
+  if(form.id==='vip-form'){const {error}=await db.from('vip_tiers').upsert({level:Number(v.level),name:String(v.name),price_coins:Number(v.price_coins),duration_days:Number(v.duration_days)});if(error)throw error}
+  if(form.id==='gift-form'){const name=String(v.name).trim();const payload={name,emoji:String(v.emoji),price:Number(v.price),active:true,tier:String(v.tier||'normal'),sort:Number(v.sort||0),asset_key:String(v.asset_key||'')||null};const {error}=await db.from('gifts').insert(payload);if(error)throw error}
+  if(form.id==='banner-form'){
+   let imagePath=String(v.image_url||'').trim();
+   const imageFile=form.querySelector('[name=image_file]').files?.[0];
+   if(imageFile){
+    if(imageFile.size>20*1024*1024||!imageFile.type.startsWith('image/'))throw new Error('اختر صورة حتى 20 MB');
+    const clean=imageFile.name.replace(/[^a-zA-Z0-9._-]+/g,'-');imagePath='banner/'+Date.now()+'-'+clean;
+    const {error:upError}=await db.storage.from('admin-assets').upload(imagePath,imageFile,{contentType:imageFile.type,upsert:false});if(upError)throw upError;
+    const {error:assetError}=await db.from('admin_assets').insert({asset_key:'banner-'+Date.now(),name:String(v.title),category:'banner',url:imagePath,metadata:{storage_path:imagePath,content_type:imageFile.type,original_name:imageFile.name},is_active:true});
+    if(assetError){await db.storage.from('admin-assets').remove([imagePath]);throw assetError}
+   }else if(!/^https:\/\//i.test(imagePath))throw new Error('اختر صورة من الهاتف أو أدخل رابط HTTPS صالحاً');
+   const payload={title:String(v.title),image_url:imagePath,target_url:String(v.target_url||'')||null,sort_order:Number(v.sort_order)||0,updated_at:new Date().toISOString()};
+   const {error}=String(v.id||'') ? await db.from('banners').update(payload).eq('id',String(v.id)) : await db.from('banners').insert({...payload,is_active:true});
+   if(error)throw error;
+  }
+  if(form.id==='broadcast-form'){const {data,error}=await db.rpc('admin_broadcast',{_title:String(v.title),_body:String(v.body)});if(error)throw error;alert('تم إرسال الإشعار إلى '+money(data)+' حساب')}
+  if(form.id==='auth-methods-form'){
+   const {data:{user}}=await db.auth.getUser();
+   const value={email_enabled:form.querySelector('[name=email_enabled]').checked,quick_enabled:form.querySelector('[name=quick_enabled]').checked,google_enabled:form.querySelector('[name=google_enabled]').checked};
+   const {error}=await db.from('admin_settings').upsert({key:'auth_methods',value,updated_by:user?.id||null,updated_at:new Date().toISOString()},{onConflict:'key'});if(error)throw error;
+   alert('تم حفظ طرق تسجيل الدخول. افتح التطبيق من جديد لتطبيق الإعدادات.');
+  }
+  if(form.id==='branding-form'){
+   const {data:oldRows,error:oldError}=await db.from('admin_settings').select('key,value').in('key',['app_branding','home_banner','app_update_policy']);if(oldError)throw oldError;
+   const old=Object.fromEntries((oldRows||[]).map(x=>[x.key,x.value||{}]));
+   async function uploadBrandFile(file,kind){
+    if(!file||!(file instanceof File)||file.size===0)return null;
+    if(file.size>20*1024*1024)throw new Error('الحد الأقصى لصورة الهوية 20 MB');
+    if(!file.type.startsWith('image/'))throw new Error('اختر ملف صورة صالحاً');
+    const clean=file.name.replace(/[^a-zA-Z0-9._-]+/g,'-');
+    const path='branding/'+kind+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'-'+clean;
+    const {error:upError}=await db.storage.from('admin-assets').upload(path,file,{contentType:file.type,upsert:false});if(upError)throw upError;
+    const assetKey='branding-'+kind+'-'+Date.now();
+    const {error:rowError}=await db.from('admin_assets').insert({asset_key:assetKey,name:kind==='logo'?'شعار التطبيق':'بنر شاشة البداية',category:'banner',url:path,metadata:{storage_path:path,content_type:file.type,size:file.size,original_name:file.name,kind},is_active:true});
+    if(rowError){await db.storage.from('admin-assets').remove([path]);throw rowError}
+    return {path,asset_key:assetKey};
+   }
+   const logo=await uploadBrandFile(v.logo_file,'logo');
+   const banner=await uploadBrandFile(v.banner_file,'intro-banner');
+   const brand={...(old.app_branding||{}),app_name:String(v.app_name||'صدي شات').trim()};
+   if(logo){brand.logo_path=logo.path;brand.logo_asset_key=logo.asset_key}
+   const home={...(old.home_banner||{}),title:String(v.banner_title||'').trim(),enabled:form.querySelector('[name=banner_enabled]').checked,duration_seconds:5};
+   if(banner){home.image_path=banner.path;home.asset_key=banner.asset_key}
+   const update={enabled:form.querySelector('[name=update_enabled]').checked,min_version:String(v.min_version||'1.0.0').trim(),blocked_versions:String(v.blocked_versions||'').split(',').map(x=>x.trim()).filter(Boolean),latest_version:String(v.latest_version||'1.0.0').trim(),download_url:String(v.download_url||'').trim(),message:String(v.update_message||'يتوفر إصدار جديد من صدي شات. يرجى تحديث التطبيق للمتابعة.').trim()};
+   const {data:{user}}=await db.auth.getUser();
+   const rows=[{key:'app_branding',value:brand,updated_by:user?.id||null,updated_at:new Date().toISOString()},{key:'home_banner',value:home,updated_by:user?.id||null,updated_at:new Date().toISOString()},{key:'app_update_policy',value:update,updated_by:user?.id||null,updated_at:new Date().toISOString()}];
+   const {error:saveError}=await db.from('admin_settings').upsert(rows,{onConflict:'key'});if(saveError)throw saveError;
+   alert('تم حفظ الهوية وبانر البداية وسياسة التحديث.');
+  }
+  if(form.id==='audio-form'){
+   const {data:{user}}=await db.auth.getUser();
+   const value={mic_asset_key:String(v.mic_asset_key||''),muted_asset_key:String(v.muted_asset_key||''),effect_asset_key:String(v.effect_asset_key||''),mic_style:String(v.mic_style||'classic'),show_mic_effect:form.querySelector('[name=show_mic_effect]').checked};
+   const {error}=await db.from('admin_settings').upsert({key:'voice_controls',value,updated_by:user?.id||null,updated_at:new Date().toISOString()},{onConflict:'key'});if(error)throw error;
+   alert('تم حفظ إعدادات المايك والمظهر الصوتي');
+  }
+  if(form.id==='settings-form'){let value;try{value=JSON.parse(String(v.value))}catch{throw new Error('صيغة JSON غير صحيحة')}const {data:{user}}=await db.auth.getUser();const {error}=await db.from('admin_settings').upsert({key:String(v.key),value,updated_by:user?.id||null,updated_at:new Date().toISOString()});if(error)throw error}
+  if(form.id==='asset-form'){
+   const files=form.querySelector('[name=files]').files;const category=String(v.category);let success=0;
+   for(const file of files){if(file.size>50*1024*1024)throw new Error('الحد الأقصى 50 MB لكل ملف');const clean=file.name.replace(/[^a-zA-Z0-9._-]+/g,'-');const path=category+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'-'+clean;const {error:uploadError}=await db.storage.from('admin-assets').upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false});if(uploadError)throw uploadError;const key=category+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);const {error:rowError}=await db.from('admin_assets').insert({asset_key:key,name:String(v.name||file.name),category,url:path,metadata:{storage_path:path,content_type:file.type,size:file.size,original_name:file.name},is_active:true});if(rowError){await db.storage.from('admin-assets').remove([path]);throw rowError}success++}
+   alert('تم رفع '+success+' أصل')
+  }
+  await refreshStats();await renderTab(active);
+ }catch(error){alert(error.message||String(error))}
+});
+$('save').onclick=()=>{const url=$('url').value.trim().replace(/\/$/,'');const key=$('key').value.trim();if(!/^https:\/\//.test(url)||!key){status('setupMsg','رابط أو مفتاح غير صحيح',true);return}localStorage.setItem('vox_admin_url',url);localStorage.setItem('vox_admin_key',key);connect(url,key);show('login');status('loginMsg','تم الاتصال بقاعدة البيانات. سجل الدخول بحساب المشرف.')};
+$('signin').onclick=async()=>{status('loginMsg','جارٍ تسجيل الدخول…');const {error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error){status('loginMsg',error.message,true);return}await checkAdmin()};
+$('claim').onclick=async()=>{const {data,error}=await db.rpc('claim_first_admin');if(error){status('loginMsg',error.message,true);return}if(!data){status('loginMsg','يوجد مشرف بالفعل. اطلب منه منحك الصلاحية.',true);return}await checkAdmin()};
+$('logout').onclick=async()=>{if(channel)await db.removeChannel(channel);await db.auth.signOut();show('login')};
+const savedUrl=localStorage.getItem('vox_admin_url')||DEFAULT_URL,savedKey=localStorage.getItem('vox_admin_key')||DEFAULT_KEY;
+$('url').value=savedUrl;$('key').value=savedKey;connect(savedUrl,savedKey);
+const {data:{session}}=await db.auth.getSession();if(session)await checkAdmin();else show('login');
+</script></body></html>

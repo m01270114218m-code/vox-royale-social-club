@@ -53,7 +53,7 @@ function Moments() {
     const { data: f } = await supabase.from("follows").select("following_id").eq("follower_id", uid);
     const fset = new Set((f ?? []).map((x) => x.following_id));
     setFollowing(fset);
-    let q = supabase.from("posts").select("*, profiles(display_name,avatar_url,country,level,vip_level)").order("created_at", { ascending: false }).limit(50);
+    let q = supabase.from("posts").select("*, profiles!posts_user_id_fkey(display_name,avatar_url,country,level,vip_level)").order("created_at", { ascending: false }).limit(50);
     if (tab === "following") q = q.in("user_id", [...fset, uid]);
     const { data, error } = await q;
     if (error) { toast.error(error.message); return; }
