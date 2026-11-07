@@ -31,6 +31,10 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
   const tokenRefreshRef = useRef<(() => Promise<void>) | null>(null);
   const micEnabledRef = useRef(micEnabled);
   micEnabledRef.current = micEnabled;
+  const membersRef = useRef(members);
+  membersRef.current = members;
+  const onSpeakingUsersRef = useRef(onSpeakingUsers);
+  onSpeakingUsersRef.current = onSpeakingUsers;
 
   useEffect(() => {
     aliveRef.current = true;
@@ -122,12 +126,12 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
         clientRef.current = client;
         client.on("user-published", onUserPublished);
         client.on("user-unpublished", onUserUnpublished);
-        const rtcToUser = new Map(members.map((memberId) => [numericRtcUid(memberId), memberId]));
+        const rtcToUser = new Map(membersRef.current.map((memberId) => [numericRtcUid(memberId), memberId]));
         rtcToUser.set(numericRtcUid(uid), uid);
         client.enableAudioVolumeIndicator();
         client.on("volume-indicator", (speakers) => {
           const active = speakers.filter((speaker) => speaker.level >= 18).map((speaker) => rtcToUser.get(Number(speaker.uid))).filter((userId): userId is string => !!userId);
-          onSpeakingUsers?.([...new Set(active)]);
+          onSpeakingUsersRef.current?.([...new Set(active)]);
         });
         client.on("token-privilege-will-expire", () => {
           void serialize(refreshToken);
@@ -168,7 +172,7 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
     };
   // Membership is managed by the server; the token endpoint verifies current membership.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, uid, members, onSpeakingUsers]);
+  }, [roomId, uid]);
 
   useEffect(() => {
     const client = clientRef.current;
