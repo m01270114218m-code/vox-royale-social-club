@@ -64,7 +64,7 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
     tokenRefreshRef.current = refreshToken;
 
     const publishMicrophone = async () => {
-      if (!client || !joinedRef.current || !micEnabled || publishedRef.current) return;
+      if (!client || !joinedRef.current || !micEnabledRef.current || publishedRef.current) return;
       await refreshToken();
       if (roleRef.current !== "host") {
         throw new Error("حسابك ليس لديه إذن الصعود للميك");
@@ -76,6 +76,7 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
         AGC: true,
       });
       micRef.current = track;
+      if (!track.enabled) await track.setEnabled(true);
       await client.publish(track);
       publishedRef.current = true;
     };
@@ -199,11 +200,10 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
             AGC: true,
           });
         }
+        await micRef.current.setEnabled(true);
         if (!publishedRef.current) {
           await client.publish(micRef.current);
           publishedRef.current = true;
-        } else {
-          await micRef.current.setEnabled(true);
         }
       } else {
         if (publishedRef.current && micRef.current) {
