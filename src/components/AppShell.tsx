@@ -68,7 +68,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 function ShellInner({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const nav = useNavigate();
-  const unread = useUnread(user?.id);\n  useEffect(() => { const onPop = () => { if (window.history.length <= 1) { if (!window.confirm("هل تريد فعلاً الخروج من التطبيق؟")) window.history.pushState(null, "", window.location.href); } }; window.addEventListener("popstate", onPop); window.history.pushState(null, "", window.location.href); return () => window.removeEventListener("popstate", onPop); }, []);
+  const unread = useUnread(user?.id);
+  useEffect(() => { const onPop = () => { if (window.history.length <= 1) { if (!window.confirm("هل تريد فعلاً الخروج من التطبيق؟")) window.history.pushState(null, "", window.location.href); } }; window.addEventListener("popstate", onPop); window.history.pushState(null, "", window.location.href); return () => window.removeEventListener("popstate", onPop); }, []);
   const ui = useAppUiConfig();
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
