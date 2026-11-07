@@ -80,6 +80,8 @@ function RoomPage() {
   const [speakingUsers, setSpeakingUsers] = useState<string[]>([]);
   const [micRequests, setMicRequests] = useState<{ id: string; user_id: string; created_at: string }[]>([]);
   const [myMicRequest, setMyMicRequest] = useState<{ id: string } | null>(null);
+  const [chatMutedUser, setChatMutedUser] = useState(false);
+  const [targetIsModerator, setTargetIsModerator] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [following, setFollowing] = useState(false);
   const roomCoverUrl = useMedia(room?.cover_url);
@@ -354,8 +356,11 @@ function RoomPage() {
     // Publish a complete authoritative seat snapshot immediately after every mic change.
     // This clears the previous seat when a user moves and prevents stale/vanishing mic UI.
     const seatIndex = typeof args._seat === "number" ? args._seat : undefined;
-    if (seatIndex !== undefined || fn === "leave_seat" || fn === "toggle_my_mute" || fn === "take_seat") {
+    if (seatIndex !== undefined || fn === "leave_seat" || fn === "toggle_my_mute" || fn === "take_seat" || fn === "staff_invite_to_mic") {
       await syncRoomSeats();
+    }
+    if (["staff_kick_room_user", "staff_kick_user_24h", "ban_user"].includes(fn)) {
+      await Promise.all([loadMembers(), syncRoomSeats()]);
     }
     setSeatMenu(null);
   }
@@ -378,6 +383,16 @@ function RoomPage() {
       return;
     }
     setSeatMenu(s);
+    setChatMutedUser(false);
+    setTargetIsModerator(false);
+    if (isStaff && s.user_id && s.user_id !== uid) {
+      const [muteResult, modResult] = await Promise.all([
+        supabase.rpc("staff_is_chat_muted", { _room: id, _user: s.user_id }),
+        supabase.from("room_moderators").select("user_id").eq("room_id", id).eq("user_id", s.user_id).maybeSingle(),
+      ]);
+      if (!muteResult.error) setChatMutedUser(!!muteResult.data);
+      setTargetIsModerator(!!modResult.data);
+    }
   }
 
   async function decideMicRequest(requestId: string, accept: boolean) {
@@ -555,7 +570,15 @@ function RoomPage() {
                     <>
                       {((profiles[seatMenu.user_id]?.vip_level ?? 0) < 5 || isOwner) && <>
                         {seatMenu.user_id !== uid && <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick" })}>إنزال من المقعد</Button>}
-                        {seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && <Button variant="destructive" onClick={() => call("ban_user", { _room: id, _user: seatMenu.user_id })}>حظر من الغرفة</Button>}
+                        {seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && (
+                        <>
+                          <Button variant="outline" onClick={() => call("staff_kick_room_user", { _room: id, _user: seatMenu.user_id })}>طرد من الغرفة</Button>
+                          <Button variant="outline" onClick={() => call("staff_kick_user_24h", { _room: id, _user: seatMenu.user_id })}>طرد لمدة 24 ساعة</Button>
+                          <Button variant="destructive" onClick={() => call("ban_user", { _room: id, _user: seatMenu.user_id })}>حظر دائم</Button>
+                          <Button variant="outline" onClick={() => call("staff_set_chat_mute", { _room: id, _user: seatMenu.user_id, _muted: !chatMutedUser })}>{chatMutedUser ? "إلغاء منع الكتابة" : "منع الكتابة في الشات"}</Button>
+                          {isOwner && <Button variant="outline" onClick={() => call("staff_set_room_moderator", { _room: id, _user: seatMenu.user_id, _enabled: !targetIsModerator })}>{targetIsModerator ? "إلغاء تعيين المشرف" : "تعيين مشرف للغرفة"}</Button>}
+                        </>
+                      )}
                       </>}
                       {(profiles[seatMenu.user_id]?.vip_level ?? 0) >= 5 && !isOwner && <div className="rounded-xl border border-gold/40 bg-gold/10 p-2 text-center text-xs font-bold text-gold">🛡️ VIP {profiles[seatMenu.user_id]?.vip_level} — محمي من الكتم والطرد</div>}
                     </>
@@ -610,7 +633,16 @@ function RoomPage() {
             {members.map((m) => (
               <div key={m} className="flex items-center justify-between rounded-xl bg-secondary/50 p-2">
                 <div className="flex items-center gap-2"><UserAvatar src={profiles[m]?.avatar_url} name={publicName(m)} vip={profiles[m]?.vip_level} size={44} frameKey={profiles[m]?.equipped_frame} /><div><span>{publicName(m)}</span><IdentityBadges level={profiles[m]?.level} vip={profiles[m]?.vip_level} /></div></div>
-                {isStaff && m !== uid && m !== room.owner_id && <Button size="sm" variant="destructive" onClick={() => call("ban_user", { _room: id, _user: m })}>حظر</Button>}
+                {isStaff && m !== uid && m !== room.owner_id && (
+                  <div className="flex flex-wrap justify-end gap-1">
+                    {!seats.some((seat) => seat.user_id === m) && <Button size="sm" onClick={async () => {
+                      const { error } = await supabase.rpc("staff_invite_to_mic", { _room: id, _user: m });
+                      if (error) toast.error(errMsg(error));
+                      else { await syncRoomSeats(); toast.success("تمت دعوة المستخدم وصعوده للمايك"); setShowMembers(false); }
+                    }}>دعوة للمايك</Button>}
+                    <Button size="sm" variant="outline" onClick={() => { setShowMembers(false); void onSeat(seats.find((seat) => seat.user_id === m) || { seat_index: -1, user_id: m, is_locked: false, is_muted: false }); }}>إدارة</Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
