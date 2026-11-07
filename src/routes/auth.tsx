@@ -11,8 +11,8 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "تسجيل الدخول — صدى شات" },
-      { name: "description", content: "سجّل دخولك إلى VOX ROYALE للانضمام للغرف الصوتية." },
-      { property: "og:title", content: "تسجيل الدخول — VOX ROYALE" },
+      { name: "description", content: "سجّل دخولك إلى صدى شات للانضمام للغرف الصوتية." },
+      { property: "og:title", content: "تسجيل الدخول — صدى شات" },
       { property: "og:description", content: "انضم للغرف الصوتية المباشرة." },
     ],
   }),
@@ -27,7 +27,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [appName, setAppName] = useState("VOX ROYALE");
+  const [appName, setAppName] = useState("صدى شات");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [bannerTitle, setBannerTitle] = useState("");
   const [bannerUrl, setBannerUrl] = useState<string | null>(null);
