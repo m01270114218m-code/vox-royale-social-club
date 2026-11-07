@@ -110,8 +110,11 @@ async function renderTab(tab){
     ((items||[]).map(it=>item(esc(it.name),'<div class="muted small">'+esc(it.kind)+' · '+money(it.price)+' عملة · '+esc(it.asset_key)+'</div><div class="muted small">'+esc(it.description||'')+'</div>','<button class="secondary" data-action="store-edit" data-id="'+it.id+'" data-name="'+esc(it.name)+'" data-kind="'+esc(it.kind)+'" data-price="'+it.price+'" data-sort="'+(it.sort_order||0)+'" data-asset="'+esc(it.asset_key)+'" data-description="'+esc(it.description||'')+'">تعديل</button><button class="danger" data-action="store-delete" data-id="'+it.id+'">حذف</button>')).join('')||noRows());return;
   }
   if(tab==='wallet'){
-   const {data,error}=await db.rpc('admin_list_wallet_tx',{_limit:200});if(error)throw error;
-   host.innerHTML='<h3>سجل المحافظ</h3>'+((data||[]).map(t=>item(esc(t.display_name||t.user_id),'<div class="muted small">'+esc(t.kind)+' · '+esc(t.note)+' · '+date(t.created_at)+'</div>','<b class="'+(Number(t.amount)>=0?'good':'dangerText')+'">'+(Number(t.amount)>=0?'+':'')+money(t.amount)+' 🪙</b>')).join('')||noRows());return;
+   const [{data,error},{data:requests,error:reqError}]=await Promise.all([
+    db.rpc('admin_list_wallet_tx',{_limit:200}),
+    db.from('wallet_topup_requests').select('id,user_id,coins,payment_method,reference,status,admin_note,created_at').order('created_at',{ascending:false}).limit(100)
+   ]);if(error)throw error;if(reqError)throw reqError;
+   host.innerHTML='<h3>المحافظ والشحن</h3><div class="item"><h4>طلبات الشحن</h4>'+((requests||[]).map(r=>item(money(r.coins)+' 🪙 · '+esc(r.user_id),'<div class="muted small">'+esc(r.payment_method||'')+' · '+esc(r.reference||'بدون مرجع')+' · '+date(r.created_at)+' · الحالة: '+esc(r.status)+'</div>',r.status==='pending'?'<button class="secondary" data-action="topup" data-id="'+r.id+'" data-status="approved">اعتماد وإضافة العملات</button><button class="danger" data-action="topup" data-id="'+r.id+'" data-status="rejected">رفض</button>':'')).join('')||noRows())+'</div><h4>سجل المحافظ</h4>'+((data||[]).map(t=>item(esc(t.display_name||t.user_id),'<div class="muted small">'+esc(t.kind)+' · '+esc(t.note)+' · '+date(t.created_at)+'</div>','<b class="'+(Number(t.amount)>=0?'good':'dangerText')+'">'+(Number(t.amount)>=0?'+':'')+money(t.amount)+' 🪙</b>')).join('')||noRows());return;
   }
   if(tab==='gifts'){
    const [{data:gifts,error:e1},{data:tx,error:e2},{data:giftAssets,error:e3}]=await Promise.all([
@@ -190,14 +193,14 @@ async function renderTab(tab){
 }
 function subscribeLive(){
  if(channel)db.removeChannel(channel);
- const names=['profiles','wallets','wallet_transactions','rooms','room_members','room_seats','gifts','gift_transactions','vip_tiers','banners','notifications','admin_assets','reports','user_roles','admin_settings','audit_log','store_items','posts'];
+ const names=['profiles','wallets','wallet_transactions','wallet_topup_requests','rooms','room_members','room_seats','gifts','gift_transactions','vip_tiers','banners','notifications','admin_assets','reports','user_roles','admin_settings','audit_log','store_items','posts'];
  const tabTables={
   users:['profiles','wallets','store_items','user_roles'],
   rooms:['rooms','room_members'],
   seats:['room_seats','room_members'],
   vip:['vip_tiers'],
   store:['store_items','admin_assets'],
-  wallet:['wallets','wallet_transactions'],
+  wallet:['wallets','wallet_transactions','wallet_topup_requests'],
   gifts:['gifts','gift_transactions','admin_assets'],
   banners:['banners','admin_assets'],
   notifications:['notifications'],
@@ -236,6 +239,7 @@ async function action(button){
   if(!Number.isInteger(displayNo)||!Number.isInteger(level))throw new Error('أدخل ID ومستوى صحيحين');
   const {error}=await db.rpc('admin_update_user_identity',{_user:button.dataset.user,_display_no:displayNo,_level:level,_id_color:color});if(error)throw error; const style=await db.rpc('admin_set_profile_style',{_user:button.dataset.user,_name_color:nameColor,_name_effect:nameEffect,_speed:nameSpeed});if(style.error)throw style.error;
  }
+ if(a==='topup'){const note=prompt(button.dataset.status==='approved'?'ملاحظة الشحن (اختياري)':'سبب الرفض (اختياري)')||'';const {error}=await db.rpc('admin_decide_wallet_topup',{_request:id,_status:button.dataset.status,_note:note});if(error)throw error}
  if(a==='wallet-adjust'){
   const amount=Number(document.querySelector('#amount-'+button.dataset.user)?.value),currency=document.querySelector('#currency-'+button.dataset.user)?.value,reason=document.querySelector('#reason-'+button.dataset.user)?.value||'admin_adjustment';
   if(!Number.isSafeInteger(amount)||amount===0)throw new Error('أدخل مبلغاً صحيحاً غير صفر');
