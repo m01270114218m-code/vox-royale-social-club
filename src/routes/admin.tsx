@@ -31,7 +31,7 @@ function WebAdminRedirect() {
   useEffect(() => {
     const url =
       (import.meta.env.VITE_ADMIN_PANEL_URL as string | undefined)?.trim() ||
-      "/control-center.html";
+      "https://vox-royale-social-club.lovable.app/control-center/";
     window.location.replace(url);
   }, []);
 
