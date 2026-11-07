@@ -345,7 +345,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
     await load();
   }
   async function saveIdentity(u: U) {
-    const value = identity[u.id] ?? { display_no: String(u.display_no), level: String(u.level), id_color: "#D4AF37" };
+    const value = identity[u.id] ?? { display_no: String(u.display_no), level: String(u.level), id_color: "#D4AF37", name_color: "#D4AF37", name_effect: "none", name_effect_speed: "1800" };
     const displayNo = Number(value.display_no), level = Number(value.level);
     if (!Number.isSafeInteger(displayNo) || displayNo < 100000 || !Number.isInteger(level) || level < 1 || level > 999) {
       toast.error("تحقق من رقم ID والمستوى");
@@ -353,7 +353,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
     }
     await run(supabase.rpc("admin_update_user_identity" as never, {
       _user: u.id, _display_no: displayNo, _level: level, _id_color: value.id_color,
-    } as never), "تم حفظ ID المميز ولونه والمستوى");
+    } as never), "تم حفظ ID المميز ولونه والمستوى");\n    await run(supabase.rpc("admin_set_profile_style" as never, { _user: u.id, _name_color: value.name_color, _name_effect: value.name_effect, _speed: Number(value.name_effect_speed) } as never), "تم حفظ لون الاسم وتأثيره");
   }
   async function grantItem(u: U) {
     const itemId = selectedItem[u.id];
@@ -371,7 +371,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
     <div className="space-y-3">
       <div className="flex gap-2"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="بحث بالاسم أو ID" /><Button onClick={() => void load()}>بحث</Button></div>
       {rows.map((u) => {
-        const edit = identity[u.id] ?? { display_no: String(u.display_no), level: String(u.level), id_color: "#D4AF37" };
+        const edit = identity[u.id] ?? { display_no: String(u.display_no), level: String(u.level), id_color: "#D4AF37", name_color: "#D4AF37", name_effect: "none", name_effect_speed: "1800" };
         return <div key={u.id} className="glass space-y-3 rounded-2xl p-3 text-sm">
           <div className="flex flex-wrap justify-between gap-2">
             <Link to="/u/$id" params={{ id: u.id }} className="font-bold">{u.display_name} <span className="text-xs text-muted-foreground">ID {u.display_no}</span></Link>
@@ -381,6 +381,9 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
             <label className="text-xs text-muted-foreground">ID المميز<Input type="number" min="100000" value={edit.display_no} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, display_no: e.target.value } }))} /></label>
             <label className="text-xs text-muted-foreground">المستوى<Input type="number" min="1" max="999" value={edit.level} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, level: e.target.value } }))} /></label>
             <label className="text-xs text-muted-foreground">لون ID<input aria-label="لون ID المميز" type="color" value={edit.id_color} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, id_color: e.target.value } }))} className="h-10 w-full rounded-md border border-input bg-input p-1" /></label>
+            <label className="text-xs text-muted-foreground">لون الاسم<input aria-label="لون الاسم" type="color" value={edit.name_color} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, name_color: e.target.value } }))} className="h-10 w-full rounded-md border border-input bg-input p-1" /></label>
+            <select aria-label="تأثير الاسم" value={edit.name_effect} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, name_effect: e.target.value } }))} className="rounded-md border border-input bg-input px-2 py-2 text-xs"><option value="none">اسم ثابت</option><option value="shimmer">لمعة متحركة</option><option value="pulse">نبض</option><option value="rainbow">ألوان متحركة</option></select>
+            <Input type="number" min="500" max="5000" aria-label="سرعة تأثير الاسم" value={edit.name_effect_speed} onChange={(e) => setIdentity((s) => ({ ...s, name_effect_speed: e.target.value }))} />
             <Button className="self-end" size="sm" onClick={() => void saveIdentity(u)}>حفظ الهوية المميزة</Button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
