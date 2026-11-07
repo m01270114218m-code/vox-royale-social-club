@@ -63,6 +63,14 @@ jobs:
           test -n "$ANDROID_HOME" || test -n "$ANDROID_SDK_ROOT"
           bun add @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
           bunx cap add android
+          sudo apt-get update
+          sudo apt-get install -y imagemagick librsvg2-bin
+          mkdir -p android/app/src/main/res/mipmap-mdpi android/app/src/main/res/mipmap-hdpi android/app/src/main/res/mipmap-xhdpi android/app/src/main/res/mipmap-xxhdpi android/app/src/main/res/mipmap-xxxhdpi
+          for spec in "mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192"; do
+            density="${spec%%:*}"; size="${spec##*:}"
+            convert public/sdy-chat-icon.svg -background none -resize "${size}x${size}" "android/app/src/main/res/mipmap-${density}/ic_launcher.png"
+            cp "android/app/src/main/res/mipmap-${density}/ic_launcher.png" "android/app/src/main/res/mipmap-${density}/ic_launcher_round.png"
+          done
           VERSION="$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")"
           VERSION_CODE="$(node -p "const p=process.argv[1].split('.').map(Number); p[0]*10000+p[1]*100+p[2]" "$VERSION")"
           sed -i -E "s/versionCode [0-9]+/versionCode $VERSION_CODE/; s/versionName \"[^\"]+\"/versionName \"$VERSION\"/" android/app/build.gradle
