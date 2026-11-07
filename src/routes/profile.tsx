@@ -74,7 +74,7 @@ function ProfilePage() {
         if (!alive) return;
         setP((current) => current ? ({ ...current, ...(payload.new as P) }) : (payload.new as P));
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "user_items", filter: `user_id=eq.${user.id}` }, () => { void loadOwnedItems(user.id); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_items", filter: `user_id=eq.${user.id}` }, () => { void loadOwnedItems(user.id); })\n      .on("postgres_changes", { event: "*", schema: "public", table: "user_badges", filter: `user_id=eq.${user.id}` }, async () => { const { data: rows } = await supabase.from("user_badges").select("id,badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", user.id); setBadges((rows ?? []) as Badge[]); })
       .subscribe();
     (async () => {
       const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
