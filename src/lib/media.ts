@@ -1,9 +1,21 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-const cache = new Map<string, string>();
-const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const MAX_BYTES = 5 * 1024 * 1024;
+type CachedUrl = { url: string; expiresAt: number };
+const cache = new Map<string, CachedUrl>();
+const adminAssetCache = new Map<string, CachedUrl>();
+const cacheGet = (map: Map<string, CachedUrl>, key: string) => {
+  const hit = map.get(key);
+  if (!hit) return null;
+  if (hit.expiresAt <= Date.now()) {
+    map.delete(key);
+    return null;
+  }
+  return hit.url;
+};
+const cacheSet = (map: Map<string, CachedUrl>, key: string, url: string, ttlMs: number) => {
+  map.set(key, { url, expiresAt: Date.now() + ttlMs });
+};
 
 async function compressImage(file: File): Promise<File> {
   if (!ALLOWED.includes(file.type)) throw new Error("يسمح فقط بالصور (JPG, PNG, WEBP, GIF)");
@@ -50,35 +62,39 @@ export function useMedia(value?: string | null): string | null {
   const [url, setUrl] = useState<string | null>(() => {
     if (!value) return null;
     if (!value.startsWith("media:")) return value;
-    return cache.get(value) ?? null;
+    return cacheGet(cache, value);
   });
   useEffect(() => {
-    if (!value) return setUrl(null);
-    if (!value.startsWith("media:")) return setUrl(value);
-    const hit = cache.get(value);
-    if (hit) return setUrl(hit);
+    if (!value) { setUrl(null); return; }
+    if (!value.startsWith("media:")) { setUrl(value); return; }
+    const hit = cacheGet(cache, value);
+    if (hit) { setUrl(hit); return; }
     let alive = true;
-    supabase.storage.from("media").createSignedUrl(value.slice(6), 60 * 60 * 6).then(({ data }) => {
+    supabase.storage.from("media").createSignedUrl(value.slice(6).replace(/^\/+/, ""), 60 * 60 * 6).then(({ data }) => {
       if (data?.signedUrl && alive) {
-        cache.set(value, data.signedUrl);
+        cacheSet(cache, value, data.signedUrl, 5 * 60 * 60 * 1000);
         setUrl(data.signedUrl);
+      } else if (alive) {
+        setUrl(null);
       }
     });
-    return () => { alive = false; };
-  }, [value]);
-  return url;
-}
-
-const adminAssetCache = new Map<string, string>();
-
-export async function getAdminAssetUrl(assetKey?: string | null): Promise<string | null> {
+    retuexport async function getAdminAssetUrl(assetKey?: string | null): Promise<string | null> {
   if (!assetKey) return null;
-  const cached = adminAssetCache.get(assetKey);
+  const cached = cacheGet(adminAssetCache, assetKey);
   if (cached) return cached;
 
-  // store_items.asset_key may already contain a complete Supabase Storage URL.
-  // Do not look up that URL as an admin_assets.asset_key: it is the actual asset.
   let raw = assetKey.trim();
+
+  // Accept media:path references and resolve them through the public media bucket.
+  if (raw.startsWith("media:")) {
+    const path = raw.slice(6).replace(/^\/+/, "");
+    if (!path) return null;
+    const { data, error } = await supabase.storage.from("media").createSignedUrl(path, 60 * 60 * 6);
+    if (error || !data?.signedUrl) return null;
+    cacheSet(adminAssetCache, assetKey, data.signedUrl, 5 * 60 * 60 * 1000);
+    return data.signedUrl;
+  }
+
   if (!/^https?:\/\//i.test(raw)) {
     const { data: asset, error } = await supabase
       .from("admin_assets")
@@ -96,7 +112,7 @@ export async function getAdminAssetUrl(assetKey?: string | null): Promise<string
   const markerIndex = raw.indexOf(marker);
   if (markerIndex < 0) {
     if (/^https?:\/\//i.test(raw)) {
-      adminAssetCache.set(assetKey, raw);
+      cacheSet(adminAssetCache, assetKey, raw, 24 * 60 * 60 * 1000);
       return raw;
     }
     return null;
@@ -109,33 +125,32 @@ export async function getAdminAssetUrl(assetKey?: string | null): Promise<string
   const storagePath = decodeURIComponent(parts.join("/").replace(/^\/+/, ""));
   if (!access || !bucket || !storagePath) return null;
 
-  // Public Storage objects should be used directly. Signing a public media
-  // object through the admin-assets bucket was the cause of broken images.
   if (access === "public") {
-    adminAssetCache.set(assetKey, raw);
+    cacheSet(adminAssetCache, assetKey, raw, 24 * 60 * 60 * 1000);
     return raw;
   }
 
-  // Refresh signed/authenticated Storage URLs from their actual bucket.
   if (access === "sign" || access === "authenticated") {
     const { data: signed, error: signError } = await supabase
       .storage
       .from(bucket)
       .createSignedUrl(storagePath, 60 * 60);
     if (signError || !signed?.signedUrl) return null;
-    adminAssetCache.set(assetKey, signed.signedUrl);
+    cacheSet(adminAssetCache, assetKey, signed.signedUrl, 50 * 60 * 1000);
     return signed.signedUrl;
   }
 
   return null;
 }
 
+
+
 export function useAdminAsset(assetKey?: string | null): string | null {
-  const [url, setUrl] = useState<string | null>(() => (assetKey ? adminAssetCache.get(assetKey) ?? null : null));
+  const [url, setUrl] = useState<string | null>(() => (assetKey ? cacheGet(adminAssetCache, assetKey) : null));
   useEffect(() => {
     let alive = true;
     if (!assetKey) { setUrl(null); return; }
-    const hit = adminAssetCache.get(assetKey);
+    const hit = cacheGet(adminAssetCache, assetKey);
     if (hit) { setUrl(hit); return; }
     setUrl(null);
     void getAdminAssetUrl(assetKey).then((next) => { if (alive) setUrl(next); });
