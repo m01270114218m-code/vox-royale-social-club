@@ -130,12 +130,12 @@ function Home() {
         </div>
       )}
       {roomBanners.length > 0 && (
-        <div className="room-list-banner mb-3 overflow-hidden rounded-2xl border border-primary/20 bg-black/20 shadow-lg">
+        <div className="room-list-banner mb-4 overflow-hidden rounded-3xl border border-primary/30 bg-black/30 shadow-xl">
           {(() => {
             const banner = roomBanners[bannerIndex];
             if (!banner) return null;
             const content = (
-              <div className="relative h-[104px] w-full sm:h-40">
+              <div className="relative h-[132px] w-full sm:h-44">
                 <img src={banner.image_url} alt={banner.title} className="absolute inset-0 h-full w-full object-cover" />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent px-4 pb-3 pt-10">
                   <div className="truncate text-sm font-bold text-white">{banner.title}</div>
