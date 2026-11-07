@@ -80,7 +80,7 @@ function RoomPage() {
   const [speakingUsers, setSpeakingUsers] = useState<string[]>([]);
   const [micRequests, setMicRequests] = useState<{ id: string; user_id: string; created_at: string }[]>([]);
   const [myMicRequest, setMyMicRequest] = useState<{ id: string } | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);\n  const [following, setFollowing] = useState(false);
   const roomCoverUrl = useMedia(room?.cover_url);
   const chatEnd = useRef<HTMLDivElement>(null);
    const uid = user?.id ?? "";
@@ -384,7 +384,7 @@ function RoomPage() {
     }
   }
 
-  async function openGifts(target?: string) {
+  async function toggleFollow(target?: string) { if (!target || target === uid) return; const { data: existing } = await supabase.from("follows").select("follower_id,following_id").eq("follower_id", uid).eq("following_id", target).maybeSingle(); if (existing) { const { error } = await supabase.from("follows").delete().eq("follower_id", uid).eq("following_id", target); if (error) toast.error(errMsg(error)); else { setFollowing(false); toast.success("تم إلغاء المتابعة"); } } else { const { error } = await supabase.from("follows").insert({ follower_id: uid, following_id: target }); if (error) toast.error(errMsg(error)); else { setFollowing(true); toast.success("تمت المتابعة"); } } }\n\n  async function openGifts(target?: string) {
     const { data } = await supabase.from("wallets").select("coins").eq("user_id", uid).maybeSingle();
     setCoins(Number(data?.coins ?? 0));
     const others = members.filter((m) => m !== uid);
@@ -554,7 +554,7 @@ function RoomPage() {
                 </>
               )}
                {seatMenu.user_id && seatMenu.user_id !== uid && <Button onClick={() => { if (seatMenu.user_id) openGifts(seatMenu.user_id); }} className="bg-accent text-accent-foreground"><img src={icons3d.giftbox} alt="" className="h-6 w-6 object-contain" /> إرسال هدية</Button>}
-               {seatMenu.user_id && <div className="rounded-2xl border border-primary/20 bg-background/70 p-3 text-right"><div className="text-xs text-muted-foreground">بطاقة تعريف</div><div className="mt-1 font-bold" style={{ color: profiles[seatMenu.user_id]?.name_color || undefined }}>{profiles[seatMenu.user_id]?.display_name}</div><div className="mt-1 text-xs" style={{ color: profiles[seatMenu.user_id]?.id_color || undefined }}>ID {profiles[seatMenu.user_id]?.display_no}</div><IdentityBadges level={profiles[seatMenu.user_id]?.level} vip={profiles[seatMenu.user_id]?.vip_level} /><div className="mt-2 text-[11px] text-muted-foreground">{(profiles[seatMenu.user_id]?.vip_level ?? 0) >= 5 ? "🛡️ VIP 5+ — محمي من الطرد والكتم" : (profiles[seatMenu.user_id]?.vip_level ?? 0) > 0 ? `👑 VIP ${profiles[seatMenu.user_id]?.vip_level} — اسم وID ودخولية/إطار حسب المقتنيات` : "عضو عادي"}</div></div>}
+               {seatMenu.user_id && <div className="rounded-2xl border border-primary/20 bg-background/70 p-3 text-right"><div className="text-xs text-muted-foreground">بطاقة تعريف</div><div className="mt-2 flex items-center gap-3"><UserAvatar src={profiles[seatMenu.user_id]?.avatar_url} name={profiles[seatMenu.user_id]?.display_name || "مستخدم"} vip={profiles[seatMenu.user_id]?.vip_level} size={64} frameKey={profiles[seatMenu.user_id]?.equipped_frame} /><div className="min-w-0 flex-1"><div className="truncate font-bold" style={{ color: profiles[seatMenu.user_id]?.name_color || undefined }}>{profiles[seatMenu.user_id]?.display_name}</div><div className="mt-1 text-xs" style={{ color: profiles[seatMenu.user_id]?.id_color || undefined }}>ID {profiles[seatMenu.user_id]?.display_no}</div><IdentityBadges level={profiles[seatMenu.user_id]?.level} vip={profiles[seatMenu.user_id]?.vip_level} /></div></div><div className="mt-3 grid grid-cols-2 gap-2">{seatMenu.user_id !== uid && <Button variant="outline" onClick={() => void toggleFollow(seatMenu.user_id!)}>{following ? "إلغاء المتابعة" : "متابعة"}</Button>}{seatMenu.user_id !== uid && <Button onClick={() => { void openGifts(seatMenu.user_id!); }} className="bg-gold">🎁 إرسال هدية</Button>}</div></div>}}
             </div>
           )}
         </SheetContent>
