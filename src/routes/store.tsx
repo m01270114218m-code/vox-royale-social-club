@@ -105,7 +105,15 @@ function StorePage() {
           <span className="rounded-full bg-gold px-3 py-1 text-sm font-bold">VIP {vip}</span>
         </div>
         <section>
-          <h2 className="mb-2 font-bold">عضويات VIP</h2>
+          <h2 className="mb-2 font-bold">قسم VIP</h2>
+          {vip <= 0 ? (
+            <div className="card-3d glass rounded-3xl p-5 text-center">
+              <img src={vipBadge(1)} alt="" className="mx-auto h-24 w-24 object-contain" />
+              <div className="mt-2 font-display text-2xl text-gold">قسم VIP</div>
+              <p className="mt-1 text-sm text-muted-foreground">هذا القسم مخصص لأعضاء VIP فقط.</p>
+              <p className="mt-2 text-xs text-muted-foreground">يمكن تفعيل VIP من خلال الإدارة أو نظام الترقية المعتمد في الحساب.</p>
+            </div>
+          ) : (
           <div className="grid grid-cols-2 gap-3">
             {VIP.map((v) => (
               <div key={v.lv} className={`card-3d glass rounded-3xl p-4 text-center ${vip >= v.lv ? "ring-2 ring-primary" : ""}`}>
@@ -119,6 +127,7 @@ function StorePage() {
               </div>
             ))}
           </div>
+          )}
         </section>
         <section>
           <h2 className="mb-2 font-bold">إطارات الصورة</h2>
