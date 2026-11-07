@@ -198,6 +198,9 @@ function Home() {
           ))}
         </div>
       )}
+      <div className="fixed bottom-24 left-4 z-30">
+        <CreateRoom />
+      </div>
     </div>
   );
 }
@@ -214,6 +217,9 @@ function CreateRoom() {
   const nav = useNavigate();
   const search = Route.useSearch();
   const [open, setOpen] = useState(!!search.create);
+  useEffect(() => {
+    if (search.create) setOpen(true);
+  }, [search.create]);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [category, setCategory] = useState("chat");
@@ -233,7 +239,10 @@ function CreateRoom() {
   }
   const sel = "w-full rounded-md border border-input bg-input px-3 py-2 text-sm";
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => {
+      setOpen(next);
+      if (!next && search.create) void nav({ to: "/", search: {} });
+    }}>
       <DialogTrigger asChild>
         <Button size="sm" className="bg-gold rounded-full font-bold shadow-gold"><img src={icons3d.plus} alt="" className="h-6 w-6 object-contain" /> غرفة</Button>
       </DialogTrigger>
