@@ -400,7 +400,9 @@ button, a { touch-action: manipulation; }
 /* Circular room cover artwork centered inside the voice-room stage. */
 .room-cover-stage {
   position: relative;
-  width: min(62vw, 248px);
+  flex: 0 0 auto;
+  width: min(76vw, 300px);
+  min-width: 220px;
   aspect-ratio: 1;
   border-radius: 9999px;
   overflow: hidden;
