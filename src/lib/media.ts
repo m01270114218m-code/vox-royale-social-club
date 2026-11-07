@@ -59,8 +59,20 @@ export async function getAdminAssetUrl(assetKey?: string | null): Promise<string
     .maybeSingle();
   if (error || !asset) return null;
   const metadata = asset.metadata as { storage_path?: string } | null;
-  const path = metadata?.storage_path || asset.url;
-  if (!path) return null;
+  const raw = metadata?.storage_path || asset.url;
+  if (!raw) return null;
+  // Accept both a storage path and a full Supabase Storage URL; only pass the path to createSignedUrl.
+  const marker = "/storage/v1/object/";
+  let path = raw;
+  const markerIndex = raw.indexOf(marker);
+  if (markerIndex >= 0) {
+    const tail = raw.slice(markerIndex + marker.length).split("?")[0];
+    const publicPrefix = "public/admin-assets/";
+    const signPrefix = "sign/admin-assets/";
+    path = tail.startsWith(publicPrefix) ? tail.slice(publicPrefix.length) : tail.startsWith(signPrefix) ? tail.slice(signPrefix.length) : tail;
+  }
+  path = decodeURIComponent(path.replace(/^\/+/, ""));
+  if (path.startsWith("admin-assets/")) path = path.slice("admin-assets/".length);
   const { data: signed, error: signError } = await supabase.storage
     .from("admin-assets")
     .createSignedUrl(path, 60 * 60);
