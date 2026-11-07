@@ -153,6 +153,30 @@ function RoomPage() {
     })();
     const ch = supabase
       .channel(`room-${id}-${Math.random().toString(36).slice(2)}`)
+      .on("broadcast", { event: "chat_message" }, (payload) => {
+        const message = payload.payload as Msg & { roomId?: string };
+        if (message.roomId !== id || !message.id) return;
+        setMsgs((current) => current.some((m) => m.id === message.id) ? current : [...current.slice(-99), message]);
+      })
+      .on("broadcast", { event: "gift_sent" }, async (payload) => {
+        const event = payload.payload as { roomId?: string; giftId?: string; eventId?: string };
+        if (event.roomId !== id || !event.giftId) return;
+        const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key").eq("id", event.giftId).maybeSingle();
+        if (!g) return;
+        let image = giftImage(g.name, g.emoji);
+        if (g.asset_key) {
+          const { data: asset } = await supabase.from("admin_assets").select("url,metadata").eq("asset_key", g.asset_key).eq("is_active", true).maybeSingle();
+          const path = asset?.metadata?.storage_path || asset?.url;
+          if (path) {
+            const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
+            image = signed?.signedUrl || image;
+          }
+        }
+        setAnim({ key: Date.now(), emoji: image });
+        setTimeout(() => setAnim(null), 2600);
+      })
+      .on("broadcast", { event: "mic_request_changed" }, () => { void loadMicRequests(); })
+      .on("broadcast", { event: "member_changed" }, () => { void loadMembers(); void loadSeats(); })
       .on("broadcast", { event: "seat_state" }, (payload) => {
         const data = payload.payload as { roomId?: string; seat?: Seat | null; userId?: string };
         if (data.roomId !== id) return;
@@ -198,7 +222,10 @@ function RoomPage() {
           if (row.user_id === uid) setMyMicRequest({ id: row.id });
         }
       })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${id}` }, (p) => setMsgs((x) => [...x.slice(-99), p.new as Msg]))
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${id}` }, (p) => {
+        const message = p.new as Msg;
+        setMsgs((current) => current.some((m) => m.id === message.id) ? current : [...current.slice(-99), message]);
+      })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "gift_transactions", filter: `room_id=eq.${id}` }, async (p) => {
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key").eq("id", (p.new as { gift_id: string }).gift_id).maybeSingle();
         if (g) {
@@ -218,6 +245,17 @@ function RoomPage() {
             .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${id}` }, (payload) => { setRoom((current) => current ? ({ ...current, ...(payload.new as Partial<Room>) }) : current); })
       .subscribe();
     roomLive.current = ch;
+    ch.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        void Promise.all([loadSeats(), loadMembers(), loadMicRequests()]);
+        void supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).order("created_at", { ascending: false }).limit(50)
+          .then(({ data }) => { if (data) setMsgs((current) => {
+            const byId = new Map(current.map((m) => [m.id, m]));
+            data.forEach((m) => byId.set(m.id, m as Msg));
+            return [...byId.values()].sort((a, b) => a.created_at.localeCompare(b.created_at)).slice(-100);
+          }); });
+      }
+    });
     const loadCatalog = async () => {
       const { data: rows } = await supabase.from("gifts").select("id,name,emoji,price,tier,asset_key").eq("active", true).order("sort");
       const keys = (rows || []).map((g) => g.asset_key).filter((key): key is string => !!key);
@@ -329,6 +367,7 @@ function RoomPage() {
       if (error) toast.error(errMsg(error));
       else {
         if (requestId) setMyMicRequest({ id: String(requestId) });
+        await roomLive.current?.send({ type: "broadcast", event: "mic_request_changed", payload: { roomId: id } });
         toast.success("تم إرسال طلب الميك لصاحب الغرفة");
       }
       return;
@@ -338,7 +377,13 @@ function RoomPage() {
 
   async function decideMicRequest(requestId: string, accept: boolean) {
     const { error } = await supabase.rpc("decide_mic_request", { _request: requestId, _accept: accept });
-    if (error) toast.error(errMsg(error)); else toast.success(accept ? "تمت الموافقة على طلب الميك" : "تم رفض الطلب");
+    if (error) toast.error(errMsg(error));
+    else {
+      await Promise.all([loadMicRequests(), loadSeats()]);
+      await roomLive.current?.send({ type: "broadcast", event: "mic_request_changed", payload: { roomId: id } });
+      await roomLive.current?.send({ type: "broadcast", event: "member_changed", payload: { roomId: id } });
+      toast.success(accept ? "تمت الموافقة على طلب الميك" : "تم رفض الطلب");
+    }
   }
 
   async function openGifts(target?: string) {
@@ -359,6 +404,7 @@ function RoomPage() {
       return;
     }
     setCoins((c) => c - giftSel.price * qty);
+    await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: giftSel.id, eventId: crypto.randomUUID() } });
     setGiftOpen(false);
   }
 
@@ -371,6 +417,13 @@ function RoomPage() {
     if (error) {
       toast.error(errMsg(error));
       setText(body);
+      return;
+    }
+    const { data: saved } = await supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).eq("user_id", uid).eq("body", body).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (saved) {
+      const message = saved as Msg;
+      setMsgs((current) => current.some((m) => m.id === message.id) ? current : [...current.slice(-99), message]);
+      await roomLive.current?.send({ type: "broadcast", event: "chat_message", payload: { roomId: id, ...message } });
     }
   }
 
