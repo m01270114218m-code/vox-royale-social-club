@@ -16,37 +16,16 @@ export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
       { title: "VOX ROYALE — لوحة التحكم ويب" },
-      { name: "description", content: "لوحة تحكم ويب مستقلة لإدارة VOX ROYALE." },
+      { name: "description", content: "لوحة التحكم الأصلية لــ VOX ROYALE معروضة كصفحة ويب مستقلة." },
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: () => <WebAdminRedirect />,
+  component: () => (
+    <RequireAuth>
+      <AdminPage />
+    </RequireAuth>
+  ),
 });
-
-/**
- * The Android/app admin screen must not render an embedded control panel.
- * It only redirects to the standalone web admin page.
- */
-function WebAdminRedirect() {
-  useEffect(() => {
-    const url =
-      (import.meta.env.VITE_ADMIN_PANEL_URL as string | undefined)?.trim() ||
-      "https://vox-royale-social-club.lovable.app/control-center/";
-    window.location.replace(url);
-  }, []);
-
-  return (
-    <main className="min-h-screen grid place-items-center bg-background p-6 text-center">
-      <div className="space-y-3">
-        <Shield className="mx-auto h-12 w-12 text-primary" />
-        <h1 className="font-display text-gold text-2xl">جاري فتح لوحة التحكم على الويب…</h1>
-        <p className="text-sm text-muted-foreground">
-          لوحة التحكم لا تُعرض داخل واجهة التطبيق.
-        </p>
-      </div>
-    </main>
-  );
-}
 
 type Tab = "reports" | "rooms" | "seats" | "posts" | "users" | "wallet" | "gifts" | "vip" | "store" | "assets" | "banners" | "notifications" | "roles" | "settings" | "app_builder" | "analytics" | "audit";
 const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
