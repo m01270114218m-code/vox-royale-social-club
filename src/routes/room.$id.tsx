@@ -161,7 +161,7 @@ function RoomPage() {
       .on("broadcast", { event: "gift_sent" }, async (payload) => {
         const event = payload.payload as { roomId?: string; giftId?: string; eventId?: string };
         if (event.roomId !== id || !event.giftId) return;
-        const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key").eq("id", event.giftId).maybeSingle();
+        const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url").eq("id", event.giftId).maybeSingle();
         if (!g) return;
         let image = giftImage(g.name, g.emoji);
         if (g.asset_key) {
@@ -256,7 +256,7 @@ function RoomPage() {
     });
     roomLive.current = ch;
     const loadCatalog = async () => {
-      const { data: rows } = await supabase.from("gifts").select("id,name,emoji,price,tier,asset_key").eq("active", true).order("sort");
+      const { data: rows } = await supabase.from("gifts").select("id,name,emoji,price,tier,asset_key,asset_url").eq("active", true).order("sort");
       const keys = (rows || []).map((g) => g.asset_key).filter((key): key is string => !!key);
       const { data: assets } = keys.length ? await supabase.from("admin_assets").select("asset_key,url,metadata").in("asset_key", keys).eq("is_active", true) : { data: [] };
       const assetMap = new Map<string, string>();
@@ -266,7 +266,7 @@ function RoomPage() {
         const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
         if (signed?.signedUrl) assetMap.set(asset.asset_key, signed.signedUrl);
       }));
-      setGifts((rows || []).map((g) => ({ ...g, asset_url: g.asset_key ? assetMap.get(g.asset_key) || null : null })) as GiftT[]);
+      setGifts((rows || []).map((g) => ({ ...g, asset_url: g.asset_url || (g.asset_key ? assetMap.get(g.asset_key) || null : null) })) as GiftT[]);
     };
     void loadCatalog();
     const loadVoiceControls = async () => {
