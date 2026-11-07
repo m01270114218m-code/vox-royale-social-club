@@ -83,7 +83,7 @@ function ShellInner({ children }: { children: ReactNode }) {
   const active = { className: "text-primary" };
 
   async function myRoom() {
-    const { data } = await supabase.from("rooms").select("id").eq("owner_id", user!.id).order("created_at").limit(1).maybeSingle();
+    const { data } = await supabase.from("rooms").select("id").eq("owner_id", user!.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (data) nav({ to: "/room/$id", params: { id: data.id } });
     else {
       toast("أنشئ غرفتك الأولى");
