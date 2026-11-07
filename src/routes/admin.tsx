@@ -609,8 +609,9 @@ function StoreTab() {
   }
   async function del(id: string) {
     if (!confirm("حذف العنصر من المتجر؟")) return;
-    const { error } = await supabase.rpc("admin_delete_store_item", { _id: id });
+    const { data, error } = await supabase.rpc("admin_delete_store_item", { _id: id });
     if (error) { toast.error(errMsg(error)); return; }
+    if (data !== true) { toast.error("لم يتم العثور على العنصر أو لم يتم حذفه"); await load(); return; }
     toast.success("تم حذف العنصر من المتجر");
     await load();
   }
