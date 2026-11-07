@@ -72,12 +72,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
       { title: "صدي شات — غرف صوتية فاخرة" },
       { name: "description", content: "صدي شات: غرف دردشة صوتية مباشرة ومقاعد وأصدقاء." },
       { property: "og:title", content: "صدي شات" },
       { property: "og:description", content: "غرف دردشة صوتية مباشرة ومقاعد وأصدقاء." },
       { name: "theme-color", content: "#1a0f24" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
           ],
