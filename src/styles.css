@@ -135,3 +135,11 @@
 .room-scene::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--room-overlay); }
 :root { --room-overlay: linear-gradient(to bottom, oklch(0.14 0.03 300 / .2), oklch(0.14 0.03 300 / .78) 60%, var(--background)); }
 @media (prefers-reduced-motion: reduce) { .speaking, .floaty, .gift-pop { animation: none; } .card-3d, .seat-3d, .btn-3d { transition: none; transform: none; } }
+
+/* Dynamic public name effects */
+.name-effect-shimmer{animation:name-shimmer var(--name-speed,1800ms) linear infinite;background:linear-gradient(90deg,currentColor 0%,#fff 45%,currentColor 70%);background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent}
+.name-effect-pulse{animation:name-pulse var(--name-speed,1800ms) ease-in-out infinite}
+.name-effect-rainbow{animation:name-rainbow var(--name-speed,1800ms) linear infinite;background:linear-gradient(90deg,#ff4d6d,#ffd166,#06d6a0,#4cc9f0,#9b5de5,#ff4d6d);background-size:300% auto;-webkit-background-clip:text;background-clip:text;color:transparent}
+@keyframes name-shimmer{0%{background-position:200% center}100%{background-position:-20% center}}
+@keyframes name-pulse{0%,100%{filter:drop-shadow(0 0 0 transparent);transform:scale(1)}50%{filter:drop-shadow(0 0 8px currentColor);transform:scale(1.02)}}
+@keyframes name-rainbow{0%{background-position:0% center}100%{background-position:300% center}}
