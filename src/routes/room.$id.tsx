@@ -167,15 +167,7 @@ function RoomPage() {
         if (event.roomId !== id || !event.giftId) return;
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url").eq("id", event.giftId).maybeSingle();
         if (!g) return;
-        let image = giftImage(g.name, g.emoji);
-        if (g.asset_key) {
-          const { data: asset } = await supabase.from("admin_assets").select("url,metadata").eq("asset_key", g.asset_key).eq("is_active", true).maybeSingle();
-          const path = asset?.metadata?.storage_path || asset?.url;
-          if (path) {
-            const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
-            image = signed?.signedUrl || image;
-          }
-        }
+        const image = (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || g.asset_url || giftImage(g.name, g.emoji);
         setAnim({ key: Date.now(), emoji: image, name: g.name });
         setTimeout(() => setAnim(null), 2600);
       })
@@ -265,16 +257,13 @@ function RoomPage() {
     roomLive.current = ch;
     const loadCatalog = async () => {
       const { data: rows } = await supabase.from("gifts").select("id,name,emoji,price,tier,asset_key,asset_url").eq("active", true).order("sort");
-      const keys = (rows || []).map((g) => g.asset_key).filter((key): key is string => !!key);
-      const { data: assets } = keys.length ? await supabase.from("admin_assets").select("asset_key,url,metadata").in("asset_key", keys).eq("is_active", true) : { data: [] };
-      const assetMap = new Map<string, string>();
-      await Promise.all((assets || []).map(async (asset) => {
-        const path = asset.metadata?.storage_path || asset.url;
-        if (!path) return;
-        const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
-        if (signed?.signedUrl) assetMap.set(asset.asset_key, signed.signedUrl);
-      }));
-      setGifts((rows || []).map((g) => ({ ...g, asset_url: g.asset_url || (g.asset_key ? assetMap.get(g.asset_key) || null : null) })) as GiftT[]);
+      const resolved = await Promise.all((rows || []).map(async (g) => ({
+        ...g,
+        // Always resolve the exact admin-uploaded file from its stable asset_key.
+        // Do not fall back to the generic gift box when an uploaded asset exists.
+        asset_url: g.asset_key ? (await getAdminAssetUrl(g.asset_key)) || g.asset_url || null : g.asset_url || null,
+      })));
+      setGifts(resolved as GiftT[]);
     };
     void loadCatalog();
     const loadVoiceControls = async () => {
