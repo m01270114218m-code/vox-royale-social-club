@@ -74,7 +74,7 @@ function RoomPage() {
   const [qty, setQty] = useState(1);
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; animated?: boolean } | null>(null);
-  const [entryAnim, setEntryAnim] = useState<{ key: number; src: string } | null>(null);
+  const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; animated?: boolean } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
   const [micPermissionGranted, setMicPermissionGranted] = useState(false);
   const [speakingUsers, setSpeakingUsers] = useState<string[]>([]);
@@ -117,7 +117,7 @@ function RoomPage() {
     const src = (await getAdminAssetUrl(key)) || entryEffects[key]?.image || entryEffects[baseKey]?.image;
     if (!src) return;
     const token = Date.now();
-    setEntryAnim({ key: token, src });
+    setEntryAnim({ key: token, src, animated: key.includes("-animated") });
     setTimeout(() => setEntryAnim((current) => current?.key === token ? null : current), 3200);
   }
 
@@ -695,7 +695,7 @@ function RoomPage() {
 
       {entryAnim && (
         <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-black/35">
-          <img src={entryAnim.src} alt="تأثير دخول المستخدم" className="h-72 w-72 animate-bounce object-contain drop-shadow-2xl" />
+          <img src={entryAnim.src} alt="تأثير دخول المستخدم" className={`h-72 w-72 object-contain drop-shadow-2xl ${entryAnim.animated ? "entry-animated" : "animate-bounce"}`} />
         </div>
       )}
 
