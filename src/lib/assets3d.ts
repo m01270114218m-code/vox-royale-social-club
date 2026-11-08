@@ -54,12 +54,32 @@ import room_royal from "@/assets/3d/rendered/room-royal.jpg";
 import room_tropical from "@/assets/3d/rendered/room-tropical.jpg";
 import room_music from "@/assets/3d/rendered/room-music.jpg";
 import room_garden from "@/assets/3d/rendered/room-garden.jpg";
+import newFrame1 from "@/assets/3d/new/frame-1.svg";
+import newFrame2 from "@/assets/3d/new/frame-2.svg";
+import newFrame3 from "@/assets/3d/new/frame-3.svg";
+import newFrame4 from "@/assets/3d/new/frame-4.svg";
+import newFrame5 from "@/assets/3d/new/frame-5.svg";
+import newEntry1 from "@/assets/3d/new/entry-1.svg";
+import newEntry2 from "@/assets/3d/new/entry-2.svg";
+import newEntry3 from "@/assets/3d/new/entry-3.svg";
+import newEntry4 from "@/assets/3d/new/entry-4.svg";
+import newEntry5 from "@/assets/3d/new/entry-5.svg";
+import newGift1 from "@/assets/3d/new/gift-1.svg";
+import newGift2 from "@/assets/3d/new/gift-2.svg";
+import newGift3 from "@/assets/3d/new/gift-3.svg";
+import newGift4 from "@/assets/3d/new/gift-4.svg";
+import newGift5 from "@/assets/3d/new/gift-5.svg";
+
 export const icons3d = { home, explore, friends, messages, profile, store, wallet, vip, family, support, bell, gear, search, giftbox, plus, back, share, send, trash, logout, rose, heart, crown, ring, car, castle, rocket, chest, mic, diamond, coin, agency: family, micHost: mic_host, micMuted: mic_muted, micLocked: mic_locked };
 const frames = [frame1, frame2, frame3, frame4, frame5, frame6];
+export const independentFrames = [newFrame1, newFrame2, newFrame3, newFrame4, newFrame5];
+export const independentEntries = [newEntry1, newEntry2, newEntry3, newEntry4, newEntry5];
+export const independentGifts = [newGift1, newGift2, newGift3, newGift4, newGift5];
 const vips = [vip1, vip2, vip3, vip4, vip5, vip6];
 const levels = [level1, level2, level3, level4, level5, level6];
 export function avatarFrame(vip: number) { return vip > 0 ? frames[Math.min(5, Math.max(0, Math.floor(vip) - 1))] : undefined; }
 export function frameByKey(key?: string | null) {
+  if (key?.startsWith("frame-independent-")) { const n = Number(key.split("-").pop()); return Number.isFinite(n) && n >= 1 && n <= 5 ? independentFrames[n - 1] : undefined; }
   if (!key) return undefined;
   const match = key.match(/^frame-(\d+)/);
   const n = match ? Number(match[1]) : NaN;
@@ -84,4 +104,4 @@ export const roomThemes = [{ id: "royal", name: "القصر الملكي", image
 export function roomBackground(category: string) { return (roomThemes.find(t => t.id === ({ music: "music", friends: "tropical", poetry: "garden" } as Record<string, string>)[category]) ?? roomThemes[0])?.image ?? room_royal; }
 const byName: Record<string, string> = { "وردة": rose, "قلب": heart, "تاج": crown, "خاتم": ring, "سيارة": car, "قلعة": castle, "صاروخ": rocket, "صندوق": chest, "ماسة": diamond };
 const byEmoji: Record<string, string> = { "🌹": rose, "💖": heart, "👑": crown, "💍": ring, "🏎️": car, "🏰": castle, "🚀": rocket, "💎": diamond, "🎁": giftbox };
-export function giftImage(name?: string, emoji?: string) { return (name && byName[name.trim()]) || (emoji && byEmoji[emoji]) || giftbox; }
+export function giftImage(name?: string, emoji?: string) { const m = name?.match(/هدية مستقلة (\\d+)/); if (m) return independentGifts[Number(m[1]) - 1] || giftbox; return (name && byName[name.trim()]) || (emoji && byEmoji[emoji]) || giftbox; }
