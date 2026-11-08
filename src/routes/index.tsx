@@ -1,5 +1,5 @@
 import { icons3d, roomBackground } from "@/lib/assets3d";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Users, Lock, Bell } from "lucide-react";
 import { toast } from "sonner";
@@ -34,6 +34,7 @@ function HomeRouteComponent() {
 }
 
 export function HomeScreen({ createRequested = false }: { createRequested?: boolean }) {
+  const nav = useNavigate();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [tab, setTab] = useState<"hot" | "new">("hot");
   const [country, setCountry] = useState<string | null>(null);
@@ -204,7 +205,7 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
       ) : (
         <div className="grid grid-cols-2 justify-items-stretch gap-2 sm:gap-3">
           {list.map((r) => (
-            <Link key={r.id} to="/room/$id" params={{ id: r.id }} className="card-3d glass group relative aspect-[3/4] overflow-hidden rounded-3xl p-3">
+            <button type="button" key={r.id} onClick={() => void nav({ to: "/room/$id", params: { id: r.id } })} className="card-3d glass group relative aspect-[3/4] w-full overflow-hidden rounded-3xl p-3 text-left">
               <MediaImage src={r.cover_url || roomBackground(r.category)} className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
               <div className="relative flex h-full flex-col justify-between">
                 <span className="w-fit rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">{catName(r.category)}</span>
@@ -219,7 +220,7 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
                   </div>
                 </div>
               </div>
-            </Link>
+            </button>
           ))}
         </div>
       )}
