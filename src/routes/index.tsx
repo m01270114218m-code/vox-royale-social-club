@@ -21,17 +21,18 @@ export const Route = createFileRoute("/")({
     ],
   }),
   validateSearch: (s: Record<string, unknown>): { create?: number } => (s["create"] ? { create: 1 } : {}),
-  component: () => (
-    <AppShell>
-      <HomeScreen />
-    </AppShell>
-  ),
+  component: HomeRouteComponent,
 });
 
 type Room = { id: string; room_no: number; name: string; description: string | null; category: string; country: string; member_count: number; is_private: boolean; seat_count: number; created_at: string; cover_url?: string | null };
 type RoomBanner = { id: string; title: string; image_url: string; target_url?: string | null; sort_order: number; is_active: boolean; starts_at?: string | null; ends_at?: string | null };
 
-export function HomeScreen() {
+function HomeRouteComponent() {
+  const search = Route.useSearch();
+  return <AppShell><HomeScreen createRequested={!!search.create} /></AppShell>;
+}
+
+export function HomeScreen({ createRequested = false }: { createRequested?: boolean }) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [tab, setTab] = useState<"hot" | "new">("hot");
   const [country, setCountry] = useState<string | null>(null);
@@ -199,7 +200,7 @@ export function HomeScreen() {
         </div>
       )}
       <div className="fixed bottom-24 left-4 z-30">
-        <CreateRoom />
+        <CreateRoom createRequested={createRequested} />
       </div>
     </div>
   );
@@ -213,13 +214,12 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   );
 }
 
-function CreateRoom() {
+function CreateRoom({ createRequested = false }: { createRequested?: boolean }) {
   const nav = useNavigate();
-  const search = Route.useSearch();
-  const [open, setOpen] = useState(!!search.create);
+  const [open, setOpen] = useState(createRequested);
   useEffect(() => {
-    if (search.create) setOpen(true);
-  }, [search.create]);
+    if (createRequested) setOpen(true);
+  }, [createRequested]);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [category, setCategory] = useState("chat");
@@ -241,7 +241,7 @@ function CreateRoom() {
   return (
     <Dialog open={open} onOpenChange={(next) => {
       setOpen(next);
-      if (!next && search.create) void nav({ to: "/", search: {} });
+      if (!next && createRequested) void nav({ to: "/", search: {} });
     }}>
       <DialogTrigger asChild>
         <Button size="sm" className="bg-gold rounded-full font-bold shadow-gold"><img src={icons3d.plus} alt="" className="h-6 w-6 object-contain" /> غرفة</Button>
