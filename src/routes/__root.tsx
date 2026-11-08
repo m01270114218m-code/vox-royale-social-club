@@ -9,7 +9,10 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { RoomVoice } from "@/components/RoomVoice";
+import { supabase } from "@/integrations/supabase/client";
 
 import { Toaster } from "@/components/ui/sonner";
 import appCss from "../styles.css?url";
@@ -122,8 +125,95 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <MiniRoomController />
       <Toaster position="top-center" />
       <AppUpdateGate />
     </QueryClientProvider>
+  );
+}
+
+
+function MiniRoomController() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [active, setActive] = useState<{ id: string; name: string; cover?: string | null; micEnabled?: boolean } | null>(null);
+  const [members, setMembers] = useState<string[]>([]);
+
+  useEffect(() => {
+    const read = () => {
+      try {
+        const raw = sessionStorage.getItem("vox_active_room");
+        const minimized = sessionStorage.getItem("vox_minimized_room_id");
+        if (!raw || !minimized) {
+          setActive(null);
+          return;
+        }
+        const parsed = JSON.parse(raw) as { id: string; name: string; cover?: string | null; micEnabled?: boolean };
+        if (parsed.id !== minimized) {
+          setActive(null);
+          return;
+        }
+        setActive(parsed);
+      } catch {
+        setActive(null);
+      }
+    };
+    read();
+    const onMin = () => read();
+    const onClose = () => {
+      sessionStorage.removeItem("vox_active_room");
+      sessionStorage.removeItem("vox_minimized_room_id");
+      setActive(null);
+    };
+    window.addEventListener("vox-room-minimized", onMin);
+    window.addEventListener("vox-room-closed", onClose);
+    return () => {
+      window.removeEventListener("vox-room-minimized", onMin);
+      window.removeEventListener("vox-room-closed", onClose);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!active?.id) return;
+    let alive = true;
+    void supabase.from("room_members").select("user_id").eq("room_id", active.id).then(({ data }) => {
+      if (alive) setMembers((data ?? []).map((row) => row.user_id));
+    });
+    return () => { alive = false; };
+  }, [active?.id]);
+
+  if (!active || !user?.id) return null;
+
+  const restore = () => {
+    sessionStorage.removeItem("vox_minimized_room_id");
+    sessionStorage.removeItem("vox_active_room");
+    setActive(null);
+    window.dispatchEvent(new CustomEvent("vox-room-restored"));
+    void navigate({ to: "/room/$id", params: { id: active.id } });
+  };
+
+  return (
+    <>
+      <RoomVoice
+        roomId={active.id}
+        uid={user.id}
+        members={members}
+        micEnabled={!!active.micEnabled}
+      />
+      <button
+        type="button"
+        onClick={restore}
+        aria-label={`العودة إلى غرفة ${active.name}`}
+        title={`العودة إلى ${active.name}`}
+        className="fixed bottom-24 right-4 z-[120] flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-gold bg-black/80 shadow-2xl shadow-gold/30"
+      >
+        {active.cover ? (
+          <img src={active.cover} alt={active.name} className="h-full w-full object-cover" />
+        ) : (
+          <span className="text-2xl">🎙️</span>
+        )}
+        <span className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full bg-gold px-1.5 py-0.5 text-[9px] font-black text-black">الغرفة</span>
+      </button>
+    </>
   );
 }
