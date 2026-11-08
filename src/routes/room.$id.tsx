@@ -166,13 +166,13 @@ function RoomPage() {
         setMsgs((current) => current.some((m) => m.id === message.id) ? current : [...current.slice(-99), message]);
       })
       .on("broadcast", { event: "gift_sent" }, async (payload) => {
-        const event = payload.payload as { roomId?: string; giftId?: string; eventId?: string };
+        const event = payload.payload as { roomId?: string; giftId?: string; eventId?: string; assetRef?: string | null };
         if (event.roomId !== id || !event.giftId) return;
         const { data: g } = await supabase.from("gifts").select("name,emoji,tier,asset_key,asset_url").eq("id", event.giftId).maybeSingle();
         if (!g) return;
         let image = giftImage(g.name, g.emoji);
         if (g.asset_key) {
-          const resolved = await getAdminAssetUrl(g.asset_url || g.asset_key);
+          const resolved = await getAdminAssetUrl(event.assetRef || g.asset_url || g.asset_key);
           if (resolved) image = resolved;
         }
         setAnim({ key: Date.now(), emoji: image, name: g.name, animated: g.tier === "animated" });
@@ -253,7 +253,8 @@ function RoomPage() {
           setTimeout(() => setAnim(null), 2600);
         }
       })
-            .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${id}` }, (payload) => { setRoom((current) => current ? ({ ...current, ...(payload.new as Partial<Room>) }) : current); })
+            .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${uid}` }, (payload) => { const row = payload.new as Profile; setProfiles((current) => ({ ...current, [uid]: { ...current[uid], ...row } })); })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${id}` }, (payload) => { setRoom((current) => current ? ({ ...current, ...(payload.new as Partial<Room>) }) : current); })
       .subscribe((status) => {
       if (status === "SUBSCRIBED") {
         void Promise.all([loadSeats(), loadMembers(), loadMicRequests()]);
@@ -471,7 +472,7 @@ function RoomPage() {
       return;
     }
     setCoins((c) => c - giftSel.price * qty);
-    await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: giftSel.id, eventId: crypto.randomUUID() } });
+    await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: giftSel.id, assetRef: giftSel.asset_url || giftSel.asset_key || null, eventId: crypto.randomUUID() } });
     setGiftOpen(false);
   }
 
