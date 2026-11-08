@@ -208,7 +208,7 @@ function MiniRoomController() {
         onClick={restore}
         aria-label={`العودة إلى غرفة ${active.name}`}
         title={`العودة إلى ${active.name}`}
-        className="fixed bottom-24 right-4 z-[120] flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-gold bg-black/80 shadow-2xl shadow-gold/30"
+        className="fixed bottom-24 right-4 z-[120] flex h-16 w-16 touch-manipulation items-center justify-center overflow-hidden rounded-full border-2 border-gold bg-black/80 shadow-2xl shadow-gold/30 transition-transform duration-200 hover:scale-105 active:scale-95"
       >
         {active.cover ? (
           <img src={active.cover} alt={active.name} className="h-full w-full object-cover" />
