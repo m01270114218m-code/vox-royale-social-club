@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { catName, errMsg, flagOf } from "@/lib/vox";
 import { getAdminAssetUrl, useMedia } from "@/lib/media";
-import { RoomVoice } from "@/components/RoomVoice";
 
 export const Route = createFileRoute("/room/$id")({
   head: () => ({
@@ -76,7 +75,7 @@ function RoomPage() {
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; animated?: boolean } | null>(null);
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; animated?: boolean } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
-  const [micPermissionGranted, setMicPermissionGranted] = useState(false);
+  const [micPermissionGranted, setMicPermissionGranted] = useState(() => sessionStorage.getItem("vox_mic_permission") === "1");
   const [speakingUsers, setSpeakingUsers] = useState<string[]>([]);
   const [micRequests, setMicRequests] = useState<{ id: string; user_id: string; created_at: string }[]>([]);
   const [myMicRequest, setMyMicRequest] = useState<{ id: string } | null>(null);
@@ -173,12 +172,8 @@ function RoomPage() {
         if (!g) return;
         let image = giftImage(g.name, g.emoji);
         if (g.asset_key) {
-          const { data: asset } = await supabase.from("admin_assets").select("url,metadata").eq("asset_key", g.asset_key).eq("is_active", true).maybeSingle();
-          const path = asset?.metadata?.storage_path || asset?.url;
-          if (path) {
-            const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
-            image = signed?.signedUrl || image;
-          }
+          const resolved = await getAdminAssetUrl(g.asset_url || g.asset_key);
+          if (resolved) image = resolved;
         }
         setAnim({ key: Date.now(), emoji: image, name: g.name, animated: g.tier === "animated" });
         setTimeout(() => setAnim(null), 2600);
@@ -251,12 +246,8 @@ function RoomPage() {
         if (g) {
           let image = giftImage(g.name, g.emoji);
           if (g.asset_key) {
-            const { data: asset } = await supabase.from("admin_assets").select("url,metadata").eq("asset_key", g.asset_key).eq("is_active", true).maybeSingle();
-            const path = asset?.metadata?.storage_path || asset?.url;
-            if (path) {
-              const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
-              image = signed?.signedUrl || image;
-            }
+            const resolved = await getAdminAssetUrl(g.asset_url || g.asset_key);
+            if (resolved) image = resolved;
           }
           setAnim({ key: Date.now(), emoji: image, name: g.name });
           setTimeout(() => setAnim(null), 2600);
@@ -293,7 +284,10 @@ function RoomPage() {
         const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
         if (signed?.signedUrl) assetMap.set(asset.asset_key, signed.signedUrl);
       }));
-      setGifts((rows || []).map((g) => ({ ...g, asset_url: g.asset_url || (g.asset_key ? assetMap.get(g.asset_key) || null : null) })) as GiftT[]);
+      setGifts((await Promise.all((rows || []).map(async (g) => ({
+      ...g,
+      asset_url: (await getAdminAssetUrl(g.asset_url || g.asset_key)) || g.asset_url || (g.asset_key ? assetMap.get(g.asset_key) || null : null),
+    })))) as GiftT[]);
     };
     void loadCatalog();
     const loadVoiceControls = async () => {
@@ -324,6 +318,11 @@ function RoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  useEffect(() => {
+    const onSpeaking = (event: Event) => setSpeakingUsers((event as CustomEvent<string[]>).detail || []);
+    window.addEventListener("vox-speaking-users", onSpeaking);
+    return () => window.removeEventListener("vox-speaking-users", onSpeaking);
+  }, []);
   useEffect(() => {
     ensureProfiles([...members, ...seats.map((s) => s.user_id ?? ""), ...msgs.map((m) => m.user_id)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -528,7 +527,6 @@ function RoomPage() {
 
   return (
     <div className="room-scene mx-auto flex h-dvh max-w-2xl flex-col">
-      <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} onSpeakingUsers={handleSpeakingUsers} />
       <MediaImage src={roomBackground(room.category)} className="room-scenery" />
       {joinNotice && (
         <div className="pointer-events-none fixed left-1/2 top-20 z-[80] -translate-x-1/2 rounded-full border border-primary/40 bg-black/75 px-5 py-2 text-sm font-bold text-white shadow-xl">
@@ -617,6 +615,8 @@ function RoomPage() {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 stream.getTracks().forEach((track) => track.stop());
                 setMicPermissionGranted(true);
+                sessionStorage.setItem("vox_mic_permission", "1");
+                window.dispatchEvent(new Event("vox-mic-permission"));
                 if (mySeat.is_muted) await call("toggle_my_mute", { _room: id });
               } catch (error) {
                 const name = error instanceof DOMException ? error.name : "";
@@ -627,6 +627,8 @@ function RoomPage() {
               return;
             }
             setMicPermissionGranted(false);
+            sessionStorage.removeItem("vox_mic_permission");
+            window.dispatchEvent(new Event("vox-mic-permission"));
             if (!mySeat.is_muted) await call("toggle_my_mute", { _room: id });
           }} aria-label="المايك" title="المايك"><img src={mySeat.is_muted || !micPermissionGranted ? icons3d.micMuted : icons3d.mic} alt="" className="h-8 w-8 object-contain" /></Button>
         )}
