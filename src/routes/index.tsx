@@ -100,11 +100,14 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
     }
     const active = ((data ?? []) as RoomBanner[]).filter((b) => (!b.starts_at || b.starts_at <= now) && (!b.ends_at || b.ends_at >= now));
     const resolved = await Promise.all(active.map(async (banner) => {
-      const resolvedUrl = await getAdminAssetUrl(banner.image_url);
-      // Keep published HTTPS banners visible if refreshing a signed URL fails.
-      const fallbackUrl = /^https?:\\/\\//i.test(banner.image_url) ? banner.image_url : null;
-      const storageUrl = !resolvedUrl && !fallbackUrl && !banner.image_url.startsWith("media:")
-        ? (await supabase.storage.from("admin-assets").createSignedUrl(banner.image_url.replace(/^\\/+/, ""), 3600)).data?.signedUrl ?? null
+      const imageValue = (banner.image_url || "").trim();
+      const resolvedUrl = await getAdminAssetUrl(imageValue);
+      // Signed URLs can still be displayed while valid if refreshing them fails.
+      const isHttpUrl = imageValue.startsWith("https://") || imageValue.startsWith("http://");
+      const fallbackUrl = isHttpUrl ? imageValue : null;
+      const storagePath = imageValue.startsWith("media:") ? null : imageValue;
+      const storageUrl = !resolvedUrl && !fallbackUrl && storagePath
+        ? (await supabase.storage.from("admin-assets").createSignedUrl(storagePath.split("/").filter(Boolean).join("/"), 3600)).data?.signedUrl ?? null
         : null;
       return { ...banner, resolved_image_url: resolvedUrl || fallbackUrl || storageUrl };
     }));
