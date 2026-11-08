@@ -75,7 +75,7 @@ function PersistentRoomVoice() {
 
   useEffect(() => {
     const resolve = () => {
-      const pathMatch = window.location.pathname.match(/^\\/room\\/([^/]+)/);
+      const pathMatch = window.location.pathname.match(/^\/room\/([^/]+)/);
       const minimized = sessionStorage.getItem("vox_minimized_room_id");
       setRoomId(pathMatch?.[1] || minimized || null);
     };
