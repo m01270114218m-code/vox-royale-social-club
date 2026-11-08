@@ -75,7 +75,7 @@ function RoomPage() {
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; animated?: boolean } | null>(null);
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; animated?: boolean } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
-  const [micPermissionGranted, setMicPermissionGranted] = useState(() => sessionStorage.getItem("vox_mic_permission") === "1");
+  const [micPermissionGranted, setMicPermissionGranted] = useState(false);
   const [speakingUsers, setSpeakingUsers] = useState<string[]>([]);
   const [micRequests, setMicRequests] = useState<{ id: string; user_id: string; created_at: string }[]>([]);
   const [myMicRequest, setMyMicRequest] = useState<{ id: string } | null>(null);
