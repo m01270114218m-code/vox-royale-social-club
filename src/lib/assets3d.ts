@@ -94,6 +94,7 @@ const levels = [level1, level2, level3, level4, level5, level6];
 export function avatarFrame(vip: number) { return vip > 0 ? frames[Math.min(5, Math.max(0, Math.floor(vip) - 1))] : undefined; }
 export function frameByKey(key?: string | null) {
   if (!key) return undefined;
+  if (newFrames[key]) return newFrames[key];
   const match = key.match(/^frame-(\d+)/);
   const n = match ? Number(match[1]) : NaN;
   if (!Number.isFinite(n) || n < 1) return undefined;
