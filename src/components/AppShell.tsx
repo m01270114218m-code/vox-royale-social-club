@@ -66,6 +66,63 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
+function PersistentRoomVoice() {
+  const { user } = useAuth();
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const [members, setMembers] = useState<string[]>([]);
+  const [micEnabled, setMicEnabled] = useState(false);
+
+  useEffect(() => {
+    const resolve = () => {
+      const pathMatch = window.location.pathname.match(/^\\/room\\/([^/]+)/);
+      const minimized = sessionStorage.getItem("vox_minimized_room_id");
+      setRoomId(pathMatch?.[1] || minimized || null);
+    };
+    resolve();
+    const onMinimized = () => resolve();
+    const onPop = () => window.setTimeout(resolve, 0);
+    window.addEventListener("vox-room-minimized", onMinimized);
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("vox-room-minimized", onMinimized);
+      window.removeEventListener("popstate", onPop);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!roomId || !user?.id) {
+      setMembers([]);
+      setMicEnabled(false);
+      return;
+    }
+    let alive = true;
+    const load = async () => {
+      const [{ data: memberRows }, { data: seatRow }] = await Promise.all([
+        supabase.from("room_members").select("user_id").eq("room_id", roomId),
+        supabase.from("room_seats").select("user_id,is_muted").eq("room_id", roomId).eq("user_id", user.id).maybeSingle(),
+      ]);
+      if (!alive) return;
+      setMembers((memberRows || []).map((row) => row.user_id));
+      setMicEnabled(!!seatRow && !seatRow.is_muted && sessionStorage.getItem("vox_mic_permission") === "1");
+    };
+    void load();
+    const ch = supabase.channel(`persistent-room-voice-${roomId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_members", filter: `room_id=eq.${roomId}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_seats", filter: `room_id=eq.${roomId}` }, load)
+      .subscribe();
+    const onMicPermission = () => void load();
+    window.addEventListener("vox-mic-permission", onMicPermission);
+    return () => {
+      alive = false;
+      window.removeEventListener("vox-mic-permission", onMicPermission);
+      supabase.removeChannel(ch);
+    };
+  }, [roomId, user?.id]);
+
+  if (!roomId || !user?.id) return null;
+  return <RoomVoice roomId={roomId} uid={user.id} members={members} micEnabled={micEnabled} onSpeakingUsers={(users) => window.dispatchEvent(new CustomEvent("vox-speaking-users", { detail: users }))} />;
+}
+
 function ShellInner({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -112,6 +169,7 @@ function ShellInner({ children }: { children: ReactNode }) {
 
   return (
     <>
+      <PersistentRoomVoice />
       <div className="app-shell-content min-h-dvh w-full pb-24">{children}</div>
       <nav className="app-bottom-nav glass fixed inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md items-end justify-around gap-1 rounded-full px-2 py-2">
         <Link to="/" className={item} activeProps={active} activeOptions={{ exact: true }}>
