@@ -1,4 +1,4 @@
-import { giftImage, icons3d, roomBackground } from "@/lib/assets3d";
+import { icons3d, roomBackground } from "@/lib/assets3d";
 import { UserAvatar, MediaImage } from "@/components/UserAvatar";
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -15,6 +15,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { catName, errMsg, flagOf } from "@/lib/vox";
 import { getAdminAssetUrl, useMedia } from "@/lib/media";
 import { RoomVoice } from "@/components/RoomVoice";
+import { AppShell } from "@/components/AppShell";
+import { HomeScreen } from "./index";
 
 export const Route = createFileRoute("/room/$id")({
   head: () => ({
@@ -186,8 +188,8 @@ function RoomPage() {
         if (event.roomId !== id || !event.giftId) return;
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url").eq("id", event.giftId).maybeSingle();
         if (!g) return;
-        const image = (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || g.asset_url || giftImage(g.name, g.emoji);
-        showGiftAnimation(image);
+        const image = (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || g.asset_url || null;
+        if (image) showGiftAnimation(image);
       })
       .on("broadcast", { event: "mic_request_changed" }, () => { void loadMicRequests(); })
       .on("broadcast", { event: "member_changed" }, () => { void loadMembers(); void loadSeats(); })
@@ -429,7 +431,7 @@ function RoomPage() {
     }
     setCoins((c) => c - giftSel.price * qty);
     // The sender renders locally; the room broadcast renders for every other connected member.
-    showGiftAnimation(giftSel.asset_url || giftImage(giftSel.name, giftSel.emoji));
+    if (giftSel.asset_url) showGiftAnimation(giftSel.asset_url);
     await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: giftSel.id, eventId: crypto.randomUUID() } });
     setGiftOpen(false);
   }
@@ -468,10 +470,15 @@ function RoomPage() {
   return (
     <><RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} onSpeakingUsers={handleSpeakingUsers} />
     {roomMinimized ? (
-      <button type="button" onClick={() => setRoomMinimized(false)} className="fixed bottom-24 right-4 z-[100] flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary bg-background shadow-2xl" aria-label="العودة إلى الغرفة">
-        <img src={roomCoverUrl || roomBackground(room.category)} alt="" className="h-full w-full rounded-full object-cover" />
-        <span className="absolute -bottom-1 -right-1 rounded-full bg-green-500 px-1.5 text-[10px] font-bold text-white">●</span>
-      </button>
+      <>
+        <AppShell>
+          <HomeScreen />
+        </AppShell>
+        <button type="button" onClick={() => setRoomMinimized(false)} className="fixed bottom-24 right-4 z-[100] flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary bg-background shadow-2xl" aria-label="العودة إلى الغرفة">
+          <img src={roomCoverUrl || roomBackground(room.category)} alt="" className="h-full w-full rounded-full object-cover" />
+          <span className="absolute -bottom-1 -right-1 rounded-full bg-green-500 px-1.5 text-[10px] font-bold text-white">●</span>
+        </button>
+      </>
     ) : <div className="room-scene mx-auto flex h-dvh max-w-2xl flex-col">
       <MediaImage src={roomBackground(room.category)} className="room-scenery" />
       <header className="glass m-3 flex items-center gap-3 rounded-2xl p-3">
@@ -662,7 +669,7 @@ function RoomPage() {
             <div className="grid grid-cols-4 gap-2">
               {gifts.map((g) => (
                 <Button variant="ghost" key={g.id} onClick={() => setGiftSel(g)} className={`h-auto flex-col gap-1 rounded-xl p-2 ${giftSel?.id === g.id ? "bg-secondary ring-2 ring-primary" : "glass"}`}>
-                  <img src={g.asset_url || giftImage(g.name, g.emoji)} alt={g.name} className="h-16 w-16 object-contain" />
+                  {g.asset_url ? <img src={g.asset_url} alt={g.name} className="h-16 w-16 object-contain" /> : <span className="grid h-16 w-16 place-items-center rounded-xl bg-secondary text-muted-foreground"><Gift className="h-7 w-7" /></span>}
                   <span className="text-xs">{g.name}</span>
                   <span className="text-xs text-primary">🪙{g.price}</span>
                 </Button>
