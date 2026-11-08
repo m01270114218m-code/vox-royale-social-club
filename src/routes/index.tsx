@@ -23,7 +23,7 @@ export const Route = createFileRoute("/")({
   validateSearch: (s: Record<string, unknown>): { create?: number } => (s["create"] ? { create: 1 } : {}),
   component: () => (
     <AppShell>
-      <Home />
+      <HomeScreen />
     </AppShell>
   ),
 });
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/")({
 type Room = { id: string; room_no: number; name: string; description: string | null; category: string; country: string; member_count: number; is_private: boolean; seat_count: number; created_at: string; cover_url?: string | null };
 type RoomBanner = { id: string; title: string; image_url: string; target_url?: string | null; sort_order: number; is_active: boolean; starts_at?: string | null; ends_at?: string | null };
 
-function Home() {
+export function HomeScreen() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [tab, setTab] = useState<"hot" | "new">("hot");
   const [country, setCountry] = useState<string | null>(null);
