@@ -87,6 +87,11 @@ export function frameByKey(key?: string | null) {
   return frames[(n - 1) % frames.length];
 }
 export const entryEffects: Record<string, { name: string; image: string }> = {
+  "entry-independent-1": { name: "دخولية مستقلة 1", image: newEntry1 },
+  "entry-independent-2": { name: "دخولية مستقلة 2", image: newEntry2 },
+  "entry-independent-3": { name: "دخولية مستقلة 3", image: newEntry3 },
+  "entry-independent-4": { name: "دخولية مستقلة 4", image: newEntry4 },
+  "entry-independent-5": { name: "دخولية مستقلة 5", image: newEntry5 },
   "entry-bolt": { name: "دخولية البرق", image: diamond },
   "entry-car": { name: "دخولية السيارة", image: car },
   "entry-rocket": { name: "دخولية الصاروخ", image: rocket },
