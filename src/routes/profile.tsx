@@ -93,9 +93,13 @@ function ProfilePage() {
       const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
       if (data) setP(data as P);
       await loadOwnedItems(user!.id);
-      const { data: w } = await supabase.from("wallets").select("coins,diamonds").eq("user_id", user!.id).maybeSingle();
+      const [{ data: w }, { data: badgeRows, error: badgeError }] = await Promise.all([
+        supabase.from("wallets").select("coins,diamonds").eq("user_id", user!.id).maybeSingle(),
+        supabase.from("user_badges").select("id,badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", user!.id),
+      ]);
+      if (alive && !badgeError) setBadges((badgeRows ?? []) as Badge[]);
       loadTx();
-      if (w) setWallet({ coins: Number(w.coins), diamonds: Number(w.diamonds) });
+      if (alive && w) setWallet({ coins: Number(w.coins), diamonds: Number(w.diamonds) });
     })();
     return () => { alive = false; void supabase.removeChannel(channel); };
   }, [user]);
