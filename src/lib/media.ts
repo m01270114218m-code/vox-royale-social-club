@@ -114,7 +114,7 @@ export async function getAdminAssetUrl(assetKey?: string | null): Promise<string
 
   let raw = assetKey.trim();
 
-  // A media:<path> value is a valid reference to the public media bucket.
+  // A media:<path> value is a valid reference to the user media bucket.
   if (raw.startsWith("media:")) {
     const path = raw.slice(6).replace(/^\/+/, "");
     if (!path) return null;
@@ -124,19 +124,61 @@ export async function getAdminAssetUrl(assetKey?: string | null): Promise<string
     return data.signedUrl;
   }
 
-  // If this is an asset key, resolve it from the admin asset registry.
+  // Stable admin asset key -> private Storage path. Never persist a signed URL
+  // in profiles/store_items/gifts; signed URLs expire and are only generated here.
   if (!/^https?:\/\//i.test(raw)) {
-    const { data: asset, error } = await supabase
+    const { data: asset } = await supabase
       .from("admin_assets")
-      .select("url,metadata")
+      .select("asset_key,url,metadata")
       .eq("asset_key", assetKey)
       .eq("is_active", true)
       .maybeSingle();
-    if (error || !asset) return null;
 
-    const metadata = asset.metadata as { storage_path?: string } | null;
-    raw = metadata?.storage_path || asset.url || "";
-    if (!raw) return null;
+    if (asset) {
+      const metadata = asset.metadata as { storage_path?: string } | null;
+      raw = metadata?.storage_path || asset.url || "";
+      if (!raw) return null;
+      const { data: signed, error } = await supabase.storage.from("admin-assets").createSignedUrl(raw, 60 * 60);
+      if (!error && signed?.signedUrl) {
+        cacheSet(adminAssetCache, assetKey, signed.signedUrl, 50 * 60 * 1000);
+        return signed.signedUrl;
+      }
+      return null;
+    }
+
+    // Backward compatibility: some old rows stored the store-item UUID
+    // instead of its asset key. Resolve that UUID to the stable asset key.
+    if (/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(raw)) {
+      const { data: item } = await supabase
+        .from("store_items")
+        .select("asset_key")
+        .eq("id", raw)
+        .maybeSingle();
+      if (item?.asset_key) return getAdminAssetUrl(item.asset_key);
+    }
+
+    return null;
+  }
+
+  // If an old row contains a signed Storage URL, refresh it from its bucket/path
+  // instead of trusting an expiring token forever.
+  if (/^https?:\/\//i.test(raw)) {
+    const marker = "/storage/v1/object/sign/";
+    const markerIndex = raw.indexOf(marker);
+    if (markerIndex >= 0) {
+      const tail = raw.slice(markerIndex + marker.length).split("?")[0];
+      const parts = tail.split("/");
+      const bucket = parts.shift();
+      const storagePath = decodeURIComponent(parts.join("/").replace(/^\/+/, ""));
+      if (bucket && storagePath) {
+        const { data: signed, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, 60 * 60);
+        if (!error && signed?.signedUrl) {
+          cacheSet(adminAssetCache, assetKey, signed.signedUrl, 50 * 60 * 1000);
+          return signed.signedUrl;
+        }
+      }
+      return null;
+    }
   }
 
   const marker = "/storage/v1/object/";
