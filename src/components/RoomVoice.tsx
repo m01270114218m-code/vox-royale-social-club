@@ -20,6 +20,9 @@ type TokenResponse = {
 
 function numericRtcUid(userId: string): number { let hash = 0x811c9dc5; for (let i = 0; i < userId.length; i++) { hash ^= userId.charCodeAt(i); hash = Math.imul(hash, 0x01000193); } return (hash >>> 1) || 1; }
 
+// Serialize Agora clients for the same user/room so React remounts can never overlap joins.
+const rtcLifecycle = new Map<string, Promise<void>>();
+
 export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }: Props) {
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const micRef = useRef<IMicrophoneAudioTrack | null>(null);
@@ -38,7 +41,13 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
 
   useEffect(() => {
     aliveRef.current = true;
+    let effectAlive = true;
     let client: IAgoraRTCClient | null = null;
+    const lifecycleKey = roomId + ':' + uid;
+    const previousLifecycle = rtcLifecycle.get(lifecycleKey) ?? Promise.resolve();
+    let releaseLifecycle!: () => void;
+    const currentLifecycle = new Promise<void>((resolve) => { releaseLifecycle = resolve; });
+    rtcLifecycle.set(lifecycleKey, currentLifecycle);
 
     const getToken = async (): Promise<TokenResponse> => {
       const { data, error } = await supabase.functions.invoke("agora-rtc-token", {
@@ -119,10 +128,13 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
 
     const start = async () => {
       try {
+        await previousLifecycle;
+        if (!effectAlive || !aliveRef.current) return;
         if (!uid || !navigator.mediaDevices?.getUserMedia) {
           throw new Error("المتصفح أو WebView لا يدعم الوصول للميكروفون");
         }
         const access = await getToken();
+        if (!effectAlive || !aliveRef.current) return;
         client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
         clientRef.current = client;
         client.on("user-published", onUserPublished);
@@ -141,6 +153,10 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
         await client.setClientRole(initialRole);
         roleRef.current = initialRole;
         await client.join(access.appId, access.channel, access.token, access.uid);
+        if (!effectAlive || !aliveRef.current) {
+          await client.leave().catch(() => undefined);
+          return;
+        }
         joinedRef.current = true;
         if (micEnabledRef.current && initialRole === "host") {
           await publishMicrophone();
@@ -156,6 +172,7 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
     void start();
 
     return () => {
+      effectAlive = false;
       aliveRef.current = false;
       tokenRefreshRef.current = null;
       joinedRef.current = false;
@@ -167,7 +184,13 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
       }
       if (client) {
         client.removeAllListeners();
-        void client.leave().catch(() => undefined);
+        void client.leave().catch(() => undefined).finally(() => {
+          if (rtcLifecycle.get(lifecycleKey) === currentLifecycle) rtcLifecycle.delete(lifecycleKey);
+          releaseLifecycle();
+        });
+      } else {
+        if (rtcLifecycle.get(lifecycleKey) === currentLifecycle) rtcLifecycle.delete(lifecycleKey);
+        releaseLifecycle();
       }
       clientRef.current = null;
     };
