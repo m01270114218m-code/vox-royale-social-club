@@ -2,7 +2,7 @@ name: Build VOX ROYALE Android APK
 
 on:
   push:
-    branches: [admin-asset-center]
+    branches: [admin-asset-center-build-407]
   workflow_dispatch:
 
 permissions:
@@ -15,19 +15,18 @@ concurrency:
 jobs:
   android:
     runs-on: ubuntu-latest
-    timeout-minutes: 60 # verified rebuild after storage/gift/security fixes
+    timeout-minutes: 60
     steps:
-      - name: Checkout source without external actions
+      - name: Checkout source
         run: |
-          BRANCH="$GITHUB_REF_NAME"
-          git clone --depth 1 --branch "$BRANCH" "https://github.com/${GITHUB_REPOSITORY}.git" source
+          git clone --depth 1 --branch "$GITHUB_REF_NAME" "https://github.com/${GITHUB_REPOSITORY}.git" source
           cd source
           test -f package.json
           test -f bun.lock
           test -f capacitor.config.json
           test -s public/control-center/index.html
 
-      - name: Install locked dependencies and build static app shell
+      - name: Install dependencies and build web app
         working-directory: source
         run: |
           curl -fsSL https://bun.sh/install | bash
@@ -36,7 +35,6 @@ jobs:
           bun install
           bun add @capacitor/app@latest
           export VITE_APP_VERSION="$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")"
-          echo "Building app version $VITE_APP_VERSION"
           bun run build
           test -s .output/public/index.html
           if grep -Eqi 'lovable\\.app|lovable\\.dev' .output/public/index.html; then
@@ -44,7 +42,7 @@ jobs:
             exit 1
           fi
 
-      - name: Select compatible Java 21
+      - name: Select Java 21
         run: |
           if [ -n "${JAVA_HOME_21_X64:-}" ] && [ -x "$JAVA_HOME_21_X64/bin/java" ]; then
             JDK_HOME="$JAVA_HOME_21_X64"
@@ -64,17 +62,12 @@ jobs:
           test -n "$ANDROID_HOME" || test -n "$ANDROID_SDK_ROOT"
           bun add @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/app@latest
           bunx cap add android
-          # Declare microphone permissions for Agora/WebView audio capture.
           python3 - <<'PY'
           from pathlib import Path
           manifest = Path("android/app/src/main/AndroidManifest.xml")
           xml = manifest.read_text()
           if "android.permission.RECORD_AUDIO" not in xml:
-              xml = xml.replace(
-                  "<application",
-                  '    <uses-permission android:name="android.permission.RECORD_AUDIO" />' + chr(10) + '    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' + chr(10) + '    <application',
-                  1,
-              )
+              xml = xml.replace("<application", '    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <application', 1)
           manifest.write_text(xml)
           PY
           sudo apt-get update
@@ -89,7 +82,7 @@ jobs:
           VERSION_CODE="$(node -p "const p=process.argv[1].split('.').map(Number); p[0]*10000+p[1]*100+p[2]" "$VERSION")"
           sed -i -E "s/versionCode [0-9]+/versionCode $VERSION_CODE/; s/versionName \"[^\"]+\"/versionName \"$VERSION\"/" android/app/build.gradle
 
-      - name: Sync bundled web assets into Android
+      - name: Sync web assets
         working-directory: source
         run: |
           export PATH="$HOME/.bun/bin:$PATH"
@@ -110,7 +103,4 @@ jobs:
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           TAG="vox-royale-apk-${GITHUB_SHA::7}"
-          gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --title "VOX ROYALE Android APK ${GITHUB_SHA::7}" --notes "Bundled Android APK for commit $GITHUB_SHA on branch $GITHUB_REF_NAME. App UI is packaged locally; Supabase services require internet access."
-
-
-# Build trigger 2026-11-07
+          gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --title "VOX ROYALE Android APK ${GITHUB_SHA::7}" --notes "Bundled Android APK for commit $GITHUB_SHA on branch $GITHUB_REF_NAME."
