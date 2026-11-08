@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useAppUiConfig } from "@/hooks/useAppUiConfig";
 import { App as CapacitorApp } from "@capacitor/app";
+import { RoomVoice } from "@/components/RoomVoice";
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
