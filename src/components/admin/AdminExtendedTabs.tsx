@@ -268,7 +268,7 @@ export function AppBuilderTab() {
     "ui.buttons": JSON.stringify({primary_asset_url:"",secondary_asset_url:"",gift_asset_url:"",send_asset_url:""}, null, 2),
     "ui.routes": JSON.stringify({home_title:"الرئيسية",room_title:"الغرفة",store_title:"المتجر",vip_title:"VIP",profile_title:"الملف الشخصي"}, null, 2),
     "features": JSON.stringify({gifts:true,store:true,vip:true,wallet:true,rooms:true,moments:true,messages:true}, null, 2),
-    "app_update_policy": JSON.stringify({enabled:false,min_version:"1.0.0",blocked_versions:[],latest_version:"1.0.0",download_url:"",message:"يتوفر إصدار جديد من صدي شات. يرجى تحديث التطبيق للمتابعة."}, null, 2),
+    "app_update_policy": JSON.stringify({enabled:false,min_version:"2.0.0",blocked_versions:[],latest_version:"2.0.0",download_url:"",message:"هذا الإصدار قديم. حدّث صدى شات إلى الإصدار 2 للمتابعة."}, null, 2),
   };
   const [rows,setRows]=useState<Record<string,string>>(defaults);
   const [active,setActive]=useState("ui.branding");
