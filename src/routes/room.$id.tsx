@@ -88,6 +88,7 @@ function RoomPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exitPrompt, setExitPrompt] = useState(false);
   const [roomMinimized, setRoomMinimized] = useState(false);
+  const [isLeavingRoom, setIsLeavingRoom] = useState(false);
   const [joinNotice, setJoinNotice] = useState<{ userId: string; key: number } | null>(null);
   const [following, setFollowing] = useState(false);
   const roomCoverUrl = useMedia(room?.cover_url);
@@ -320,7 +321,7 @@ function RoomPage() {
 
   const mySeat = seats.find((s) => s.user_id === uid);
   const handleSpeakingUsers = useCallback((users: string[]) => setSpeakingUsers(users), []);
-  const myMicEnabled = !!mySeat && !mySeat.is_muted;
+  const myMicEnabled = !!mySeat && !mySeat.is_muted && !isLeavingRoom;
 
   const roomLive = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -643,7 +644,20 @@ function RoomPage() {
           <div className="w-full max-w-sm space-y-3 rounded-2xl border border-primary/30 bg-background p-5 shadow-2xl">
             <div className="text-center text-lg font-bold">ماذا تريد أن تفعل؟</div>
             <Button className="w-full" onClick={() => { setExitPrompt(false); setRoomMinimized(true); }}>تصغير الغرفة</Button>
-            <Button variant="destructive" className="w-full" onClick={async () => { setExitPrompt(false); await supabase.rpc("leave_room", { _room: id }); nav({ to: "/" }); }}>إغلاق الغرفة</Button>
+            <Button variant="destructive" className="w-full" disabled={isLeavingRoom} onClick={async () => {
+              setIsLeavingRoom(true);
+              setExitPrompt(false);
+              // Free the mic seat before removing room membership.
+              const { error: seatError } = await supabase.rpc("leave_seat", { _room: id });
+              if (seatError) console.warn("[room exit] leave_seat:", seatError.message);
+              const { error } = await supabase.rpc("leave_room", { _room: id });
+              if (error) {
+                setIsLeavingRoom(false);
+                toast.error(errMsg(error));
+                return;
+              }
+              nav({ to: "/" });
+            }}>إغلاق الغرفة</Button>
             <Button variant="ghost" className="w-full" onClick={() => setExitPrompt(false)}>إلغاء</Button>
           </div>
         </div>
