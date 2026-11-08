@@ -498,7 +498,12 @@ function RoomPage() {
   function minimizeRoom() {
     allowLeaveRef.current = true;
     sessionStorage.setItem("vox_minimized_room_id", id);
-    sessionStorage.setItem("vox_active_room", JSON.stringify({ id, name: room?.name || "الغرفة", cover: roomCoverUrl || null }));
+    sessionStorage.setItem("vox_active_room", JSON.stringify({
+      id,
+      name: room?.name || "الغرفة",
+      cover: roomCoverUrl || null,
+      micEnabled: myMicEnabled && micPermissionGranted,
+    }));
     window.dispatchEvent(new CustomEvent("vox-room-minimized"));
     setExitChoiceOpen(false);
     nav({ to: "/" });
