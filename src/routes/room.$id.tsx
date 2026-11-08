@@ -34,7 +34,7 @@ export const Route = createFileRoute("/room/$id")({
   ),
 });
 
-const mountCount: Record<string, number> = {};
+const pendingRoomLeaves = new Map<string, ReturnType<typeof setTimeout>>();
 
 type Profile = { id: string; display_name: string; display_no?: number; id_color?: string | null; avatar_url: string | null; level: number; vip_level: number; equipped_frame?: string | null; name_color?: string | null; name_effect?: string | null; name_effect_speed?: number | null; chat_bubble_color?: string | null };
 type Badge = { badge_name: string; badge_asset_key?: string | null; badge_color?: string | null; is_equipped?: boolean };
@@ -154,7 +154,11 @@ function RoomPage() {
 
   useEffect(() => {
     let alive = true;
-    mountCount[id] = (mountCount[id] ?? 0) + 1;
+    const pendingLeave = pendingRoomLeaves.get(id);
+    if (pendingLeave) {
+      clearTimeout(pendingLeave);
+      pendingRoomLeaves.delete(id);
+    }
     (async () => {
       const { data: r, error } = await supabase.from("rooms").select("*").eq("id", id).maybeSingle();
       if (error || !r) {
@@ -290,11 +294,12 @@ function RoomPage() {
       alive = false;
       roomLive.current = null;
       supabase.removeChannel(ch);
-      // Defer leaving so a quick remount (dev double-mount, reconnect) doesn't kick us out.
-      mountCount[id] = (mountCount[id] ?? 1) - 1;
-      setTimeout(() => {
-        if (!mountCount[id]) supabase.rpc("leave_room", { _room: id });
-      }, 800);
+      // Defer leaving so a quick remount/reconnect cannot remove the fresh membership.
+      const timer = setTimeout(() => {
+        pendingRoomLeaves.delete(id);
+        void supabase.rpc("leave_room", { _room: id });
+      }, 1000);
+      pendingRoomLeaves.set(id, timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
