@@ -102,7 +102,7 @@ async function renderTab(tab){
   if(tab==='store'){
    const [{data:items,error},{data:assets,error:assetError}]=await Promise.all([
     db.from('store_items').select('*').order('sort_order').order('created_at',{ascending:false}),
-    db.from('admin_assets').select('asset_key,name,category').in('category',['frame','entry','badge','vip','3d']).eq('is_active',true).order('name')
+    db.from('admin_assets').select('asset_key,name,category').eq('is_active',true).order('name')
    ]);if(error)throw error;if(assetError)throw assetError;
    const options='<option value="">اختر أصلاً من المكتبة</option>'+(assets||[]).map(a=>'<option value="'+esc(a.asset_key)+'">'+esc(a.name)+' · '+esc(a.category)+'</option>').join('');
    host.innerHTML='<h3>إدارة المتجر والإطارات والدخوليات</h3><p class="muted small">ارفع الأصل من مكتبة الأصول أولاً، ثم اربطه بعنصر متجر من هنا. يمكن بعد ذلك إرساله للمستخدم من تبويب المستخدمين.</p>'+
@@ -119,9 +119,9 @@ async function renderTab(tab){
   if(tab==='gifts'){
    const [{data:gifts,error:e1},{data:tx,error:e2},{data:giftAssets,error:e3}]=await Promise.all([
     db.from('gifts').select('*').order('price'),db.rpc('admin_list_gift_tx',{_limit:100}),
-    db.from('admin_assets').select('asset_key,name').eq('category','gift').eq('is_active',true).order('name')
+    db.from('admin_assets').select('asset_key,name,category').eq('is_active',true).order('name')
    ]);if(e1)throw e1;if(e2)throw e2;if(e3)throw e3;
-   const assetOptions='<option value="">الصورة الافتراضية</option>'+(giftAssets||[]).map(a=>'<option value="'+esc(a.asset_key)+'">'+esc(a.name)+'</option>').join('');
+   const assetOptions='<option value="">الصورة الافتراضية</option>'+(giftAssets||[]).map(a=>'<option value="'+esc(a.asset_key)+'">'+esc(a.name)+' · '+esc(a.category)+'</option>').join('');
    host.innerHTML='<h3>كتالوج الهدايا</h3><p class="muted small">ارفع شكل الهدية من مكتبة الأصول بتصنيف gift ثم اختره هنا لربطه بالهدية.</p><form id="gift-form" class="item"><div class="fieldgrid"><input name="name" placeholder="اسم الهدية" required><input name="emoji" placeholder="رمز الهدية" value="🎁" required><input name="price" type="number" min="0" placeholder="السعر" required><input name="tier" placeholder="الفئة" value="normal"><input name="sort" type="number" value="0" placeholder="الترتيب"><select name="asset_key">'+assetOptions+'</select></div><button>إضافة الهدية</button></form>'+
    ((gifts||[]).map(g=>item(esc(g.emoji)+' '+esc(g.name),'<div class="muted small">'+money(g.price)+' عملة · '+esc(g.tier||'')+' · أصل: '+esc(g.asset_key||'افتراضي')+'</div><select id="gift-asset-'+g.id+'">'+assetOptions.replace('value="'+esc(g.asset_key||'')+'"','value="'+esc(g.asset_key||'')+'" selected')+'</select>','<button class="secondary" data-action="gift-asset" data-id="'+esc(g.id)+'">حفظ شكل الهدية</button><button class="secondary" data-action="gift-toggle" data-id="'+esc(g.id)+'" data-active="'+(!g.active)+'">'+(g.active?'إيقاف':'تفعيل')+'</button><button class="danger" data-action="gift-delete" data-id="'+esc(g.id)+'">حذف</button>')).join('')||noRows())+
    '<h3>معاملات إرسال الهدايا</h3>'+((tx||[]).map(g=>item(esc(g.sender_name)+' أرسل '+esc(g.gift_name)+' إلى '+esc(g.receiver_name),'<div class="muted small">'+date(g.created_at)+'</div>','<b>🪙 '+money(g.cost)+'</b>')).join('')||noRows('لا توجد معاملات هدايا بعد'));return;
