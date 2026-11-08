@@ -84,8 +84,18 @@ function RoomPage() {
   const [targetIsModerator, setTargetIsModerator] = useState(false);
   const [inviteUserSearch, setInviteUserSearch] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [exitPrompt, setExitPrompt] = useState(false);
+  const [roomMinimized, setRoomMinimized] = useState(false);
+  const [joinNotice, setJoinNotice] = useState<{ userId: string; key: number } | null>(null);
   const [following, setFollowing] = useState(false);
   const roomCoverUrl = useMedia(room?.cover_url);
+  useEffect(() => {
+    if (!room || roomMinimized) return;
+    const onBack = () => { setExitPrompt(true); window.history.pushState({ roomExitGuard: true }, ""); };
+    window.history.pushState({ roomExitGuard: true }, "");
+    window.addEventListener("popstate", onBack);
+    return () => window.removeEventListener("popstate", onBack);
+  }, [room?.id, roomMinimized]);
   const chatEnd = useRef<HTMLDivElement>(null);
    const uid = user?.id ?? "";
   const isOwner = room?.owner_id === uid;
@@ -204,6 +214,8 @@ function RoomPage() {
         const userId = (payload.new as { user_id: string }).user_id;
         setMembers((current) => current.includes(userId) ? current : [...current, userId]);
         void playEntryFor(userId);
+        setJoinNotice({ userId, key: Date.now() });
+        window.setTimeout(() => setJoinNotice((current) => current?.userId === userId ? null : current), 3200);
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, (payload) => {
         const userId = (payload.old as { user_id: string }).user_id;
@@ -450,11 +462,16 @@ function RoomPage() {
   const cols = room.seat_count <= 4 ? "grid-cols-4" : room.seat_count === 6 || room.seat_count === 9 ? "grid-cols-3" : "grid-cols-4";
 
   return (
-    <div className="room-scene mx-auto flex h-dvh max-w-2xl flex-col">
-      <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} onSpeakingUsers={handleSpeakingUsers} />
+    <><RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} onSpeakingUsers={handleSpeakingUsers} />
+    {roomMinimized ? (
+      <button type="button" onClick={() => setRoomMinimized(false)} className="fixed bottom-24 right-4 z-[100] flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary bg-background shadow-2xl" aria-label="العودة إلى الغرفة">
+        <img src={roomCoverUrl || roomBackground(room.category)} alt="" className="h-full w-full rounded-full object-cover" />
+        <span className="absolute -bottom-1 -right-1 rounded-full bg-green-500 px-1.5 text-[10px] font-bold text-white">●</span>
+      </button>
+    ) : <div className="room-scene mx-auto flex h-dvh max-w-2xl flex-col">
       <MediaImage src={roomBackground(room.category)} className="room-scenery" />
       <header className="glass m-3 flex items-center gap-3 rounded-2xl p-3">
-        <Button variant="ghost" size="icon" onClick={() => nav({ to: "/" })} aria-label="رجوع" title="رجوع"><img src={icons3d.back} alt="" className="h-7 w-7 rotate-180 object-contain" /></Button>
+        <Button variant="ghost" size="icon" onClick={() => setExitPrompt(true)} aria-label="رجوع" title="رجوع"><img src={icons3d.back} alt="" className="h-7 w-7 rotate-180 object-contain" /></Button>
         <div className="min-w-0 flex-1 flex items-center gap-2">
           <img src={roomCoverUrl || roomBackground(room.category)} alt={`صورة ${room.name}`} className="h-11 w-11 shrink-0 rounded-xl object-cover ring-1 ring-primary/40" />
           <div className="min-w-0"><div className="truncate font-bold">{flagOf(room.country)} {room.name}</div>
@@ -601,6 +618,25 @@ function RoomPage() {
         </SheetContent>
       </Sheet>
 
+      {joinNotice && profiles[joinNotice.userId] && (
+        <div key={joinNotice.key} className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center bg-black/35 p-6">
+          <div className="flex w-full max-w-xs flex-col items-center gap-3 rounded-3xl border border-primary/40 bg-background/95 p-5 text-center shadow-2xl">
+            <UserAvatar src={profiles[joinNotice.userId].avatar_url} name={profiles[joinNotice.userId].display_name} vip={profiles[joinNotice.userId].vip_level} size={104} frameKey={profiles[joinNotice.userId].equipped_frame} />
+            <div className="text-lg font-black">{profiles[joinNotice.userId].display_name}</div>
+            <div className="text-sm text-primary">دخل الغرفة</div>
+          </div>
+        </div>
+      )}
+      {exitPrompt && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-5" dir="rtl">
+          <div className="w-full max-w-sm space-y-3 rounded-2xl border border-primary/30 bg-background p-5 shadow-2xl">
+            <div className="text-center text-lg font-bold">ماذا تريد أن تفعل؟</div>
+            <Button className="w-full" onClick={() => { setExitPrompt(false); setRoomMinimized(true); }}>تصغير الغرفة</Button>
+            <Button variant="destructive" className="w-full" onClick={async () => { setExitPrompt(false); await supabase.rpc("leave_room", { _room: id }); nav({ to: "/" }); }}>إغلاق الغرفة</Button>
+            <Button variant="ghost" className="w-full" onClick={() => setExitPrompt(false)}>إلغاء</Button>
+          </div>
+        </div>
+      )}
       {entryAnim && (
         <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-black/35">
           <img src={entryAnim.src} alt="تأثير دخول المستخدم" className="h-72 w-72 animate-bounce object-contain drop-shadow-2xl" />
@@ -658,7 +694,8 @@ function RoomPage() {
           </div>
         </SheetContent>
       </Sheet>
-    </div>
+    </div>}
+    </>
   );
 }
 
