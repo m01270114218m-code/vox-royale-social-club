@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CATEGORIES, COUNTRIES, SEAT_OPTIONS, catName, errMsg, flagOf } from "@/lib/vox";
+import { getAdminAssetUrl } from "@/lib/media";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Room = { id: string; room_no: number; name: string; description: string | null; category: string; country: string; member_count: number; is_private: boolean; seat_count: number; created_at: string; cover_url?: string | null };
-type RoomBanner = { id: string; title: string; image_url: string; target_url?: string | null; sort_order: number; is_active: boolean; starts_at?: string | null; ends_at?: string | null };
+type RoomBanner = { id: string; title: string; image_url: string; resolved_image_url?: string | null; target_url?: string | null; sort_order: number; is_active: boolean; starts_at?: string | null; ends_at?: string | null };
 
 function HomeRouteComponent() {
   const search = Route.useSearch();
@@ -57,15 +58,23 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
       const banner = (settings.home_banner ?? {}) as { title?: string; image_path?: string; enabled?: boolean; duration_seconds?: number };
       setAppBranding(brand);
       setIntroBanner(banner);
+      const resolveStorageImage = async (value?: string | null) => {
+        if (!value) return null;
+        const resolved = await getAdminAssetUrl(value);
+        if (resolved) return resolved;
+        if (/^https?:\/\//i.test(value) || value.startsWith("media:")) return null;
+        const { data } = await supabase.storage.from("admin-assets").createSignedUrl(value.replace(/^\/+/, ""), 3600);
+        return data?.signedUrl ?? null;
+      };
       if (brand.logo_path) {
-        const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(brand.logo_path, 3600);
-        if (alive) setLogoUrl(signed?.signedUrl ?? null);
+        const resolved = await resolveStorageImage(brand.logo_path);
+        if (alive) setLogoUrl(resolved);
       }
       if (banner.enabled !== false && banner.image_path && !sessionStorage.getItem("vox_intro_seen")) {
-        const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(banner.image_path, 3600);
-        if (alive && signed?.signedUrl) {
+        const resolved = await resolveStorageImage(banner.image_path);
+        if (alive && resolved) {
           sessionStorage.setItem("vox_intro_seen", "1");
-          setIntroBannerUrl(signed.signedUrl);
+          setIntroBannerUrl(resolved);
           setShowIntroBanner(true);
           timer = setTimeout(() => setShowIntroBanner(false), 5000);
         }
@@ -87,7 +96,14 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
       .limit(20);
     if (error) return;
     const active = ((data ?? []) as RoomBanner[]).filter((b) => (!b.starts_at || b.starts_at <= now) && (!b.ends_at || b.ends_at >= now));
-    setRoomBanners(active);
+    const resolved = await Promise.all(active.map(async (banner) => ({
+      ...banner,
+      resolved_image_url: await getAdminAssetUrl(banner.image_url)
+        || (banner.image_url.startsWith("http") || banner.image_url.startsWith("media:")
+          ? null
+          : (await supabase.storage.from("admin-assets").createSignedUrl(banner.image_url.replace(/^\/+/, ""), 3600)).data?.signedUrl ?? null),
+    })));
+    setRoomBanners(resolved.filter((banner) => !!banner.resolved_image_url));
     setBannerIndex(0);
   }
 
@@ -137,7 +153,7 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
             if (!banner) return null;
             const content = (
               <div className="relative h-[132px] w-full sm:h-44">
-                <img src={banner.image_url} alt={banner.title} className="absolute inset-0 h-full w-full object-cover" />
+                <img src={banner.resolved_image_url || ""} alt={banner.title} className="absolute inset-0 h-full w-full object-cover" />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent px-4 pb-3 pt-10">
                   <div className="truncate text-sm font-bold text-white">{banner.title}</div>
                 </div>
