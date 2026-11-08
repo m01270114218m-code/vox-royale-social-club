@@ -107,7 +107,7 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
       const fallbackUrl = isHttpUrl ? imageValue : null;
       const storagePath = imageValue.startsWith("media:") ? null : imageValue;
       const storageUrl = !resolvedUrl && !fallbackUrl && storagePath
-        ? (await supabase.storage.from("admin-assets").createSignedUrl(storagePath.replace(/^\\/+/, ""), 3600)).data?.signedUrl ?? null
+        ? (await supabase.storage.from("admin-assets").createSignedUrl(storagePath.split("/").filter(Boolean).join("/"), 3600)).data?.signedUrl ?? null
         : null;
       return { ...banner, resolved_image_url: resolvedUrl || fallbackUrl || storageUrl };
     }));
