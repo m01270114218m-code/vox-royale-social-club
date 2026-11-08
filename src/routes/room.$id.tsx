@@ -89,6 +89,11 @@ function RoomPage() {
   const [joinNotice, setJoinNotice] = useState<{ userId: string; key: number } | null>(null);
   const [following, setFollowing] = useState(false);
   const roomCoverUrl = useMedia(room?.cover_url);
+  function showGiftAnimation(image: string) {
+    const token = Date.now() + Math.floor(Math.random() * 1000);
+    setAnim({ key: token, emoji: image, name: "" });
+    window.setTimeout(() => setAnim((current) => current?.key === token ? null : current), 2600);
+  }
   useEffect(() => {
     if (!room) return;
     const onBack = () => {
@@ -182,8 +187,7 @@ function RoomPage() {
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url").eq("id", event.giftId).maybeSingle();
         if (!g) return;
         const image = (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || g.asset_url || giftImage(g.name, g.emoji);
-        setAnim({ key: Date.now(), emoji: image, name: g.name });
-        setTimeout(() => setAnim(null), 2600);
+        showGiftAnimation(image);
       })
       .on("broadcast", { event: "mic_request_changed" }, () => { void loadMicRequests(); })
       .on("broadcast", { event: "member_changed" }, () => { void loadMembers(); void loadSeats(); })
@@ -245,16 +249,6 @@ function RoomPage() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${id}` }, (p) => {
         const message = p.new as Msg;
         setMsgs((current) => current.some((m) => m.id === message.id) ? current : [...current.slice(-99), message]);
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "gift_transactions", filter: `room_id=eq.${id}` }, async (p) => {
-        const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url").eq("id", (p.new as { gift_id: string }).gift_id).maybeSingle();
-        if (g) {
-          // Resolve the exact file uploaded for this gift from Supabase Storage.
-          // Every room participant must see the same uploaded asset, never the generic box/emoji.
-          const image = (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || g.asset_url || giftImage(g.name, g.emoji);
-          setAnim({ key: Date.now(), emoji: image, name: g.name });
-          setTimeout(() => setAnim(null), 2600);
-        }
       })
             .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${id}` }, (payload) => { setRoom((current) => current ? ({ ...current, ...(payload.new as Partial<Room>) }) : current); })
       .subscribe((status) => {
@@ -434,6 +428,8 @@ function RoomPage() {
       return;
     }
     setCoins((c) => c - giftSel.price * qty);
+    // The sender renders locally; the room broadcast renders for every other connected member.
+    showGiftAnimation(giftSel.asset_url || giftImage(giftSel.name, giftSel.emoji));
     await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: giftSel.id, eventId: crypto.randomUUID() } });
     setGiftOpen(false);
   }
