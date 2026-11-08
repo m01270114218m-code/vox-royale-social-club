@@ -89,7 +89,6 @@ function RoomPage() {
   const [exitPrompt, setExitPrompt] = useState(false);
   const [roomMinimized, setRoomMinimized] = useState(false);
   const [isLeavingRoom, setIsLeavingRoom] = useState(false);
-  const [joinNotice, setJoinNotice] = useState<{ userId: string; key: number } | null>(null);
   const [following, setFollowing] = useState(false);
   const roomCoverUrl = useMedia(room?.cover_url);
   function showGiftAnimation(image: string) {
@@ -226,11 +225,6 @@ function RoomPage() {
         setMembers((current) => current.includes(userId) ? current : [...current, userId]);
         await ensureProfiles([userId]);
         void playEntryFor(userId);
-        setJoinNotice({ userId, key: Date.now() });
-        const { data: profile } = await supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle();
-        const notice: Msg = { id: `join-${userId}-${Date.now()}`, user_id: userId, body: `${profile?.display_name || "مستخدم"} دخل الغرفة`, created_at: new Date().toISOString(), kind: "system" };
-        setMsgs((current) => [...current.slice(-99), notice]);
-        window.setTimeout(() => setJoinNotice((current) => current?.userId === userId ? null : current), 3200);
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, (payload) => {
         const userId = (payload.old as { user_id: string }).user_id;
@@ -630,15 +624,6 @@ function RoomPage() {
         </SheetContent>
       </Sheet>
 
-      {joinNotice && profiles[joinNotice.userId] && (
-        <div key={joinNotice.key} className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center bg-black/35 p-6">
-          <div className="flex w-full max-w-xs flex-col items-center gap-3 rounded-3xl border border-primary/40 bg-background/95 p-5 text-center shadow-2xl">
-            <UserAvatar src={profiles[joinNotice.userId].avatar_url} name={profiles[joinNotice.userId].display_name} vip={profiles[joinNotice.userId].vip_level} size={104} frameKey={profiles[joinNotice.userId].equipped_frame} />
-            <div className="text-lg font-black">{profiles[joinNotice.userId].display_name}</div>
-            <div className="text-sm text-primary">دخل الغرفة</div>
-          </div>
-        </div>
-      )}
       {exitPrompt && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-5" dir="rtl">
           <div className="w-full max-w-sm space-y-3 rounded-2xl border border-primary/30 bg-background p-5 shadow-2xl">
