@@ -1,4 +1,3 @@
-
 import home from "@/assets/3d/rendered/home.png";
 import explore from "@/assets/3d/rendered/explore.png";
 import friends from "@/assets/3d/rendered/friends.png";
@@ -55,10 +54,63 @@ import room_royal from "@/assets/3d/rendered/room-royal.jpg";
 import room_tropical from "@/assets/3d/rendered/room-tropical.jpg";
 import room_music from "@/assets/3d/rendered/room-music.jpg";
 import room_garden from "@/assets/3d/rendered/room-garden.jpg";
+
+import frameStatic1 from "@/assets/3d/new/frame-static-1.svg";
+import frameStatic2 from "@/assets/3d/new/frame-static-2.svg";
+import frameStatic3 from "@/assets/3d/new/frame-static-3.svg";
+import frameStatic4 from "@/assets/3d/new/frame-static-4.svg";
+import frameStatic5 from "@/assets/3d/new/frame-static-5.svg";
+import frameAnimated1 from "@/assets/3d/new/frame-animated-1.svg";
+import frameAnimated2 from "@/assets/3d/new/frame-animated-2.svg";
+import frameAnimated3 from "@/assets/3d/new/frame-animated-3.svg";
+import frameAnimated4 from "@/assets/3d/new/frame-animated-4.svg";
+import frameAnimated5 from "@/assets/3d/new/frame-animated-5.svg";
+import entryStatic1 from "@/assets/3d/new/entry-static-1.svg";
+import entryStatic2 from "@/assets/3d/new/entry-static-2.svg";
+import entryStatic3 from "@/assets/3d/new/entry-static-3.svg";
+import entryStatic4 from "@/assets/3d/new/entry-static-4.svg";
+import entryStatic5 from "@/assets/3d/new/entry-static-5.svg";
+import entryAnimated1 from "@/assets/3d/new/entry-animated-1.svg";
+import entryAnimated2 from "@/assets/3d/new/entry-animated-2.svg";
+import entryAnimated3 from "@/assets/3d/new/entry-animated-3.svg";
+import entryAnimated4 from "@/assets/3d/new/entry-animated-4.svg";
+import entryAnimated5 from "@/assets/3d/new/entry-animated-5.svg";
+import giftStatic1 from "@/assets/3d/new/gift-static-1.svg";
+import giftStatic2 from "@/assets/3d/new/gift-static-2.svg";
+import giftStatic3 from "@/assets/3d/new/gift-static-3.svg";
+import giftStatic4 from "@/assets/3d/new/gift-static-4.svg";
+import giftStatic5 from "@/assets/3d/new/gift-static-5.svg";
+import giftAnimated1 from "@/assets/3d/new/gift-animated-1.svg";
+import giftAnimated2 from "@/assets/3d/new/gift-animated-2.svg";
+import giftAnimated3 from "@/assets/3d/new/gift-animated-3.svg";
+import giftAnimated4 from "@/assets/3d/new/gift-animated-4.svg";
+import giftAnimated5 from "@/assets/3d/new/gift-animated-5.svg";
+
 export const icons3d = { home, explore, friends, messages, profile, store, wallet, vip, family, support, bell, gear, search, giftbox, plus, back, share, send, trash, logout, rose, heart, crown, ring, car, castle, rocket, chest, mic, diamond, coin, agency: family, micHost: mic_host, micMuted: mic_muted, micLocked: mic_locked };
+
 const frames = [frame1, frame2, frame3, frame4, frame5, frame6];
 const vips = [vip1, vip2, vip3, vip4, vip5, vip6];
 const levels = [level1, level2, level3, level4, level5, level6];
+
+export const newFrames: Record<string, string> = {
+  "frame-new-static-1": frameStatic1, "frame-new-static-2": frameStatic2, "frame-new-static-3": frameStatic3, "frame-new-static-4": frameStatic4, "frame-new-static-5": frameStatic5,
+  "frame-new-animated-1": frameAnimated1, "frame-new-animated-2": frameAnimated2, "frame-new-animated-3": frameAnimated3, "frame-new-animated-4": frameAnimated4, "frame-new-animated-5": frameAnimated5,
+};
+
+const newGifts: Record<string, string> = {
+  "هدية الياقوت": giftStatic1, "هدية الفارس": giftStatic2, "هدية اللؤلؤ": giftStatic3, "هدية التاج": giftStatic4, "هدية الصندوق": giftStatic5,
+  "هدية العنقاء": giftAnimated1, "هدية المجرة": giftAnimated2, "هدية التنين": giftAnimated3, "هدية النيزك": giftAnimated4, "هدية المملكة": giftAnimated5,
+};
+
+const byName: Record<string, string> = { ...newGifts, وردة: rose, قلب: heart, تاج: crown, خاتم: ring, سيارة: car, قلعة: castle, صاروخ: rocket, صندوق: chest, ماسة: diamond };
+const byEmoji: Record<string, string> = { "🌹": rose, "❤️": heart, "👑": crown, "💍": ring, "🚗": car, "🏰": castle, "🚀": rocket, "📦": chest, "💎": diamond };
+
+export const entryEffects: Record<string, { image: string; animated?: boolean }> = {
+  "entry-new-static-1": { image: entryStatic1 }, "entry-new-static-2": { image: entryStatic2 }, "entry-new-static-3": { image: entryStatic3 }, "entry-new-static-4": { image: entryStatic4 }, "entry-new-static-5": { image: entryStatic5 },
+  "entry-new-animated-1": { image: entryAnimated1, animated: true }, "entry-new-animated-2": { image: entryAnimated2, animated: true }, "entry-new-animated-3": { image: entryAnimated3, animated: true }, "entry-new-animated-4": { image: entryAnimated4, animated: true }, "entry-new-animated-5": { image: entryAnimated5, animated: true },
+  "entry-bolt": { image: entryAnimated1, animated: true }, "entry-car": { image: entryStatic2 }, "entry-rocket": { image: entryStatic3 }, "entry-dragon": { image: entryAnimated4, animated: true }, "entry-star": { image: entryStatic1 }, "entry-diamond": { image: entryStatic5 }, "entry-castle": { image: entryStatic4 },
+};
+
 export function avatarFrame(vip: number) { return vip > 0 ? frames[Math.min(5, Math.max(0, Math.floor(vip) - 1))] : undefined; }
 export function frameByKey(key?: string | null) {
   if (!key) return undefined;
@@ -69,3 +121,10 @@ export function frameByKey(key?: string | null) {
   return frames[(n - 1) % frames.length];
 }
 export function giftImage(name?: string, emoji?: string) { return (name && byName[name.trim()]) || (emoji && byEmoji[emoji]) || giftbox; }
+export function roomBackground(category?: string | null) {
+  if (category === "music") return room_music;
+  if (category === "garden") return room_garden;
+  if (category === "tropical") return room_tropical;
+  return room_royal;
+}
+export { vips, levels };
