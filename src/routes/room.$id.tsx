@@ -652,7 +652,7 @@ function RoomPage() {
       )}
 
       {anim && (
-        <div key={anim.key} className="gift-pop pointer-events-none fixed inset-0 z-50 flex flex-col items-center justify-center gap-3"><img src={anim.emoji} alt={anim.name} className="h-64 w-64 object-contain" /><div className="rounded-full bg-black/65 px-5 py-2 text-lg font-black text-white">{anim.name}</div></div>
+        <div key={anim.key} role="status" aria-label={`تم إرسال ${anim.name || "هدية"}`} className="gift-pop pointer-events-none fixed inset-0 z-[80] flex flex-col items-center justify-center gap-4 bg-black/25 px-5"><img src={anim.emoji} alt={anim.name || "هدية"} className="h-64 w-64 object-contain drop-shadow-2xl" /><div className="relative z-10 min-w-[150px] rounded-2xl border-2 border-amber-300 bg-black/90 px-7 py-3 text-center text-xl font-black text-white shadow-[0_0_24px_rgba(251,191,36,0.65)]">{anim.name?.trim() || "هدية"}</div></div>
       )}
 
       <Sheet open={giftOpen} onOpenChange={setGiftOpen}>
