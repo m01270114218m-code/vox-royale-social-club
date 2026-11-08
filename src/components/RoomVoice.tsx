@@ -153,23 +153,36 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
       }
     };
 
-    void start();
+    const lifecycleKey = roomId + ":" + uid;
+    const previousLifecycle = rtcLifecycle.get(lifecycleKey) ?? Promise.resolve();
+    let releaseLifecycle!: () => void;
+    const currentLifecycle = new Promise<void>((resolve) => { releaseLifecycle = resolve; });
+    rtcLifecycle.set(lifecycleKey, previousLifecycle.then(() => currentLifecycle));
+
+    void previousLifecycle.then(() => {
+      if (aliveRef.current) void start();
+    });
 
     return () => {
       aliveRef.current = false;
       tokenRefreshRef.current = null;
       joinedRef.current = false;
       publishedRef.current = false;
-      if (micRef.current) {
-        micRef.current.stop();
-        micRef.current.close();
-        micRef.current = null;
-      }
-      if (client) {
-        client.removeAllListeners();
-        void client.leave().catch(() => undefined);
-      }
-      clientRef.current = null;
+      const finishLeave = async () => {
+        if (micRef.current) {
+          micRef.current.stop();
+          micRef.current.close();
+          micRef.current = null;
+        }
+        if (client) {
+          client.removeAllListeners();
+          await client.leave().catch(() => undefined);
+        }
+        clientRef.current = null;
+        releaseLifecycle();
+        if (rtcLifecycle.get(lifecycleKey) === currentLifecycle) rtcLifecycle.delete(lifecycleKey);
+      };
+      void finishLeave();
     };
   // Membership is managed by the server; the token endpoint verifies current membership.
   // eslint-disable-next-line react-hooks/exhaustive-deps
