@@ -186,11 +186,13 @@ function MiniRoomController() {
   if (!active || !user?.id) return null;
 
   const restore = () => {
+    sessionStorage.setItem("vox_room_transition", "restore");
     sessionStorage.removeItem("vox_minimized_room_id");
     sessionStorage.removeItem("vox_active_room");
     setActive(null);
     window.dispatchEvent(new CustomEvent("vox-room-restored"));
     void navigate({ to: "/room/$id", params: { id: active.id } });
+    window.setTimeout(() => sessionStorage.removeItem("vox_room_transition"), 1500);
   };
 
   return (
