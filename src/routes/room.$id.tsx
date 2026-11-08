@@ -711,14 +711,16 @@ function RoomPage() {
               {members.filter((m) => m !== uid).length === 0 && <option value="">لا يوجد أحد غيرك في الغرفة</option>}
               {members.filter((m) => m !== uid).map((m) => <option key={m} value={m}>إلى: {publicName(m)}</option>)}
             </select>
-            <div className="grid grid-cols-4 gap-2">
-              {gifts.map((g) => (
-                <Button variant="ghost" key={g.id} onClick={() => setGiftSel(g)} className={`h-auto flex-col gap-1 rounded-xl p-2 ${giftSel?.id === g.id ? "bg-secondary ring-2 ring-primary" : "glass"}`}>
-                  <img src={g.asset_url || giftImage(g.name, g.emoji)} alt={g.name} className="h-16 w-16 object-contain" />
-                  <span className="text-xs">{g.name}</span>
-                  <span className="text-xs text-primary">🪙{g.price}</span>
-                </Button>
-              ))}
+            <div className="-mx-1 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" dir="rtl">
+              <div className="flex w-max gap-2 pb-1">
+                {gifts.map((g) => (
+                  <Button variant="ghost" key={g.id} onClick={() => setGiftSel(g)} className={`h-auto w-[76px] shrink-0 flex-col gap-1 rounded-xl p-1.5 ${giftSel?.id === g.id ? "bg-secondary ring-2 ring-primary" : "glass"}`}>
+                    <img src={g.asset_url || giftImage(g.name, g.emoji)} alt={g.name} className="h-11 w-11 object-contain" />
+                    <span className="w-full truncate text-[10px]">{g.name}</span>
+                    <span className="text-[10px] text-primary">🪙{g.price}</span>
+                  </Button>
+                ))}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {[1, 10, 99].map((n) => <Button variant="ghost" size="sm" key={n} onClick={() => setQty(n)} className={`rounded-full ${qty === n ? "bg-gold" : "glass"}`}>x{n}</Button>)}
