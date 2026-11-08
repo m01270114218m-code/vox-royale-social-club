@@ -137,13 +137,13 @@ function RoomPage() {
   useEffect(() => {
     let alive = true;
     mountCount[id] = (mountCount[id] ?? 0) + 1;
+    const joinedAt = new Date().toISOString();
     (async () => {
       const { data: r, error } = await supabase.from("rooms").select("*").eq("id", id).maybeSingle();
       if (error || !r) {
         toast.error("الغرفة غير موجودة");
         return nav({ to: "/" });
       }
-      const joinedAt = new Date().toISOString();
       const j = await supabase.rpc("join_room", { _room: id });
       if (j.error) {
         toast.error(errMsg(j.error));
@@ -496,6 +496,7 @@ function RoomPage() {
   }
 
   function minimizeRoom() {
+    allowLeaveRef.current = true;
     sessionStorage.setItem("vox_minimized_room_id", id);
     sessionStorage.setItem("vox_active_room", JSON.stringify({ id, name: room?.name || "الغرفة", cover: roomCoverUrl || null }));
     window.dispatchEvent(new CustomEvent("vox-room-minimized"));
@@ -504,6 +505,7 @@ function RoomPage() {
   }
 
   async function closeRoom() {
+    allowLeaveRef.current = true;
     sessionStorage.removeItem("vox_minimized_room_id");
     sessionStorage.removeItem("vox_active_room");
     window.dispatchEvent(new CustomEvent("vox-room-closed"));
