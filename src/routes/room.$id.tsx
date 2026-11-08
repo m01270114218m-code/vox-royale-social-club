@@ -90,8 +90,12 @@ function RoomPage() {
   const [following, setFollowing] = useState(false);
   const roomCoverUrl = useMedia(room?.cover_url);
   useEffect(() => {
-    if (!room || roomMinimized) return;
-    const onBack = () => { setExitPrompt(true); window.history.pushState({ roomExitGuard: true }, ""); };
+    if (!room) return;
+    const onBack = () => {
+      if (roomMinimized) setRoomMinimized(false);
+      else setExitPrompt(true);
+      window.history.pushState({ roomExitGuard: true }, "");
+    };
     window.history.pushState({ roomExitGuard: true }, "");
     window.addEventListener("popstate", onBack);
     return () => window.removeEventListener("popstate", onBack);
