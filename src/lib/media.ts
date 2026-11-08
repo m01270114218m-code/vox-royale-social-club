@@ -228,24 +228,43 @@ export function useAdminAsset(assetKey?: string | null): string | null {
 
   useEffect(() => {
     let alive = true;
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 
     if (!assetKey) {
       setUrl(null);
       return;
     }
 
+    const scheduleRefresh = () => {
+      if (!alive) return;
+      refreshTimer = setTimeout(() => {
+        // Signed Storage URLs expire; refresh them before a long-lived screen
+        // (room/profile) is left showing a broken image.
+        adminAssetCache.delete(assetKey);
+        void resolveAsset();
+      }, 45 * 60 * 1000);
+    };
+
+    const resolveAsset = async () => {
+      const next = await getAdminAssetUrl(assetKey);
+      if (!alive) return;
+      setUrl(next);
+      if (next) scheduleRefresh();
+    };
+
     const hit = cacheGet(adminAssetCache, assetKey);
     if (hit) {
       setUrl(hit);
-      return;
+      scheduleRefresh();
+    } else {
+      setUrl(null);
+      void resolveAsset();
     }
 
-    setUrl(null);
-    void getAdminAssetUrl(assetKey).then((next) => {
-      if (alive) setUrl(next);
-    });
-
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+      if (refreshTimer) clearTimeout(refreshTimer);
+    };
   }, [assetKey]);
 
   return url;
