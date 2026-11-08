@@ -4,7 +4,7 @@ import { RtcTokenBuilder, RtcRole } from "npm:agora-token@2.0.7";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-app-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -47,6 +47,12 @@ Deno.serve(async (req: Request) => {
   const { data: authData, error: authError } = await supabase.auth.getUser();
   const user = authData.user;
   if (authError || !user) return json({ error: "Invalid session" }, 401);
+
+  const appVersion = req.headers.get("x-app-version") ?? "";
+  const { data: versionAllowed, error: versionError } = await supabase.rpc("app_version_allowed", { _version: appVersion });
+  if (versionError || versionAllowed !== true) {
+    return json({ error: "APP_UPDATE_REQUIRED", code: "APP_UPDATE_REQUIRED" }, 426);
+  }
 
   let body: { roomId?: unknown };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
