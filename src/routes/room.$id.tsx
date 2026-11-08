@@ -229,15 +229,9 @@ function RoomPage() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "gift_transactions", filter: `room_id=eq.${id}` }, async (p) => {
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url").eq("id", (p.new as { gift_id: string }).gift_id).maybeSingle();
         if (g) {
-          let image = giftImage(g.name, g.emoji);
-          if (g.asset_key) {
-            const { data: asset } = await supabase.from("admin_assets").select("url,metadata").eq("asset_key", g.asset_key).eq("is_active", true).maybeSingle();
-            const path = asset?.metadata?.storage_path || asset?.url;
-            if (path) {
-              const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
-              image = signed?.signedUrl || image;
-            }
-          }
+          // Resolve the exact file uploaded for this gift from Supabase Storage.
+          // Every room participant must see the same uploaded asset, never the generic box/emoji.
+          const image = (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || g.asset_url || giftImage(g.name, g.emoji);
           setAnim({ key: Date.now(), emoji: image, name: g.name });
           setTimeout(() => setAnim(null), 2600);
         }
