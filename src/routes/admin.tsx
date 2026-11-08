@@ -37,14 +37,12 @@ export const Route = createFileRoute("/admin")({
  * and shares the same origin + Supabase auth storage as the app.
  */
 function FullAdminPanel() {
+  // Render the real admin React panel directly inside the app.
+  // This avoids relying on a second static page and a CDN-loaded Supabase client
+  // inside an iframe, while keeping the same admin data/RPCs and web-style UI.
   return (
-    <main className="fixed inset-0 z-[100] bg-background">
-      <iframe
-        title="لوحة التحكم الكاملة — VOX ROYALE"
-        src="/control-center/"
-        className="h-[100dvh] w-full border-0"
-        allow="clipboard-read; clipboard-write"
-      />
+    <main className="min-h-[100dvh] bg-background">
+      <AdminPage />
     </main>
   );
 }
