@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
-const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) || "1.0.0";
+const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) || "2.0.0";
 
 type UpdatePolicy = {
   enabled?: boolean;
@@ -26,27 +26,66 @@ function compareVersions(a: string, b: string) {
 
 export function AppUpdateGate() {
   const [policy, setPolicy] = useState<UpdatePolicy | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [accessReady, setAccessReady] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    const load = async () => {
-      const { data } = await supabase.from("admin_settings").select("value").eq("key", "app_update_policy").maybeSingle();
-      if (alive) setPolicy((data?.value ?? null) as UpdatePolicy | null);
+
+    const refreshAdminAccess = async (userId?: string) => {
+      if (!userId) {
+        if (alive) {
+          setIsAdmin(false);
+          setAccessReady(true);
+        }
+        return;
+      }
+      const { data, error } = await supabase.rpc("is_admin", { _uid: userId });
+      if (alive) {
+        setIsAdmin(!error && !!data);
+        setAccessReady(true);
+      }
     };
-    void load();
+
+    const loadPolicy = async () => {
+      const { data, error } = await supabase
+        .from("admin_settings")
+        .select("value")
+        .eq("key", "app_update_policy")
+        .maybeSingle();
+      if (alive && !error) setPolicy((data?.value ?? null) as UpdatePolicy | null);
+    };
+
+    void Promise.all([
+      supabase.auth.getUser().then(({ data }) => refreshAdminAccess(data.user?.id)),
+      loadPolicy(),
+    ]);
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      void refreshAdminAccess(session?.user?.id);
+    });
+
     const channel = supabase
       .channel("public-app-update-policy")
       .on("postgres_changes", { event: "*", schema: "public", table: "admin_settings", filter: "key=eq.app_update_policy" }, (payload) => {
-        if (alive && payload.new && "value" in payload.new) setPolicy((payload.new as { value: UpdatePolicy }).value);
+        if (!alive) return;
+        if (payload.eventType === "DELETE") setPolicy(null);
+        else if (payload.new && "value" in payload.new) {
+          setPolicy((payload.new as { value: UpdatePolicy }).value);
+        }
       })
       .subscribe();
+
     return () => {
       alive = false;
-      supabase.removeChannel(channel);
+      authListener.subscription.unsubscribe();
+      void supabase.removeChannel(channel);
     };
   }, []);
 
-  if (!policy?.enabled) return null;
+  // Allow signed-out visitors to reach the login screen. After authentication,
+  // regular accounts are stopped while admin accounts retain access.
+  if (!accessReady || !policy?.enabled || isAdmin) return null;
 
   const blocked = (policy.blocked_versions ?? []).map(String).includes(APP_VERSION);
   const belowMinimum = !!policy.min_version && compareVersions(APP_VERSION, policy.min_version) < 0;
