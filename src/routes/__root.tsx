@@ -9,14 +9,15 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { RoomVoice } from "@/components/RoomVoice";
 import { supabase } from "@/integrations/supabase/client";
 
 import { Toaster } from "@/components/ui/sonner";
 import appCss from "../styles.css?url";
 import { AppUpdateGate } from "@/components/AppUpdateGate";
+
+const MiniRoomVoice = lazy(() => import("@/components/RoomVoice").then((m) => ({ default: m.RoomVoice })));
 
 function NotFoundComponent() {
   const navigate = useNavigate();
@@ -194,12 +195,14 @@ function MiniRoomController() {
 
   return (
     <>
-      <RoomVoice
-        roomId={active.id}
-        uid={user.id}
-        members={members}
-        micEnabled={!!active.micEnabled}
-      />
+      <Suspense fallback={null}>
+        <MiniRoomVoice
+          roomId={active.id}
+          uid={user.id}
+          members={members}
+          micEnabled={!!active.micEnabled}
+        />
+      </Suspense>
       <button
         type="button"
         onClick={restore}
