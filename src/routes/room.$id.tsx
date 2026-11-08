@@ -1,4 +1,4 @@
-import { giftImage, icons3d, roomBackground } from "@/lib/assets3d";
+import { entryEffects, giftImage, icons3d, roomBackground } from "@/lib/assets3d";
 import { UserAvatar, MediaImage } from "@/components/UserAvatar";
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -73,7 +73,7 @@ function RoomPage() {
   const [giftSel, setGiftSel] = useState<GiftT | null>(null);
   const [qty, setQty] = useState(1);
   const [coins, setCoins] = useState(0);
-  const [anim, setAnim] = useState<{ key: number; emoji: string; name: string } | null>(null);
+  const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; animated?: boolean } | null>(null);
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
   const [micPermissionGranted, setMicPermissionGranted] = useState(false);
@@ -85,6 +85,8 @@ function RoomPage() {
   const [inviteUserSearch, setInviteUserSearch] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [following, setFollowing] = useState(false);
+  const [exitChoiceOpen, setExitChoiceOpen] = useState(false);
+  const [joinNotice, setJoinNotice] = useState<string | null>(null);
   const roomCoverUrl = useMedia(room?.cover_url);
   const chatEnd = useRef<HTMLDivElement>(null);
    const uid = user?.id ?? "";
@@ -111,7 +113,8 @@ function RoomPage() {
     const { data: profile } = await supabase.from("profiles").select("equipped_entry").eq("id", userId).maybeSingle();
     const key = profile?.equipped_entry;
     if (!key) return;
-    const src = await getAdminAssetUrl(key);
+    const baseKey = key.replace(/-animated$/, "");
+    const src = (await getAdminAssetUrl(key)) || entryEffects[key]?.image || entryEffects[baseKey]?.image;
     if (!src) return;
     const token = Date.now();
     setEntryAnim({ key: token, src });
@@ -140,6 +143,7 @@ function RoomPage() {
         toast.error("الغرفة غير موجودة");
         return nav({ to: "/" });
       }
+      const joinedAt = new Date().toISOString();
       const j = await supabase.rpc("join_room", { _room: id });
       if (j.error) {
         toast.error(errMsg(j.error));
@@ -152,7 +156,7 @@ function RoomPage() {
       loadSeats();
       loadMembers();
       loadMicRequests();
-      const { data: ms } = await supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).order("created_at", { ascending: false }).limit(50);
+      const { data: ms } = await supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).gte("created_at", joinedAt).order("created_at", { ascending: true }).limit(100);
       if (ms) setMsgs(ms.reverse());
     })();
     const ch = supabase
@@ -165,7 +169,7 @@ function RoomPage() {
       .on("broadcast", { event: "gift_sent" }, async (payload) => {
         const event = payload.payload as { roomId?: string; giftId?: string; eventId?: string };
         if (event.roomId !== id || !event.giftId) return;
-        const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url").eq("id", event.giftId).maybeSingle();
+        const { data: g } = await supabase.from("gifts").select("name,emoji,tier,asset_key,asset_url").eq("id", event.giftId).maybeSingle();
         if (!g) return;
         let image = giftImage(g.name, g.emoji);
         if (g.asset_key) {
@@ -176,8 +180,16 @@ function RoomPage() {
             image = signed?.signedUrl || image;
           }
         }
-        setAnim({ key: Date.now(), emoji: image, name: g.name });
+        setAnim({ key: Date.now(), emoji: image, name: g.name, animated: g.tier === "animated" });
         setTimeout(() => setAnim(null), 2600);
+      })
+      .on("broadcast", { event: "user_joined" }, (payload) => {
+        const data = payload.payload as { roomId?: string; userId?: string; name?: string };
+        if (data.roomId !== id || !data.userId) return;
+        const name = data.name || profiles[data.userId]?.display_name || "مستخدم";
+        setJoinNotice(`${name} دخل الغرفة`);
+        window.setTimeout(() => setJoinNotice((current) => current === `${name} دخل الغرفة` ? null : current), 3500);
+        if (data.userId !== uid) void playEntryFor(data.userId);
       })
       .on("broadcast", { event: "mic_request_changed" }, () => { void loadMicRequests(); })
       .on("broadcast", { event: "member_changed" }, () => { void loadMembers(); void loadSeats(); })
@@ -254,7 +266,14 @@ function RoomPage() {
       .subscribe((status) => {
       if (status === "SUBSCRIBED") {
         void Promise.all([loadSeats(), loadMembers(), loadMicRequests()]);
-        void supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).order("created_at", { ascending: false }).limit(50)
+        void supabase.from("profiles").select("display_name").eq("id", uid).maybeSingle().then(({ data: profile }) => {
+          const name = profile?.display_name || "مستخدم";
+          setJoinNotice(`${name} دخل الغرفة`);
+          window.setTimeout(() => setJoinNotice(null), 3500);
+          void playEntryFor(uid);
+          void ch.send({ type: "broadcast", event: "user_joined", payload: { roomId: id, userId: uid, name } });
+        });
+        void supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).gte("created_at", joinedAt).order("created_at", { ascending: true }).limit(100)
           .then(({ data }) => { if (data) setMsgs((current) => {
             const byId = new Map(current.map((m) => [m.id, m]));
             data.forEach((m) => byId.set(m.id, m as Msg));
@@ -299,7 +318,7 @@ function RoomPage() {
       // Defer leaving so a quick remount (dev double-mount, reconnect) doesn't kick us out.
       mountCount[id] = (mountCount[id] ?? 1) - 1;
       setTimeout(() => {
-        if (!mountCount[id]) supabase.rpc("leave_room", { _room: id });
+        if (!mountCount[id] && sessionStorage.getItem("vox_minimized_room_id") !== id) supabase.rpc("leave_room", { _room: id });
       }, 800);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -324,6 +343,28 @@ function RoomPage() {
   const myMicEnabled = !!mySeat && !mySeat.is_muted;
 
   const roomLive = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const allowLeaveRef = useRef(false);
+
+  useEffect(() => {
+    const onPopState = () => {
+      if (allowLeaveRef.current) return;
+      window.history.pushState({ roomGuard: true }, "", window.location.href);
+      setExitChoiceOpen(true);
+    };
+    window.history.pushState({ roomGuard: true }, "", window.location.href);
+    window.addEventListener("popstate", onPopState);
+
+    let appListener: { remove: () => Promise<void> } | null = null;
+    const cap = (window as unknown as { Capacitor?: { Plugins?: { App?: { addListener?: (event: string, cb: () => void) => Promise<{ remove: () => Promise<void> }> } } } }).Capacitor;
+    const add = cap?.Plugins?.App?.addListener;
+    if (add) {
+      void add("backButton", () => setExitChoiceOpen(true)).then((listener) => { appListener = listener; });
+    }
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      if (appListener) void appListener.remove();
+    };
+  }, []);
 
   async function syncRoomSeats() {
     const { data, error } = await supabase.from("room_seats")
@@ -454,6 +495,23 @@ function RoomPage() {
     }
   }
 
+  function minimizeRoom() {
+    sessionStorage.setItem("vox_minimized_room_id", id);
+    sessionStorage.setItem("vox_active_room", JSON.stringify({ id, name: room?.name || "الغرفة", cover: roomCoverUrl || null }));
+    window.dispatchEvent(new CustomEvent("vox-room-minimized"));
+    setExitChoiceOpen(false);
+    nav({ to: "/" });
+  }
+
+  async function closeRoom() {
+    sessionStorage.removeItem("vox_minimized_room_id");
+    sessionStorage.removeItem("vox_active_room");
+    window.dispatchEvent(new CustomEvent("vox-room-closed"));
+    setExitChoiceOpen(false);
+    await supabase.rpc("leave_room", { _room: id });
+    nav({ to: "/" });
+  }
+
   async function share() {
     const url = window.location.href;
     if (navigator.share) await navigator.share({ title: room?.name ?? "صدى شات", url }).catch(() => {});
@@ -470,8 +528,23 @@ function RoomPage() {
     <div className="room-scene mx-auto flex h-dvh max-w-2xl flex-col">
       <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} onSpeakingUsers={handleSpeakingUsers} />
       <MediaImage src={roomBackground(room.category)} className="room-scenery" />
+      {joinNotice && (
+        <div className="pointer-events-none fixed left-1/2 top-20 z-[80] -translate-x-1/2 rounded-full border border-primary/40 bg-black/75 px-5 py-2 text-sm font-bold text-white shadow-xl">
+          👋 {joinNotice}
+        </div>
+      )}
+      <Sheet open={exitChoiceOpen} onOpenChange={setExitChoiceOpen}>
+        <SheetContent side="bottom" dir="rtl" className="rounded-t-3xl">
+          <SheetHeader><SheetTitle>مغادرة الغرفة</SheetTitle></SheetHeader>
+          <div className="grid gap-3 p-4">
+            <Button className="h-12 bg-gold font-bold" onClick={minimizeRoom}>تصغير الغرفة</Button>
+            <Button variant="outline" className="h-12" onClick={() => void closeRoom()}>إغلاق الغرفة</Button>
+            <Button variant="ghost" className="h-11" onClick={() => setExitChoiceOpen(false)}>إلغاء</Button>
+          </div>
+        </SheetContent>
+      </Sheet>
       <header className="glass m-3 flex items-center gap-3 rounded-2xl p-3">
-        <Button variant="ghost" size="icon" onClick={() => nav({ to: "/" })} aria-label="رجوع" title="رجوع"><img src={icons3d.back} alt="" className="h-7 w-7 rotate-180 object-contain" /></Button>
+        <Button variant="ghost" size="icon" onClick={() => setExitChoiceOpen(true)} aria-label="رجوع" title="رجوع"><img src={icons3d.back} alt="" className="h-7 w-7 rotate-180 object-contain" /></Button>
         <div className="min-w-0 flex-1 flex items-center gap-2">
           <img src={roomCoverUrl || roomBackground(room.category)} alt={`صورة ${room.name}`} className="h-11 w-11 shrink-0 rounded-xl object-cover ring-1 ring-primary/40" />
           <div className="min-w-0"><div className="truncate font-bold">{flagOf(room.country)} {room.name}</div>
@@ -625,7 +698,7 @@ function RoomPage() {
       )}
 
       {anim && (
-        <div key={anim.key} className="gift-pop pointer-events-none fixed inset-0 z-50 flex flex-col items-center justify-center gap-3"><img src={anim.emoji} alt={anim.name} className="h-64 w-64 object-contain" /><div className="rounded-full bg-black/65 px-5 py-2 text-lg font-black text-white">{anim.name}</div></div>
+        <div key={anim.key} className={`gift-pop pointer-events-none fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 ${anim.animated ? "gift-animated" : ""}`}><img src={anim.emoji} alt={anim.name} className="h-64 w-64 object-contain" /><div className="rounded-full bg-black/65 px-5 py-2 text-lg font-black text-white">{anim.name}</div></div>
       )}
 
       <Sheet open={giftOpen} onOpenChange={setGiftOpen}>
