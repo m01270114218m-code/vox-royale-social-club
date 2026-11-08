@@ -10,7 +10,7 @@ export function UserAvatar({ src, name, size = 48, ring = false, vip = 0, frameK
       <div className={`absolute flex items-center justify-center overflow-hidden rounded-full bg-secondary ${frame ? "inset-[18%]" : "inset-0"} ${ring && !frame ? "shadow-gold ring-2 ring-primary" : ""}`}>
         <img src={url ?? icons3d.profile} alt={name ?? "صورة المستخدم"} className={`h-full w-full ${url ? "object-cover" : "object-contain p-1"}`} />
       </div>
-      {frame && <img src={frame} alt={`إطار VIP ${vip}`} width={size} height={size} className="pointer-events-none absolute inset-0 h-full w-full object-contain" />}
+      {frame && <img src={frame} alt={`إطار VIP ${vip}`} width={size} height={size} className={`pointer-events-none absolute inset-0 h-full w-full object-contain ${frameKey?.includes("-animated") ? "frame-animated" : ""}`} />}
     </div>
   );
 }
