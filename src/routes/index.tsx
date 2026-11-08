@@ -94,16 +94,21 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
       .order("sort_order")
       .order("created_at", { ascending: false })
       .limit(20);
-    if (error) return;
+    if (error) {
+      toast.error("تعذر تحميل البانرات: " + error.message);
+      return;
+    }
     const active = ((data ?? []) as RoomBanner[]).filter((b) => (!b.starts_at || b.starts_at <= now) && (!b.ends_at || b.ends_at >= now));
-    const resolved = await Promise.all(active.map(async (banner) => ({
-      ...banner,
-      resolved_image_url: await getAdminAssetUrl(banner.image_url)
-        || (banner.image_url.startsWith("http") || banner.image_url.startsWith("media:")
-          ? null
-          : (await supabase.storage.from("admin-assets").createSignedUrl(banner.image_url.replace(/^\/+/, ""), 3600)).data?.signedUrl ?? null),
-    })));
-    setRoomBanners(resolved.filter((banner) => !!banner.resolved_image_url));
+    const resolved = await Promise.all(active.map(async (banner) => {
+      const resolvedUrl = await getAdminAssetUrl(banner.image_url);
+      // Keep published HTTPS banners visible if refreshing a signed URL fails.
+      const fallbackUrl = /^https?:\\/\\//i.test(banner.image_url) ? banner.image_url : null;
+      const storageUrl = !resolvedUrl && !fallbackUrl && !banner.image_url.startsWith("media:")
+        ? (await supabase.storage.from("admin-assets").createSignedUrl(banner.image_url.replace(/^\\/+/, ""), 3600)).data?.signedUrl ?? null
+        : null;
+      return { ...banner, resolved_image_url: resolvedUrl || fallbackUrl || storageUrl };
+    }));
+    setRoomBanners(resolved);
     setBannerIndex(0);
   }
 
