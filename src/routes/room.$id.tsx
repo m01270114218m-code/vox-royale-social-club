@@ -188,7 +188,7 @@ function RoomPage() {
         if (event.roomId !== id || !event.giftId) return;
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url").eq("id", event.giftId).maybeSingle();
         if (!g) return;
-        const image = (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || g.asset_url || null;
+        const image = (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || (g.asset_url ? await getAdminAssetUrl(g.asset_url) : null);
         if (image) showGiftAnimation(image);
       })
       .on("broadcast", { event: "mic_request_changed" }, () => { void loadMicRequests(); })
@@ -271,7 +271,7 @@ function RoomPage() {
         ...g,
         // Always resolve the exact admin-uploaded file from its stable asset_key.
         // Do not fall back to the generic gift box when an uploaded asset exists.
-        asset_url: g.asset_key ? (await getAdminAssetUrl(g.asset_key)) || g.asset_url || null : g.asset_url || null,
+        asset_url: (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || (g.asset_url ? await getAdminAssetUrl(g.asset_url) : null),
       })));
       setGifts(resolved as GiftT[]);
     };
