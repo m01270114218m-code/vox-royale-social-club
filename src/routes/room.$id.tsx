@@ -171,15 +171,7 @@ function RoomPage() {
         if (event.roomId !== id || !event.giftId) return;
         const { data: g } = await supabase.from("gifts").select("name,emoji,tier,asset_key,asset_url").eq("id", event.giftId).maybeSingle();
         if (!g) return;
-        let image = giftImage(g.name, g.emoji);
-        if (g.asset_key) {
-          const { data: asset } = await supabase.from("admin_assets").select("url,metadata").eq("asset_key", g.asset_key).eq("is_active", true).maybeSingle();
-          const path = asset?.metadata?.storage_path || asset?.url;
-          if (path) {
-            const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
-            image = signed?.signedUrl || image;
-          }
-        }
+        const image = (await getAdminAssetUrl(g.asset_url || g.asset_key)) || giftImage(g.name, g.emoji);
         setAnim({ key: Date.now(), emoji: image, name: g.name, animated: g.tier === "animated" });
         setTimeout(() => setAnim(null), 2600);
       })
@@ -249,15 +241,7 @@ function RoomPage() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "gift_transactions", filter: `room_id=eq.${id}` }, async (p) => {
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url").eq("id", (p.new as { gift_id: string }).gift_id).maybeSingle();
         if (g) {
-          let image = giftImage(g.name, g.emoji);
-          if (g.asset_key) {
-            const { data: asset } = await supabase.from("admin_assets").select("url,metadata").eq("asset_key", g.asset_key).eq("is_active", true).maybeSingle();
-            const path = asset?.metadata?.storage_path || asset?.url;
-            if (path) {
-              const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
-              image = signed?.signedUrl || image;
-            }
-          }
+          const image = (await getAdminAssetUrl(g.asset_url || g.asset_key)) || giftImage(g.name, g.emoji);
           setAnim({ key: Date.now(), emoji: image, name: g.name });
           setTimeout(() => setAnim(null), 2600);
         }
@@ -288,10 +272,8 @@ function RoomPage() {
       const { data: assets } = keys.length ? await supabase.from("admin_assets").select("asset_key,url,metadata").in("asset_key", keys).eq("is_active", true) : { data: [] };
       const assetMap = new Map<string, string>();
       await Promise.all((assets || []).map(async (asset) => {
-        const path = asset.metadata?.storage_path || asset.url;
-        if (!path) return;
-        const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
-        if (signed?.signedUrl) assetMap.set(asset.asset_key, signed.signedUrl);
+        const resolved = await getAdminAssetUrl(asset.asset_key);
+        if (resolved) assetMap.set(asset.asset_key, resolved);
       }));
       setGifts((rows || []).map((g) => ({ ...g, asset_url: g.asset_url || (g.asset_key ? assetMap.get(g.asset_key) || null : null) })) as GiftT[]);
     };
