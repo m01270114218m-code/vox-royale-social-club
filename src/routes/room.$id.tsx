@@ -652,7 +652,7 @@ function RoomPage() {
       )}
 
       {anim && (
-        <div key={anim.key} role="status" aria-label={`تم إرسال ${anim.name || "هدية"}`} className="gift-pop pointer-events-none fixed inset-0 z-[80] flex flex-col items-center justify-center gap-4 bg-black/25 px-5"><img src={anim.emoji} alt={anim.name || "هدية"} className="h-64 w-64 object-contain drop-shadow-2xl" /><div className="relative z-10 min-w-[150px] rounded-2xl border-2 border-amber-300 bg-black/90 px-7 py-3 text-center text-xl font-black text-white shadow-[0_0_24px_rgba(251,191,36,0.65)]">{anim.name?.trim() || "هدية"}</div></div>
+        <><div key={anim.key} className="gift-pop pointer-events-none fixed inset-0 z-[80] flex items-center justify-center bg-black/25 px-5"><img src={anim.emoji} alt={anim.name || "هدية"} className="h-64 w-64 object-contain drop-shadow-2xl" /></div><div key={`gift-name-${anim.key}`} role="status" aria-label={`اسم الهدية: ${anim.name || "هدية"}`} className="pointer-events-none fixed bottom-[18%] left-0 right-0 z-[100] flex justify-center px-4"><span className="min-w-[170px] rounded-2xl border-2 border-amber-300 bg-black px-8 py-3 text-center text-2xl font-black leading-tight text-white shadow-[0_0_28px_rgba(251,191,36,0.9)]">{anim.name?.trim() || "هدية"}</span></div></>
       )}
 
       <Sheet open={giftOpen} onOpenChange={setGiftOpen}>
