@@ -1,4 +1,4 @@
-import { icons3d, avatarFrame, vipBadge, frameByKey, entryEffects } from "@/lib/assets3d";
+import { icons3d, avatarFrame, vipBadge } from "@/lib/assets3d";
 import { UserAvatar } from "@/components/UserAvatar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -155,7 +155,7 @@ function StorePage() {
                 <div key={item.id} className={`card-3d glass rounded-3xl p-4 text-center ${isEquipped ? "ring-2 ring-primary" : ""}`}>
                   <div className="relative mx-auto mb-2 h-24 w-24">
                     <div className="absolute inset-[18%] overflow-hidden rounded-full bg-secondary" />
-                    <img src={item.asset_url || frameByKey(item.asset_key)} alt={item.name} className="absolute inset-0 h-full w-full object-contain" />
+                    {item.asset_url ? <img src={item.asset_url} alt={item.name} className="absolute inset-0 h-full w-full object-contain" /> : <span className="absolute inset-0 grid place-items-center text-[10px] text-muted-foreground">الصورة غير متاحة</span>}
                   </div>
                   <b className="text-sm">{item.name}</b>
                   <p className="min-h-8 text-xs text-muted-foreground">{item.description}</p>
@@ -181,7 +181,7 @@ function StorePage() {
               const isEquipped = equippedEntry === item.asset_key;
               return (
                 <div key={item.id} className={`card-3d glass rounded-3xl p-4 text-center ${isEquipped ? "ring-2 ring-primary" : ""}`}>
-                  <img src={item.asset_url || entryEffects[item.asset_key]?.image || icons3d.giftbox} alt={item.name} className="mx-auto mb-2 h-20 w-20 object-contain" />
+                  {item.asset_url ? <img src={item.asset_url} alt={item.name} className="mx-auto mb-2 h-20 w-20 object-contain" /> : <div className="mx-auto mb-2 grid h-20 w-20 place-items-center rounded-xl bg-secondary text-xs text-muted-foreground">الصورة غير متاحة</div>}
                   <b className="text-sm">{item.name}</b>
                   <p className="min-h-8 text-xs text-muted-foreground">{item.description}</p>
                   {isOwned ? (
