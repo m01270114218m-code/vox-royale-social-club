@@ -214,11 +214,15 @@ function RoomPage() {
         const row = (payload.eventType === "DELETE" ? payload.old : payload.new) as { user_id?: string };
         if (row.user_id === uid) setIsMod(payload.eventType !== "DELETE");
       })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, (payload) => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, async (payload) => {
         const userId = (payload.new as { user_id: string }).user_id;
         setMembers((current) => current.includes(userId) ? current : [...current, userId]);
+        await ensureProfiles([userId]);
         void playEntryFor(userId);
         setJoinNotice({ userId, key: Date.now() });
+        const { data: profile } = await supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle();
+        const notice: Msg = { id: `join-${userId}-${Date.now()}`, user_id: userId, body: `${profile?.display_name || "مستخدم"} دخل الغرفة`, created_at: new Date().toISOString(), kind: "system" };
+        setMsgs((current) => [...current.slice(-99), notice]);
         window.setTimeout(() => setJoinNotice((current) => current?.userId === userId ? null : current), 3200);
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, (payload) => {
