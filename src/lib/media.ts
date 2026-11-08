@@ -132,10 +132,25 @@ export async function getAdminAssetUrl(assetKey?: string | null): Promise<string
       .eq("asset_key", assetKey)
       .eq("is_active", true)
       .maybeSingle();
-    if (error || !asset) return null;
 
-    const metadata = asset.metadata as { storage_path?: string } | null;
-    raw = metadata?.storage_path || asset.url || "";
+    if (asset) {
+      const metadata = asset.metadata as { storage_path?: string } | null;
+      raw = metadata?.storage_path || asset.url || "";
+    } else {
+      // Also accept a Storage path supplied directly by the admin catalog.
+      const { data: byPath } = await supabase
+        .from("admin_assets")
+        .select("url,metadata")
+        .eq("is_active", true)
+        .or(`url.eq.${assetKey},metadata->>storage_path.eq.${assetKey}`)
+        .maybeSingle();
+      if (byPath) {
+        const metadata = byPath.metadata as { storage_path?: string } | null;
+        raw = metadata?.storage_path || byPath.url || "";
+      } else if (error) {
+        return null;
+      }
+    }
     if (!raw) return null;
   }
 
