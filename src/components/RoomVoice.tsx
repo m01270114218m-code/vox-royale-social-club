@@ -38,6 +38,7 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
 
   useEffect(() => {
     aliveRef.current = true;
+    let effectAlive = true;
     let client: IAgoraRTCClient | null = null;
 
     const getToken = async (): Promise<TokenResponse> => {
@@ -146,7 +147,7 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
           await publishMicrophone();
         }
       } catch (error) {
-        if (aliveRef.current) {
+        if (effectAlive) {
           console.error("[Agora] join failed", error);
           toast.error(error instanceof Error ? error.message : "فشل الاتصال بخدمة الصوت");
         }
@@ -160,10 +161,11 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
     rtcLifecycle.set(lifecycleKey, previousLifecycle.then(() => currentLifecycle));
 
     void previousLifecycle.then(() => {
-      if (aliveRef.current) void start();
+      if (effectAlive) void start();
     });
 
     return () => {
+      effectAlive = false;
       aliveRef.current = false;
       tokenRefreshRef.current = null;
       joinedRef.current = false;
