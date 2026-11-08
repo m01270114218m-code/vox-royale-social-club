@@ -59,12 +59,24 @@ const frames = [frame1, frame2, frame3, frame4, frame5, frame6];
 const vips = [vip1, vip2, vip3, vip4, vip5, vip6];
 const levels = [level1, level2, level3, level4, level5, level6];
 export function avatarFrame(vip: number) { return vip > 0 ? frames[Math.min(5, Math.max(0, Math.floor(vip) - 1))] : undefined; }
-export function frameByKey(key?: string | null) { if (!key) return undefined; const i = Number(key.replace("frame-", "")) - 1; return frames[Math.min(5, Math.max(0, i))]; }
+export function frameByKey(key?: string | null) {
+  if (!key) return undefined;
+  const match = key.match(/^frame-(\d+)/);
+  const n = match ? Number(match[1]) : NaN;
+  if (!Number.isFinite(n) || n < 1) return undefined;
+  return frames[(n - 1) % frames.length];
+}
 export const entryEffects: Record<string, { name: string; image: string }> = {
   "entry-bolt": { name: "دخولية البرق", image: diamond },
   "entry-car": { name: "دخولية السيارة", image: car },
   "entry-rocket": { name: "دخولية الصاروخ", image: rocket },
   "entry-dragon": { name: "دخولية التنين", image: castle },
+  "entry-star": { name: "دخولية النجوم", image: crown },
+  "entry-diamond": { name: "دخولية الماس", image: diamond },
+  "entry-castle": { name: "دخولية القصر", image: castle },
+  "entry-rocket-animated": { name: "دخولية الصاروخ المتحرك", image: rocket },
+  "entry-dragon-animated": { name: "دخولية التنين المتحرك", image: castle },
+  "entry-diamond-animated": { name: "دخولية الماس المتحرك", image: diamond },
 };
 export function vipBadge(vip: number) { return vip > 0 ? vips[Math.min(5, Math.max(0, Math.floor(vip) - 1))] : undefined; }
 export function levelBadge(level: number) { return levels[Math.min(5, Math.max(0, Math.floor((level - 1) / 10)))]; }
