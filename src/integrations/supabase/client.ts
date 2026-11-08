@@ -32,6 +32,7 @@ function createSupabaseFetch(supabaseUrl: string, supabaseKey: string): typeof f
     }
 
     headers.set('apikey', supabaseKey);
+    headers.set('x-app-version', APP_VERSION);
     if (serverUrl) {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       if (url.startsWith(`${publicUrl}/`)) {
@@ -43,6 +44,8 @@ function createSupabaseFetch(supabaseUrl: string, supabaseKey: string): typeof f
     return fetch(input, { ...init, headers });
   };
 }
+
+const APP_VERSION = (import.meta.env['VITE_APP_VERSION'] as string | undefined) || '2.0.0';
 
 function createSupabaseClient() {
   // Build-time Vite variables are used by the bundled Android client.
