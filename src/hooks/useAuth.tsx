@@ -23,7 +23,7 @@ async function registerCurrentDevice(): Promise<boolean> {
   const { error } = await supabase.rpc("register_device", { _device: deviceId });
   if (!error) return true;
   const message = String(error.message || "");
-  if (message.includes("account_banned") || message.includes("device_banned")) {
+  if (message.includes("account_banned") || message.includes("device_banned") || message.includes("device_already_linked")) {
     await supabase.auth.signOut();
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("vox-account-blocked", { detail: { message } }));
