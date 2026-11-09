@@ -911,7 +911,7 @@ function AssetsTab() {
         <div className="flex items-center justify-between gap-2">
           <div>
             <h2 className="font-bold">مكتبة أصول التطبيق</h2>
-            <p className="text-xs text-muted-foreground">ارفع الصور ومجسمات GLB/GLTF لتخزينها وربطها بمحتوى التطبيق.</p>
+            <p className="text-xs text-muted-foreground">ارفع الصور أو MP4 أو مجسمات GLB/GLTF واربطها مباشرة بمحتوى التطبيق.</p>
           </div>
           <span className="rounded-full bg-secondary px-3 py-1 text-xs">{rows.length} أصل</span>
         </div>
@@ -927,11 +927,16 @@ function AssetsTab() {
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="مثال: تاج VIP ذهبي" />
           </label>
         </div>
+        {["gift", "frame", "entry"].includes(category) && <div className="grid grid-cols-2 gap-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
+          <label className="text-xs"><span className="text-muted-foreground">عرض الأصل على الشاشة (px)</span><Input type="number" min="24" max="2048" value={displayWidth} onChange={(e) => setDisplayWidth(e.target.value)} /></label>
+          <label className="text-xs"><span className="text-muted-foreground">طول الأصل على الشاشة (px)</span><Input type="number" min="24" max="2048" value={displayHeight} onChange={(e) => setDisplayHeight(e.target.value)} /></label>
+          <div className="col-span-2 text-[10px] text-muted-foreground">المقاس يُحفظ مع الأصل ويُستخدم عند عرضه في التطبيق.</div>
+        </div>}
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-secondary/40 p-5 text-center">
           <Upload className="h-7 w-7 text-primary" />
           <span className="text-sm font-semibold">اختر صوراً أو ملفات ثلاثية الأبعاد</span>
-          <span className="text-xs text-muted-foreground">PNG · JPG · WEBP · GIF · SVG · GLB · GLTF — حتى 50 MB للملف</span>
-          <input id="admin-asset-files" className="max-w-full text-xs" type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.glb,.gltf,model/gltf-binary,model/gltf+json,application/octet-stream" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
+          <span className="text-xs text-muted-foreground">PNG · JPG · WEBP · GIF · MP4 · SVG · GLB · GLTF — حتى 50 MB للملف</span>
+          <input id="admin-asset-files" className="max-w-full text-xs" type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,video/mp4,.mp4,.glb,.gltf,model/gltf-binary,model/gltf+json,application/octet-stream" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
         </label>
         {files.length > 0 && <p className="text-xs text-muted-foreground">{files.length} ملف محدد · {files.map((f) => f.name).join("، ")}</p>}
         <Button className="w-full bg-gold" onClick={uploadAssets} disabled={uploading || files.length === 0}>
