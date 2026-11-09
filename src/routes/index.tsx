@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
 import { MediaImage } from "@/components/UserAvatar";
+import { AdminAssetMedia } from "@/components/AdminAssetMedia";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -224,7 +225,7 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
 function RoomFrameOverlay({ assetKey }: { assetKey: string }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => { void getAdminAssetUrl(assetKey).then(setSrc); }, [assetKey]);
-  return src ? <img src={src} alt="" className="pointer-events-none absolute inset-0 z-10 h-full w-full object-fill" /> : null;
+  return src ? <AdminAssetMedia src={src} className="pointer-events-none absolute inset-0 z-10 h-full w-full object-fill" /> : null;
 }
 
 function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
