@@ -45,7 +45,6 @@ function ProfilePage() {
   async function daily() {
     const { error } = await supabase.rpc("claim_daily_bonus");
     if (error) { toast.error(errMsg(error)); return; }
-    setWallet((w) => ({ ...w, coins: w.coins + 200 }));
     toast.success("+200 عملة 🎉");
   }
   async function link() {
