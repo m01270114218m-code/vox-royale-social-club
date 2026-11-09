@@ -164,6 +164,12 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
         joinedRef.current = true;
         if (micEnabledRef.current && initialRole === "host") {
           await publishMicrophone();
+          if (musicFileRef.current) {
+            const track = await AgoraRTC.createBufferSourceAudioTrack({ source: musicFileRef.current, encoderConfig: "speech_standard" });
+            musicRef.current = track;
+            await client.publish(track);
+            track.play();
+          }
         }
       } catch (error) {
         if (aliveRef.current) {
