@@ -31,19 +31,6 @@ export const Route = createFileRoute("/profile")({
 });
 
 type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; name_color?: string; name_effect?: string; name_effect_speed?: number; equipped_frame?: string | null; equipped_entry?: string | null; chat_bubble_color?: string | null };
-type OwnedStoreItem = { id: string; acquired_at: string; store_items: { name: string; kind: string; asset_key: string } | null };
-type Badge = { id: string; badge_key: string; badge_name: string; badge_asset_key: string | null; badge_color: string; is_equipped: boolean };
-
-function BagAsset({ name, kind, assetKey, equipped, color }: { name: string; kind: string; assetKey?: string | null; equipped?: boolean; color?: string }) {
-  const src = useAdminAsset(assetKey ?? undefined);
-  return <div className="flex items-center gap-2 rounded-2xl border bg-background/60 p-2" style={{ borderColor: color || undefined }}>
-    <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-secondary">
-      {src ? <img src={src} alt="" className="h-full w-full object-contain" loading="lazy" /> : <span className="text-lg">✦</span>}
-    </div>
-    <div className="min-w-0"><div className="truncate text-xs font-bold">{name}</div><div className="text-[10px] text-muted-foreground">{kind}{equipped ? " · مجهز" : ""}</div></div>
-  </div>;
-}
-
 function ProfilePage() {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -52,15 +39,9 @@ function ProfilePage() {
   const [wallet, setWallet] = useState({ coins: 0, diamonds: 0 });
   const [editing, setEditing] = useState(false);
   const [txs, setTxs] = useState<{ id: string; currency: string; amount: number; reason: string; created_at: string; display_name?: string | null }[]>([]);
-  const [ownedItems, setOwnedItems] = useState<OwnedStoreItem[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [linkEmail, setLinkEmail] = useState("");
   const isGuest = !!user?.is_anonymous;
-  async function loadOwnedItems(userId: string) {
-    const { data, error } = await supabase.from("user_items").select("id,acquired_at,store_items(name,kind,asset_key)").eq("user_id", userId).order("acquired_at", { ascending: false });
-    if (error) { toast.error(errMsg(error)); return; }
-    setOwnedItems((data ?? []) as unknown as OwnedStoreItem[]);
-  }
   async function loadTx() {
     const { data } = await supabase.from("wallet_transactions").select("id,currency,amount,reason,created_at,profiles(display_name)").order("created_at", { ascending: false }).limit(20);
     if (data) setTxs(data.map((d) => ({ ...d, display_name: (d.profiles as { display_name?: string | null } | null)?.display_name ?? p?.display_name ?? null, amount: Number(d.amount) })));
@@ -86,13 +67,11 @@ function ProfilePage() {
         if (!alive) return;
         setP((current) => current ? ({ ...current, ...(payload.new as P) }) : (payload.new as P));
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "user_items", filter: `user_id=eq.${user.id}` }, () => { void loadOwnedItems(user.id); })
       .on("postgres_changes", { event: "*", schema: "public", table: "user_badges", filter: `user_id=eq.${user.id}` }, async () => { const { data: rows } = await supabase.from("user_badges").select("id,badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", user.id); setBadges((rows ?? []) as Badge[]); })
       .subscribe();
     (async () => {
       const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
       if (data) setP(data as P);
-      await loadOwnedItems(user!.id);
       const [{ data: w }, { data: badgeRows, error: badgeError }] = await Promise.all([
         supabase.from("wallets").select("coins,diamonds").eq("user_id", user!.id).maybeSingle(),
         supabase.from("user_badges").select("id,badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", user!.id),
@@ -198,7 +177,7 @@ function ProfilePage() {
           <div className="grid grid-cols-4 gap-2">
             {([
               ["/store", "المتجر", icons3d.store],
-              ["/bag", "حقيبتي", icons3d.store],
+              ["/bag", "حقيبتي", icons3d.chest],
               ["/vip", "VIP", icons3d.vip],
               ["/wallet", "المحفظة", icons3d.coin],
               ["/diamonds", "الألماس", icons3d.diamond],
