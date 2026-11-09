@@ -48,6 +48,8 @@ export function errMsg(e: unknown): string {
     "cannot gift yourself": "لا يمكنك إهداء نفسك",
     "already claimed": "استلمت مكافأتك اليوم، عد غداً",
     "gift unavailable": "الهدية غير متاحة",
+    "vip_kick_protected": "هذا المستخدم محمي من الطرد بسبب مستوى VIP",
+    "vip_mute_protected": "هذا المستخدم محمي من الكتم بسبب مستوى VIP",
   };
   for (const k of Object.keys(map)) if (m.includes(k)) return map[k] ?? m;
   return m;
