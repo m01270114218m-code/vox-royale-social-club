@@ -35,7 +35,8 @@ function UserPage() {
   const uid = user!.id;
   const nav = useNavigate();
   const [p, setP] = useState<P | null>(null);
-  const [stats, setStats] = useState({ followers: 0, following: 0, posts: 0 });
+  const [stats, setStats] = useState({ followers: 0, following: 0, friends: 0, posts: 0, supportCoins: 0, supportDiamonds: 0, supporters: 0 });
+  const [support, setSupport] = useState<{ sender_id: string; total_price: number; quantity: number; created_at: string; gift_name: string; sender_name: string; sender_avatar: string | null }[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [badges, setBadges] = useState<Badge[]>([]);
@@ -57,15 +58,18 @@ function UserPage() {
     (async () => {
       const { data } = await supabase.from("profiles").select("id,display_no,display_name,avatar_url,bio,country,level,vip_level,id_color,name_color,name_effect,name_effect_speed,equipped_frame,equipped_entry").eq("id", id).maybeSingle();
       setP(data);
-      const [a, b, c, f, bl, badgeRows] = await Promise.all([
+      const [a, b, c, f, bl, badgeRows, publicStats, giftRows] = await Promise.all([
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", id),
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", id),
         supabase.from("posts").select("*", { count: "exact", head: true }).eq("user_id", id),
         supabase.from("follows").select("follower_id").eq("follower_id", uid).eq("following_id", id),
         supabase.from("user_blocks").select("blocked_id").eq("blocker_id", uid).eq("blocked_id", id),
         supabase.from("user_badges").select("badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", id).eq("is_equipped", true),
+        supabase.rpc("get_public_profile_stats", { _profile: id }),
+        supabase.from("gift_transactions").select("sender_id,total_price,quantity,created_at,gifts(name),profiles!gift_transactions_sender_id_fkey(display_name,avatar_url)").eq("receiver_id", id).order("created_at", { ascending: false }).limit(30),
       ]);
-      setStats({ followers: a.count ?? 0, following: b.count ?? 0, posts: c.count ?? 0 });
+      setStats({ followers: a.count ?? 0, following: b.count ?? 0, friends: Number(publicStats.data?.[0]?.friends ?? 0), posts: c.count ?? 0, supportCoins: Number(publicStats.data?.[0]?.support_coins ?? 0), supportDiamonds: Number(publicStats.data?.[0]?.support_diamonds ?? 0), supporters: Number(publicStats.data?.[0]?.supporters ?? 0) });
+      setSupport((giftRows.data ?? []).map((g: any) => ({ sender_id: g.sender_id, total_price: Number(g.total_price), quantity: g.quantity, created_at: g.created_at, gift_name: g.gifts?.name ?? "هدية", sender_name: g.profiles?.display_name ?? "مستخدم", sender_avatar: g.profiles?.avatar_url ?? null })));
       setIsFollowing(!!f.data?.length);
       setBlocked(!!bl.data?.length);
       setBadges((badgeRows.data ?? []) as Badge[]);
@@ -112,13 +116,20 @@ function UserPage() {
         <h2 className={`mt-3 text-2xl font-bold ${p.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p.name_color || undefined, animationDuration: `${p.name_effect_speed || 1800}ms` }}>{flagOf(p.country)} {p.display_name}</h2>
         <div className="text-sm font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID: {p.display_no}</div>
         <IdentityBadges level={p.level} vip={p.vip_level} badge={badges[0] ?? null} /><p className="mt-2 text-sm">{p.bio || "لا توجد نبذة"}</p>
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <div className="mt-4 grid grid-cols-2 gap-2 text-center">
           <div><div className="text-xl font-bold">{stats.followers}</div><div className="text-xs text-muted-foreground">المتابِعون</div></div>
           <div><div className="text-xl font-bold">{stats.following}</div><div className="text-xs text-muted-foreground">يتابع</div></div>
           <div><div className="text-xl font-bold">{stats.posts}</div><div className="text-xs text-muted-foreground">منشورات</div></div>
+          <div><div className="text-xl font-bold">{stats.friends}</div><div className="text-xs text-muted-foreground">أصدقاء متبادلون</div></div>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl bg-secondary/40 p-3 text-center">
+          <div><div className="font-bold">{stats.supportCoins.toLocaleString("en-US")}</div><div className="text-[11px] text-muted-foreground">دعم بالعملات</div></div>
+          <div><div className="font-bold">{stats.supportDiamonds.toLocaleString("en-US")}</div><div className="text-[11px] text-muted-foreground">ألماس مكتسب</div></div>
+          <div><div className="font-bold">{stats.supporters}</div><div className="text-[11px] text-muted-foreground">الداعمون</div></div>
         </div>
       </div>
-      <div className="mx-4 mt-4 grid grid-cols-2 gap-2">
+      <div className="mx-4 mt-4 space-y-2">
+        <div className="glass rounded-2xl p-4"><h3 className="mb-3 font-bold">الهدايا والدعم الذي استلمه</h3>{support.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد هدايا مستلمة بعد</p> : <div className="space-y-2">{support.map((g, i) => <div key={`${g.sender_id}-${g.created_at}-${i}`} className="flex items-center justify-between gap-2 rounded-xl bg-secondary/40 p-2"><div className="min-w-0"><div className="truncate text-sm font-bold">{g.gift_name} · {g.quantity}x</div><div className="truncate text-xs text-muted-foreground">من {g.sender_name}</div></div><div className="shrink-0 text-left text-xs"><div>🪙 {g.total_price}</div><div className="text-primary">💎 {Math.floor(g.total_price * 0.15)}</div></div></div>)}</div>}</div>
         <Button onClick={toggleFollow} className={isFollowing ? "" : "bg-gold font-bold"} variant={isFollowing ? "outline" : "default"}>
           {isFollowing ? <><UserCheck className="h-4 w-4" /> متابَع</> : <><UserPlus className="h-4 w-4" /> متابعة</>}
         </Button>
