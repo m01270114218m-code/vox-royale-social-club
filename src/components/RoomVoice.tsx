@@ -283,6 +283,18 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
           await client.publish(micRef.current);
           publishedRef.current = true;
         }
+        // Re-publish the selected room song whenever the speaker returns to the mic.
+        // The track is shared through Agora, so every room participant hears it.
+        if (musicFileRef.current && !musicRef.current) {
+          const musicTrack = await AgoraRTC.createBufferSourceAudioTrack({
+            source: musicFileRef.current,
+            encoderConfig: "speech_standard",
+          });
+          musicRef.current = musicTrack;
+          musicTrack.startProcessAudioBuffer();
+          await client.publish(musicTrack);
+          musicTrack.play();
+        }
       } else {
         if (publishedRef.current && micRef.current) {
           await client.unpublish(micRef.current).catch(() => undefined);
@@ -327,7 +339,8 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
       } else if (command.action === "seek") {
         track.seekAudioBuffer(Math.max(0, Math.min(track.duration, Number(command.value) || 0)));
       } else if (command.action === "volume") {
-        track.setVolume(Math.max(0, Math.min(1000, Number(command.value) || 0)));
+        // UI volume is 0-100; Agora track volume is 0-1000.
+        track.setVolume(Math.max(0, Math.min(1000, (Number(command.value) || 0) * 10)));
       }
     }).catch((error) => {
       console.error("[Agora] music control failed", error);
