@@ -23,15 +23,15 @@ export function RequireAuth({ children }: { children: ReactNode }) {
       return () => { active = false; };
     }
     setDeviceAllowed(false);
-    void (async () => {
+    let deviceId = localStorage.getItem("vox_device_id");
+    if (!deviceId) {
+      deviceId = typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID() + crypto.randomUUID()
+        : "vox-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+      localStorage.setItem("vox_device_id", deviceId);
+    }
+    const checkDeviceAccess = async () => {
       try {
-        let deviceId = localStorage.getItem("vox_device_id");
-        if (!deviceId) {
-          deviceId = typeof crypto !== "undefined" && "randomUUID" in crypto
-            ? crypto.randomUUID() + crypto.randomUUID()
-            : "vox-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-          localStorage.setItem("vox_device_id", deviceId);
-        }
         const { error } = await supabase.rpc("register_device", { _device: deviceId });
         if (error) throw error;
         if (active) setDeviceAllowed(true);
@@ -42,8 +42,16 @@ export function RequireAuth({ children }: { children: ReactNode }) {
         await supabase.auth.signOut({ scope: "local" });
         if (active) setDeviceAllowed(false);
       }
-    })();
-    return () => { active = false; };
+    };
+    void checkDeviceAccess();
+    // Re-check when the app returns to the foreground so a newly applied ban
+    // is enforced on the next app resume, not only after a fresh login.
+    const onVisibility = () => { if (document.visibilityState === "visible") void checkDeviceAccess(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      active = false;
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [loading, user?.id]);
   if (loading || !user || !deviceAllowed)
     return (
