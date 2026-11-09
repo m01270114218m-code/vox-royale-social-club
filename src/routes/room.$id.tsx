@@ -726,7 +726,7 @@ function RoomPage() {
                 </>
               )}
                {seatMenu.user_id && profiles[seatMenu.user_id] && <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-background/95 via-background/90 to-primary/10 p-3 text-right shadow-2xl ring-1 ring-gold/20" dir="rtl">{seatMenu.user_id && cosmeticUrls[seatMenu.user_id]?.card && <AdminAssetMedia src={cosmeticUrls[seatMenu.user_id]!.card} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
-  <div className="mb-2 flex items-center justify-end"><span className="text-[10px] font-bold text-primary">VOX ROYALE</span></div>
+  <div className="mb-2 flex items-center justify-end"><span className="text-[10px] font-bold text-primary">صدى شات</span></div>
   <div className="flex items-center gap-3">
     <button type="button" onClick={() => nav({ to: "/u/$id", params: { id: seatMenu.user_id! } })} className="shrink-0 rounded-full ring-2 ring-primary/40 shadow-gold"><UserAvatar src={profiles[seatMenu.user_id]?.avatar_url} name={profiles[seatMenu.user_id]?.display_name || "مستخدم"} vip={profiles[seatMenu.user_id]?.vip_level} size={68} frameKey={profiles[seatMenu.user_id]?.equipped_frame} /></button>
     <div className="min-w-0 flex-1">
