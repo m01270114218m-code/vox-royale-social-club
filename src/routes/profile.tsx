@@ -52,7 +52,7 @@ function ProfilePage() {
   const [draft, setDraft] = useState<P | null>(null);
   const [editing, setEditing] = useState(false);
   const [badges, setBadges] = useState<Badge[]>([]);
-  const [stats, setStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0 });
+  const [stats, setStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0, visitors: 0 });
   const [linkEmail, setLinkEmail] = useState("");
   const isGuest = !!user?.is_anonymous;
   async function daily() {
@@ -125,9 +125,10 @@ function ProfilePage() {
     if (!user) return;
     let cancelled = false;
     (async () => {
-      const [{ data: follows }, { data: posts }] = await Promise.all([
+      const [{ data: follows }, { data: posts }, visitAgg] = await Promise.all([
         supabase.from("follows").select("follower_id,following_id").or(`follower_id.eq.${user.id},following_id.eq.${user.id}`),
         supabase.from("posts").select("id").eq("user_id", user.id),
+        supabase.from("profile_visits").select("visitor_id", { count: "exact", head: true }).eq("profile_id", user.id),
       ]);
       const rows = follows ?? [];
       const followerIds = new Set(rows.filter((r) => r.following_id === user.id).map((r) => r.follower_id));
@@ -139,7 +140,7 @@ function ProfilePage() {
         const { count } = await supabase.from("post_likes").select("id", { count: "exact", head: true }).in("post_id", postIds);
         likes = count ?? 0;
       }
-      if (!cancelled) setStats({ followers: followerIds.size, friends, posts: postIds.length, likes });
+      if (!cancelled) setStats({ followers: followerIds.size, friends, posts: postIds.length, likes, visitors: visitAgg.count ?? 0 });
     })();
     return () => { cancelled = true; };
   }, [user]);
@@ -147,7 +148,7 @@ function ProfilePage() {
   const shown = editing && draft ? draft : p;
   return (
     <div className="px-4 pt-6">
-      <div className="glass relative overflow-hidden rounded-3xl p-6 text-center">{profileCardUrl && <AdminAssetMedia src={profileCardUrl} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
+      <div className="relative overflow-hidden rounded-[30px] border border-amber-300/35 bg-gradient-to-br from-slate-950 via-slate-900 to-violet-950 p-6 text-center text-white shadow-[0_20px_60px_rgba(0,0,0,.4)] ring-1 ring-amber-200/10">{profileCardUrl && <AdminAssetMedia src={profileCardUrl} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
         <div className="absolute inset-x-0 top-0 h-24 bg-royal" />
         <label className="relative mx-auto block w-fit cursor-pointer">
           <UserAvatar src={shown.avatar_url} name={shown.display_name} size={112} ring vip={p.vip_level} frameKey={p.equipped_frame} />
@@ -159,11 +160,12 @@ function ProfilePage() {
         <div className="text-sm font-bold" style={{ color: shown.id_color || "#D4AF37" }}>ID: {p.display_no}</div>
         <IdentityBadges level={p.level} vip={p.vip_level} badge={badges.find((b) => b.is_equipped) ?? null} /><p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
         {editing && <div className="mt-2 text-xs text-primary">معاينة — لم يتم الحفظ بعد</div>}
-        <div className="mt-4 grid grid-cols-4 gap-2 rounded-2xl border border-primary/20 bg-black/10 p-3 text-center">
-          <div><div className="text-xl font-bold">{stats.followers}</div><div className="text-[11px] text-muted-foreground">المتابعون</div></div>
-          <div><div className="text-xl font-bold">{stats.friends}</div><div className="text-[11px] text-muted-foreground">الأصدقاء</div></div>
-          <div><div className="text-xl font-bold">{stats.posts}</div><div className="text-[11px] text-muted-foreground">المنشورات</div></div>
-          <div><div className="text-xl font-bold">{stats.likes}</div><div className="text-[11px] text-muted-foreground">المعجبون</div></div>
+        <div className="mt-4 grid grid-cols-5 gap-1 rounded-2xl border border-white/10 bg-black/25 p-3 text-center text-white backdrop-blur">
+          <div><div className="text-xl font-black tabular-nums">{stats.followers}</div><div className="text-[10px] text-white/65">المتابعون</div></div>
+          <div><div className="text-xl font-black tabular-nums">{stats.friends}</div><div className="text-[10px] text-white/65">الأصدقاء</div></div>
+          <div><div className="text-xl font-black tabular-nums">{stats.posts}</div><div className="text-[10px] text-white/65">المنشورات</div></div>
+          <div><div className="text-xl font-black tabular-nums">{stats.likes}</div><div className="text-[10px] text-white/65">الإعجابات</div></div>
+          <div><div className="text-xl font-black tabular-nums">{stats.visitors}</div><div className="text-[10px] text-white/65">الزوار</div></div>
         </div>
       </div></div>
 
