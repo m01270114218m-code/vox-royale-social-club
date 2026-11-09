@@ -544,7 +544,12 @@ export type Database = {
       gifts: {
         Row: {
           active: boolean
+          animation_speed: number
+          animation_style: string
           asset_key: string | null
+          asset_url: string | null
+          category_id: string | null
+          display_duration_ms: number
           emoji: string
           id: string
           name: string
@@ -554,7 +559,12 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          animation_speed?: number
+          animation_style?: string
           asset_key?: string | null
+          asset_url?: string | null
+          category_id?: string | null
+          display_duration_ms?: number
           emoji: string
           id?: string
           name: string
@@ -564,13 +574,50 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          animation_speed?: number
+          animation_style?: string
           asset_key?: string | null
+          asset_url?: string | null
+          category_id?: string | null
+          display_duration_ms?: number
           emoji?: string
           id?: string
           name?: string
           price?: number
           sort?: number
           tier?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gifts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "gift_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gift_categories: {
+        Row: {
+          display_mode: string
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          display_mode?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          display_mode?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
         }
         Relationships: []
       }
@@ -1480,6 +1527,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_bans: {
+        Row: {
+          banned_by: string | null
+          created_at: string
+          expires_at: string | null
+          reason: string
+          revoked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          banned_by?: string | null
+          created_at?: string
+          expires_at?: string | null
+          reason?: string
+          revoked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          banned_by?: string | null
+          created_at?: string
+          expires_at?: string | null
+          reason?: string
+          revoked_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      device_bans: {
+        Row: {
+          banned_by: string | null
+          created_at: string
+          device_hash: string
+          expires_at: string | null
+          id: string
+          reason: string
+          revoked_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          banned_by?: string | null
+          created_at?: string
+          device_hash: string
+          expires_at?: string | null
+          id?: string
+          reason?: string
+          revoked_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          banned_by?: string | null
+          created_at?: string
+          device_hash?: string
+          expires_at?: string | null
+          id?: string
+          reason?: string
+          revoked_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       user_items: {
         Row: {
