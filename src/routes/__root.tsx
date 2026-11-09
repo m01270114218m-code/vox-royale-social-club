@@ -143,8 +143,8 @@ function MiniRoomController() {
   useEffect(() => {
     const read = () => {
       try {
-        const raw = sessionStorage.getItem("vox_active_room");
-        const minimized = sessionStorage.getItem("vox_minimized_room_id");
+        const raw = localStorage.getItem("vox_active_room");
+        const minimized = localStorage.getItem("vox_minimized_room_id");
         if (!raw || !minimized) {
           setActive(null);
           return;
@@ -162,8 +162,8 @@ function MiniRoomController() {
     read();
     const onMin = () => read();
     const onClose = () => {
-      sessionStorage.removeItem("vox_active_room");
-      sessionStorage.removeItem("vox_minimized_room_id");
+      localStorage.removeItem("vox_active_room");
+      localStorage.removeItem("vox_minimized_room_id");
       setActive(null);
     };
     window.addEventListener("vox-room-minimized", onMin);
@@ -186,8 +186,8 @@ function MiniRoomController() {
   if (!active || !user?.id) return null;
 
   const restore = () => {
-    sessionStorage.removeItem("vox_minimized_room_id");
-    sessionStorage.removeItem("vox_active_room");
+    localStorage.removeItem("vox_minimized_room_id");
+    localStorage.removeItem("vox_active_room");
     setActive(null);
     window.dispatchEvent(new CustomEvent("vox-room-restored"));
     void navigate({ to: "/room/$id", params: { id: active.id } });
