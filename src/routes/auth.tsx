@@ -236,7 +236,7 @@ function AuthPage() {
               </button>
             );
           })}
-        </div>
+        </div>}
 
         {selectedMethod && <form onSubmit={submit} className="glass rounded-[2rem] border border-white/10 p-5 shadow-2xl">
           <button type="button" onClick={() => { setSelectedMethod(null); setPhoneMode(false); setMode("in"); setOtp(""); }} className="mb-3 text-sm text-gold">← العودة لطرق تسجيل الدخول</button>
