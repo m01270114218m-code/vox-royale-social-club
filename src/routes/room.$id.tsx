@@ -177,8 +177,6 @@ function RoomPage() {
       loadSeats();
       loadMembers();
       loadMicRequests();
-      const { data: ms } = await supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).order("created_at", { ascending: false }).limit(50);
-      if (ms) setMsgs(ms.reverse());
     })();
     const ch = supabase
       .channel(`room-${id}`)
@@ -255,12 +253,7 @@ function RoomPage() {
       .subscribe((status) => {
       if (status === "SUBSCRIBED") {
         void Promise.all([loadSeats(), loadMembers(), loadMicRequests()]);
-        void supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).order("created_at", { ascending: false }).limit(50)
-          .then(({ data }) => { if (data) setMsgs((current) => {
-            const byId = new Map(current.map((m) => [m.id, m]));
-            data.forEach((m) => byId.set(m.id, m as Msg));
-            return [...byId.values()].sort((a, b) => a.created_at.localeCompare(b.created_at)).slice(-100);
-          }); });
+        // Room chat is session-only in the UI: reconnecting does not replay previous messages.
       }
     });
     roomLive.current = ch;
@@ -526,7 +519,7 @@ function RoomPage() {
                 {p && <img src={s.is_muted ? voiceControls.muted_asset_url || icons3d.micMuted : voiceControls.mic_asset_url || (host ? icons3d.micHost : icons3d.mic)} alt={s.is_muted ? "مكتوم" : "على المقعد"} className={`absolute -bottom-1 -left-1 h-7 w-7 object-contain ${!s.is_muted && speakingUsers.includes(s.user_id!) ? "speaker-mic-pulse" : ""}`} style={{ filter: voiceControls.mic_style === "neon" ? "drop-shadow(0 0 7px #22d3ee)" : voiceControls.mic_style === "gold" ? "drop-shadow(0 0 7px #e8bd63)" : undefined }} />}
                 {p && voiceControls.show_mic_effect && voiceControls.effect_asset_url && <img src={voiceControls.effect_asset_url} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-contain" />}
               </div>
-              <span className={`max-w-24 truncate text-xs font-bold ${p?.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p?.name_color || undefined, animationDuration: `${p?.name_effect_speed || 1800}ms` }}>{p ? p.display_name : s.seat_index + 1}</span>{p?.display_no && <span className="text-[10px] font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID {p.display_no}</span>}{p && <IdentityBadges level={p.level} vip={p.vip_level} badge={badges[p.id] ?? null} />}
+              <span className={`max-w-24 truncate text-xs font-bold ${p?.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p?.name_color || undefined, animationDuration: `${p?.name_effect_speed || 1800}ms` }}>{p ? p.display_name : s.seat_index + 1}</span>{p?.display_no && !seats.some((seat) => seat.user_id === p.id) && <span className="text-[10px] font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID {p.display_no}</span>}{p && <IdentityBadges level={p.level} vip={p.vip_level} badge={badges[p.id] ?? null} />}
             </Button>
           );
         })}
@@ -623,7 +616,7 @@ function RoomPage() {
                   )}
                 </>
               )}
-               {seatMenu.user_id && <div className="rounded-2xl border border-primary/20 bg-background/70 p-3 text-right"><div className="text-xs text-muted-foreground">بطاقة تعريف</div><div className="mt-2 flex items-center gap-3"><UserAvatar src={profiles[seatMenu.user_id]?.avatar_url} name={profiles[seatMenu.user_id]?.display_name || "مستخدم"} vip={profiles[seatMenu.user_id]?.vip_level} size={64} frameKey={profiles[seatMenu.user_id]?.equipped_frame} /><div className="min-w-0 flex-1"><div className="truncate font-bold" style={{ color: profiles[seatMenu.user_id]?.name_color || undefined }}>{profiles[seatMenu.user_id]?.display_name}</div><div className="mt-1 text-xs" style={{ color: profiles[seatMenu.user_id]?.id_color || undefined }}>ID {profiles[seatMenu.user_id]?.display_no}</div><IdentityBadges level={profiles[seatMenu.user_id]?.level} vip={profiles[seatMenu.user_id]?.vip_level} /></div></div><div className="mt-3 grid grid-cols-2 gap-2">{seatMenu.user_id !== uid && <Button variant="outline" onClick={() => void toggleFollow(seatMenu.user_id!)}>{following ? "إلغاء المتابعة" : "متابعة"}</Button>}{seatMenu.user_id !== uid && <Button onClick={() => { void openGifts(seatMenu.user_id!); }} className="bg-gold">🎁 إرسال هدية</Button>}</div></div>}
+               {seatMenu.user_id && <div className="rounded-2xl border border-primary/20 bg-background/70 p-3 text-right"><div className="text-xs text-muted-foreground">بطاقة تعريف</div><div className="mt-2 flex items-center gap-3"><UserAvatar src={profiles[seatMenu.user_id]?.avatar_url} name={profiles[seatMenu.user_id]?.display_name || "مستخدم"} vip={profiles[seatMenu.user_id]?.vip_level} size={64} frameKey={profiles[seatMenu.user_id]?.equipped_frame} /><div className="min-w-0 flex-1"><div className="truncate font-bold" style={{ color: profiles[seatMenu.user_id]?.name_color || undefined }}>{profiles[seatMenu.user_id]?.display_name}</div><div className="mt-1 text-xs" style={{ color: profiles[seatMenu.user_id]?.id_color || undefined }}>ID {profiles[seatMenu.user_id]?.display_no}</div><IdentityBadges level={profiles[seatMenu.user_id]?.level} vip={profiles[seatMenu.user_id]?.vip_level} /></div></div><div className="mt-3 grid grid-cols-2 gap-2">{seatMenu.user_id !== uid && <Button variant="outline" onClick={() => void toggleFollow(seatMenu.user_id!)}>{following ? "إلغاء المتابعة" : "متابعة"}</Button>}{seatMenu.user_id !== uid && <Button onClick={() => { void openGifts(seatMenu.user_id!); }} className="bg-gold">🎁 إرسال هدية</Button>}<Button variant="outline" className="col-span-2" onClick={() => { const target = seatMenu.user_id; setSeatMenu(null); if (target) nav({ to: "/u/$id", params: { id: target } }); }}>عرض الملف الشخصي الكامل</Button></div></div>}
             </div>
           )}
         </SheetContent>
