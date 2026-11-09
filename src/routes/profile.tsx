@@ -91,18 +91,24 @@ function ProfilePage() {
     if (!user) return;
     let alive = true;
     const loadReceivedGifts = async () => {
-      const { data: transactions, error } = await supabase
-        .from("gift_transactions")
-        .select("gift_id,quantity,created_at")
-        .eq("receiver_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (error) {
-        console.error("[profile gifts]", error.message);
-        return;
+      const transactions: { gift_id: string; quantity: number; created_at: string }[] = [];
+      const pageSize = 500;
+      for (let from = 0; ; from += pageSize) {
+        const { data: page, error } = await supabase
+          .from("gift_transactions")
+          .select("gift_id,quantity,created_at")
+          .eq("receiver_id", user.id)
+          .order("created_at", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) {
+          console.error("[profile gifts]", error.message);
+          return;
+        }
+        transactions.push(...(page ?? []));
+        if (!page || page.length < pageSize) break;
       }
       const totals = new Map<string, { quantity: number; latest_at: string }>();
-      for (const row of transactions ?? []) {
+      for (const row of transactions) {
         if (!row.gift_id) continue;
         const current = totals.get(row.gift_id);
         totals.set(row.gift_id, {
