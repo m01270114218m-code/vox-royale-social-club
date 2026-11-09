@@ -36,7 +36,7 @@ export const Route = createFileRoute("/room/$id")({
 
 const pendingRoomLeaves = new Map<string, ReturnType<typeof setTimeout>>();
 
-type Profile = { id: string; display_name: string; display_no?: number; id_color?: string | null; avatar_url: string | null; level: number; vip_level: number; equipped_frame?: string | null; name_color?: string | null; name_effect?: string | null; name_effect_speed?: number | null; chat_bubble_color?: string | null };
+type Profile = { id: string; display_name: string; display_no?: number; id_color?: string | null; avatar_url: string | null; level: number; vip_level: number; equipped_frame?: string | null; name_color?: string | null; name_effect?: string | null; name_effect_speed?: number | null; chat_bubble_color?: string | null; chat_bubble_asset_key?: string | null; sound_wave_asset_key?: string | null; profile_card_asset_key?: string | null };
 type Badge = { badge_name: string; badge_asset_key?: string | null; badge_color?: string | null; is_equipped?: boolean };
 type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
 type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
@@ -66,6 +66,7 @@ function RoomPage() {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [badges, setBadges] = useState<Record<string, Badge>>({});
+  const [cosmeticUrls, setCosmeticUrls] = useState<Record<string,{bubble?:string;wave?:string;card?:string}>>({});
   const [isMod, setIsMod] = useState(false);
   const [text, setText] = useState("");
   const [seatMenu, setSeatMenu] = useState<Seat | null>(null);
@@ -122,11 +123,13 @@ function RoomPage() {
     const missing = ids.filter((x) => x && !profiles[x]);
     if (!missing.length) return;
     const [{ data }, { data: badgeRows }] = await Promise.all([
-      supabase.from("profiles").select("id,display_name,display_no,id_color,avatar_url,level,vip_level,equipped_frame,name_color,name_effect,name_effect_speed,chat_bubble_color").in("id", missing),
+      supabase.from("profiles").select("id,display_name,display_no,id_color,avatar_url,level,vip_level,equipped_frame,name_color,name_effect,name_effect_speed,chat_bubble_color,chat_bubble_asset_key,sound_wave_asset_key,profile_card_asset_key").in("id", missing),
       supabase.from("user_badges").select("user_id,badge_name,badge_asset_key,badge_color,is_equipped").in("user_id", missing).eq("is_equipped", true),
     ]);
     if (data) setProfiles((p) => ({ ...p, ...Object.fromEntries(data.map((d) => [d.id, d as Profile])) }));
     if (badgeRows) setBadges((b) => ({ ...b, ...Object.fromEntries(badgeRows.map((d) => [d.user_id, d as Badge])) }));
+    const cosmeticEntries = await Promise.all((data ?? []).map(async (d) => [d.id, { bubble: d.chat_bubble_asset_key ? await getAdminAssetUrl(d.chat_bubble_asset_key) : undefined, wave: d.sound_wave_asset_key ? await getAdminAssetUrl(d.sound_wave_asset_key) : undefined, card: d.profile_card_asset_key ? await getAdminAssetUrl(d.profile_card_asset_key) : undefined }] as const));
+    setCosmeticUrls((v) => ({ ...v, ...Object.fromEntries(cosmeticEntries) }));
   }, [profiles]);
 
   const loadSeats = useCallback(async () => {
@@ -588,7 +591,7 @@ function RoomPage() {
       <div className="flex-1 space-y-2 overflow-y-auto px-4">
         <div className="rounded-xl bg-secondary/60 p-2 text-xs text-primary">📢 مرحباً بك في {room.name}. {room.description}</div>
         {msgs.map((m) => (
-          <div key={m.id} className={`w-fit max-w-[85%] rounded-2xl px-3 py-1.5 text-sm ${m.kind === "gift" ? "bg-gold font-bold" : "glass"}`} style={{ backgroundColor: m.kind === "gift" ? undefined : profiles[m.user_id]?.chat_bubble_color || undefined }}>
+          <div key={m.id} className={`w-fit max-w-[85%] rounded-2xl px-3 py-1.5 text-sm ${m.kind === "gift" ? "bg-gold font-bold" : "glass"}`} style={{ backgroundColor: m.kind === "gift" ? undefined : profiles[m.user_id]?.chat_bubble_color || undefined, backgroundImage: m.kind !== "gift" && cosmeticUrls[m.user_id]?.bubble ? `url(${cosmeticUrls[m.user_id]!.bubble})` : undefined, backgroundSize: "100% 100%" }}>
             <button type="button" className="font-bold" style={{ color: profiles[m.user_id]?.name_color || undefined }} onClick={() => void openUserCard(m.user_id)}>{publicName(m.user_id)}: </button>
             {m.body}
           </div>
