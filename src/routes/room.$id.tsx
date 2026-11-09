@@ -41,7 +41,8 @@ type Profile = { id: string; display_name: string; display_no?: number; id_color
 type Badge = { badge_name: string; badge_asset_key?: string | null; badge_color?: string | null; is_equipped?: boolean };
 type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
 type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
-type GiftT = { id: string; name: string; emoji: string; price: number; tier: string; asset_key?: string | null; asset_url?: string | null };
+type GiftT = { id: string; name: string; emoji: string; price: number; tier: string; category_id?: string | null; animation_style?: string; animation_speed?: number; display_duration_ms?: number; asset_key?: string | null; asset_url?: string | null };
+type GiftCategoryT = { id: string; name: string; display_mode: "static" | "animated"; sort_order: number };
 type LuckyGiftT = { id: string; name: string; asset_key?: string | null; price: number; win_chance: number; min_reward: number; max_reward: number };
 type Room = { id: string; room_no: number; owner_id: string; name: string; description: string | null; category: string; country: string; seat_count: number; is_private?: boolean; cover_url?: string | null; mic_mode?: "request" | "direct" };
 
@@ -75,6 +76,7 @@ function RoomPage() {
   const [seatMenu, setSeatMenu] = useState<Seat | null>(null);
   const [showMembers, setShowMembers] = useState(false);
   const [gifts, setGifts] = useState<GiftT[]>([]);
+  const [giftCategoriesList, setGiftCategoriesList] = useState<GiftCategoryT[]>([]);
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftTab, setGiftTab] = useState<"normal" | "lucky">("normal");
   const [giftCategory, setGiftCategory] = useState("all");
@@ -84,7 +86,7 @@ function RoomPage() {
   const [luckySel, setLuckySel] = useState<LuckyGiftT | null>(null);
   const [qty, setQty] = useState(1);
   const [coins, setCoins] = useState(0);
-  const [anim, setAnim] = useState<{ key: number; emoji: string; name: string } | null>(null);
+  const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; style: string; speed: number; duration: number; mode: "static" | "animated" } | null>(null);
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; name: string; avatar: string; level: number; vip: number } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
   const [micPermissionGranted, setMicPermissionGranted] = useState(false);
@@ -115,10 +117,12 @@ function RoomPage() {
   const [cardStats, setCardStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0 });
   const [cardRoom, setCardRoom] = useState<{ id: string; name: string; room_no: number } | null>(null);
   const roomCoverUrl = useMedia(room?.cover_url);
-  function showGiftAnimation(image: string) {
+  function showGiftAnimation(image: string, config?: { style?: string; speed?: number; duration?: number; mode?: "static" | "animated" }) {
     const token = Date.now() + Math.floor(Math.random() * 1000);
-    setAnim({ key: token, emoji: image, name: "" });
-    window.setTimeout(() => setAnim((current) => current?.key === token ? null : current), 2600);
+    const duration = Math.max(500, Math.min(20000, Number(config?.duration ?? 2600)));
+    const speed = Math.max(0.25, Math.min(3, Number(config?.speed ?? 1)));
+    setAnim({ key: token, emoji: image, name: "", style: config?.style || "zoom", speed, duration, mode: config?.mode || "animated" });
+    window.setTimeout(() => setAnim((current) => current?.key === token ? null : current), duration);
   }
   useEffect(() => {
     if (!room) return;
@@ -255,10 +259,11 @@ function RoomPage() {
         if (event.lucky) {
           const { data: lucky } = await supabase.from("lucky_gifts").select("asset_key").eq("id", event.giftId).maybeSingle();
           const image = lucky?.asset_key ? await getAdminAssetUrl(lucky.asset_key) : null;
-          if (image) showGiftAnimation(image);
+          const category = g.category_id ? giftCategoriesList.find(x=>x.id===g.category_id) : undefined;
+        if (image) showGiftAnimation(image,{style:g.animation_style,speed:g.animation_speed,duration:g.display_duration_ms,mode:category?.display_mode || "animated"});
           return;
         }
-        const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url").eq("id", event.giftId).maybeSingle();
+        const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url,category_id,animation_style,animation_speed,display_duration_ms").eq("id", event.giftId).maybeSingle();
         if (!g) return;
         const image = (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || (g.asset_url ? await getAdminAssetUrl(g.asset_url) : null);
         if (image) showGiftAnimation(image);
@@ -346,15 +351,18 @@ function RoomPage() {
     });
     roomLive.current = ch;
     const loadCatalog = async () => {
-      const { data: rows } = await supabase.from("gifts").select("id,name,emoji,price,tier,asset_key,asset_url").eq("active", true).order("sort");
-      const { data: lucky } = await supabase.from("lucky_gifts").select("id,name,asset_key,price,win_chance,min_reward,max_reward").eq("active",true).order("sort_order");
+      const [{ data: rows }, { data: lucky }, { data: cats }] = await Promise.all([
+        supabase.from("gifts").select("id,name,emoji,price,tier,category_id,animation_style,animation_speed,display_duration_ms,asset_key,asset_url").eq("active", true).order("sort"),
+        supabase.from("lucky_gifts").select("id,name,asset_key,price,win_chance,min_reward,max_reward").eq("active",true).order("sort_order"),
+        supabase.from("gift_categories").select("id,name,display_mode,sort_order").eq("is_active",true).order("sort_order"),
+      ]);
       const resolved = await Promise.all((rows || []).map(async (g) => ({
         ...g,
         // Always resolve the exact admin-uploaded file from its stable asset_key.
         // Do not fall back to the generic gift box when an uploaded asset exists.
         asset_url: (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || (g.asset_url ? await getAdminAssetUrl(g.asset_url) : null),
       })));
-      setGifts(resolved as GiftT[]); setLuckyGifts((lucky ?? []) as LuckyGiftT[]);
+      setGifts(resolved as GiftT[]); setLuckyGifts((lucky ?? []) as LuckyGiftT[]); setGiftCategoriesList((cats ?? []) as GiftCategoryT[]);
     };
     void loadCatalog();
     const loadVoiceControls = async () => {
@@ -550,7 +558,7 @@ function RoomPage() {
     }
     setCoins((c) => c - giftSel.price * qty);
     // The sender renders locally; the room broadcast renders for every other connected member.
-    if (giftSel.asset_url) showGiftAnimation(giftSel.asset_url);
+    if (giftSel.asset_url) showGiftAnimation(giftSel.asset_url,{style:giftSel.animation_style,speed:giftSel.animation_speed,duration:giftSel.display_duration_ms,mode:giftCategoriesList.find(x=>x.id===giftSel.category_id)?.display_mode || "animated"});
     await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: giftSel.id, eventId: crypto.randomUUID(), receiverId: giftTo, quantity: qty } });
     setGiftOpen(false);
   }
@@ -597,8 +605,8 @@ function RoomPage() {
 
   if (!room) return <div className="flex min-h-screen items-center justify-center"><img src={icons3d.micHost} alt="صدى شات" className="h-16 w-16 animate-pulse object-contain" /></div>;
   const cols = room.seat_count <= 4 ? "grid-cols-4" : room.seat_count === 6 || room.seat_count === 9 ? "grid-cols-3" : "grid-cols-4";
-  const giftCategories = [...new Set(gifts.map((gift) => gift.tier).filter(Boolean))];
-  const visibleGifts = giftCategory === "all" ? gifts : gifts.filter((gift) => gift.tier === giftCategory);
+  const giftCategories = giftCategoriesList;
+  const visibleGifts = giftCategory === "all" ? gifts : gifts.filter((gift) => gift.category_id === giftCategory);
 
   return (
     <>{!roomMinimized && <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} musicFile={musicFile} musicCommand={musicCommand} onMusicProgress={onMusicProgress} onSpeakingUsers={handleSpeakingUsers} />
@@ -871,7 +879,11 @@ function RoomPage() {
       )}
 
       {anim && (
-        <div key={anim.key} role="presentation" className="gift-pop pointer-events-none fixed inset-0 z-[80] flex items-center justify-center bg-black/25 px-5">{isVideoAsset(anim.emoji) ? <video key={anim.key} src={anim.emoji} autoPlay muted playsInline className="max-h-[72vh] max-w-[90vw] object-contain drop-shadow-2xl" /> : <img src={anim.emoji} alt="" aria-hidden="true" className="max-h-[72vh] max-w-[90vw] object-contain drop-shadow-2xl" />}</div>
+        <div key={anim.key} role="presentation" className={`pointer-events-none fixed inset-0 z-[80] flex items-center justify-center px-5 ${anim.mode === "animated" ? "bg-black/35" : "bg-black/15"}`}>
+          <div className="relative flex max-h-[82vh] max-w-[92vw] items-center justify-center rounded-3xl border border-amber-200/30 bg-gradient-to-br from-slate-950/55 via-violet-950/25 to-slate-950/55 p-3 shadow-[0_0_55px_rgba(168,85,247,.28)]" style={{animation:anim.mode==="static"?"none":`${anim.style==="slide"?"gift-slide":anim.style==="float"?"gift-float":anim.style==="pulse"?"gift-pulse":"gift-zoom"} ${Math.max(250,900/anim.speed)}ms ease-out both`}}>
+            {isVideoAsset(anim.emoji) ? <video key={anim.key} src={anim.emoji} autoPlay muted playsInline className="max-h-[72vh] max-w-[88vw] object-contain drop-shadow-2xl" /> : <img src={anim.emoji} alt="" aria-hidden="true" className="max-h-[72vh] max-w-[88vw] object-contain drop-shadow-2xl" />}
+          </div>
+        </div>
       )}
 
       <Sheet open={giftOpen} onOpenChange={setGiftOpen}>
@@ -887,13 +899,13 @@ function RoomPage() {
               <Button type="button" size="sm" variant={giftTab === "lucky" ? "default" : "outline"} className="shrink-0 rounded-full" onClick={() => setGiftTab("lucky")}>هدايا الحظ</Button>
             </div>
             {giftTab === "normal" ? <>
-              <div className="flex gap-2 overflow-x-auto pb-2" dir="rtl">
-                <Button type="button" size="sm" variant={giftCategory === "all" ? "default" : "outline"} className="shrink-0 rounded-full" onClick={() => setGiftCategory("all")}>الكل</Button>
-                {giftCategories.map((category) => <Button type="button" size="sm" variant={giftCategory === category ? "default" : "outline"} className="shrink-0 rounded-full" key={category} onClick={() => setGiftCategory(category)}>{category}</Button>)}
+              <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-2" dir="rtl" style={{scrollbarWidth:"none"}}>
+                <Button type="button" size="sm" variant={giftCategory === "all" ? "default" : "outline"} className="shrink-0 snap-start rounded-full" onClick={() => setGiftCategory("all")}>الكل</Button>
+                {giftCategories.map((category) => <Button type="button" size="sm" variant={giftCategory === category.id ? "default" : "outline"} className="shrink-0 snap-start rounded-full" key={category.id} onClick={() => setGiftCategory(category.id)}>{category.name}{category.display_mode==="animated"?" ✨":" ·"}</Button>)}
               </div>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3" dir="rtl" style={{scrollbarWidth:"none"}}>
               {visibleGifts.map((g) => (
-                <Button variant="ghost" key={g.id} onClick={() => setGiftSel(g)} className={`h-auto flex-col gap-1 rounded-xl p-2 ${giftSel?.id === g.id ? "bg-secondary ring-2 ring-primary" : "glass"}`}>
+                <Button variant="ghost" key={g.id} onClick={() => setGiftSel(g)} className={`h-auto w-28 shrink-0 snap-start flex-col gap-1 rounded-xl p-2 ${giftSel?.id === g.id ? "bg-secondary ring-2 ring-primary" : "glass"}`}>
                   {g.asset_url ? (isVideoAsset(g.asset_url) ? <video src={g.asset_url} autoPlay muted loop playsInline className="h-16 w-16 object-contain" /> : <img src={g.asset_url} alt={g.name} className="h-16 w-16 object-contain" />) : <span className="grid h-16 w-16 place-items-center rounded-xl bg-secondary text-muted-foreground"><Gift className="h-7 w-7" /></span>}
                   <span className="text-xs">{g.name}</span>
                   <span className="text-xs text-primary">🪙{g.price}</span>
