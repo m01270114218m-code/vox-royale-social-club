@@ -466,17 +466,22 @@ type GiftTx = { sender_name: string | null; receiver_name: string | null; gift_n
 type GiftCatalog = { id: string; name: string; emoji: string; price: number; active: boolean; asset_url?: string | null };
 function GiftsTab() {
   const [rows, setRows] = useState<GiftTx[]>([]);
+  const [luckyRows, setLuckyRows] = useState<{id:string;name:string;asset_key:string|null;price:number;win_chance:number;min_reward:number;max_reward:number;active:boolean}[]>([]);
+  const [luckyForm, setLuckyForm] = useState({name:"",asset_key:"",price:"1000",win_chance:"10",min_reward:"0",max_reward:"5000"});
   const [catalog, setCatalog] = useState<GiftCatalog[]>([]);
   const [form, setForm] = useState({ name: "", emoji: "🎁", price_coins: "100", asset_url: "" });
   async function load() {
-    const [{ data, error }, { data: gifts, error: catalogError }] = await Promise.all([
+    const [{ data, error }, { data: gifts, error: catalogError }, { data: lucky, error: luckyError }] = await Promise.all([
       supabase.rpc("admin_list_gift_tx", { _limit: 200 }),
       supabase.from("gifts").select("id,name,emoji,price,active,asset_url").order("price"),
+      supabase.from("lucky_gifts").select("id,name,asset_key,price,win_chance,min_reward,max_reward,active").order("sort_order").order("price"),
     ]);
     if (error) toast.error(errMsg(error));
     if (catalogError) toast.error(errMsg(catalogError));
+    if (luckyError) toast.error(errMsg(luckyError));
     setRows((data as GiftTx[]) ?? []);
     setCatalog((gifts as GiftCatalog[]) ?? []);
+    setLuckyRows((lucky as typeof luckyRows) ?? []);
   }
   useEffect(() => { load(); }, []);
   useAdminRealtime(["gifts", "gift_transactions"], load);
@@ -527,6 +532,7 @@ function GiftsTab() {
           <div className="flex gap-1"><Button size="sm" variant="outline" onClick={() => toggleGift(g)}>{g.active ? "إيقاف" : "تفعيل"}</Button><Button size="sm" variant="destructive" onClick={() => deleteGift(g)}>حذف</Button></div>
         </div>
       ))}
+      <section className="glass space-y-3 rounded-2xl p-4"><b>هدايا الحظ — تحكم كامل في نسبة الفوز والمردود</b><div className="grid grid-cols-2 gap-2"><Input placeholder="اسم الهدية" value={luckyForm.name} onChange={e=>setLuckyForm({...luckyForm,name:e.target.value})}/><Input dir="ltr" placeholder="asset_key" value={luckyForm.asset_key} onChange={e=>setLuckyForm({...luckyForm,asset_key:e.target.value})}/><Input type="number" placeholder="السعر" value={luckyForm.price} onChange={e=>setLuckyForm({...luckyForm,price:e.target.value})}/><Input type="number" min="0" max="100" step="0.01" placeholder="نسبة الحظ %" value={luckyForm.win_chance} onChange={e=>setLuckyForm({...luckyForm,win_chance:e.target.value})}/><Input type="number" min="0" placeholder="أقل مردود" value={luckyForm.min_reward} onChange={e=>setLuckyForm({...luckyForm,min_reward:e.target.value})}/><Input type="number" min="0" placeholder="أعلى مردود" value={luckyForm.max_reward} onChange={e=>setLuckyForm({...luckyForm,max_reward:e.target.value})}/></div><Button className="bg-gold" onClick={async()=>{const {error}=await supabase.from("lucky_gifts").insert({name:luckyForm.name.trim(),asset_key:luckyForm.asset_key.trim()||null,price:Number(luckyForm.price),win_chance:Number(luckyForm.win_chance),min_reward:Number(luckyForm.min_reward),max_reward:Number(luckyForm.max_reward),active:true}); if(error) toast.error(errMsg(error)); else {toast.success("تم حفظ هدية الحظ");setLuckyForm({name:"",asset_key:"",price:"1000",win_chance:"10",min_reward:"0",max_reward:"5000"});load();}}}>إضافة هدية حظ</Button>{luckyRows.map(g=><div key={g.id} className="rounded-xl border border-gold/20 p-3 text-sm"><div className="flex items-center justify-between gap-2"><b>{g.name}</b><span className="text-gold">{g.win_chance}%</span></div><div className="mt-1 text-xs text-muted-foreground">السعر {Number(g.price).toLocaleString()} · المردود {Number(g.min_reward).toLocaleString()}–{Number(g.max_reward).toLocaleString()}</div><div className="mt-2 flex gap-2"><Button size="sm" variant="outline" onClick={async()=>{const {error}=await supabase.from("lucky_gifts").update({active:!g.active}).eq("id",g.id);if(error)toast.error(errMsg(error));else load();}}>{g.active?"إيقاف":"تفعيل"}</Button><Button size="sm" variant="destructive" onClick={async()=>{if(!confirm("حذف هدية الحظ؟"))return;const {error}=await supabase.from("lucky_gifts").delete().eq("id",g.id);if(error)toast.error(errMsg(error));else load();}}>حذف</Button></div></div>)}</section>
       <div className="border-t border-border pt-3"><b>سجل إرسال الهدايا</b></div>
       {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد معاملات</p>}
       {rows.map((g, i) => (
