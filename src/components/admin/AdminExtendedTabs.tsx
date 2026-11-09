@@ -262,7 +262,7 @@ export function AppBuilderTab() {
     "ui.branding": JSON.stringify({app_name:"صدي شات",logo_url:"",logo_path:""}, null, 2),
     "app_branding": JSON.stringify({app_name:"صدي شات",logo_path:"",logo_url:""}, null, 2),
     "home_banner": JSON.stringify({title:"",image_path:"",enabled:true}, null, 2),
-    "auth_methods": JSON.stringify({email_enabled:true,quick_enabled:true,google_enabled:true}, null, 2),
+    "auth_methods": JSON.stringify({email_enabled:true,quick_enabled:true,google_enabled:true,phone_enabled:true}, null, 2),
     "ui.bottom_nav": JSON.stringify({home_label:"الغرف",explore_label:"اللحظات",room_label:"غرفتي",messages_label:"الرسائل",profile_label:"أنا",home_icon:"",explore_icon:"",room_icon:"",messages_icon:"",profile_icon:""}, null, 2),
     "ui.mic": JSON.stringify({mic_style:"neon",show_mic_effect:true,mic_asset_key:"",muted_asset_key:"",effect_asset_key:""}, null, 2),
     "ui.buttons": JSON.stringify({primary_asset_url:"",secondary_asset_url:"",gift_asset_url:"",send_asset_url:""}, null, 2),
