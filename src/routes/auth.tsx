@@ -32,7 +32,10 @@ function AuthPage() {
   const [bannerTitle, setBannerTitle] = useState("");
   const [bannerUrl, setBannerUrl] = useState<string | null>(null);
   const [showBanner, setShowBanner] = useState(false);
-  const [authMethods, setAuthMethods] = useState({ email_enabled: true, quick_enabled: true, google_enabled: true });
+  const [authMethods, setAuthMethods] = useState({ email_enabled: true, quick_enabled: true, google_enabled: true, phone_enabled: true });
+  const [phoneMode, setPhoneMode] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -43,8 +46,8 @@ function AuthPage() {
       const settings = Object.fromEntries((data ?? []).map((row) => [row.key, row.value as Record<string, unknown>]));
       const brand = (settings.app_branding ?? {}) as { app_name?: string; logo_path?: string };
       const banner = (settings.home_banner ?? {}) as { title?: string; image_path?: string; enabled?: boolean };
-      const methods = (settings.auth_methods ?? {}) as { email_enabled?: boolean; quick_enabled?: boolean; google_enabled?: boolean };
-      if (alive) setAuthMethods({ email_enabled: methods.email_enabled !== false, quick_enabled: methods.quick_enabled !== false, google_enabled: methods.google_enabled !== false });
+      const methods = (settings.auth_methods ?? {}) as { email_enabled?: boolean; quick_enabled?: boolean; google_enabled?: boolean; phone_enabled?: boolean };
+      if (alive) setAuthMethods({ email_enabled: methods.email_enabled !== false, quick_enabled: methods.quick_enabled !== false, google_enabled: methods.google_enabled !== false, phone_enabled: methods.phone_enabled !== false });
       if (brand.app_name) setAppName(brand.app_name);
       if (brand.logo_path) {
         const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(brand.logo_path, 3600);
@@ -98,6 +101,28 @@ function AuthPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function sendPhoneOtp() {
+    const value = phone.trim();
+    if (!/^\\+[1-9]\\d{7,14}$/.test(value)) { toast.error("اكتب الرقم بصيغة دولية مثل +2010xxxxxxxx"); return; }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ phone: value, options: { shouldCreateUser: true } });
+      if (error) throw error;
+      toast.success("تم إرسال رسالة التفعيل إلى رقم الهاتف");
+      setPhoneMode(true);
+    } catch (err) { toast.error((err as Error).message || "تعذر إرسال رسالة التفعيل"); } finally { setBusy(false); }
+  }
+
+  async function verifyPhoneOtp() {
+    if (!otp.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({ phone: phone.trim(), token: otp.trim(), type: "sms" });
+      if (error) throw error;
+      toast.success("تم تسجيل الدخول وربط الحساب بالرقم");
+    } catch (err) { toast.error((err as Error).message || "رمز التفعيل غير صحيح"); } finally { setBusy(false); }
   }
 
   async function quick() {
@@ -201,6 +226,14 @@ function AuthPage() {
           {mode === "in" ? "دخول" : mode === "up" ? "إنشاء حساب" : "إرسال رابط الاستعادة"}
         </Button>
         </>}
+        {authMethods.phone_enabled && mode === "in" && (
+          <div className="rounded-2xl border border-primary/15 bg-background/30 p-3">
+            <div className="mb-2 text-sm font-bold">تسجيل الدخول برقم الهاتف</div>
+            <Input inputMode="tel" dir="ltr" placeholder="+2010xxxxxxxx" value={phone} onChange={e=>setPhone(e.target.value)} />
+            {phoneMode && <Input inputMode="numeric" dir="ltr" placeholder="رمز التفعيل SMS" value={otp} onChange={e=>setOtp(e.target.value)} className="mt-2" maxLength={8} />}
+            <Button type="button" disabled={busy} onClick={phoneMode ? verifyPhoneOtp : sendPhoneOtp} className="mt-2 w-full bg-primary font-bold">{phoneMode ? "تأكيد الرمز والدخول" : "إرسال رسالة التفعيل"}</Button>
+          </div>
+        )}
         {authMethods.quick_enabled && mode === "in" && (
           <Button type="button" disabled={busy} onClick={quick} className="w-full bg-accent text-accent-foreground font-bold">
             ⚡ دخول سريع (حساب لهذا الجهاز)
