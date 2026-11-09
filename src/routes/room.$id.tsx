@@ -206,7 +206,7 @@ function RoomPage() {
         return nav({ to: "/" });
       }
       if (!alive) return;
-      try { const mini = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string } | null; if (mini?.id === id) localStorage.removeItem("vox_minimized_room"); } catch { localStorage.removeItem("vox_minimized_room"); }
+      try { const mini = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string } | null; if (mini?.id === id) { localStorage.removeItem("vox_minimized_room"); window.dispatchEvent(new Event("vox-room-minimized")); } } catch { localStorage.removeItem("vox_minimized_room"); window.dispatchEvent(new Event("vox-room-minimized")); }
       setRoom(r as Room);
       joinCompleted = true;
       void announceRoomEntry();
@@ -519,7 +519,7 @@ function RoomPage() {
     setCoins((c) => c - giftSel.price * qty);
     // The sender renders locally; the room broadcast renders for every other connected member.
     if (giftSel.asset_url) showGiftAnimation(giftSel.asset_url);
-    await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: giftSel.id, eventId: crypto.randomUUID() } });
+    await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: giftSel.id, eventId: crypto.randomUUID(), receiverId: giftTo, quantity: qty } });
     setGiftOpen(false);
   }
 
@@ -529,6 +529,9 @@ function RoomPage() {
     if (error) { toast.error(errMsg(error)); return; }
     setCoins(c => c - luckySel.price * qty);
     if (data?.won) toast.success(`🎉 فاز المستخدم بمردود ${Number(data.reward).toLocaleString()} عملة`); else toast.success("تم إرسال هدية الحظ — هذه المرة بدون مردود");
+    await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: luckySel.id, eventId: crypto.randomUUID(), receiverId: giftTo, quantity: qty, lucky: true } });
+    const luckyAsset = luckySel.asset_key ? await getAdminAssetUrl(luckySel.asset_key) : null;
+    if (luckyAsset) showGiftAnimation(luckyAsset);
     setGiftOpen(false);
   }
 
@@ -786,10 +789,11 @@ function RoomPage() {
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-5" dir="rtl">
           <div className="w-full max-w-sm space-y-3 rounded-2xl border border-primary/30 bg-background p-5 shadow-2xl">
             <div className="text-center text-lg font-bold">ماذا تريد أن تفعل؟</div>
-            <Button className="w-full" onClick={() => { localStorage.setItem("vox_minimized_room", JSON.stringify({ id, name: room.name, category: room.category, cover_url: room.cover_url })); setExitPrompt(false); setRoomMinimized(true); }}>تصغير الغرفة</Button>
+            <Button className="w-full" onClick={() => { localStorage.setItem("vox_minimized_room", JSON.stringify({ id, name: room.name, category: room.category, cover_url: room.cover_url })); window.dispatchEvent(new Event("vox-room-minimized")); setExitPrompt(false); setRoomMinimized(true); }}>تصغير الغرفة</Button>
             <Button variant="destructive" className="w-full" disabled={isLeavingRoom} onClick={async () => {
               setIsLeavingRoom(true);
               localStorage.removeItem("vox_minimized_room");
+              window.dispatchEvent(new Event("vox-room-minimized"));
               setExitPrompt(false);
               // Free the mic seat before removing room membership.
               const { error: seatError } = await supabase.rpc("leave_seat", { _room: id });
