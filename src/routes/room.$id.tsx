@@ -41,6 +41,7 @@ type Badge = { badge_name: string; badge_asset_key?: string | null; badge_color?
 type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
 type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
 type GiftT = { id: string; name: string; emoji: string; price: number; tier: string; asset_key?: string | null; asset_url?: string | null };
+type LuckyGiftT = { id: string; name: string; asset_key?: string | null; price: number; win_chance: number; min_reward: number; max_reward: number };
 type Room = { id: string; room_no: number; owner_id: string; name: string; description: string | null; category: string; country: string; seat_count: number; is_private?: boolean; cover_url?: string | null; mic_mode?: "request" | "direct" };
 
 function normalizeSeats(rows: Seat[]): Seat[] {
@@ -73,6 +74,8 @@ function RoomPage() {
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftTo, setGiftTo] = useState<string | null>(null);
   const [giftSel, setGiftSel] = useState<GiftT | null>(null);
+  const [luckyGifts, setLuckyGifts] = useState<LuckyGiftT[]>([]);
+  const [luckySel, setLuckySel] = useState<LuckyGiftT | null>(null);
   const [qty, setQty] = useState(1);
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string } | null>(null);
@@ -281,13 +284,14 @@ function RoomPage() {
     roomLive.current = ch;
     const loadCatalog = async () => {
       const { data: rows } = await supabase.from("gifts").select("id,name,emoji,price,tier,asset_key,asset_url").eq("active", true).order("sort");
+      const { data: lucky } = await supabase.from("lucky_gifts").select("id,name,asset_key,price,win_chance,min_reward,max_reward").eq("active",true).order("sort_order");
       const resolved = await Promise.all((rows || []).map(async (g) => ({
         ...g,
         // Always resolve the exact admin-uploaded file from its stable asset_key.
         // Do not fall back to the generic gift box when an uploaded asset exists.
         asset_url: (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || (g.asset_url ? await getAdminAssetUrl(g.asset_url) : null),
       })));
-      setGifts(resolved as GiftT[]);
+      setGifts(resolved as GiftT[]); setLuckyGifts((lucky ?? []) as LuckyGiftT[]);
     };
     void loadCatalog();
     const loadVoiceControls = async () => {
@@ -457,6 +461,7 @@ function RoomPage() {
     const others = members.filter((m) => m !== uid);
     setGiftTo(target ?? seats.find((s) => s.user_id && s.user_id !== uid)?.user_id ?? others[0] ?? null);
     setGiftSel(null);
+    setLuckySel(null);
     setQty(1);
     setSeatMenu(null);
     setGiftOpen(true);
@@ -472,6 +477,15 @@ function RoomPage() {
     // The sender renders locally; the room broadcast renders for every other connected member.
     if (giftSel.asset_url) showGiftAnimation(giftSel.asset_url);
     await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: giftSel.id, eventId: crypto.randomUUID() } });
+    setGiftOpen(false);
+  }
+
+  async function sendLuckyGift() {
+    if (!luckySel || !giftTo) return;
+    const { data, error } = await supabase.rpc("send_lucky_gift", { _gift: luckySel.id, _receiver: giftTo, _room: id, _qty: qty });
+    if (error) { toast.error(errMsg(error)); return; }
+    setCoins(c => c - luckySel.price * qty);
+    if (data?.won) toast.success(`🎉 فاز المستخدم بمردود ${Number(data.reward).toLocaleString()} عملة`); else toast.success("تم إرسال هدية الحظ — هذه المرة بدون مردود");
     setGiftOpen(false);
   }
 
@@ -741,9 +755,8 @@ function RoomPage() {
                 </Button>
               ))}
             </div>
-            <div className="flex items-center gap-2">
-              {[1, 10, 99].map((n) => <Button variant="ghost" size="sm" key={n} onClick={() => setQty(n)} className={`rounded-full ${qty === n ? "bg-gold" : "glass"}`}>x{n}</Button>)}
-              <Button disabled={!giftSel || !giftTo} onClick={sendGift} className="mr-auto bg-gold font-bold">إرسال {giftSel ? `(${giftSel.price * qty})` : ""}</Button>
+            <div className="mt-4 rounded-2xl border border-gold/20 p-3"><div className="mb-2 font-bold text-gold">🎲 هدايا الحظ</div><div className="grid grid-cols-3 gap-2">{luckyGifts.map(g=><Button variant="ghost" key={g.id} onClick={()=>{setLuckySel(g);setGiftSel(null);}} className={`h-auto flex-col gap-1 rounded-xl p-2 ${luckySel?.id===g.id?"bg-secondary ring-2 ring-gold":"glass"}`}><div className="h-14 w-14 rounded-xl bg-secondary grid place-items-center text-2xl">🎲</div><span className="text-xs">{g.name}</span><span className="text-[10px] text-gold">حظ {g.win_chance}% · 🪙{g.price}</span></Button>)}</div></div>\n            <div className="flex items-center gap-2">\n              {[1, 10, 99].map((n) => <Button variant="ghost" size="sm" key={n} onClick={() => setQty(n)} className={`rounded-full ${qty === n ? "bg-gold" : "glass"}`}>x{n}</Button>)}
+              <Button disabled={(!giftSel && !luckySel) || !giftTo} onClick={luckySel ? sendLuckyGift : sendGift} className="mr-auto bg-gold font-bold">{luckySel ? `إرسال حظ (${luckySel.price * qty})` : `إرسال ${giftSel ? `(${giftSel.price * qty})` : ""}`}</Button>
             </div>
           </div>
         </SheetContent>
