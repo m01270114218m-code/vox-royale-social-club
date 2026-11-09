@@ -269,7 +269,7 @@ function AuthPage() {
               {mode !== "reset" && <button type="button" onClick={() => setMode("reset")}>نسيت كلمة المرور؟</button>}
             </div>
           )}
-        </form>
+        </form>}
       </div>
     </div>
   );
