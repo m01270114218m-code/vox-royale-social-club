@@ -39,6 +39,7 @@ function UserPage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [currentRoom, setCurrentRoom] = useState<{ id: string; name: string; room_no: number } | null>(null);
 
   useEffect(() => {
     if (id === uid) {
@@ -57,7 +58,7 @@ function UserPage() {
     (async () => {
       const { data } = await supabase.from("profiles").select("id,display_no,display_name,avatar_url,bio,country,level,vip_level,id_color,name_color,name_effect,name_effect_speed,equipped_frame,equipped_entry").eq("id", id).maybeSingle();
       setP(data);
-      const [a, b, c, f, bl, badgeRows, graph, userPosts] = await Promise.all([
+      const [a, b, c, f, bl, badgeRows, graph, userPosts, roomResult] = await Promise.all([
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", id),
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", id),
         supabase.from("posts").select("id", { count: "exact" }).eq("user_id", id),
@@ -66,6 +67,7 @@ function UserPage() {
         supabase.from("user_badges").select("badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", id).eq("is_equipped", true),
         supabase.from("follows").select("follower_id,following_id").or(`follower_id.eq.${id},following_id.eq.${id}`),
         supabase.from("posts").select("id").eq("user_id", id),
+        supabase.from("room_members").select("room_id,rooms(id,name,room_no)").eq("user_id", id).maybeSingle(),
       ]);
       const followerIds = new Set((graph.data ?? []).filter((r) => r.following_id === id).map((r) => r.follower_id));
       const followingIds = new Set((graph.data ?? []).filter((r) => r.follower_id === id).map((r) => r.following_id));
@@ -80,6 +82,8 @@ function UserPage() {
       setIsFollowing(!!f.data?.length);
       setBlocked(!!bl.data?.length);
       setBadges((badgeRows.data ?? []) as Badge[]);
+      const rr = roomResult.data as { rooms?: { id: string; name: string; room_no: number } | null } | null;
+      setCurrentRoom(rr?.rooms ?? null);
       supabase.rpc("visit_profile", { _profile: id });
     })();
     return () => { void supabase.removeChannel(live); };
@@ -122,7 +126,7 @@ function UserPage() {
         <div className="mx-auto w-fit"><UserAvatar src={p.avatar_url} name={p.display_name} size={112} ring vip={p.vip_level} frameKey={p.equipped_frame} /></div>
         <h2 className={`mt-3 text-2xl font-bold ${p.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p.name_color || undefined, animationDuration: `${p.name_effect_speed || 1800}ms` }}>{flagOf(p.country)} {p.display_name}</h2>
         <div className="text-sm font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID: {p.display_no}</div>
-        <IdentityBadges level={p.level} vip={p.vip_level} badge={badges[0] ?? null} /><p className="mt-2 text-sm">{p.bio || "لا توجد نبذة"}</p>
+        {badges[0] && <div className="mt-1 flex items-center justify-center gap-1 text-xs font-bold" style={{ color: badges[0].badge_color || "#D4AF37" }}>✦ {badges[0].badge_name}</div>}<p className="mt-2 text-sm">{p.bio || "لا توجد نبذة"}</p>
         <div className="mt-4 grid grid-cols-4 gap-2 text-center">
           <div><div className="text-xl font-bold">{stats.followers}</div><div className="text-xs text-muted-foreground">المتابِعون</div></div>
           <div><div className="text-xl font-bold">{stats.friends}</div><div className="text-xs text-muted-foreground">الأصدقاء</div></div>
@@ -133,7 +137,7 @@ function UserPage() {
         <Button onClick={toggleFollow} className={isFollowing ? "" : "bg-gold font-bold"} variant={isFollowing ? "outline" : "default"}>
           {isFollowing ? <><UserCheck className="h-4 w-4" /> متابَع</> : <><UserPlus className="h-4 w-4" /> متابعة</>}
         </Button>
-        <Button onClick={message} variant="outline"><MessageCircle className="h-4 w-4" /> مراسلة</Button>
+        <Button onClick={message} variant="outline"><MessageCircle className="h-4 w-4" /> مراسلة</Button>{currentRoom && <Button onClick={() => nav({ to: "/room/$id", params: { id: currentRoom.id } })} variant="outline"><DoorOpen className="h-4 w-4" /> دخول الغرفة #{currentRoom.room_no}</Button>}
         <Button onClick={toggleBlock} variant="outline"><Ban className="h-4 w-4" /> {blocked ? "إلغاء الحظر" : "حظر"}</Button>
         <Button onClick={report} variant="outline"><Flag className="h-4 w-4" /> إبلاغ</Button>
       </div>
