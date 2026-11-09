@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminAsset } from "@/lib/media";
+import { AdminAssetMedia } from "@/components/AdminAssetMedia";
 import { toast } from "sonner";
 import { errMsg } from "@/lib/vox";
 
@@ -17,7 +18,7 @@ function Asset({item,equipped,onToggle}:{item:Item;equipped:boolean;onToggle:()=
   const src=useAdminAsset(item.store_items?.asset_key ?? undefined);
   const name=item.store_items?.name ?? "عنصر";
   const kind=item.store_items?.kind === "frame" ? "إطار" : item.store_items?.kind === "entry" ? "دخولية" : item.store_items?.kind === "bubble" ? "فقاعة كتابة" : item.store_items?.kind === "sound_wave" ? "موجة صوت" : item.store_items?.kind === "profile_card" ? "بطاقة تعريف" : item.store_items?.kind ?? "عنصر";
-  return <div className="card-3d glass rounded-2xl p-3"><div className="h-24 overflow-hidden rounded-xl bg-background/60">{src&&<img src={src} alt="" className="h-full w-full object-contain"/>}</div><div className="mt-2 truncate font-bold">{name}</div><div className="text-xs text-muted-foreground">{kind}</div><button onClick={onToggle} className={equipped?"mt-2 w-full rounded-xl bg-gold px-3 py-2 text-sm font-bold text-black":"mt-2 w-full rounded-xl border border-primary/30 px-3 py-2 text-sm font-bold"}>{equipped?<><Check className="mr-1 inline h-4 w-4"/>مفعل</>:<><X className="mr-1 inline h-4 w-4"/>تفعيل</>}</button></div>;
+  return <div className="card-3d glass rounded-2xl p-3"><div className="h-24 overflow-hidden rounded-xl bg-background/60">{src&&<AdminAssetMedia src={src} className="h-full w-full object-contain"/>}</div><div className="mt-2 truncate font-bold">{name}</div><div className="text-xs text-muted-foreground">{kind}</div><button onClick={onToggle} className={equipped?"mt-2 w-full rounded-xl bg-gold px-3 py-2 text-sm font-bold text-black":"mt-2 w-full rounded-xl border border-primary/30 px-3 py-2 text-sm font-bold"}>{equipped?<><Check className="mr-1 inline h-4 w-4"/>مفعل</>:<><X className="mr-1 inline h-4 w-4"/>تفعيل</>}</button></div>;
 }
 
 function BagPage(){
