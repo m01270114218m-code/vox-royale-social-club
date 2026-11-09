@@ -85,7 +85,7 @@ function RoomPage() {
   const [qty, setQty] = useState(1);
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string } | null>(null);
-  const [entryAnim, setEntryAnim] = useState<{ key: number; src: string } | null>(null);
+  const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; name: string; avatar: string; level: number; vip: number } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
   const [micPermissionGranted, setMicPermissionGranted] = useState(false);
   const [musicFile, setMusicFile] = useState<File | null>(null);
@@ -850,7 +850,7 @@ function RoomPage() {
                 <div className="relative mt-4 text-xs font-semibold text-white/70">أهلاً بك في مجلسنا</div>
               </div>
             </div>
-            <div className="mt-4 h-1 w-28 overflow-hidden rounded-full bg-white/20"><div className="h-full w-full origin-right animate-[entrybar_3.4s_linear] rounded-full bg-gradient-to-l from-amber-200 to-violet-400" /></div>
+            <div className="mt-4 h-1 w-28 overflow-hidden rounded-full bg-white/20"><div className="h-full w-full origin-right animate-pulse rounded-full bg-gradient-to-l from-amber-200 to-violet-400" /></div>
           </div>
         </div>
       )}
