@@ -4,7 +4,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { deleteMedia, uploadImage, useAdminAsset } from "@/lib/media";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useEffect, useState } from "react";
-import { Coins, Gem, LogOut, Pencil, Crown, Store, Users, Shield, LifeBuoy, Bell, Heart, Camera } from "lucide-react";
+import { Camera } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
@@ -154,7 +154,7 @@ function ProfilePage() {
         </label>
         <h2 className={`mt-3 text-2xl font-bold ${shown.name_effect && shown.name_effect !== "none" ? `name-effect-${shown.name_effect}` : ""}`} style={{ color: shown.name_color || undefined, animationDuration: `${shown.name_effect_speed || 1800}ms` }}>{flagOf(shown.country)} {shown.display_name}</h2>
         <div className="text-sm font-bold" style={{ color: shown.id_color || "#D4AF37" }}>ID: {p.display_no}</div>
-        <IdentityBadges level={p.level} vip={p.vip_level} badge={badges.find((b) => b.is_equipped) ?? null} />{p.vip_level > 0 && <div className="mx-auto mt-3 max-w-sm rounded-2xl border border-primary/30 bg-background/70 p-3 text-right shadow-sm"><div className="text-xs text-muted-foreground">بطاقة VIP</div><div className="mt-1 flex items-center justify-between"><span className="font-bold" style={{ color: p.name_color || undefined }}>VIP {p.vip_level}</span><span className="text-xs" style={{ color: p.id_color || undefined }}>ID {p.display_no}</span></div><div className="mt-2 text-[11px] text-muted-foreground">{p.vip_level >= 5 ? "🛡️ حماية من الطرد والكتم داخل الغرف" : "✨ اسم وID ملونان ومزايا VIP"}</div></div>}<p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
+        <IdentityBadges level={p.level} vip={p.vip_level} badge={badges.find((b) => b.is_equipped) ?? null} /><p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
         {editing && <div className="mt-2 text-xs text-primary">معاينة — لم يتم الحفظ بعد</div>}
       </div>
 
@@ -198,14 +198,17 @@ function ProfilePage() {
           <div className="grid grid-cols-4 gap-2">
             {([
               ["/store", "المتجر", icons3d.store],
-              ["/store", "VIP", icons3d.vip],
+              ["/bag", "حقيبتي", icons3d.store],
+              ["/vip", "VIP", icons3d.vip],
+              ["/wallet", "المحفظة", icons3d.coin],
+              ["/diamonds", "الألماس", icons3d.diamond],
               ["/families", "العائلة", icons3d.family],
               ["/friends", "الأصدقاء", icons3d.friends],
               ["/notifications", "الإشعارات", icons3d.bell],
               ["/help", "الدعم", icons3d.support],
               ["/admin", "لوحة التحكم", icons3d.gear],
             ] as const).map(([to, label, icon], i) => (
-              <Link key={i} to={to} className="card-3d glass flex flex-col items-center gap-1 rounded-2xl p-3 text-xs">
+              <Link key={i} to={to} className="card-3d glass flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border border-primary/20 p-3 text-xs font-bold shadow-lg">
                 <img src={icon} alt="" className="h-11 w-11 object-contain drop-shadow-lg" />{label}
               </Link>
             ))}
