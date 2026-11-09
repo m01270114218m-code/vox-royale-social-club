@@ -58,7 +58,7 @@ function ProfilePage() {
   async function daily() {
     const { error } = await supabase.rpc("claim_daily_bonus");
     if (error) { toast.error(errMsg(error)); return; }
-    toast.success("+200 عملة 🎉");
+    toast.success("+100 عملة 🎉");
   }
   async function link() {
     const { error } = await supabase.auth.updateUser({ email: linkEmail });
