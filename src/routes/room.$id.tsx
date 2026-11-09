@@ -88,6 +88,7 @@ function RoomPage() {
   const [micRequests, setMicRequests] = useState<{ id: string; user_id: string; created_at: string }[]>([]);
   const [myMicRequest, setMyMicRequest] = useState<{ id: string } | null>(null);
   const [chatMutedUser, setChatMutedUser] = useState(false);
+  const [micBlockedUser, setMicBlockedUser] = useState(false);
   const [targetIsModerator, setTargetIsModerator] = useState(false);
   const [inviteUserSearch, setInviteUserSearch] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -434,14 +435,17 @@ function RoomPage() {
     }
     setSeatMenu(s);
     setChatMutedUser(false);
+    setMicBlockedUser(false);
     setTargetIsModerator(false);
     if (s.user_id) void openUserCard(s.user_id);
     if (isStaff && s.user_id && s.user_id !== uid) {
-      const [muteResult, modResult] = await Promise.all([
+      const [muteResult, micResult, modResult] = await Promise.all([
         supabase.rpc("staff_is_chat_muted", { _room: id, _user: s.user_id }),
+        supabase.rpc("staff_is_mic_blocked", { _room: id, _user: s.user_id }),
         supabase.from("room_moderators").select("user_id").eq("room_id", id).eq("user_id", s.user_id).maybeSingle(),
       ]);
       if (!muteResult.error) setChatMutedUser(!!muteResult.data);
+      if (!micResult.error) setMicBlockedUser(!!micResult.data);
       setTargetIsModerator(!!modResult.data);
     }
   }
@@ -699,7 +703,7 @@ function RoomPage() {
   </div>
   {isStaff && seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && <div className="mt-2 grid grid-cols-4 gap-1 border-t border-primary/10 pt-2">
     <Button size="sm" variant="outline" title="طرد" onClick={() => call("staff_kick_room_user", { _room: id, _user: seatMenu.user_id! })}><LogOut className="h-4 w-4" /></Button>
-    <Button size="sm" variant="outline" title="كتم" onClick={() => call("staff_set_chat_mute", { _room: id, _user: seatMenu.user_id!, _muted: !chatMutedUser })}><VolumeX className="h-4 w-4" /></Button>
+    <Button size="sm" variant="outline" title={micBlockedUser ? "فك كتم المايك" : "كتم المايك"} onClick={() => call("staff_set_mic_access", { _room: id, _user: seatMenu.user_id!, _blocked: !micBlockedUser })}><VolumeX className="h-4 w-4" /></Button>
     <Button size="sm" variant="outline" title="إنزال من المايك" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick_seat" })}><Ban className="h-4 w-4" /></Button>
     {isOwner && <Button size="sm" variant="outline" title={targetIsModerator ? "إزالة الأدمن" : "إضافة أدمن"} onClick={() => call("staff_set_room_moderator", { _room: id, _user: seatMenu.user_id!, _enabled: !targetIsModerator })}><UserPlus className="h-4 w-4" /></Button>}
   </div>}
