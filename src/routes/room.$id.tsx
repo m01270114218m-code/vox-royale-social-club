@@ -155,22 +155,40 @@ function RoomPage() {
     if (data) setSeats(normalizeSeats(data as Seat[]));
   }, [id]);
   async function playEntryFor(userId: string) {
-    // Every room entry gets a visible announcement; equipped media decorates the
-    // announcement when available, while the premium fallback keeps it reliable.
+    // Only play a room entrance that the user currently owns and has equipped
+    // from the store. Never substitute a generic/default animation.
     const { data: profile } = await supabase.from("profiles")
       .select("display_name,avatar_url,level,vip_level,equipped_entry")
       .eq("id", userId).maybeSingle();
-    const src = profile?.equipped_entry ? await getAdminAssetUrl(profile.equipped_entry) : null;
+    const equippedKey = profile?.equipped_entry;
+    if (!equippedKey) return;
+
+    const { data: storeItem } = await supabase.from("store_items")
+      .select("id,asset_key,kind")
+      .eq("asset_key", equippedKey)
+      .eq("kind", "entry")
+      .maybeSingle();
+    if (!storeItem?.id || storeItem.asset_key !== equippedKey) return;
+
+    const { data: ownership } = await supabase.from("user_items")
+      .select("item_id")
+      .eq("user_id", userId)
+      .eq("item_id", storeItem.id)
+      .maybeSingle();
+    if (!ownership) return;
+
+    const src = await getAdminAssetUrl(storeItem.asset_key);
+    if (!src) return;
     const token = Date.now() + Math.floor(Math.random() * 1000);
     setEntryAnim({
       key: token,
-      src: src || "",
-      name: profile?.display_name || "عضو جديد",
+      src,
+      name: profile?.display_name || "عضو",
       avatar: profile?.avatar_url || "",
       level: Number(profile?.level || 1),
       vip: Number(profile?.vip_level || 0),
     });
-    window.setTimeout(() => setEntryAnim((current) => current?.key === token ? null : current), src ? 4800 : 3400);
+    window.setTimeout(() => setEntryAnim((current) => current?.key === token ? null : current), 5200);
   }
 
   const loadMembers = useCallback(async () => {
