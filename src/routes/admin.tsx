@@ -314,18 +314,39 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
   const [amt, setAmt] = useState<Record<string, string>>({});
   const [catalog, setCatalog] = useState<AdminStoreItem[]>([]);
   const [identity, setIdentity] = useState<Record<string, UserIdentityEdit>>({});
+  const [userBans, setUserBans] = useState<Set<string>>(new Set());
+  const [deviceBans, setDeviceBans] = useState<Set<string>>(new Set());
+  const [registeredDevices, setRegisteredDevices] = useState<Set<string>>(new Set());
   const [selectedItem, setSelectedItem] = useState<Record<string, string>>({});
   const [equipItem, setEquipItem] = useState<Record<string, boolean>>({});
   const [directAsset, setDirectAsset] = useState<Record<string, { ref: string; name: string; type: string }>>({});
   async function load() {
-    const [{ data, error }, { data: items, error: itemsError }, { data: profiles, error: profilesError }] = await Promise.all([
+    const [
+      { data, error },
+      { data: items, error: itemsError },
+      { data: profiles, error: profilesError },
+      { data: userBanRows, error: userBanError },
+      { data: deviceBanRows, error: deviceBanError },
+      { data: deviceRows, error: deviceError },
+    ] = await Promise.all([
       supabase.rpc("admin_list_users", { _q: q }),
       supabase.from("store_items").select("id,name,kind,asset_key").order("name"),
       supabase.from("profiles").select("id,id_color"),
+      supabase.from("user_bans").select("user_id,expires_at,revoked_at"),
+      supabase.from("device_bans").select("user_id,expires_at,revoked_at"),
+      supabase.from("device_accounts").select("user_id"),
     ]);
     if (error) toast.error(errMsg(error));
     if (itemsError) toast.error(errMsg(itemsError));
     if (profilesError) toast.error(errMsg(profilesError));
+    if (userBanError) toast.error(errMsg(userBanError));
+    if (deviceBanError) toast.error(errMsg(deviceBanError));
+    if (deviceError) toast.error(errMsg(deviceError));
+    const isActiveBan = (row: { expires_at: string | null; revoked_at: string | null }) =>
+      !row.revoked_at && (!row.expires_at || new Date(row.expires_at).getTime() > Date.now());
+    setUserBans(new Set(((userBanRows ?? []) as { user_id: string; expires_at: string | null; revoked_at: string | null }[]).filter(isActiveBan).map((row) => row.user_id)));
+    setDeviceBans(new Set(((deviceBanRows ?? []) as { user_id: string | null; expires_at: string | null; revoked_at: string | null }[]).filter(isActiveBan).map((row) => row.user_id).filter((id): id is string => !!id)));
+    setRegisteredDevices(new Set(((deviceRows ?? []) as { user_id: string }[]).map((row) => row.user_id)));
     const users = (data as U[]) ?? [];
     setRows(users);
     setCatalog((items as AdminStoreItem[]) ?? []);
@@ -339,7 +360,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
     });
   }
   useEffect(() => { void load(); }, []);
-  useAdminRealtime(["profiles", "wallets", "user_roles", "store_items", "user_items"], load);
+  useAdminRealtime(["profiles", "wallets", "user_roles", "store_items", "user_items", "user_bans", "device_bans", "device_accounts"], load);
   async function run(p: PromiseLike<{ error: unknown }>, msg: string) {
     const { error } = await p;
     if (error) { toast.error(errMsg(error as never)); return; }
@@ -362,6 +383,28 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
     const v = directAsset[u.id] ?? { ref: "", name: "", type: "frame" };
     if (!v.ref.trim() || !v.name.trim()) { toast.error("أدخل رابط/مفتاح الأصل واسم الأصل"); return; }
     await run(supabase.rpc("send_asset_to_user", { _receiver: u.id, _asset_key: v.ref.trim(), _asset_type: v.type, _asset_name: v.name.trim() }), "تم إرسال الأصل للمستخدم وتفعيله حسب نوعه");
+  }
+  async function updateBan(u: U, kind: "account" | "device", banned: boolean) {
+    let reason = "";
+    let hours: number | null = null;
+    if (banned) {
+      const enteredReason = window.prompt(kind === "account" ? "سبب حظر الحساب" : "سبب حظر الجهاز", "مخالفة قواعد التطبيق");
+      if (enteredReason === null) return;
+      reason = enteredReason.trim();
+      const enteredHours = window.prompt("مدة الحظر بالساعات (اكتب 0 للحظر الدائم)", "24");
+      if (enteredHours === null) return;
+      const parsedHours = Number(enteredHours);
+      if (!Number.isInteger(parsedHours) || parsedHours < 0 || parsedHours > 87600) {
+        toast.error("مدة الحظر يجب أن تكون 0 أو عدد ساعات حتى 87600");
+        return;
+      }
+      hours = parsedHours === 0 ? null : parsedHours;
+    }
+    const rpc = kind === "account" ? "admin_set_user_ban" : "admin_set_device_ban";
+    const { error } = await supabase.rpc(rpc, { _user: u.id, _banned: banned, _reason: reason, _hours: hours });
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success(kind === "account" ? (banned ? "تم حظر الحساب من التطبيق" : "تم رفع حظر الحساب") : (banned ? "تم حظر الجهاز" : "تم رفع حظر الجهاز"));
+    await load();
   }
   async function grantItem(u: U) {
     const itemId = selectedItem[u.id];
@@ -400,6 +443,11 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
             <select aria-label="مستوى VIP" className="rounded-md border border-input bg-input px-2 py-1.5 text-xs" value={u.vip_level} onChange={(e) => void run(supabase.rpc("admin_set_vip", { _user: u.id, _vip: Number(e.target.value) }), "تم تعديل VIP")}>
               {Array.from({ length: 11 }, (_, i) => <option key={i} value={i}>VIP {i}</option>)}
             </select>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-2">
+            <Button size="sm" variant={userBans.has(u.id) ? "outline" : "destructive"} onClick={() => void updateBan(u, "account", !userBans.has(u.id))}>{userBans.has(u.id) ? "رفع حظر الحساب" : "حظر الحساب من التطبيق"}</Button>
+            <Button size="sm" variant={deviceBans.has(u.id) ? "outline" : "destructive"} disabled={!registeredDevices.has(u.id) && !deviceBans.has(u.id)} onClick={() => void updateBan(u, "device", !deviceBans.has(u.id))}>{deviceBans.has(u.id) ? "رفع حظر الجهاز" : "حظر الجهاز"}</Button>
+            <span className="text-[10px] text-muted-foreground">{registeredDevices.has(u.id) ? "الجهاز مسجل" : "لم يسجل الجهاز دخوله بعد"}</span>
           </div>
           <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
             <select aria-label="اختر عنصراً لإرساله" className="min-w-0 rounded-md border border-input bg-input px-2 py-2 text-xs" value={selectedItem[u.id] ?? ""} onChange={(e) => setSelectedItem((s) => ({ ...s, [u.id]: e.target.value }))}>
@@ -743,7 +791,7 @@ type AdminAsset = {
   name: string;
   category: string;
   url: string | null;
-  metadata: { storage_path?: string; content_type?: string; size?: number; display_width?: number; display_height?: number } | null;
+  metadata: { storage_path?: string; content_type?: string; size?: number; display_width?: number; display_height?: number; playback_speed?: number; animation_style?: string; display_duration_ms?: number; audio_enabled?: boolean; original_name?: string } | null;
   is_active: boolean;
   created_at: string;
 };
@@ -775,6 +823,12 @@ function AssetsTab() {
   const [editingAsset, setEditingAsset] = useState<AdminAsset | null>(null);
   const [editName, setEditName] = useState("");
   const [editCategory, setEditCategory] = useState("general");
+  const [editDisplayWidth, setEditDisplayWidth] = useState("240");
+  const [editDisplayHeight, setEditDisplayHeight] = useState("240");
+  const [editPlaybackSpeed, setEditPlaybackSpeed] = useState("1");
+  const [editAnimationStyle, setEditAnimationStyle] = useState("zoom");
+  const [editDisplayDuration, setEditDisplayDuration] = useState("2600");
+  const [editAudioEnabled, setEditAudioEnabled] = useState(true);
   const [grantUserId, setGrantUserId] = useState("");
   const [grantUserNo, setGrantUserNo] = useState("");
   const [grantItemId, setGrantItemId] = useState("");
@@ -784,6 +838,10 @@ function AssetsTab() {
   const [name, setName] = useState("");
   const [displayWidth, setDisplayWidth] = useState("240");
   const [displayHeight, setDisplayHeight] = useState("240");
+  const [playbackSpeed, setPlaybackSpeed] = useState("1");
+  const [animationStyle, setAnimationStyle] = useState("zoom");
+  const [displayDuration, setDisplayDuration] = useState("2600");
+  const [audioEnabled, setAudioEnabled] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -823,10 +881,16 @@ function AssetsTab() {
       toast.error("اختر ملفاً واحداً على الأقل");
       return;
     }
-    const needsDisplaySize = ["gift", "frame", "entry"].includes(category);
+    const hasVideo = files.some((file) => file.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file.name));
+    const needsDisplaySize = ["gift", "frame", "entry"].includes(category) || hasVideo;
     const width = Number(displayWidth), height = Number(displayHeight);
+    const speed = Number(playbackSpeed), duration = Number(displayDuration);
     if (needsDisplaySize && (!Number.isInteger(width) || width < 24 || width > 2048 || !Number.isInteger(height) || height < 24 || height > 2048)) {
       toast.error("حدد عرض وطول الأصل بين 24 و2048 بكسل");
+      return;
+    }
+    if (!Number.isFinite(speed) || speed < 0.25 || speed > 3 || !Number.isInteger(duration) || duration < 500 || duration > 120000) {
+      toast.error("تحقق من سرعة التشغيل ومدة العرض");
       return;
     }
     const invalid = files.find((file) => file.size > MAX_ASSET_SIZE);
@@ -853,7 +917,18 @@ function AssetsTab() {
         name: name.trim() || file.name.replace(/\.[^.]+$/, ""),
         category,
         url: path,
-        metadata: { storage_path: path, content_type: file.type || "application/octet-stream", size: file.size, original_name: file.name, display_width: needsDisplaySize ? width : undefined, display_height: needsDisplaySize ? height : undefined },
+        metadata: {
+          storage_path: path,
+          content_type: file.type || "application/octet-stream",
+          size: file.size,
+          original_name: file.name,
+          display_width: needsDisplaySize ? width : undefined,
+          display_height: needsDisplaySize ? height : undefined,
+          playback_speed: speed,
+          animation_style: animationStyle,
+          display_duration_ms: duration,
+          audio_enabled: audioEnabled,
+        },
         is_active: true,
       });
       if (rowError) {
@@ -868,6 +943,10 @@ function AssetsTab() {
     setName("");
     setDisplayWidth("240");
     setDisplayHeight("240");
+    setPlaybackSpeed("1");
+    setAnimationStyle("zoom");
+    setDisplayDuration("2600");
+    setAudioEnabled(true);
     const picker = document.getElementById("admin-asset-files") as HTMLInputElement | null;
     if (picker) picker.value = "";
     if (uploaded) toast.success(`تم رفع وإضافة ${uploaded} أصل بنجاح`);
@@ -916,12 +995,33 @@ function AssetsTab() {
   }
 
   function beginEditAsset(asset: AdminAsset) {
-    setEditingAsset(asset); setEditName(asset.name); setEditCategory(asset.category);
+    const metadata = asset.metadata ?? {};
+    setEditingAsset(asset);
+    setEditName(asset.name);
+    setEditCategory(asset.category);
+    setEditDisplayWidth(String(metadata.display_width ?? 240));
+    setEditDisplayHeight(String(metadata.display_height ?? 240));
+    setEditPlaybackSpeed(String(metadata.playback_speed ?? 1));
+    setEditAnimationStyle(String(metadata.animation_style ?? "zoom"));
+    setEditDisplayDuration(String(metadata.display_duration_ms ?? 2600));
+    setEditAudioEnabled(metadata.audio_enabled !== false);
   }
 
   async function saveAssetEdit() {
     if (!editingAsset || !editName.trim()) { toast.error("اكتب اسم الأصل"); return; }
-    const { error } = await supabase.from("admin_assets").update({ name: editName.trim(), category: editCategory, updated_at: new Date().toISOString() }).eq("id", editingAsset.id);
+    const metadata = editingAsset.metadata ?? {};
+    const displayWidthValue = Number(editDisplayWidth), displayHeightValue = Number(editDisplayHeight);
+    const playbackSpeedValue = Number(editPlaybackSpeed), durationValue = Number(editDisplayDuration);
+    if (!Number.isInteger(displayWidthValue) || displayWidthValue < 24 || displayWidthValue > 2048 || !Number.isInteger(displayHeightValue) || displayHeightValue < 24 || displayHeightValue > 2048 || !Number.isFinite(playbackSpeedValue) || playbackSpeedValue < 0.25 || playbackSpeedValue > 3 || !Number.isInteger(durationValue) || durationValue < 500 || durationValue > 120000) {
+      toast.error("تحقق من أبعاد الأصل وسرعته ومدته");
+      return;
+    }
+    const { error } = await supabase.from("admin_assets").update({
+      name: editName.trim(),
+      category: editCategory,
+      metadata: { ...metadata, display_width: displayWidthValue, display_height: displayHeightValue, playback_speed: playbackSpeedValue, animation_style: editAnimationStyle, display_duration_ms: durationValue, audio_enabled: editAudioEnabled },
+      updated_at: new Date().toISOString(),
+    }).eq("id", editingAsset.id);
     if (error) { toast.error(errMsg(error)); return; }
     toast.success("تم تعديل بيانات الأصل"); setEditingAsset(null); await load();
   }
@@ -975,10 +1075,14 @@ function AssetsTab() {
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="مثال: تاج VIP ذهبي" />
           </label>
         </div>
-        {["gift", "frame", "entry"].includes(category) && <div className="grid grid-cols-2 gap-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
+        {(["gift", "frame", "entry"].includes(category) || files.some((file) => file.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file.name))) && <div className="grid grid-cols-2 gap-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
           <label className="text-xs"><span className="text-muted-foreground">عرض الأصل على الشاشة (px)</span><Input type="number" min="24" max="2048" value={displayWidth} onChange={(e) => setDisplayWidth(e.target.value)} /></label>
           <label className="text-xs"><span className="text-muted-foreground">طول الأصل على الشاشة (px)</span><Input type="number" min="24" max="2048" value={displayHeight} onChange={(e) => setDisplayHeight(e.target.value)} /></label>
-          <div className="col-span-2 text-[10px] text-muted-foreground">المقاس يُحفظ مع الأصل ويُستخدم عند عرضه في التطبيق.</div>
+          <label className="text-xs"><span className="text-muted-foreground">سرعة تشغيل الفيديو</span><select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={playbackSpeed} onChange={(e) => setPlaybackSpeed(e.target.value)}><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1">1× طبيعي</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option></select></label>
+          <label className="text-xs"><span className="text-muted-foreground">حركة الظهور</span><select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={animationStyle} onChange={(e) => setAnimationStyle(e.target.value)}><option value="zoom">تكبير</option><option value="slide">انزلاق</option><option value="float">طفو</option><option value="pulse">نبض</option><option value="none">بدون حركة</option></select></label>
+          <label className="col-span-2 text-xs"><span className="text-muted-foreground">مدة عرض الصور الثابتة (مللي ثانية) — الفيديو يستمر حتى نهايته</span><Input type="number" min="500" max="120000" step="500" value={displayDuration} onChange={(e) => setDisplayDuration(e.target.value)} /></label>
+          <label className="col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={audioEnabled} onChange={(e) => setAudioEnabled(e.target.checked)} /> تشغيل صوت الفيديو الأصلي</label>
+          <div className="col-span-2 text-[10px] text-muted-foreground">تُحفظ الإعدادات مع الأصل في Supabase، ويُعرض الفيديو بكامل مدته دون ضغطه أو قصّه.</div>
         </div>}
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-secondary/40 p-5 text-center">
           <Upload className="h-7 w-7 text-primary" />
@@ -1027,6 +1131,14 @@ function AssetsTab() {
           <select className="w-full rounded-md border border-input bg-input px-3 py-2 text-sm" value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
             {Object.entries(ASSET_CATEGORIES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
           </select>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs">العرض px<Input type="number" min="24" max="2048" value={editDisplayWidth} onChange={(e) => setEditDisplayWidth(e.target.value)} /></label>
+            <label className="text-xs">الارتفاع px<Input type="number" min="24" max="2048" value={editDisplayHeight} onChange={(e) => setEditDisplayHeight(e.target.value)} /></label>
+            <label className="text-xs">سرعة الفيديو<select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={editPlaybackSpeed} onChange={(e) => setEditPlaybackSpeed(e.target.value)}><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option></select></label>
+            <label className="text-xs">حركة الظهور<select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={editAnimationStyle} onChange={(e) => setEditAnimationStyle(e.target.value)}><option value="zoom">تكبير</option><option value="slide">انزلاق</option><option value="float">طفو</option><option value="pulse">نبض</option><option value="none">بدون</option></select></label>
+            <label className="col-span-2 text-xs">مدة الصور الثابتة (ms)<Input type="number" min="500" max="120000" value={editDisplayDuration} onChange={(e) => setEditDisplayDuration(e.target.value)} /></label>
+            <label className="col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={editAudioEnabled} onChange={(e) => setEditAudioEnabled(e.target.checked)} /> صوت الفيديو الأصلي</label>
+          </div>
           <Button className="w-full bg-gold" onClick={() => void saveAssetEdit()}>حفظ التعديلات</Button>
         </div>
       )}
@@ -1038,7 +1150,7 @@ function AssetsTab() {
               {previews[asset.id] && isImage(asset) ? (
                 <img src={previews[asset.id]} alt={asset.name} className="h-full w-full object-contain" />
               ) : previews[asset.id] && isVideo(asset) ? (
-                <video src={previews[asset.id]} autoPlay muted loop playsInline className="h-full w-full object-contain" />
+                <video src={previews[asset.id]} controls playsInline preload="metadata" onLoadedMetadata={(e) => { e.currentTarget.playbackRate = Number(asset.metadata?.playback_speed ?? 1); }} className="h-full w-full object-contain" />
               ) : isModel(asset) ? (
                 <div className="text-center"><Box className="mx-auto h-12 w-12 text-primary" /><span className="mt-2 block text-xs">مجسم ثلاثي الأبعاد</span></div>
               ) : (
