@@ -35,7 +35,7 @@ function UserPage() {
   const uid = user!.id;
   const nav = useNavigate();
   const [p, setP] = useState<P | null>(null);
-  const [stats, setStats] = useState({ followers: 0, following: 0, posts: 0 });
+  const [stats, setStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0 });
   const [isFollowing, setIsFollowing] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [badges, setBadges] = useState<Badge[]>([]);
@@ -57,15 +57,26 @@ function UserPage() {
     (async () => {
       const { data } = await supabase.from("profiles").select("id,display_no,display_name,avatar_url,bio,country,level,vip_level,id_color,name_color,name_effect,name_effect_speed,equipped_frame,equipped_entry").eq("id", id).maybeSingle();
       setP(data);
-      const [a, b, c, f, bl, badgeRows] = await Promise.all([
+      const [a, b, c, f, bl, badgeRows, graph, userPosts] = await Promise.all([
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", id),
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", id),
-        supabase.from("posts").select("*", { count: "exact", head: true }).eq("user_id", id),
+        supabase.from("posts").select("id", { count: "exact" }).eq("user_id", id),
         supabase.from("follows").select("follower_id").eq("follower_id", uid).eq("following_id", id),
         supabase.from("user_blocks").select("blocked_id").eq("blocker_id", uid).eq("blocked_id", id),
         supabase.from("user_badges").select("badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", id).eq("is_equipped", true),
+        supabase.from("follows").select("follower_id,following_id").or(`follower_id.eq.${id},following_id.eq.${id}`),
+        supabase.from("posts").select("id").eq("user_id", id),
       ]);
-      setStats({ followers: a.count ?? 0, following: b.count ?? 0, posts: c.count ?? 0 });
+      const followerIds = new Set((graph.data ?? []).filter((r) => r.following_id === id).map((r) => r.follower_id));
+      const followingIds = new Set((graph.data ?? []).filter((r) => r.follower_id === id).map((r) => r.following_id));
+      const friendCount = [...followerIds].filter((userId) => followingIds.has(userId)).length;
+      let likeCount = 0;
+      const postIds = (userPosts.data ?? []).map((r) => r.id);
+      if (postIds.length) {
+        const { count } = await supabase.from("post_likes").select("id", { count: "exact", head: true }).in("post_id", postIds);
+        likeCount = count ?? 0;
+      }
+      setStats({ followers: a.count ?? 0, friends: friendCount, posts: c.count ?? 0, likes: likeCount });
       setIsFollowing(!!f.data?.length);
       setBlocked(!!bl.data?.length);
       setBadges((badgeRows.data ?? []) as Badge[]);
@@ -112,10 +123,10 @@ function UserPage() {
         <h2 className={`mt-3 text-2xl font-bold ${p.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p.name_color || undefined, animationDuration: `${p.name_effect_speed || 1800}ms` }}>{flagOf(p.country)} {p.display_name}</h2>
         <div className="text-sm font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID: {p.display_no}</div>
         <IdentityBadges level={p.level} vip={p.vip_level} badge={badges[0] ?? null} /><p className="mt-2 text-sm">{p.bio || "لا توجد نبذة"}</p>
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <div className="mt-4 grid grid-cols-4 gap-2 text-center">
           <div><div className="text-xl font-bold">{stats.followers}</div><div className="text-xs text-muted-foreground">المتابِعون</div></div>
-          <div><div className="text-xl font-bold">{stats.following}</div><div className="text-xs text-muted-foreground">يتابع</div></div>
-          <div><div className="text-xl font-bold">{stats.posts}</div><div className="text-xs text-muted-foreground">منشورات</div></div>
+          <div><div className="text-xl font-bold">{stats.friends}</div><div className="text-xs text-muted-foreground">الأصدقاء</div></div>
+          <div><div className="text-xl font-bold">{stats.posts}</div><div className="text-xs text-muted-foreground">المنشورات</div></div><div><div className="text-xl font-bold">{stats.likes}</div><div className="text-xs text-muted-foreground">المعجبون</div></div>
         </div>
       </div>
       <div className="mx-4 mt-4 grid grid-cols-2 gap-2">
