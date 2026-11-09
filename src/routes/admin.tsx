@@ -15,9 +15,9 @@ import { getAdminAssetUrl } from "@/lib/media";
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "لوحة التحكم — VOX ROYALE" },
-      { name: "description", content: "لوحة إدارة VOX ROYALE للبلاغات والغرف والمنشورات والمستخدمين." },
-      { property: "og:title", content: "لوحة التحكم — VOX ROYALE" },
+      { title: "لوحة التحكم — صدى شات" },
+      { name: "description", content: "لوحة إدارة صدى شات للبلاغات والغرف والمنشورات والمستخدمين." },
+      { property: "og:title", content: "لوحة التحكم — صدى شات" },
       { property: "og:description", content: "إدارة البلاغات والغرف والمنشورات والمستخدمين." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
