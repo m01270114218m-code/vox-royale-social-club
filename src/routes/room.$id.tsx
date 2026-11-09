@@ -429,7 +429,8 @@ function RoomPage() {
       await syncRoomSeats();
     }
     if (["staff_kick_room_user", "staff_kick_user_24h", "ban_user"].includes(fn)) {
-      await Promise.all([loadMembers(), syncRoomSeats()]);
+      // Refresh authoritative room membership and the fixed seat layout after a kick.
+      await Promise.all([loadMembers(), syncRoomSeats(), loadSeats()]);
     }
     setSeatMenu(null);
   }
