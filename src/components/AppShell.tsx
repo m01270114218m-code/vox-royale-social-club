@@ -80,7 +80,12 @@ function ShellInner({ children }: { children: ReactNode }) {
     };
     refreshMiniRoom();
     window.addEventListener("storage", refreshMiniRoom);
-    return () => window.removeEventListener("storage", refreshMiniRoom);
+    // Same-tab route changes do not emit the browser "storage" event.
+    window.addEventListener("vox-room-minimized", refreshMiniRoom);
+    return () => {
+      window.removeEventListener("storage", refreshMiniRoom);
+      window.removeEventListener("vox-room-minimized", refreshMiniRoom);
+    };
   }, []);
   useEffect(() => {
     const onPop = () => {
