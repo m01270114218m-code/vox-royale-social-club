@@ -179,8 +179,11 @@ function RoomPage() {
       loadSeats();
       loadMembers();
       loadMicRequests();
-      const { data: ms } = await supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).order("created_at", { ascending: false }).limit(50);
-      if (ms) setMsgs(ms.reverse());
+      const { data: membership } = await supabase.from("room_members").select("joined_at").eq("room_id", id).eq("user_id", uid).maybeSingle();
+      const joinedAt = membership?.joined_at;
+      const messageQuery = supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).order("created_at", { ascending: true }).limit(100);
+      const { data: ms } = joinedAt ? await messageQuery.gte("created_at", joinedAt) : await messageQuery;
+      if (ms) setMsgs(ms as Msg[]);
     })();
     const ch = supabase
       .channel(`room-${id}`)
@@ -259,7 +262,7 @@ function RoomPage() {
           if (row.user_id === uid) setMyMicRequest({ id: row.id });
         }
       })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${id}` }, (p) => {
+       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${id}` }, (p) => {
         const message = p.new as Msg;
         setMsgs((current) => current.some((m) => m.id === message.id) ? current : [...current.slice(-99), message]);
       })
@@ -268,7 +271,7 @@ function RoomPage() {
       if (status === "SUBSCRIBED") {
         void Promise.all([loadSeats(), loadMembers(), loadMicRequests()]);
         void supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).order("created_at", { ascending: false }).limit(50)
-          .then(({ data }) => { if (data) setMsgs((current) => {
+           .then(({ data }) => { if (data) setMsgs((current) => {
             const byId = new Map(current.map((m) => [m.id, m]));
             data.forEach((m) => byId.set(m.id, m as Msg));
             return [...byId.values()].sort((a, b) => a.created_at.localeCompare(b.created_at)).slice(-100);
@@ -634,7 +637,7 @@ function RoomPage() {
                 </div>
               )}
               {seatMenu.user_id === uid && <Button variant="outline" onClick={() => call("leave_seat", { _room: id })}>مغادرة المقعد</Button>}
-              {isStaff && (
+              {isStaff && false && (
                 <>
                   {seatMenu.seat_index >= 0 && <>
                     <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_locked ? "unlock" : "lock" })}>{seatMenu.is_locked ? "فتح المايك" : "قفل المايك"}</Button>
@@ -660,7 +663,7 @@ function RoomPage() {
                 </>
               )}
                {seatMenu.user_id && profiles[seatMenu.user_id] && <div className="mx-auto w-full max-w-sm rounded-3xl border border-primary/30 bg-gradient-to-br from-background/95 via-background/90 to-primary/10 p-3 text-right shadow-2xl ring-1 ring-gold/20" dir="rtl">
-  <div className="mb-2 flex items-center justify-between"><span className="text-[10px] font-bold text-primary">بطاقة تعريف 3D</span><span className="text-[10px] text-muted-foreground">لمس الصورة = الملف الكامل</span></div>
+  <div className="mb-2 flex items-center justify-end"><span className="text-[10px] font-bold text-primary">VOX ROYALE</span></div>
   <div className="flex items-center gap-3">
     <button type="button" onClick={() => nav({ to: "/u/$id", params: { id: seatMenu.user_id! } })} className="shrink-0 rounded-full ring-2 ring-primary/40 shadow-gold"><UserAvatar src={profiles[seatMenu.user_id]?.avatar_url} name={profiles[seatMenu.user_id]?.display_name || "مستخدم"} vip={profiles[seatMenu.user_id]?.vip_level} size={68} frameKey={profiles[seatMenu.user_id]?.equipped_frame} /></button>
     <div className="min-w-0 flex-1">
@@ -680,7 +683,7 @@ function RoomPage() {
     <Button size="sm" variant="outline" title="طرد" onClick={() => call("staff_kick_room_user", { _room: id, _user: seatMenu.user_id! })}><LogOut className="h-4 w-4" /></Button>
     <Button size="sm" variant="outline" title="كتم" onClick={() => call("staff_set_chat_mute", { _room: id, _user: seatMenu.user_id!, _muted: !chatMutedUser })}><VolumeX className="h-4 w-4" /></Button>
     <Button size="sm" variant="outline" title="إنزال من المايك" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick" })}><Ban className="h-4 w-4" /></Button>
-    {isOwner && <Button size="sm" variant="outline" title="مشرف" onClick={() => call("staff_set_room_moderator", { _room: id, _user: seatMenu.user_id!, _enabled: !targetIsModerator })}><Shield className="h-4 w-4" /></Button>}
+    {isOwner && <Button size="sm" variant="outline" title={targetIsModerator ? "إزالة الأدمن" : "إضافة أدمن"} onClick={() => call("staff_set_room_moderator", { _room: id, _user: seatMenu.user_id!, _enabled: !targetIsModerator })}><UserPlus className="h-4 w-4" /></Button>}
   </div>}
 </div>}
             </div>
@@ -752,7 +755,7 @@ function RoomPage() {
           <div className="space-y-2 p-4">
             {members.map((m) => (
               <div key={m} className="flex items-center justify-between rounded-xl bg-secondary/50 p-2">
-                <div className="flex items-center gap-2"><UserAvatar src={profiles[m]?.avatar_url} name={publicName(m)} vip={profiles[m]?.vip_level} size={44} frameKey={profiles[m]?.equipped_frame} /><div><span>{publicName(m)}</span><IdentityBadges level={profiles[m]?.level} vip={profiles[m]?.vip_level} /></div></div>
+                <div className="flex items-center gap-2"><UserAvatar src={profiles[m]?.avatar_url} name={publicName(m)} vip={profiles[m]?.vip_level} size={44} frameKey={profiles[m]?.equipped_frame} /><div><span>{publicName(m)}</span><span className="text-[10px] text-muted-foreground">ID {profiles[m]?.display_no ?? "—"}</span></div></div>
                 {isStaff && m !== uid && m !== room.owner_id && (
                   <div className="flex flex-wrap justify-end gap-1">
                     {!seats.some((seat) => seat.user_id === m) && <Button size="sm" onClick={async () => {
