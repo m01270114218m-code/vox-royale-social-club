@@ -42,6 +42,7 @@ function UserPage() {
   const [badges, setBadges] = useState<Badge[]>([]);
   const [currentRoom, setCurrentRoom] = useState<{ id: string; name: string; room_no: number } | null>(null);
   const [giftRows, setGiftRows] = useState<{ id: string; name: string; emoji: string; asset_key: string | null; asset_url?: string | null; quantity: number; total_price: number }[]>([]);
+  const [profileCardUrl, setProfileCardUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (id === uid) {
@@ -60,6 +61,7 @@ function UserPage() {
     (async () => {
       const { data } = await supabase.from("profiles").select("id,display_no,display_name,avatar_url,bio,country,level,vip_level,support_xp,total_gifts_received,total_gifts_value,profile_card_asset_key,chat_bubble_asset_key,sound_wave_asset_key,id_color,name_color,name_effect,name_effect_speed,equipped_frame,equipped_entry").eq("id", id).maybeSingle();
       setP(data);
+      if (data?.profile_card_asset_key) setProfileCardUrl(await getAdminAssetUrl(data.profile_card_asset_key));
       const [a, b, c, f, bl, badgeRows, graph, userPosts, roomResult, giftAgg] = await Promise.all([
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", id),
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", id),
@@ -128,7 +130,7 @@ function UserPage() {
   return (
     <div>
       <PageHeader title="الملف الشخصي الكامل" back />
-      <div className="mx-4 overflow-hidden rounded-[30px] border border-primary/30 bg-gradient-to-br from-primary/15 via-background to-gold/10 p-5 text-center shadow-2xl">
+      <div className="relative mx-4 overflow-hidden rounded-[30px] border border-primary/30 bg-gradient-to-br from-primary/15 via-background to-gold/10 p-5 text-center shadow-2xl">{profileCardUrl && <img src={profileCardUrl} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30" />}<div className="relative">
         <div className="mx-auto w-fit"><UserAvatar src={p.avatar_url} name={p.display_name} size={112} ring vip={p.vip_level} frameKey={p.equipped_frame} /></div>
         <h2 className={`mt-3 text-2xl font-bold ${p.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p.name_color || undefined, animationDuration: `${p.name_effect_speed || 1800}ms` }}>{flagOf(p.country)} {p.display_name}</h2>
         <div className="text-sm font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID: {p.display_no}</div><div className="mt-2 flex items-center justify-center gap-2"><span className="rounded-full bg-primary/15 px-3 py-1 text-xs font-black">Lv.{p.level}</span>{p.vip_level > 0 && <span className="rounded-full bg-gold/15 px-3 py-1 text-xs font-black text-gold">VIP {p.vip_level}</span>}</div>
