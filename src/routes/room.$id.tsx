@@ -628,7 +628,7 @@ function RoomPage() {
                 {p && <AdminAssetMedia src={s.is_muted ? voiceControls.muted_asset_url || icons3d.micMuted : voiceControls.mic_asset_url || (host ? icons3d.micHost : icons3d.mic)} alt={s.is_muted ? "مكتوم" : "على المقعد"} className={`absolute -bottom-1 -left-1 h-7 w-7 object-contain ${!s.is_muted && speakingUsers.includes(s.user_id!) ? "speaker-mic-pulse" : ""}`} videoClassName={`absolute -bottom-1 -left-1 h-7 w-7 object-contain ${!s.is_muted && speakingUsers.includes(s.user_id!) ? "speaker-mic-pulse" : ""}`} />}
                 {p && cosmeticUrls[p.id]?.wave && <AdminAssetMedia src={cosmeticUrls[p.id]!.wave} className="pointer-events-none absolute -inset-2 h-[calc(100%+16px)] w-[calc(100%+16px)] object-contain opacity-90" />}{p && voiceControls.show_mic_effect && voiceControls.effect_asset_url && <AdminAssetMedia src={voiceControls.effect_asset_url} className="pointer-events-none absolute inset-0 h-full w-full object-contain" />}
               </div>
-              <span className={`max-w-24 truncate text-xs font-bold ${p?.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p?.name_color || undefined, animationDuration: `${p?.name_effect_speed || 1800}ms` }}>{p ? p.display_name : s.seat_index + 1}</span>{p?.display_no && <span className="text-[10px] font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID {p.display_no}</span>}{p && badges[p.id] && <div className="flex items-center justify-center gap-1 text-[9px] font-bold" style={{ color: badges[p.id]?.badge_color || "#D4AF37" }}>✦ {badges[p.id]?.badge_name}</div>}
+              <span className={`max-w-24 truncate text-xs font-bold ${p?.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p?.name_color || undefined, animationDuration: `${p?.name_effect_speed || 1800}ms` }}>{p ? p.display_name : s.seat_index + 1}</span>{p?.display_no && <span className="text-[10px] font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID {p.display_no}</span>}{p && badges[p.id] && <IdentityBadges badge={badges[p.id]} />}
             </Button>
           );
         })}
@@ -732,7 +732,7 @@ function RoomPage() {
     <div className="min-w-0 flex-1">
       <button type="button" onClick={() => nav({ to: "/u/$id", params: { id: seatMenu.user_id! } })} className="max-w-full truncate text-right text-base font-bold" style={{ color: profiles[seatMenu.user_id]?.name_color || undefined }}>{profiles[seatMenu.user_id]?.display_name}</button>
       <div className="mt-0.5 text-xs font-bold" style={{ color: profiles[seatMenu.user_id]?.id_color || "#D4AF37" }}>ID {profiles[seatMenu.user_id]?.display_no}</div>
-      {badges[seatMenu.user_id] && <div className="mt-1 truncate text-[10px] font-bold" style={{ color: badges[seatMenu.user_id]?.badge_color || "#D4AF37" }}>✦ {badges[seatMenu.user_id]?.badge_name}</div>}
+      {badges[seatMenu.user_id] && <div className="mt-1"><IdentityBadges badge={badges[seatMenu.user_id]} /></div>}
     </div>
   </div>
   <div className="mt-3 grid grid-cols-4 gap-1 rounded-2xl bg-black/15 p-2 text-center text-[10px]"><div><b className="block text-sm">{cardStats.followers}</b>متابعون</div><div><b className="block text-sm">{cardStats.friends}</b>أصدقاء</div><div><b className="block text-sm">{cardStats.posts}</b>منشورات</div><div><b className="block text-sm">{cardStats.likes}</b>معجبون</div></div>
