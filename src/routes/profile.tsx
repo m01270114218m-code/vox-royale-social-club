@@ -167,7 +167,7 @@ function ProfilePage() {
               ["/store", "المتجر", icons3d.store],
               ["/bag", "حقيبتي", icons3d.chest],
               ["/vip", "VIP", icons3d.vip],
-              ["/wallet", "المحفظة", icons3d.coin],
+              ["/wallet", "المحفظة", icons3d.wallet],
               ["/diamonds", "الألماس", icons3d.diamond],
               ["/families", "العائلة", icons3d.family],
               ["/friends", "الأصدقاء", icons3d.friends],
