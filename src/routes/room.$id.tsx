@@ -206,6 +206,7 @@ function RoomPage() {
         return nav({ to: "/" });
       }
       if (!alive) return;
+      try { const mini = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string } | null; if (mini?.id === id) localStorage.removeItem("vox_minimized_room"); } catch { localStorage.removeItem("vox_minimized_room"); }
       setRoom(r as Room);
       joinCompleted = true;
       void announceRoomEntry();
@@ -344,12 +345,18 @@ function RoomPage() {
       alive = false;
       roomLive.current = null;
       supabase.removeChannel(ch);
-      // Defer leaving so a quick remount/reconnect cannot remove the fresh membership.
-      const timer = setTimeout(() => {
-        pendingRoomLeaves.delete(id);
-        void supabase.rpc("leave_room", { _room: id });
-      }, 1000);
-      pendingRoomLeaves.set(id, timer);
+      // Keep server membership and Agora alive when the user minimizes the room
+      // and navigates to another screen. The floating mini-room restores it later.
+      let isMinimized = false;
+      try { const mini = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string } | null; isMinimized = mini?.id === id; } catch { /* invalid marker: leave normally */ }
+      if (!isMinimized) {
+        // Defer leaving so a quick remount/reconnect cannot remove the fresh membership.
+        const timer = setTimeout(() => {
+          pendingRoomLeaves.delete(id);
+          void supabase.rpc("leave_room", { _room: id });
+        }, 1000);
+        pendingRoomLeaves.set(id, timer);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -601,10 +608,6 @@ function RoomPage() {
         <AppShell>
           <HomeScreen />
         </AppShell>
-        <button type="button" onClick={() => setRoomMinimized(false)} className="fixed bottom-24 right-4 z-[100] flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary bg-background shadow-2xl" aria-label="العودة إلى الغرفة">
-          <AdminAssetMedia src={roomCoverUrl || roomBackground(room.category)} className="h-full w-full rounded-full object-cover" />
-          <span className="absolute -bottom-1 -right-1 rounded-full bg-green-500 px-1.5 text-[10px] font-bold text-white">●</span>
-        </button>
       </>
     ) : <div className="room-scene mx-auto flex h-dvh max-w-2xl flex-col">
       <MediaImage src={roomBackground(room.category)} className="room-scenery" />
@@ -783,9 +786,10 @@ function RoomPage() {
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-5" dir="rtl">
           <div className="w-full max-w-sm space-y-3 rounded-2xl border border-primary/30 bg-background p-5 shadow-2xl">
             <div className="text-center text-lg font-bold">ماذا تريد أن تفعل؟</div>
-            <Button className="w-full" onClick={() => { setExitPrompt(false); setRoomMinimized(true); }}>تصغير الغرفة</Button>
+            <Button className="w-full" onClick={() => { localStorage.setItem("vox_minimized_room", JSON.stringify({ id, name: room.name, category: room.category, cover_url: room.cover_url })); setExitPrompt(false); setRoomMinimized(true); }}>تصغير الغرفة</Button>
             <Button variant="destructive" className="w-full" disabled={isLeavingRoom} onClick={async () => {
               setIsLeavingRoom(true);
+              localStorage.removeItem("vox_minimized_room");
               setExitPrompt(false);
               // Free the mic seat before removing room membership.
               const { error: seatError } = await supabase.rpc("leave_seat", { _room: id });
