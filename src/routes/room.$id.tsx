@@ -4,7 +4,7 @@ import { AdminAssetMedia } from "@/components/AdminAssetMedia";
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Gift, Settings, UserPlus, MessageCircle, DoorOpen, VolumeX, LogOut, Ban, Shield, Music2 } from "lucide-react";
+import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Gift, Settings, UserPlus, MessageCircle, DoorOpen, VolumeX, LogOut, Ban, Shield, Music2, Play, Pause, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { RoomSettings } from "@/components/RoomSettings";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +44,8 @@ type Msg = { id: string; user_id: string; body: string; created_at: string; kind
 type GiftT = { id: string; name: string; emoji: string; price: number; tier: string; asset_key?: string | null; asset_url?: string | null };
 type LuckyGiftT = { id: string; name: string; asset_key?: string | null; price: number; win_chance: number; min_reward: number; max_reward: number };
 type Room = { id: string; room_no: number; owner_id: string; name: string; description: string | null; category: string; country: string; seat_count: number; is_private?: boolean; cover_url?: string | null; mic_mode?: "request" | "direct" };
+
+function formatMusicTime(value: number) { const seconds = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0; return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`; }
 
 function normalizeSeats(rows: Seat[]): Seat[] {
   const seenUsers = new Set<string>();
@@ -85,7 +87,19 @@ function RoomPage() {
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
   const [micPermissionGranted, setMicPermissionGranted] = useState(false);
   const [musicFile, setMusicFile] = useState<File | null>(null);
-  const [speakingUsers, setSpeakingUsers] = useState<string[]>([]);
+  const [musicOpen, setMusicOpen] = useState(false);
+  const [musicProgress, setMusicProgress] = useState({ currentTime: 0, duration: 0, playing: false });
+  const [musicVolume, setMusicVolume] = useState(100);
+  const [musicCommand, setMusicCommand] = useState<{ id: number; action: "pause" | "resume" | "seek" | "volume"; value?: number } | null>(null);
+  const musicCommandId = useRef(0);
+  const sendMusicCommand = useCallback((action: "pause" | "resume" | "seek" | "volume", value?: number) => {
+    setMusicCommand({ id: ++musicCommandId.current, action, value });
+  }, []);
+  const onMusicProgress = useCallback((progress: { currentTime: number; duration: number; playing: boolean }) => {
+    setMusicProgress(progress);
+  }, []);
+  const speakingUsersState = useState<string[]>([]);
+  const [speakingUsers, setSpeakingUsers] = speakingUsersState;
   const [micRequests, setMicRequests] = useState<{ id: string; user_id: string; created_at: string }[]>([]);
   const [myMicRequest, setMyMicRequest] = useState<{ id: string } | null>(null);
   const [chatMutedUser, setChatMutedUser] = useState(false);
@@ -521,7 +535,43 @@ function RoomPage() {
   const cols = room.seat_count <= 4 ? "grid-cols-4" : room.seat_count === 6 || room.seat_count === 9 ? "grid-cols-3" : "grid-cols-4";
 
   return (
-    <><RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} musicFile={musicFile} onSpeakingUsers={handleSpeakingUsers} />
+    <><RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} musicFile={musicFile} musicCommand={musicCommand} onMusicProgress={onMusicProgress} onSpeakingUsers={handleSpeakingUsers} />
+    <input id="room-music-file" type="file" accept="audio/*" className="hidden" onChange={(e) => {
+      const file = e.target.files?.[0] ?? null;
+      e.currentTarget.value = "";
+      if (!file) return;
+      if (!myMicEnabled || !micPermissionGranted) { toast.error("يجب أن تكون على الميك أولاً حتى يسمع الجميع الأغنية"); return; }
+      setMusicProgress({ currentTime: 0, duration: 0, playing: true });
+      setMusicFile(file);
+      setMusicOpen(true);
+    }} />
+    {myMicEnabled && micPermissionGranted && <Button type="button" onClick={() => setMusicOpen(true)} className="fixed bottom-24 left-4 z-[95] h-14 w-14 rounded-full border border-gold/50 bg-gold text-black shadow-2xl" aria-label="مشغل الموسيقى" title="مشغل الموسيقى"><Music2 className="h-6 w-6" />{musicFile && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-green-500 ring-2 ring-background" />}</Button>}
+    <Sheet open={musicOpen} onOpenChange={setMusicOpen}>
+      <SheetContent side="bottom" dir="rtl" className="rounded-t-3xl border-gold/20">
+        <SheetHeader><SheetTitle className="flex items-center gap-2"><Music2 className="h-5 w-5 text-gold" /> مشغل موسيقى الغرفة</SheetTitle></SheetHeader>
+        <div className="space-y-4 p-4">
+          <div className="rounded-2xl border border-primary/20 bg-secondary/40 p-3">
+            <div className="truncate text-sm font-bold">{musicFile?.name ?? "لم يتم اختيار أغنية بعد"}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{musicFile ? "يتم بث الصوت للموجودين في الغرفة عبر Agora" : "اختر ملفاً صوتياً من جهازك لتشغيله للجميع"}</div>
+            <label htmlFor="room-music-file" className="mt-3 flex cursor-pointer items-center justify-center rounded-xl bg-gold px-4 py-2 text-sm font-bold text-black">{musicFile ? "تغيير الأغنية" : "اختيار أغنية من الجهاز"}</label>
+          </div>
+          {musicFile && <>
+            <div className="flex items-center justify-center gap-3">
+              <Button type="button" variant="outline" size="icon" onClick={() => sendMusicCommand("seek", Math.max(0, musicProgress.currentTime - 10))} aria-label="رجوع 10 ثوان"><SkipBack className="h-5 w-5" /></Button>
+              <Button type="button" className="h-12 w-12 rounded-full bg-gold text-black" onClick={() => sendMusicCommand(musicProgress.playing ? "pause" : "resume")} aria-label={musicProgress.playing ? "إيقاف مؤقت" : "استكمال التشغيل"}>{musicProgress.playing ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}</Button>
+              <Button type="button" variant="outline" size="icon" onClick={() => sendMusicCommand("seek", Math.min(musicProgress.duration, musicProgress.currentTime + 10))} aria-label="تقديم 10 ثوان"><SkipForward className="h-5 w-5" /></Button>
+            </div>
+            <div className="space-y-1">
+              <input aria-label="تقديم أو إرجاع الأغنية" type="range" min="0" max={Math.max(1, musicProgress.duration)} step="0.5" value={Math.min(musicProgress.currentTime, musicProgress.duration || 0)} onChange={(e) => sendMusicCommand("seek", Number(e.target.value))} className="w-full accent-[hsl(var(--primary))]" />
+              <div className="flex justify-between text-[11px] tabular-nums text-muted-foreground" dir="ltr"><span>{formatMusicTime(musicProgress.currentTime)}</span><span>{formatMusicTime(musicProgress.duration)}</span></div>
+            </div>
+            <div className="flex items-center gap-3"><Volume2 className="h-5 w-5 shrink-0 text-gold" /><input aria-label="مستوى صوت بث الأغنية" type="range" min="0" max="100" value={musicVolume} onChange={(e) => { const next = Number(e.target.value); setMusicVolume(next); sendMusicCommand("volume", next * 10); }} className="w-full accent-[hsl(var(--primary))]" /><span className="w-10 text-left text-xs tabular-nums">{musicVolume}%</span></div>
+            <Button type="button" variant="destructive" className="w-full" onClick={() => { setMusicFile(null); setMusicProgress({ currentTime: 0, duration: 0, playing: false }); }}>إيقاف الأغنية وإزالة الملف</Button>
+          </>}
+          <p className="text-center text-[11px] text-muted-foreground">البث متاح فقط أثناء وجودك على الميكروفون.</p>
+        </div>
+      </SheetContent>
+    </Sheet>
     {roomMinimized ? (
       <>
         <AppShell>
@@ -596,7 +646,7 @@ function RoomPage() {
         <div ref={chatEnd} />
       </div>
 
-      <form onSubmit={send} className="glass m-3 flex items-center gap-2 rounded-full p-2"><input id="room-music-file" type="file" accept="audio/*" className="hidden" onChange={(e)=>{const file=e.target.files?.[0] ?? null;if(!file)return;if(!myMicEnabled || !micPermissionGranted){toast.error("يجب أن تكون على الميك أولاً حتى يسمع الجميع الأغنية");e.currentTarget.value="";return;}setMusicFile(file);}} />
+      <form onSubmit={send} className="glass m-3 flex items-center gap-2 rounded-full p-2">
         {!mySeat && <Button type="button" variant="ghost" size="icon" onClick={async () => { const { error } = await supabase.rpc("take_any_seat", { _room: id }); if (error) toast.error(errMsg(error)); else { await syncRoomSeats(); toast.success("تم الصعود للميك مباشرة"); } }} aria-label="صعود مباشر للميك" title="صعود مباشر للميك"><Mic className="h-7 w-7" /></Button>}
         {mySeat && (
           <Button type="button" variant="ghost" size="icon" onClick={async () => {
@@ -619,7 +669,7 @@ function RoomPage() {
             if (!mySeat.is_muted) await call("toggle_my_mute", { _room: id });
           }} aria-label="المايك" title="المايك"><img src={mySeat.is_muted || !micPermissionGranted ? icons3d.micMuted : icons3d.mic} alt="" className="h-8 w-8 object-contain" /></Button>
         )}
-        <label htmlFor="room-music-file" className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full hover:bg-secondary" title={musicFile ? "تغيير الأغنية" : "تشغيل أغنية من الجهاز"}><Music2 className={musicFile ? "h-6 w-6 text-gold" : "h-6 w-6"} /></label><Button type="button" variant="ghost" size="icon" onClick={() => {setMusicFile(null);}} aria-label="إيقاف الأغنية" title="إيقاف الأغنية"><Music2 className="h-5 w-5 text-destructive" /></Button><Button type="button" variant="ghost" size="icon" onClick={() => openGifts()} aria-label="هدية" title="هدية"><img src={icons3d.giftbox} alt="" className="h-8 w-8 object-contain" /></Button>
+        <Button type="button" variant="ghost" size="icon" onClick={() => openGifts()} aria-label="هدية" title="هدية"><img src={icons3d.giftbox} alt="" className="h-8 w-8 object-contain" /></Button>
         <Input value={text} onChange={(e) => setText(e.target.value)} maxLength={500} placeholder="اكتب رسالة…" className="border-0 bg-transparent" />
         <Button type="submit" size="icon" aria-label="إرسال" title="إرسال" className="rounded-full bg-gold"><img src={icons3d.send} alt="" className="h-7 w-7 object-contain" /></Button>
       </form>
