@@ -37,22 +37,16 @@ function ProfilePage() {
   const nav = useNavigate();
   const [p, setP] = useState<P | null>(null);
   const [draft, setDraft] = useState<P | null>(null);
-  const [wallet, setWallet] = useState({ coins: 0, diamonds: 0 });
   const [editing, setEditing] = useState(false);
-  const [txs, setTxs] = useState<{ id: string; currency: string; amount: number; reason: string; created_at: string; display_name?: string | null }[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [stats, setStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0 });
   const [linkEmail, setLinkEmail] = useState("");
   const isGuest = !!user?.is_anonymous;
-  async function loadTx() {
-    const { data } = await supabase.from("wallet_transactions").select("id,currency,amount,reason,created_at,profiles(display_name)").order("created_at", { ascending: false }).limit(20);
-    if (data) setTxs(data.map((d) => ({ ...d, display_name: (d.profiles as { display_name?: string | null } | null)?.display_name ?? p?.display_name ?? null, amount: Number(d.amount) })));
-  }
   async function daily() {
     const { error } = await supabase.rpc("claim_daily_bonus");
     if (error) { toast.error(errMsg(error)); return; }
     setWallet((w) => ({ ...w, coins: w.coins + 200 }));
     toast.success("+200 عملة 🎉");
-    loadTx();
   }
   async function link() {
     const { error } = await supabase.auth.updateUser({ email: linkEmail });
@@ -73,14 +67,9 @@ function ProfilePage() {
     (async () => {
       const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
       if (data) setP(data as P);
-      const [{ data: w }, { data: badgeRows, error: badgeError }] = await Promise.all([
-        supabase.from("wallets").select("coins,diamonds").eq("user_id", user!.id).maybeSingle(),
-        supabase.from("user_badges").select("id,badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", user!.id),
-      ]);
+      const { data: badgeRows, error: badgeError } = await supabase.from("user_badges").select("id,badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", user!.id);
       if (alive && !badgeError) setBadges((badgeRows ?? []) as Badge[]);
-      loadTx();
-      if (alive && w) setWallet({ coins: Number(w.coins), diamonds: Number(w.diamonds) });
-    })();
+      })();
     return () => { alive = false; void supabase.removeChannel(channel); };
   }, [user]);
 
@@ -120,6 +109,28 @@ function ProfilePage() {
     toast.success("تم الحفظ");
   }
 
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const [{ data: follows }, { data: posts }] = await Promise.all([
+        supabase.from("follows").select("follower_id,following_id").or(`follower_id.eq.${user.id},following_id.eq.${user.id}`),
+        supabase.from("posts").select("id").eq("user_id", user.id),
+      ]);
+      const rows = follows ?? [];
+      const followerIds = new Set(rows.filter((r) => r.following_id === user.id).map((r) => r.follower_id));
+      const followingIds = new Set(rows.filter((r) => r.follower_id === user.id).map((r) => r.following_id));
+      const friends = [...followerIds].filter((id) => followingIds.has(id)).length;
+      const postIds = (posts ?? []).map((r) => r.id);
+      let likes = 0;
+      if (postIds.length) {
+        const { count } = await supabase.from("post_likes").select("id", { count: "exact", head: true }).in("post_id", postIds);
+        likes = count ?? 0;
+      }
+      if (!cancelled) setStats({ followers: followerIds.size, friends, posts: postIds.length, likes });
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
   if (!p) return null;
   const shown = editing && draft ? draft : p;
   return (
@@ -136,17 +147,18 @@ function ProfilePage() {
         <div className="text-sm font-bold" style={{ color: shown.id_color || "#D4AF37" }}>ID: {p.display_no}</div>
         <IdentityBadges level={p.level} vip={p.vip_level} badge={badges.find((b) => b.is_equipped) ?? null} /><p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
         {editing && <div className="mt-2 text-xs text-primary">معاينة — لم يتم الحفظ بعد</div>}
+        <div className="mt-4 grid grid-cols-4 gap-2 rounded-2xl border border-primary/20 bg-black/10 p-3 text-center">
+          <div><div className="text-xl font-bold">{stats.followers}</div><div className="text-[11px] text-muted-foreground">المتابعون</div></div>
+          <div><div className="text-xl font-bold">{stats.friends}</div><div className="text-[11px] text-muted-foreground">الأصدقاء</div></div>
+          <div><div className="text-xl font-bold">{stats.posts}</div><div className="text-[11px] text-muted-foreground">المنشورات</div></div>
+          <div><div className="text-xl font-bold">{stats.likes}</div><div className="text-[11px] text-muted-foreground">المعجبون</div></div>
+        </div>
       </div>
 
       <section className="glass mt-4 rounded-2xl p-4 text-right">
         <div className="mb-3 font-bold">شاراتي</div>
         <div className="flex flex-wrap gap-2">{badges.length === 0 ? <span className="text-xs text-muted-foreground">لا توجد شارات بعد</span> : badges.map((b) => <button key={b.id} type="button" onClick={async () => { const { error } = await supabase.rpc("equip_badge", { _badge: b.id, _equip: !b.is_equipped }); if (error) toast.error(errMsg(error)); else { setBadges((xs) => xs.map((x) => ({ ...x, is_equipped: x.id === b.id ? !b.is_equipped : false }))); toast.success(!b.is_equipped ? "تم تعيين الشارة" : "تمت إزالة الشارة"); } }} className="rounded-2xl border p-2 text-center text-xs" style={{ borderColor: b.badge_color }}><div>{b.badge_name}</div>{b.is_equipped && <div className="text-[10px] text-primary">مجهزة</div>}</button>)}</div>
       </section>
-
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="glass flex items-center gap-3 rounded-2xl p-4"><img src={icons3d.coin} alt="" className="h-12 w-12 object-contain" /><div><div className="text-xl font-bold">{wallet.coins}</div><div className="text-xs text-muted-foreground">عملات ذهبية</div></div></div>
-        <div className="glass flex items-center gap-3 rounded-2xl p-4"><img src={icons3d.diamond} alt="" className="h-12 w-12 object-contain" /><div><div className="text-xl font-bold">{wallet.diamonds}</div><div className="text-xs text-muted-foreground">ماسات</div></div></div>
-      </div>
 
       {editing && draft ? (
         <div className="glass mt-4 space-y-3 rounded-3xl p-4">
@@ -201,17 +213,3 @@ function ProfilePage() {
           }}><img src={icons3d.logout} alt="" className="h-6 w-6 object-contain" /> تسجيل الخروج</Button>
         </div>
       )}
-      {!editing && (
-        <div className="glass mt-4 rounded-3xl p-4">
-          <h3 className="mb-2 font-bold">سجل المحفظة — {p?.display_name ?? "حسابي"}</h3>
-          {txs.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد معاملات بعد</p> : txs.map((t) => (
-            <div key={t.id} className="flex justify-between border-b border-border py-2 text-sm last:border-0">
-              <span>{({ gift_sent: "هدية مرسلة", gift_received: "هدية مستلمة", daily_bonus: "مكافأة يومية", vip_purchase: "شراء VIP" } as Record<string, string>)[t.reason] ?? t.reason}</span>
-              <span className={t.amount < 0 ? "text-destructive" : "text-primary"}>{t.amount > 0 ? "+" : ""}{t.amount} {t.currency === "coins" ? "🪙" : "💎"}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
