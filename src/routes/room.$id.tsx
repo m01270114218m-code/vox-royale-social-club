@@ -91,6 +91,8 @@ function RoomPage() {
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
   const [micPermissionGranted, setMicPermissionGranted] = useState(false);
   const [musicFile, setMusicFile] = useState<File | null>(null);
+  const [musicQueue, setMusicQueue] = useState<File[]>([]);
+  const [musicQueueIndex, setMusicQueueIndex] = useState(0);
   const [musicOpen, setMusicOpen] = useState(false);
   const [musicProgress, setMusicProgress] = useState({ currentTime: 0, duration: 0, playing: false });
   const [musicVolume, setMusicVolume] = useState(100);
@@ -689,42 +691,69 @@ function RoomPage() {
 
   return (
     <>{!roomMinimized && <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} musicFile={musicFile} musicCommand={musicCommand} onMusicProgress={onMusicProgress} onSpeakingUsers={handleSpeakingUsers} />}
-    <input id="room-music-file" type="file" accept="audio/*" className="hidden" onChange={(e) => {
-      const file = e.target.files?.[0] ?? null;
+
+    <input id="room-music-file" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.flac" multiple className="hidden" onChange={(e) => {
+      const files = Array.from(e.target.files ?? []);
       e.currentTarget.value = "";
-      if (!file) return;
-      if (!myMicEnabled || !micPermissionGranted) { toast.error("يجب أن تكون على الميك أولاً حتى يسمع الجميع الأغنية"); return; }
+      if (!files.length) return;
+      if (!myMicEnabled || !micPermissionGranted) { toast.error("يجب أن تكون على الميك أولاً حتى يسمع الجميع الأغاني"); return; }
+      const playable = files.filter((file) => file.type.startsWith("audio/") || /\\.(mp3|m4a|aac|wav|ogg|flac)$/i.test(file.name));
+      if (!playable.length) { toast.error("لم يتم العثور على ملفات صوتية مدعومة"); return; }
+      setMusicQueue(playable);
+      setMusicQueueIndex(0);
       setMusicProgress({ currentTime: 0, duration: 0, playing: true });
-      setMusicFile(file);
-      setMusicOpen(true);
+      setMusicFile(playable[0]);
+      setMusicOpen(false);
     }} />
     {myMicEnabled && micPermissionGranted && <Button type="button" onClick={() => setMusicOpen(true)} className="fixed bottom-24 left-4 z-[95] h-14 w-14 rounded-full border border-gold/50 bg-gold text-black shadow-2xl" aria-label="مشغل الموسيقى" title="مشغل الموسيقى"><Music2 className="h-6 w-6" />{musicFile && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-green-500 ring-2 ring-background" />}</Button>}
     <Sheet open={musicOpen} onOpenChange={setMusicOpen}>
-      <SheetContent side="bottom" dir="rtl" className="rounded-t-3xl border-gold/20">
+      <SheetContent side="bottom" dir="rtl" className="max-h-[88dvh] overflow-y-auto rounded-t-3xl border-gold/20">
         <SheetHeader><SheetTitle className="flex items-center gap-2"><Music2 className="h-5 w-5 text-gold" /> مشغل موسيقى الغرفة</SheetTitle></SheetHeader>
         <div className="space-y-4 p-4">
           <div className="rounded-2xl border border-primary/20 bg-secondary/40 p-3">
             <div className="truncate text-sm font-bold">{musicFile?.name ?? "لم يتم اختيار أغنية بعد"}</div>
-            <div className="mt-1 text-xs text-muted-foreground">{musicFile ? "يتم بث الصوت للموجودين في الغرفة عبر Agora" : "اختر ملفاً صوتياً من جهازك لتشغيله للجميع"}</div>
-            <label htmlFor="room-music-file" className="mt-3 flex cursor-pointer items-center justify-center rounded-xl bg-gold px-4 py-2 text-sm font-bold text-black">{musicFile ? "تغيير الأغنية" : "اختيار أغنية من الجهاز"}</label>
+            <div className="mt-1 text-xs text-muted-foreground">{musicFile ? "صوت الأغنية يُبث للموجودين في الغرفة عبر Agora" : "استورد أغانيك من ملفات الجهاز لتشغيلها للجميع"}</div>
+            <label htmlFor="room-music-file" className="mt-3 flex cursor-pointer items-center justify-center rounded-xl bg-gold px-4 py-3 text-sm font-bold text-black"><Music2 className="ml-2 h-4 w-4" /> استيراد أغاني من الجهاز</label>
           </div>
+          {musicQueue.length > 0 && <div className="space-y-2">
+            <div className="flex items-center justify-between"><span className="text-sm font-bold">قائمة التشغيل</span><span className="text-xs text-muted-foreground">{musicQueue.length} أغنية</span></div>
+            <div className="max-h-44 space-y-1 overflow-y-auto">
+              {musicQueue.map((file, index) => <button key={index + file.name} type="button" onClick={() => { setMusicQueueIndex(index); setMusicFile(file); setMusicProgress({ currentTime: 0, duration: 0, playing: true }); }} className={musicQueueIndex === index ? "flex w-full items-center gap-3 rounded-xl border border-gold/50 bg-gold/10 px-3 py-2 text-right" : "flex w-full items-center gap-3 rounded-xl border border-white/10 bg-black/10 px-3 py-2 text-right"}>
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gold/15 text-gold"><Music2 className="h-4 w-4" /></span>
+                <span className="min-w-0 flex-1 truncate text-xs font-semibold">{file.name}</span>
+                {musicQueueIndex === index && musicProgress.playing && <span className="text-[10px] text-emerald-400">يعمل الآن</span>}
+              </button>)}
+            </div>
+          </div>}
           {musicFile && <>
             <div className="flex items-center justify-center gap-3">
-              <Button type="button" variant="outline" size="icon" onClick={() => sendMusicCommand("seek", Math.max(0, musicProgress.currentTime - 10))} aria-label="رجوع 10 ثوان"><SkipBack className="h-5 w-5" /></Button>
+              <Button type="button" variant="outline" size="icon" disabled={musicQueueIndex <= 0} onClick={() => { const index = Math.max(0, musicQueueIndex - 1); setMusicQueueIndex(index); setMusicFile(musicQueue[index]); setMusicProgress({ currentTime: 0, duration: 0, playing: true }); }} aria-label="الأغنية السابقة"><SkipBack className="h-5 w-5" /></Button>
               <Button type="button" className="h-12 w-12 rounded-full bg-gold text-black" onClick={() => sendMusicCommand(musicProgress.playing ? "pause" : "resume")} aria-label={musicProgress.playing ? "إيقاف مؤقت" : "استكمال التشغيل"}>{musicProgress.playing ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}</Button>
-              <Button type="button" variant="outline" size="icon" onClick={() => sendMusicCommand("seek", Math.min(musicProgress.duration, musicProgress.currentTime + 10))} aria-label="تقديم 10 ثوان"><SkipForward className="h-5 w-5" /></Button>
+              <Button type="button" variant="outline" size="icon" disabled={musicQueueIndex >= musicQueue.length - 1} onClick={() => { const index = Math.min(musicQueue.length - 1, musicQueueIndex + 1); setMusicQueueIndex(index); setMusicFile(musicQueue[index]); setMusicProgress({ currentTime: 0, duration: 0, playing: true }); }} aria-label="الأغنية التالية"><SkipForward className="h-5 w-5" /></Button>
             </div>
             <div className="space-y-1">
               <input aria-label="تقديم أو إرجاع الأغنية" type="range" min="0" max={Math.max(1, musicProgress.duration)} step="0.5" value={Math.min(musicProgress.currentTime, musicProgress.duration || 0)} onChange={(e) => sendMusicCommand("seek", Number(e.target.value))} className="w-full accent-[hsl(var(--primary))]" />
               <div className="flex justify-between text-[11px] tabular-nums text-muted-foreground" dir="ltr"><span>{formatMusicTime(musicProgress.currentTime)}</span><span>{formatMusicTime(musicProgress.duration)}</span></div>
             </div>
             <div className="flex items-center gap-3"><Volume2 className="h-5 w-5 shrink-0 text-gold" /><input aria-label="مستوى صوت بث الأغنية" type="range" min="0" max="100" value={musicVolume} onChange={(e) => { const next = Number(e.target.value); setMusicVolume(next); sendMusicCommand("volume", next); }} className="w-full accent-[hsl(var(--primary))]" /><span className="w-10 text-left text-xs tabular-nums">{musicVolume}%</span></div>
-            <Button type="button" variant="destructive" className="w-full" onClick={() => { setMusicFile(null); setMusicProgress({ currentTime: 0, duration: 0, playing: false }); }}>إيقاف الأغنية وإزالة الملف</Button>
+            <Button type="button" variant="destructive" className="w-full" onClick={() => { setMusicFile(null); setMusicQueue([]); setMusicQueueIndex(0); setMusicProgress({ currentTime: 0, duration: 0, playing: false }); }}>إيقاف الأغاني وإزالة القائمة</Button>
           </>}
-          <p className="text-center text-[11px] text-muted-foreground">البث متاح فقط أثناء وجودك على الميكروفون.</p>
+          <p className="text-center text-[11px] text-muted-foreground">البث الجماعي متاح أثناء وجودك على الميكروفون. اختيار الملفات يتم من نافذة ملفات الجهاز.</p>
         </div>
       </SheetContent>
     </Sheet>
+    {musicFile && myMicEnabled && micPermissionGranted && !musicOpen && !roomMinimized && (
+      <div className="fixed bottom-3 left-3 right-3 z-[94] mx-auto flex max-w-xl items-center gap-3 rounded-2xl border border-gold/30 bg-[#17131f]/95 p-3 shadow-2xl backdrop-blur-xl" dir="rtl">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold/15 text-gold"><Music2 className="h-5 w-5" /></div>
+        <button type="button" onClick={() => setMusicOpen(true)} className="min-w-0 flex-1 text-right">
+          <div className="truncate text-xs font-bold">{musicFile.name}</div>
+          <div className="mt-1 text-[10px] text-emerald-300">{musicProgress.playing ? "يتم بث الأغنية للغرفة" : "متوقف مؤقتًا"} · {musicQueueIndex + 1}/{Math.max(1, musicQueue.length)}</div>
+        </button>
+        <Button type="button" variant="ghost" size="icon" onClick={() => sendMusicCommand(musicProgress.playing ? "pause" : "resume")} aria-label={musicProgress.playing ? "إيقاف مؤقت" : "تشغيل"}>{musicProgress.playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}</Button>
+        <Button type="button" variant="ghost" size="icon" disabled={musicQueueIndex >= musicQueue.length - 1} onClick={() => { const index = musicQueueIndex + 1; setMusicQueueIndex(index); setMusicFile(musicQueue[index]); setMusicProgress({ currentTime: 0, duration: 0, playing: true }); }} aria-label="التالي"><SkipForward className="h-5 w-5" /></Button>
+        <Button type="button" variant="ghost" size="icon" onClick={() => setMusicOpen(true)} aria-label="فتح قائمة الأغاني"><ArrowRight className="h-5 w-5" /></Button>
+      </div>
+    )}
     {roomMinimized ? (
       <>
         <AppShell>
