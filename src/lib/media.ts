@@ -24,6 +24,8 @@ const cacheSet = (map: Map<string, CachedUrl>, key: string, url: string, ttlMs: 
 
 async function compressImage(file: File): Promise<File> {
   if (!ALLOWED.includes(file.type)) throw new Error("يسمح فقط بالصور (JPG, PNG, WEBP, GIF)");
+  // Preserve animated GIF frames and original transparency; canvas conversion would flatten animation.
+  if (file.type === "image/gif") return file;
   if (file.size <= 900 * 1024 && file.type === "image/webp") return file;
   const bitmap = await createImageBitmap(file).catch(() => null);
   if (!bitmap) {
