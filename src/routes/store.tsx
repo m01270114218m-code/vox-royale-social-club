@@ -43,6 +43,9 @@ function StorePage() {
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [equippedFrame, setEquippedFrame] = useState<string | null>(null);
   const [equippedEntry, setEquippedEntry] = useState<string | null>(null);
+  const [equippedBubble, setEquippedBubble] = useState<string | null>(null);
+  const [equippedWave, setEquippedWave] = useState<string | null>(null);
+  const [equippedCard, setEquippedCard] = useState<string | null>(null);
   useEffect(() => {
     if (!user) return;
     const live = supabase.channel(`store-live-${user.id}`)
@@ -53,12 +56,13 @@ function StorePage() {
       .subscribe();
     (async () => {
       const [{ data: p }, { data: si }, { data: ui }] = await Promise.all([
-        supabase.from("profiles").select("equipped_frame, equipped_entry").eq("id", user!.id).single(),
+        supabase.from("profiles").select("equipped_frame, equipped_entry, chat_bubble_asset_key, sound_wave_asset_key, profile_card_asset_key").eq("id", user!.id).single(),
         supabase.from("store_items").select("id, kind, name, description, price, asset_key").order("sort_order"),
         supabase.from("user_items").select("item_id").eq("user_id", user!.id),
       ]);
       setEquippedFrame(p?.equipped_frame ?? null);
       setEquippedEntry(p?.equipped_entry ?? null);
+      setEquippedBubble(p?.chat_bubble_asset_key ?? null); setEquippedWave(p?.sound_wave_asset_key ?? null); setEquippedCard(p?.profile_card_asset_key ?? null);
       const enrichedItems = await Promise.all((si ?? []).map(async (item) => ({ ...item, asset_url: await getAdminAssetUrl(item.asset_key) })));
       setItems(enrichedItems);
       setOwned(new Set((ui ?? []).map((r) => r.item_id)));
@@ -77,6 +81,9 @@ function StorePage() {
     if (error) { toast.error(errMsg(error)); return; }
     if (item.kind === "frame") setEquippedFrame(on ? item.asset_key : null);
     if (item.kind === "entry") setEquippedEntry(on ? item.asset_key : null);
+    if (item.kind === "bubble") setEquippedBubble(on ? item.asset_key : null);
+    if (item.kind === "sound_wave") setEquippedWave(on ? item.asset_key : null);
+    if (item.kind === "profile_card") setEquippedCard(on ? item.asset_key : null);
     toast.success(on ? `تم تجهيز ${item.name}` : "تمت الإزالة");
   }
   return (
@@ -136,6 +143,18 @@ function StorePage() {
             })}
           </div>
         </section>
+        {(["bubble","sound_wave","profile_card"] as const).map((kind) => {
+          const title = kind === "bubble" ? "فقاعات الكتابة" : kind === "sound_wave" ? "موجات الصوت" : "بطاقات التعريف";
+          const equipped = kind === "bubble" ? equippedBubble : kind === "sound_wave" ? equippedWave : equippedCard;
+          return <section key={kind}><h2 className="mb-2 font-bold">{title}</h2><div className="grid grid-cols-2 gap-3">{items.filter(i => i.kind === kind).map(item => {
+            const isOwned = owned.has(item.id); const isEquipped = equipped === item.asset_key;
+            return <div key={item.id} className={`card-3d glass rounded-3xl p-4 text-center ${isEquipped ? "ring-2 ring-primary" : ""}`}>
+              <div className="mx-auto mb-2 h-20 w-20 overflow-hidden rounded-2xl bg-secondary">{item.asset_url ? <img src={item.asset_url} alt={item.name} className="h-full w-full object-contain"/> : null}</div>
+              <b className="text-sm">{item.name}</b><p className="min-h-8 text-xs text-muted-foreground">{item.description}</p>
+              {isOwned ? <Button size="sm" variant={isEquipped ? "outline" : "default"} className="mt-2 w-full" onClick={() => equip(item,!isEquipped)}>{isEquipped ? "إزالة" : "تجهيز"}</Button> : <Button size="sm" className="mt-2 w-full bg-gold" onClick={() => buyItem(item)}><img src={icons3d.coin} alt="" className="h-5 w-5 object-contain"/>{item.price.toLocaleString()}</Button>}
+            </div>;
+          })}</div></section>;
+        })}
         <section>
           <h2 className="mb-2 font-bold">شحن العملات</h2>
           <div className="grid grid-cols-2 gap-3">
