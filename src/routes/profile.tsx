@@ -50,6 +50,7 @@ function ProfilePage() {
   const [p, setP] = useState<P | null>(null);
   const [draft, setDraft] = useState<P | null>(null);
   const [wallet, setWallet] = useState({ coins: 0, diamonds: 0 });
+  const [socialStats, setSocialStats] = useState({ followers: 0, following: 0, friends: 0, posts: 0, supportCoins: 0, supportDiamonds: 0, supporters: 0 });
   const [editing, setEditing] = useState(false);
   const [txs, setTxs] = useState<{ id: string; currency: string; amount: number; reason: string; created_at: string; display_name?: string | null }[]>([]);
   const [ownedItems, setOwnedItems] = useState<OwnedStoreItem[]>([]);
@@ -93,13 +94,15 @@ function ProfilePage() {
       const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
       if (data) setP(data as P);
       await loadOwnedItems(user!.id);
-      const [{ data: w }, { data: badgeRows, error: badgeError }] = await Promise.all([
+      const [{ data: w }, { data: badgeRows, error: badgeError }, { data: publicStats }] = await Promise.all([
         supabase.from("wallets").select("coins,diamonds").eq("user_id", user!.id).maybeSingle(),
         supabase.from("user_badges").select("id,badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", user!.id),
+        supabase.rpc("get_public_profile_stats", { _profile: user!.id }),
       ]);
       if (alive && !badgeError) setBadges((badgeRows ?? []) as Badge[]);
       loadTx();
       if (alive && w) setWallet({ coins: Number(w.coins), diamonds: Number(w.diamonds) });
+      if (alive && publicStats?.[0]) setSocialStats({ followers: Number(publicStats[0].followers), following: Number(publicStats[0].following), friends: Number(publicStats[0].friends), posts: Number(publicStats[0].posts), supportCoins: Number(publicStats[0].support_coins), supportDiamonds: Number(publicStats[0].support_diamonds), supporters: Number(publicStats[0].supporters) });
     })();
     return () => { alive = false; void supabase.removeChannel(channel); };
   }, [user]);
@@ -176,6 +179,7 @@ function ProfilePage() {
         )}
       </section>
 
+      <div className="glass mt-4 grid grid-cols-3 gap-2 rounded-2xl p-3 text-center"><div><div className="font-bold">{socialStats.followers}</div><div className="text-[11px] text-muted-foreground">المتابعون</div></div><div><div className="font-bold">{socialStats.friends}</div><div className="text-[11px] text-muted-foreground">الأصدقاء</div></div><div><div className="font-bold">{socialStats.following}</div><div className="text-[11px] text-muted-foreground">يتابع</div></div><div><div className="font-bold">{socialStats.posts}</div><div className="text-[11px] text-muted-foreground">المنشورات</div></div><div><div className="font-bold">{socialStats.supporters}</div><div className="text-[11px] text-muted-foreground">الداعمون</div></div><div><div className="font-bold">{socialStats.supportDiamonds.toLocaleString("en-US")}</div><div className="text-[11px] text-muted-foreground">ألماس الدعم</div></div></div>
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="glass flex items-center gap-3 rounded-2xl p-4"><img src={icons3d.coin} alt="" className="h-12 w-12 object-contain" /><div><div className="text-xl font-bold">{wallet.coins}</div><div className="text-xs text-muted-foreground">عملات ذهبية</div></div></div>
         <div className="glass flex items-center gap-3 rounded-2xl p-4"><img src={icons3d.diamond} alt="" className="h-12 w-12 object-contain" /><div><div className="text-xl font-bold">{wallet.diamonds}</div><div className="text-xs text-muted-foreground">ماسات</div></div></div>
