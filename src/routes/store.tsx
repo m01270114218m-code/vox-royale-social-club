@@ -14,9 +14,9 @@ import { AdminAssetMedia } from "@/components/AdminAssetMedia";
 export const Route = createFileRoute("/store")({
   head: () => ({
     meta: [
-      { title: "المتجر — VOX ROYALE" },
-      { name: "description", content: "شراء الإطارات والدخوليات وشحن العملات في VOX ROYALE." },
-      { property: "og:title", content: "المتجر — VOX ROYALE" },
+      { title: "المتجر — صدى شات" },
+      { name: "description", content: "شراء الإطارات والدخوليات وشحن العملات في صدى شات." },
+      { property: "og:title", content: "المتجر — صدى شات" },
       { property: "og:description", content: "الإطارات والدخوليات وباقات الشحن." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
