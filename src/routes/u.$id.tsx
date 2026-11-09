@@ -15,9 +15,9 @@ import { getAdminAssetUrl } from "@/lib/media";
 export const Route = createFileRoute("/u/$id")({
   head: () => ({
     meta: [
-      { title: "ملف مستخدم — VOX ROYALE" },
-      { name: "description", content: "الملف الشخصي للمستخدم في VOX ROYALE." },
-      { property: "og:title", content: "ملف مستخدم — VOX ROYALE" },
+      { title: "ملف مستخدم — صدى شات" },
+      { name: "description", content: "الملف الشخصي للمستخدم في صدى شات." },
+      { property: "og:title", content: "ملف مستخدم — صدى شات" },
       { property: "og:description", content: "الملف الشخصي للمستخدم." },
     ],
   }),
