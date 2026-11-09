@@ -649,7 +649,30 @@ function RoomPage() {
                   )}
                 </>
               )}
-               {seatMenu.user_id && <div className="rounded-2xl border border-primary/20 bg-background/70 p-3 text-right"><div className="text-xs text-muted-foreground">بطاقة تعريف</div><div className="mt-2 flex items-center gap-3"><UserAvatar src={profiles[seatMenu.user_id]?.avatar_url} name={profiles[seatMenu.user_id]?.display_name || "مستخدم"} vip={profiles[seatMenu.user_id]?.vip_level} size={64} frameKey={profiles[seatMenu.user_id]?.equipped_frame} /><div className="min-w-0 flex-1"><div className="truncate font-bold" style={{ color: profiles[seatMenu.user_id]?.name_color || undefined }}>{profiles[seatMenu.user_id]?.display_name}</div><div className="mt-1 text-xs" style={{ color: profiles[seatMenu.user_id]?.id_color || undefined }}>ID {profiles[seatMenu.user_id]?.display_no}</div><IdentityBadges level={profiles[seatMenu.user_id]?.level} vip={profiles[seatMenu.user_id]?.vip_level} /></div></div><div className="mt-3 grid grid-cols-2 gap-2">{seatMenu.user_id !== uid && <Button variant="outline" onClick={() => void toggleFollow(seatMenu.user_id!)}>{following ? "إلغاء المتابعة" : "متابعة"}</Button>}{seatMenu.user_id !== uid && <Button onClick={() => { void openGifts(seatMenu.user_id!); }} className="bg-gold">🎁 إرسال هدية</Button>}</div></div>}
+               {seatMenu.user_id && profiles[seatMenu.user_id] && <div className="mx-auto w-full max-w-sm rounded-3xl border border-primary/30 bg-gradient-to-br from-background/95 via-background/90 to-primary/10 p-3 text-right shadow-2xl ring-1 ring-gold/20" dir="rtl">
+  <div className="mb-2 flex items-center justify-between"><span className="text-[10px] font-bold text-primary">بطاقة تعريف 3D</span><span className="text-[10px] text-muted-foreground">لمس الصورة = الملف الكامل</span></div>
+  <div className="flex items-center gap-3">
+    <button type="button" onClick={() => nav({ to: "/u/$id", params: { id: seatMenu.user_id! } })} className="shrink-0 rounded-full ring-2 ring-primary/40 shadow-gold"><UserAvatar src={profiles[seatMenu.user_id]?.avatar_url} name={profiles[seatMenu.user_id]?.display_name || "مستخدم"} vip={profiles[seatMenu.user_id]?.vip_level} size={68} frameKey={profiles[seatMenu.user_id]?.equipped_frame} /></button>
+    <div className="min-w-0 flex-1">
+      <button type="button" onClick={() => nav({ to: "/u/$id", params: { id: seatMenu.user_id! } })} className="max-w-full truncate text-right text-base font-bold" style={{ color: profiles[seatMenu.user_id]?.name_color || undefined }}>{profiles[seatMenu.user_id]?.display_name}</button>
+      <div className="mt-0.5 text-xs font-bold" style={{ color: profiles[seatMenu.user_id]?.id_color || "#D4AF37" }}>ID {profiles[seatMenu.user_id]?.display_no}</div>
+      {badges[seatMenu.user_id] && <div className="mt-1 truncate text-[10px] font-bold" style={{ color: badges[seatMenu.user_id]?.badge_color || "#D4AF37" }}>✦ {badges[seatMenu.user_id]?.badge_name}</div>}
+    </div>
+  </div>
+  <div className="mt-3 grid grid-cols-4 gap-1 rounded-2xl bg-black/15 p-2 text-center text-[10px]"><div><b className="block text-sm">{cardStats.followers}</b>متابعون</div><div><b className="block text-sm">{cardStats.friends}</b>أصدقاء</div><div><b className="block text-sm">{cardStats.posts}</b>منشورات</div><div><b className="block text-sm">{cardStats.likes}</b>معجبون</div></div>
+  {cardRoom && cardRoom.id !== id && <Button variant="outline" className="mt-2 w-full text-xs" onClick={() => nav({ to: "/room/$id", params: { id: cardRoom.id } })}><DoorOpen className="h-4 w-4" /> دخول غرفة المستخدم · #{cardRoom.room_no}</Button>}
+  <div className="mt-2 grid grid-cols-3 gap-1">
+    {seatMenu.user_id !== uid && <Button size="sm" variant="outline" onClick={() => void toggleFollow(seatMenu.user_id!)}><UserPlus className="h-4 w-4" />{following ? "متابَع" : "متابعة"}</Button>}
+    {seatMenu.user_id !== uid && <Button size="sm" variant="outline" onClick={() => void openGifts(seatMenu.user_id!)}><Gift className="h-4 w-4" />هدية</Button>}
+    {seatMenu.user_id !== uid && <Button size="sm" variant="outline" onClick={async () => { const { data, error } = await supabase.rpc("get_or_create_conversation", { _other: seatMenu.user_id! }); if (error) toast.error(errMsg(error)); else nav({ to: "/chat/$id", params: { id: data as string } }); }}><MessageCircle className="h-4 w-4" />رسالة</Button>}
+  </div>
+  {isStaff && seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && <div className="mt-2 grid grid-cols-4 gap-1 border-t border-primary/10 pt-2">
+    <Button size="sm" variant="outline" title="طرد" onClick={() => call("staff_kick_room_user", { _room: id, _user: seatMenu.user_id! })}><LogOut className="h-4 w-4" /></Button>
+    <Button size="sm" variant="outline" title="كتم" onClick={() => call("staff_set_chat_mute", { _room: id, _user: seatMenu.user_id!, _muted: !chatMutedUser })}><VolumeX className="h-4 w-4" /></Button>
+    <Button size="sm" variant="outline" title="إنزال من المايك" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick" })}><Ban className="h-4 w-4" /></Button>
+    {isOwner && <Button size="sm" variant="outline" title="مشرف" onClick={() => call("staff_set_room_moderator", { _room: id, _user: seatMenu.user_id!, _enabled: !targetIsModerator })}><Shield className="h-4 w-4" /></Button>}
+  </div>}
+</div>}
             </div>
           )}
         </SheetContent>
