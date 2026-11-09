@@ -19,9 +19,9 @@ import { COUNTRIES, errMsg, flagOf } from "@/lib/vox";
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "ملفي الشخصي — VOX ROYALE" },
-      { name: "description", content: "ملفك الشخصي ومستواك ومحفظتك في VOX ROYALE." },
-      { property: "og:title", content: "ملفي الشخصي — VOX ROYALE" },
+      { title: "ملفي الشخصي — صدى شات" },
+      { name: "description", content: "ملفك الشخصي ومستواك ومحفظتك في صدى شات." },
+      { property: "og:title", content: "ملفي الشخصي — صدى شات" },
       { property: "og:description", content: "ملفك الشخصي ومستواك ومحفظتك." },
     ],
   }),
