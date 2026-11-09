@@ -8,7 +8,9 @@ import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type Props = { roomId: string; uid: string; members: string[]; micEnabled: boolean; musicFile?: File | null; onSpeakingUsers?: (users: string[]) => void };
+type MusicCommand = { id: number; action: "pause" | "resume" | "seek" | "volume"; value?: number };
+type MusicProgress = { currentTime: number; duration: number; playing: boolean };
+type Props = { roomId: string; uid: string; members: string[]; micEnabled: boolean; musicFile?: File | null; musicCommand?: MusicCommand | null; onMusicProgress?: (progress: MusicProgress) => void; onSpeakingUsers?: (users: string[]) => void };
 
 type TokenResponse = {
   appId: string;
@@ -24,7 +26,7 @@ function numericRtcUid(userId: string): number { let hash = 0x811c9dc5; for (let
 // Serialize Agora clients for the same user/room so React remounts can never overlap joins.
 const rtcLifecycle = new Map<string, Promise<void>>();
 
-export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, onSpeakingUsers }: Props) {
+export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, musicCommand = null, onMusicProgress, onSpeakingUsers }: Props) {
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const micRef = useRef<IMicrophoneAudioTrack | null>(null);
   const musicRef = useRef<IBufferSourceAudioTrack | null>(null);
@@ -42,6 +44,8 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
   membersRef.current = members;
   const onSpeakingUsersRef = useRef(onSpeakingUsers);
   onSpeakingUsersRef.current = onSpeakingUsers;
+  const onMusicProgressRef = useRef(onMusicProgress);
+  onMusicProgressRef.current = onMusicProgress;
 
   useEffect(() => {
     aliveRef.current = true;
@@ -167,6 +171,7 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
           if (musicFileRef.current) {
             const track = await AgoraRTC.createBufferSourceAudioTrack({ source: musicFileRef.current, encoderConfig: "speech_standard" });
             musicRef.current = track;
+            track.startProcessAudioBuffer();
             await client.publish(track);
             track.play();
           }
@@ -188,6 +193,7 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
       joinedRef.current = false;
       publishedRef.current = false;
       if (musicRef.current) {
+        musicRef.current.stopProcessAudioBuffer();
         musicRef.current.stop();
         musicRef.current.close();
         musicRef.current = null;
@@ -220,6 +226,7 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
       if (!musicFile) {
         if (musicRef.current) {
           await client.unpublish(musicRef.current).catch(() => undefined);
+          musicRef.current.stopProcessAudioBuffer();
           musicRef.current.stop();
           musicRef.current.close();
           musicRef.current = null;
@@ -235,9 +242,10 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
       }
       const track = await AgoraRTC.createBufferSourceAudioTrack({ source: musicFile, encoderConfig: "speech_standard" });
       musicRef.current = track;
+      track.startProcessAudioBuffer();
       await client.publish(track);
       track.play();
-      toast.success("بدأ تشغيل الأغنية للجميع");
+      toast.success("بدأ بث الأغنية لجميع الموجودين على الميك");
     }).catch(error => {
       console.error("[Agora] music failed", error);
       toast.error(error instanceof Error ? error.message : "تعذر تشغيل الأغنية");
@@ -279,6 +287,13 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
           await client.unpublish(micRef.current).catch(() => undefined);
           publishedRef.current = false;
         }
+        if (musicRef.current) {
+          await client.unpublish(musicRef.current).catch(() => undefined);
+          musicRef.current.stopProcessAudioBuffer();
+          musicRef.current.stop();
+          musicRef.current.close();
+          musicRef.current = null;
+        }
         if (micRef.current) await micRef.current.setEnabled(false);
         const { data, error } = await supabase.functions.invoke("agora-rtc-token", { body: { roomId } });
         if (!error && data?.token) {
@@ -295,6 +310,45 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
       if (aliveRef.current) toast.error(error instanceof Error ? error.message : "تعذر تفعيل الميكروفون");
     });
   }, [micEnabled, roomId]);
+
+  useEffect(() => {
+    if (!musicCommand) return;
+    const command = musicCommand;
+    operationRef.current = operationRef.current.then(async () => {
+      const track = musicRef.current;
+      if (!track) return;
+      if (command.action === "pause") {
+        track.pauseProcessAudioBuffer();
+        track.stop();
+      } else if (command.action === "resume") {
+        track.resumeProcessAudioBuffer();
+        track.play();
+      } else if (command.action === "seek") {
+        track.seekAudioBuffer(Math.max(0, Math.min(track.duration, Number(command.value) || 0)));
+      } else if (command.action === "volume") {
+        track.setVolume(Math.max(0, Math.min(1000, Number(command.value) || 0)));
+      }
+    }).catch((error) => {
+      console.error("[Agora] music control failed", error);
+      if (aliveRef.current) toast.error("تعذر التحكم في تشغيل الأغنية");
+    });
+  }, [musicCommand?.id]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const track = musicRef.current;
+      if (!track) {
+        onMusicProgressRef.current?.({ currentTime: 0, duration: 0, playing: false });
+        return;
+      }
+      onMusicProgressRef.current?.({
+        currentTime: track.getCurrentTime(),
+        duration: track.duration,
+        playing: track.currentState === "playing",
+      });
+    }, 500);
+    return () => window.clearInterval(timer);
+  }, [roomId, uid]);
 
   return null;
 }
