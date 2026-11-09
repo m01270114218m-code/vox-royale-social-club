@@ -147,7 +147,7 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
 
   const list = useMemo(() => {
     return [...rooms].sort((a, b) => { const ao=Number(a.sort_order ?? 0), bo=Number(b.sort_order ?? 0); if (ao !== bo) return ao-bo; return tab === "hot" ? b.member_count-a.member_count : +new Date(b.created_at)-+new Date(a.created_at); });
-  }, [rooms, tab, country, cat, q]);
+  }, [rooms, tab]);
 
   return (
     <div className="app-screen w-full px-3 pb-3 pt-2 sm:px-4">
