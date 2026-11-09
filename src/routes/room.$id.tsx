@@ -170,12 +170,9 @@ function RoomPage() {
       .maybeSingle();
     if (!storeItem?.id || storeItem.asset_key !== equippedKey) return;
 
-    const { data: ownership } = await supabase.from("user_items")
-      .select("item_id")
-      .eq("user_id", userId)
-      .eq("item_id", storeItem.id)
-      .maybeSingle();
-    if (!ownership) return;
+    // equipped_entry is written by the equip_item RPC, which verifies ownership.
+    // Do not query another user's user_items here: its owner-only RLS would hide
+    // the item from other room participants and suppress their entrance effect.
 
     const src = await getAdminAssetUrl(storeItem.asset_key);
     if (!src) return;
