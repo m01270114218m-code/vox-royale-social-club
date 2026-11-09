@@ -684,7 +684,7 @@ function RoomPage() {
                   )}
                 </>
               )}
-               {seatMenu.user_id && profiles[seatMenu.user_id] && <div className="mx-auto w-full max-w-sm rounded-3xl border border-primary/30 bg-gradient-to-br from-background/95 via-background/90 to-primary/10 p-3 text-right shadow-2xl ring-1 ring-gold/20" dir="rtl">
+               {seatMenu.user_id && profiles[seatMenu.user_id] && <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-background/95 via-background/90 to-primary/10 p-3 text-right shadow-2xl ring-1 ring-gold/20" dir="rtl">{seatMenu.user_id && cosmeticUrls[seatMenu.user_id]?.card && <img src={cosmeticUrls[seatMenu.user_id]!.card} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
   <div className="mb-2 flex items-center justify-end"><span className="text-[10px] font-bold text-primary">VOX ROYALE</span></div>
   <div className="flex items-center gap-3">
     <button type="button" onClick={() => nav({ to: "/u/$id", params: { id: seatMenu.user_id! } })} className="shrink-0 rounded-full ring-2 ring-primary/40 shadow-gold"><UserAvatar src={profiles[seatMenu.user_id]?.avatar_url} name={profiles[seatMenu.user_id]?.display_name || "مستخدم"} vip={profiles[seatMenu.user_id]?.vip_level} size={68} frameKey={profiles[seatMenu.user_id]?.equipped_frame} /></button>
@@ -707,7 +707,7 @@ function RoomPage() {
     <Button size="sm" variant="outline" title="إنزال من المايك" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick_seat" })}><Ban className="h-4 w-4" /></Button>
     {isOwner && <Button size="sm" variant="outline" title={targetIsModerator ? "إزالة الأدمن" : "إضافة أدمن"} onClick={() => call("staff_set_room_moderator", { _room: id, _user: seatMenu.user_id!, _enabled: !targetIsModerator })}><UserPlus className="h-4 w-4" /></Button>}
   </div>}
-</div>}
+</div></div>}
             </div>
           )}
         </SheetContent>
