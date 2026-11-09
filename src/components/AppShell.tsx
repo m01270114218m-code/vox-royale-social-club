@@ -12,10 +12,40 @@ import { App as CapacitorApp } from "@capacitor/app";
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const nav = useNavigate();
+  const [deviceAllowed, setDeviceAllowed] = useState(false);
   useEffect(() => {
     if (!loading && !user) nav({ to: "/auth" });
   }, [loading, user, nav]);
-  if (loading || !user)
+  useEffect(() => {
+    let active = true;
+    if (loading || !user?.id) {
+      setDeviceAllowed(false);
+      return () => { active = false; };
+    }
+    setDeviceAllowed(false);
+    void (async () => {
+      try {
+        let deviceId = localStorage.getItem("vox_device_id");
+        if (!deviceId) {
+          deviceId = typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID() + crypto.randomUUID()
+            : "vox-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+          localStorage.setItem("vox_device_id", deviceId);
+        }
+        const { error } = await supabase.rpc("register_device", { _device: deviceId });
+        if (error) throw error;
+        if (active) setDeviceAllowed(true);
+      } catch (error) {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : String(error);
+        toast.error(message.includes("account_banned") ? "هذا الحساب محظور من استخدام التطبيق" : message.includes("device_banned") ? "هذا الجهاز محظور من استخدام التطبيق" : "تعذر التحقق من صلاحية الحساب والجهاز");
+        await supabase.auth.signOut({ scope: "local" });
+        if (active) setDeviceAllowed(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [loading, user?.id]);
+  if (loading || !user || !deviceAllowed)
     return (
       <div className="flex min-h-screen items-center justify-center">
         <img src={icons3d.micHost} alt="صدى شات" className="h-14 w-14 object-contain animate-pulse" />
