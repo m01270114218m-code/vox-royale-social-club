@@ -577,7 +577,7 @@ function RoomPage() {
           <HomeScreen />
         </AppShell>
         <button type="button" onClick={() => setRoomMinimized(false)} className="fixed bottom-24 right-4 z-[100] flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary bg-background shadow-2xl" aria-label="العودة إلى الغرفة">
-          <img src={roomCoverUrl || roomBackground(room.category)} alt="" className="h-full w-full rounded-full object-cover" />
+          <AdminAssetMedia src={roomCoverUrl || roomBackground(room.category)} className="h-full w-full rounded-full object-cover" />
           <span className="absolute -bottom-1 -right-1 rounded-full bg-green-500 px-1.5 text-[10px] font-bold text-white">●</span>
         </button>
       </>
@@ -586,7 +586,7 @@ function RoomPage() {
       <header className="glass m-3 flex items-center gap-3 rounded-2xl p-3">
         <Button variant="ghost" size="icon" onClick={() => setExitPrompt(true)} aria-label="رجوع" title="رجوع"><img src={icons3d.back} alt="" className="h-7 w-7 rotate-180 object-contain" /></Button>
         <div className="min-w-0 flex-1 flex items-center gap-2">
-          <img src={roomCoverUrl || roomBackground(room.category)} alt={`صورة ${room.name}`} className="h-11 w-11 shrink-0 rounded-xl object-cover ring-1 ring-primary/40" />
+          <AdminAssetMedia src={roomCoverUrl || roomBackground(room.category)} alt={`صورة ${room.name}`} className="h-11 w-11 shrink-0 rounded-xl object-cover ring-1 ring-primary/40" />
           <div className="min-w-0"><div className="truncate font-bold">{flagOf(room.country)} {room.name}</div>
           <div className="text-xs text-muted-foreground">#{room.room_no} · {catName(room.category)}</div></div>
         </div>
