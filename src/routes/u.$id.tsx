@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { UserAvatar } from "@/components/UserAvatar";
+import { AdminAssetMedia } from "@/components/AdminAssetMedia";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { errMsg, flagOf } from "@/lib/vox";
@@ -133,7 +134,7 @@ function UserPage() {
   return (
     <div>
       <PageHeader title="الملف الشخصي الكامل" back />
-      <div className="relative mx-4 overflow-hidden rounded-[30px] border border-primary/30 bg-gradient-to-br from-primary/15 via-background to-gold/10 p-5 text-center shadow-2xl">{profileCardUrl && <img src={profileCardUrl} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30" />}<div className="relative">
+      <div className="relative mx-4 overflow-hidden rounded-[30px] border border-primary/30 bg-gradient-to-br from-primary/15 via-background to-gold/10 p-5 text-center shadow-2xl">{profileCardUrl && <AdminAssetMedia src={profileCardUrl} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30" />}<div className="relative">
         <div className="mx-auto w-fit"><UserAvatar src={p.avatar_url} name={p.display_name} size={112} ring vip={p.vip_level} frameKey={p.equipped_frame} /></div>
         <h2 className={`mt-3 text-2xl font-bold ${p.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p.name_color || undefined, animationDuration: `${p.name_effect_speed || 1800}ms` }}>{flagOf(p.country)} {p.display_name}</h2>
         <div className="text-sm font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID: {p.display_no}</div><div className="mt-2 flex items-center justify-center gap-2"><span className="rounded-full bg-primary/15 px-3 py-1 text-xs font-black">Lv.{p.level}</span>{p.vip_level > 0 && <span className="rounded-full bg-gold/15 px-3 py-1 text-xs font-black text-gold">VIP {p.vip_level}</span>}</div>
@@ -146,7 +147,7 @@ function UserPage() {
       </div>
       </div>
       <div className="mx-4 mt-4 grid grid-cols-3 gap-2"><div className="rounded-2xl border border-primary/15 bg-background/60 p-3 text-center"><Gift className="mx-auto h-5 w-5 text-gold"/><b className="mt-1 block">{stats.gifts.toLocaleString()}</b><span className="text-[10px] text-muted-foreground">الهدايا المستلمة</span></div><div className="rounded-2xl border border-primary/15 bg-background/60 p-3 text-center"><Coins className="mx-auto h-5 w-5 text-gold"/><b className="mt-1 block">{stats.giftsValue.toLocaleString()}</b><span className="text-[10px] text-muted-foreground">العملات المستلمة</span></div><div className="rounded-2xl border border-primary/15 bg-background/60 p-3 text-center"><Sparkles className="mx-auto h-5 w-5 text-primary"/><b className="mt-1 block">{stats.support.toLocaleString()}</b><span className="text-[10px] text-muted-foreground">دعم / XP</span></div></div>
-      {giftRows.length > 0 && <section className="mx-4 mt-4 rounded-3xl border border-gold/20 bg-background/70 p-4"><div className="mb-3 flex items-center gap-2 font-bold"><Gift className="h-5 w-5 text-gold"/>الهدايا المستلمة</div><div className="grid grid-cols-4 gap-2">{giftRows.map(g=><div key={g.id} className="rounded-2xl border border-border/50 bg-black/10 p-2 text-center">{g.asset_url ? <img src={g.asset_url} alt={g.name} className="mx-auto h-12 w-12 object-contain"/> : <div className="text-2xl">{g.emoji}</div>}<div className="truncate text-[10px] font-bold">{g.name}</div><div className="text-[9px] text-muted-foreground">×{g.quantity}</div></div>)}</div></section>}
+      {giftRows.length > 0 && <section className="mx-4 mt-4 rounded-3xl border border-gold/20 bg-background/70 p-4"><div className="mb-3 flex items-center gap-2 font-bold"><Gift className="h-5 w-5 text-gold"/>الهدايا المستلمة</div><div className="grid grid-cols-4 gap-2">{giftRows.map(g=><div key={g.id} className="rounded-2xl border border-border/50 bg-black/10 p-2 text-center">{g.asset_url ? <AdminAssetMedia src={g.asset_url} alt={g.name} className="mx-auto h-12 w-12 object-contain"/> : <div className="text-2xl">{g.emoji}</div>}<div className="truncate text-[10px] font-bold">{g.name}</div><div className="text-[9px] text-muted-foreground">×{g.quantity}</div></div>)}</div></section>}
       <div className="mx-4 mt-4 grid grid-cols-2 gap-2">
         <Button onClick={toggleFollow} className={isFollowing ? "" : "bg-gold font-bold"} variant={isFollowing ? "outline" : "default"}>
           {isFollowing ? <><UserCheck className="h-4 w-4" /> متابَع</> : <><UserPlus className="h-4 w-4" /> متابعة</>}
