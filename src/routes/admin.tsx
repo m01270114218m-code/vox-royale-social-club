@@ -720,6 +720,11 @@ const ASSET_CATEGORIES: Record<string, string> = {
   badge: "الشارات المميزة",
   level: "المستويات",
   banner: "البانرات",
+  bubble: "فقاعات الكتابة",
+  sound_wave: "موجات الصوت",
+  profile_card: "بطاقات التعريف",
+  lucky_gift: "هدايا الحظ",
+  room_frame: "إطارات الغرف",
   avatar: "الصور الشخصية",
   "3d": "مجسمات ثلاثية الأبعاد",
 };
