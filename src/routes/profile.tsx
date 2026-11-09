@@ -1,7 +1,7 @@
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { icons3d } from "@/lib/assets3d";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { deleteMedia, uploadImage } from "@/lib/media";
+import { deleteMedia, getAdminAssetUrl, uploadImage } from "@/lib/media";
 import { UserAvatar } from "@/components/UserAvatar";
 import { AdminAssetMedia } from "@/components/AdminAssetMedia";
 import { useAdminAsset } from "@/lib/media";
@@ -34,6 +34,7 @@ export const Route = createFileRoute("/profile")({
 
 type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; name_color?: string; name_effect?: string; name_effect_speed?: number; equipped_frame?: string | null; equipped_entry?: string | null; chat_bubble_color?: string | null; profile_card_asset_key?: string | null };
 type Badge = { id: string; badge_key: string; badge_name: string; badge_asset_key: string | null; badge_color: string; is_equipped: boolean };
+type ReceivedGift = { id: string; name: string; emoji: string; asset_key: string | null; asset_url: string | null; quantity: number; latest_at: string };
 function BadgeTile({ badge }: { badge: Badge }) {
   const src = useAdminAsset(badge.badge_asset_key);
   return <div className="flex min-w-20 flex-col items-center gap-1">
@@ -52,6 +53,7 @@ function ProfilePage() {
   const [draft, setDraft] = useState<P | null>(null);
   const [editing, setEditing] = useState(false);
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [receivedGifts, setReceivedGifts] = useState<ReceivedGift[]>([]);
   const [stats, setStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0, visitors: 0 });
   const [linkEmail, setLinkEmail] = useState("");
   const isGuest = !!user?.is_anonymous;
@@ -82,6 +84,61 @@ function ProfilePage() {
       const { data: badgeRows, error: badgeError } = await supabase.from("user_badges").select("id,badge_key,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", user!.id);
       if (alive && !badgeError) setBadges((badgeRows ?? []) as Badge[]);
       })();
+    return () => { alive = false; void supabase.removeChannel(channel); };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    const loadReceivedGifts = async () => {
+      const { data: transactions, error } = await supabase
+        .from("gift_transactions")
+        .select("gift_id,quantity,created_at")
+        .eq("receiver_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) {
+        console.error("[profile gifts]", error.message);
+        return;
+      }
+      const totals = new Map<string, { quantity: number; latest_at: string }>();
+      for (const row of transactions ?? []) {
+        if (!row.gift_id) continue;
+        const current = totals.get(row.gift_id);
+        totals.set(row.gift_id, {
+          quantity: (current?.quantity ?? 0) + Math.max(1, Number(row.quantity) || 1),
+          latest_at: current?.latest_at ?? row.created_at,
+        });
+      }
+      const ids = [...totals.keys()];
+      if (!ids.length) {
+        if (alive) setReceivedGifts([]);
+        return;
+      }
+      const { data: giftRows, error: giftsError } = await supabase
+        .from("gifts")
+        .select("id,name,emoji,asset_key,asset_url")
+        .in("id", ids);
+      if (giftsError) {
+        console.error("[profile gifts catalog]", giftsError.message);
+        return;
+      }
+      const resolved = await Promise.all((giftRows ?? []).map(async (gift) => ({
+        ...gift,
+        quantity: totals.get(gift.id)?.quantity ?? 0,
+        latest_at: totals.get(gift.id)?.latest_at ?? "",
+        resolved_asset: gift.asset_key ? await getAdminAssetUrl(gift.asset_key) : null,
+        fallback_asset: gift.asset_url ? await getAdminAssetUrl(gift.asset_url) : null,
+      })));
+      if (alive) setReceivedGifts(resolved.map(({ resolved_asset, fallback_asset, ...gift }) => ({
+        ...gift,
+        asset_url: resolved_asset || fallback_asset || gift.asset_url,
+      })) as ReceivedGift[]);
+    };
+    void loadReceivedGifts();
+    const channel = supabase.channel(`profile-gifts-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "gift_transactions", filter: `receiver_id=eq.${user.id}` }, () => { void loadReceivedGifts(); })
+      .subscribe();
     return () => { alive = false; void supabase.removeChannel(channel); };
   }, [user]);
 
@@ -168,6 +225,28 @@ function ProfilePage() {
           <div><div className="text-xl font-black tabular-nums">{stats.visitors}</div><div className="text-[10px] text-white/65">الزوار</div></div>
         </div>
       </div></div>
+
+      <section className="glass mt-4 rounded-2xl p-4 text-right">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="font-bold">الهدايا المستلمة</div>
+          <span className="text-xs text-muted-foreground">{receivedGifts.reduce((sum, gift) => sum + gift.quantity, 0)} هدية</span>
+        </div>
+        {receivedGifts.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-white/15 px-3 py-6 text-center text-xs text-muted-foreground">لم تستلم هدايا بعد</div>
+        ) : (
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+            {receivedGifts.map((gift) => (
+              <div key={gift.id} className="flex min-w-0 flex-col items-center gap-1 rounded-2xl border border-amber-200/15 bg-black/15 p-2 text-center">
+                <div className="grid h-20 w-full place-items-center overflow-hidden rounded-xl bg-secondary/40">
+                  {gift.asset_url ? <AdminAssetMedia src={gift.asset_url} alt={gift.name} className="h-full w-full object-contain" videoClassName="h-full w-full object-contain" /> : <span className="text-3xl">{gift.emoji || "🎁"}</span>}
+                </div>
+                <span className="max-w-full truncate text-xs font-bold">{gift.name}</span>
+                <span className="text-[10px] text-amber-200">× {gift.quantity}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="glass mt-4 rounded-2xl p-4 text-right">
         <div className="mb-3 font-bold">شاراتي</div>
