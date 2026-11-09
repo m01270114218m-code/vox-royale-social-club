@@ -12,8 +12,7 @@ type Props = {
 /** Renders private Supabase assets as the correct media type and avoids broken-image icons. */
 export function AdminAssetMedia({ src, alt = "", className = "", videoClassName, loop = true }: Props) {
   const [failed, setFailed] = useState(false);
-  const [ready, setReady] = useState(false);
-  useEffect(() => { setFailed(false); setReady(false); }, [src]);
+  useEffect(() => { setFailed(false); }, [src]);
   if (!src || failed) {
     return <span role={alt ? "img" : undefined} aria-label={alt || undefined} aria-hidden={alt ? undefined : true} className={className} />;
   }
@@ -28,10 +27,11 @@ export function AdminAssetMedia({ src, alt = "", className = "", videoClassName,
         preload="auto"
         controls={false}
         disablePictureInPicture
+        disableRemotePlayback
+        controlsList="nodownload noplaybackrate noremoteplayback"
         aria-label={alt || undefined}
-        onLoadedData={() => setReady(true)}
         onError={() => setFailed(true)}
-        className={(videoClassName ?? className) + (ready ? " opacity-100" : " opacity-0") + " transition-opacity duration-150"}
+        className={videoClassName ?? className}
       />
     );
   }
