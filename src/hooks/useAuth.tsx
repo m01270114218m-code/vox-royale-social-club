@@ -2,6 +2,40 @@ import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
+const DEVICE_STORAGE_KEY = "vox_royale_device_id";
+
+function getDeviceId(): string {
+  try {
+    const existing = localStorage.getItem(DEVICE_STORAGE_KEY);
+    if (existing && existing.length >= 16) return existing;
+    const id = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(DEVICE_STORAGE_KEY, id);
+    return id;
+  } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+}
+
+async function registerCurrentDevice(): Promise<boolean> {
+  const deviceId = getDeviceId();
+  const { error } = await supabase.rpc("register_device", { _device: deviceId });
+  if (!error) return true;
+  const message = String(error.message || "");
+  if (message.includes("account_banned") || message.includes("device_banned")) {
+    await supabase.auth.signOut();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("vox-account-blocked", { detail: { message } }));
+    }
+    return false;
+  }
+  // A device-registration failure must not silently lock users out during a
+  // temporary network/API outage; the server-side RPC still enforces bans.
+  console.error("[Auth] Device registration failed:", message);
+  return true;
+}
+
 // Keep one coherent auth snapshot across route-level hook instances.
 let cachedUser: User | null = null;
 
@@ -20,6 +54,7 @@ export function useAuth() {
         setUser(cachedUser);
         setLoading(false);
       }
+      if (session?.user) void registerCurrentDevice();
     });
 
     // getSession may resolve after a SIGNED_IN / SIGNED_OUT event.
@@ -31,6 +66,7 @@ export function useAuth() {
       cachedUser = data.session?.user ?? null;
       setUser(cachedUser);
       setLoading(false);
+      if (data.session?.user) void registerCurrentDevice();
     }).catch((error: unknown) => {
       if (!mounted || authEventVersion !== initialVersion) return;
       console.error("[Auth] Session restore failed:", error);
