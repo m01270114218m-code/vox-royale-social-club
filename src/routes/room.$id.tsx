@@ -598,7 +598,7 @@ function RoomPage() {
         <div className="rounded-xl bg-secondary/60 p-2 text-xs text-primary">📢 مرحباً بك في {room.name}. {room.description}</div>
         {msgs.map((m) => (
           <div key={m.id} className={`relative isolate w-fit max-w-[85%] overflow-hidden rounded-2xl px-3 py-1.5 text-sm ${m.kind === "gift" ? "bg-gold font-bold" : "glass"}`} style={{ backgroundColor: m.kind === "gift" ? undefined : profiles[m.user_id]?.chat_bubble_color || undefined }}>
-            {m.kind !== "gift" && cosmeticUrls[m.user_id]?.bubble && <AdminAssetMedia src={cosmeticUrls[m.user_id]!.bubble} className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-fill opacity-90" />}
+            {m.kind !== "gift" && cosmeticUrls[m.user_id]?.bubble && <AdminAssetMedia src={cosmeticUrls[m.user_id]!.bubble} className="pointer-events-none absolute inset-0 z-0 h-full w-full object-fill opacity-90" />}
             <span className="relative z-10"><button type="button" className="font-bold" style={{ color: profiles[m.user_id]?.name_color || undefined }} onClick={() => void openUserCard(m.user_id)}>{publicName(m.user_id)}: </button>{m.body}</span>
           </div>
         ))}
