@@ -13,9 +13,9 @@ import { errMsg } from "@/lib/vox";
 export const Route = createFileRoute("/chat/$id")({
   head: () => ({
     meta: [
-      { title: "محادثة خاصة — VOX ROYALE" },
+      { title: "محادثة خاصة — صدى شات" },
       { name: "description", content: "محادثة خاصة مباشرة." },
-      { property: "og:title", content: "محادثة خاصة — VOX ROYALE" },
+      { property: "og:title", content: "محادثة خاصة — صدى شات" },
       { property: "og:description", content: "محادثة خاصة مباشرة." },
     ],
   }),
