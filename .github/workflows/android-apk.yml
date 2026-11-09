@@ -2,7 +2,7 @@ name: Build VOX ROYALE Android APK
 
 on:
   push:
-    branches: [admin-asset-center]
+    branches: [admin-asset-center, profile-support-diamonds-chat]
   workflow_dispatch:
 
 permissions:
