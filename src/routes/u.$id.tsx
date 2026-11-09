@@ -37,6 +37,7 @@ function UserPage() {
   const [p, setP] = useState<P | null>(null);
   const [stats, setStats] = useState({ followers: 0, following: 0, friends: 0, posts: 0, supportCoins: 0, supportDiamonds: 0, supporters: 0 });
   const [support, setSupport] = useState<{ sender_id: string; total_price: number; quantity: number; created_at: string; gift_name: string; sender_name: string; sender_avatar: string | null }[]>([]);
+  const [posts, setPosts] = useState<{ id: string; body: string; image_url: string | null; like_count: number; comment_count: number; created_at: string }[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [badges, setBadges] = useState<Badge[]>([]);
@@ -70,6 +71,8 @@ function UserPage() {
       ]);
       setStats({ followers: a.count ?? 0, following: b.count ?? 0, friends: Number(publicStats.data?.[0]?.friends ?? 0), posts: c.count ?? 0, supportCoins: Number(publicStats.data?.[0]?.support_coins ?? 0), supportDiamonds: Number(publicStats.data?.[0]?.support_diamonds ?? 0), supporters: Number(publicStats.data?.[0]?.supporters ?? 0) });
       setSupport((giftRows.data ?? []).map((g: any) => ({ sender_id: g.sender_id, total_price: Number(g.total_price), quantity: g.quantity, created_at: g.created_at, gift_name: g.gifts?.name ?? "هدية", sender_name: g.profiles?.display_name ?? "مستخدم", sender_avatar: g.profiles?.avatar_url ?? null })));
+      const { data: postRows } = await supabase.from("posts").select("id,body,image_url,like_count,comment_count,created_at").eq("user_id", id).order("created_at", { ascending: false }).limit(50);
+      setPosts((postRows ?? []) as typeof posts);
       setIsFollowing(!!f.data?.length);
       setBlocked(!!bl.data?.length);
       setBadges((badgeRows.data ?? []) as Badge[]);
@@ -129,6 +132,7 @@ function UserPage() {
         </div>
       </div>
       <div className="mx-4 mt-4 space-y-2">
+        <div className="glass rounded-2xl p-4"><h3 className="mb-3 font-bold">منشورات المستخدم</h3>{posts.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد منشورات</p> : <div className="space-y-3">{posts.map((post) => <article key={post.id} className="rounded-xl bg-secondary/40 p-3"><p className="whitespace-pre-wrap text-sm">{post.body}</p>{post.image_url && <img src={post.image_url} alt="منشور" loading="lazy" className="mt-2 max-h-72 w-full rounded-xl object-cover" />}<div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>♥ {post.like_count} إعجاب · {post.comment_count} تعليق</span><span>{new Date(post.created_at).toLocaleDateString("ar-EG")}</span></div></article>)}</div>}</div>
         <div className="glass rounded-2xl p-4"><h3 className="mb-3 font-bold">الهدايا والدعم الذي استلمه</h3>{support.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد هدايا مستلمة بعد</p> : <div className="space-y-2">{support.map((g, i) => <div key={`${g.sender_id}-${g.created_at}-${i}`} className="flex items-center justify-between gap-2 rounded-xl bg-secondary/40 p-2"><div className="min-w-0"><div className="truncate text-sm font-bold">{g.gift_name} · {g.quantity}x</div><div className="truncate text-xs text-muted-foreground">من {g.sender_name}</div></div><div className="shrink-0 text-left text-xs"><div>🪙 {g.total_price}</div><div className="text-primary">💎 {Math.floor(g.total_price * 0.15)}</div></div></div>)}</div>}</div>
         <Button onClick={toggleFollow} className={isFollowing ? "" : "bg-gold font-bold"} variant={isFollowing ? "outline" : "default"}>
           {isFollowing ? <><UserCheck className="h-4 w-4" /> متابَع</> : <><UserPlus className="h-4 w-4" /> متابعة</>}
