@@ -12,18 +12,10 @@ type Props = {
 /** Renders private Supabase assets as the correct media type and avoids broken-image icons. */
 export function AdminAssetMedia({ src, alt = "", className = "", videoClassName, loop = true }: Props) {
   const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [src]);
+  const [ready, setReady] = useState(false);
+  useEffect(() => { setFailed(false); setReady(false); }, [src]);
   if (!src || failed) {
-    return (
-      <span
-        role={alt ? "img" : undefined}
-        aria-label={alt || undefined}
-        aria-hidden={alt ? undefined : true}
-        className={`grid place-items-center rounded-lg bg-black/10 text-gold/70 ${className}`}
-      >
-        <span className="text-xl drop-shadow">✦</span>
-      </span>
-    );
+    return <span role={alt ? "img" : undefined} aria-label={alt || undefined} aria-hidden={alt ? undefined : true} className={className} />;
   }
   if (isVideoAsset(src)) {
     return (
@@ -33,12 +25,15 @@ export function AdminAssetMedia({ src, alt = "", className = "", videoClassName,
         muted
         loop={loop}
         playsInline
-        preload="metadata"
+        preload="auto"
+        controls={false}
+        disablePictureInPicture
         aria-label={alt || undefined}
+        onLoadedData={() => setReady(true)}
         onError={() => setFailed(true)}
-        className={videoClassName ?? className}
+        className={(videoClassName ?? className) + (ready ? " opacity-100" : " opacity-0") + " transition-opacity duration-150"}
       />
     );
   }
-  return <img src={src} alt={alt} className={className} loading="lazy" onError={() => setFailed(true)} />;
+  return <img src={src} alt={alt} className={className} decoding="async" onLoad={() => setReady(true)} onError={() => setFailed(true)} />;
 }
