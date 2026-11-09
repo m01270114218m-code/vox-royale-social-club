@@ -3,7 +3,7 @@ import { UserAvatar, MediaImage } from "@/components/UserAvatar";
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Gift, Settings, UserPlus, MessageCircle, DoorOpen, VolumeX, LogOut, Ban, Shield } from "lucide-react";
+import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Gift, Settings, UserPlus, MessageCircle, DoorOpen, VolumeX, LogOut, Ban, Shield, Music2 } from "lucide-react";
 import { RoomSettings } from "@/components/RoomSettings";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,6 +83,7 @@ function RoomPage() {
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
   const [micPermissionGranted, setMicPermissionGranted] = useState(false);
+  const [musicFile, setMusicFile] = useState<File | null>(null);
   const [speakingUsers, setSpeakingUsers] = useState<string[]>([]);
   const [micRequests, setMicRequests] = useState<{ id: string; user_id: string; created_at: string }[]>([]);
   const [myMicRequest, setMyMicRequest] = useState<{ id: string } | null>(null);
@@ -524,7 +525,7 @@ function RoomPage() {
   const cols = room.seat_count <= 4 ? "grid-cols-4" : room.seat_count === 6 || room.seat_count === 9 ? "grid-cols-3" : "grid-cols-4";
 
   return (
-    <><RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} onSpeakingUsers={handleSpeakingUsers} />
+    <><RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} musicFile={musicFile} onSpeakingUsers={handleSpeakingUsers} />
     {roomMinimized ? (
       <>
         <AppShell>
@@ -599,7 +600,7 @@ function RoomPage() {
         <div ref={chatEnd} />
       </div>
 
-      <form onSubmit={send} className="glass m-3 flex items-center gap-2 rounded-full p-2">
+      <form onSubmit={send} className="glass m-3 flex items-center gap-2 rounded-full p-2"><input id="room-music-file" type="file" accept="audio/*" className="hidden" onChange={(e)=>{const file=e.target.files?.[0] ?? null;if(!file)return;if(!myMicEnabled || !micPermissionGranted){toast.error("يجب أن تكون على الميك أولاً حتى يسمع الجميع الأغنية");e.currentTarget.value="";return;}setMusicFile(file);}} />
         {!mySeat && <Button type="button" variant="ghost" size="icon" onClick={async () => { const { error } = await supabase.rpc("take_any_seat", { _room: id }); if (error) toast.error(errMsg(error)); else { await syncRoomSeats(); toast.success("تم الصعود للميك مباشرة"); } }} aria-label="صعود مباشر للميك" title="صعود مباشر للميك"><Mic className="h-7 w-7" /></Button>}
         {mySeat && (
           <Button type="button" variant="ghost" size="icon" onClick={async () => {
@@ -622,7 +623,7 @@ function RoomPage() {
             if (!mySeat.is_muted) await call("toggle_my_mute", { _room: id });
           }} aria-label="المايك" title="المايك"><img src={mySeat.is_muted || !micPermissionGranted ? icons3d.micMuted : icons3d.mic} alt="" className="h-8 w-8 object-contain" /></Button>
         )}
-        <Button type="button" variant="ghost" size="icon" onClick={() => openGifts()} aria-label="هدية" title="هدية"><img src={icons3d.giftbox} alt="" className="h-8 w-8 object-contain" /></Button>
+        <label htmlFor="room-music-file" className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full hover:bg-secondary" title={musicFile ? "تغيير الأغنية" : "تشغيل أغنية من الجهاز"}><Music2 className={musicFile ? "h-6 w-6 text-gold" : "h-6 w-6"} /></label><Button type="button" variant="ghost" size="icon" onClick={() => {setMusicFile(null);}} aria-label="إيقاف الأغنية" title="إيقاف الأغنية"><Music2 className="h-5 w-5 text-destructive" /></Button><Button type="button" variant="ghost" size="icon" onClick={() => openGifts()} aria-label="هدية" title="هدية"><img src={icons3d.giftbox} alt="" className="h-8 w-8 object-contain" /></Button>
         <Input value={text} onChange={(e) => setText(e.target.value)} maxLength={500} placeholder="اكتب رسالة…" className="border-0 bg-transparent" />
         <Button type="submit" size="icon" aria-label="إرسال" title="إرسال" className="rounded-full bg-gold"><img src={icons3d.send} alt="" className="h-7 w-7 object-contain" /></Button>
       </form>
