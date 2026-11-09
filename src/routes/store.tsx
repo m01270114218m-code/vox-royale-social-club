@@ -39,44 +39,29 @@ type StoreItem = { id: string; kind: string; name: string; description: string |
 
 function StorePage() {
   const { user } = useAuth();
-  const [coins, setCoins] = useState(0);
   const [items, setItems] = useState<StoreItem[]>([]);
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [equippedFrame, setEquippedFrame] = useState<string | null>(null);
   const [equippedEntry, setEquippedEntry] = useState<string | null>(null);
-  const [txs, setTxs] = useState<{id:string;amount:number;currency:string;reason:string;created_at:string}[]>([]);
-  const [topupCoins, setTopupCoins] = useState("6000");
   useEffect(() => {
     if (!user) return;
     const live = supabase.channel(`store-live-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "wallets", filter: `user_id=eq.${user.id}` }, (payload) => {
-        const row = payload.new as { coins?: number };
-        if (row && row.coins !== undefined) setCoins(Number(row.coins));
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "wallet_transactions", filter: `user_id=eq.${user.id}` }, async () => {
-        const { data: tx } = await supabase.from("wallet_transactions").select("id,amount,currency,reason,created_at").eq("user_id", user.id).order("created_at",{ascending:false}).limit(30);
-        setTxs((tx ?? []).map((x)=>({...x,amount:Number(x.amount)})));
-      })
       .on("postgres_changes", { event: "*", schema: "public", table: "user_items", filter: `user_id=eq.${user.id}` }, async () => {
         const { data: ui } = await supabase.from("user_items").select("item_id").eq("user_id", user.id);
         setOwned(new Set((ui ?? []).map((r) => r.item_id)));
       })
       .subscribe();
     (async () => {
-      const [{ data: w }, { data: p }, { data: si }, { data: ui }] = await Promise.all([
-        supabase.from("wallets").select("coins").eq("user_id", user!.id).maybeSingle(),
+      const [{ data: p }, { data: si }, { data: ui }] = await Promise.all([
         supabase.from("profiles").select("equipped_frame, equipped_entry").eq("id", user!.id).single(),
         supabase.from("store_items").select("id, kind, name, description, price, asset_key").order("sort_order"),
         supabase.from("user_items").select("item_id").eq("user_id", user!.id),
       ]);
-      setCoins(Number(w?.coins ?? 0));
       setEquippedFrame(p?.equipped_frame ?? null);
       setEquippedEntry(p?.equipped_entry ?? null);
       const enrichedItems = await Promise.all((si ?? []).map(async (item) => ({ ...item, asset_url: await getAdminAssetUrl(item.asset_key) })));
       setItems(enrichedItems);
       setOwned(new Set((ui ?? []).map((r) => r.item_id)));
-      const { data: tx } = await supabase.from("wallet_transactions").select("id,amount,currency,reason,created_at").eq("user_id", user!.id).order("created_at",{ascending:false}).limit(30);
-      setTxs((tx ?? []).map((x)=>({...x,amount:Number(x.amount)})));
     })();
     return () => { void supabase.removeChannel(live); };
   }, [user]);
