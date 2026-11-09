@@ -45,7 +45,7 @@ function createSupabaseFetch(supabaseUrl: string, supabaseKey: string): typeof f
   };
 }
 
-const APP_VERSION = (import.meta.env['VITE_APP_VERSION'] as string | undefined) || '2.0.0';
+const APP_VERSION = (import.meta.env['VITE_APP_VERSION'] as string | undefined) || '2.0.1';
 
 function createSupabaseClient() {
   // Build-time Vite variables are used by the bundled Android client.
