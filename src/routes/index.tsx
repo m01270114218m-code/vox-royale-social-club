@@ -25,7 +25,7 @@ export const Route = createFileRoute("/")({
   component: HomeRouteComponent,
 });
 
-type Room = { id: string; room_no: number; name: string; description: string | null; category: string; country: string; member_count: number; is_private: boolean; seat_count: number; created_at: string; cover_url?: string | null; room_frame_asset_key?: string | null };
+type Room = { id: string; room_no: number; name: string; description: string | null; category: string; country: string; member_count: number; is_private: boolean; seat_count: number; created_at: string; cover_url?: string | null; room_frame_asset_key?: string | null; sort_order?: number };
 type RoomBanner = { id: string; title: string; image_url: string; resolved_image_url?: string | null; target_url?: string | null; sort_order: number; is_active: boolean; starts_at?: string | null; ends_at?: string | null };
 
 function HomeRouteComponent() {
@@ -146,7 +146,7 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
   }, [roomBanners.length]);
 
   const list = useMemo(() => {
-    return [...rooms].sort((a, b) => (tab === "hot" ? b.member_count - a.member_count : +new Date(b.created_at) - +new Date(a.created_at)));
+    return [...rooms].sort((a, b) => { const ao=Number(a.sort_order ?? 0), bo=Number(b.sort_order ?? 0); if (ao !== bo) return ao-bo; return tab === "hot" ? b.member_count-a.member_count : +new Date(b.created_at)-+new Date(a.created_at); });
   }, [rooms, tab, country, cat, q]);
 
   return (
