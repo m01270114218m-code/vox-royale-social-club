@@ -236,6 +236,7 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
       if (!micEnabled) throw new Error("شغّل الميك أولاً حتى يتم بث الأغاني للجميع");
       if (musicRef.current) {
         await client.unpublish(musicRef.current).catch(() => undefined);
+        musicRef.current.stopProcessAudioBuffer();
         musicRef.current.stop();
         musicRef.current.close();
         musicRef.current = null;
