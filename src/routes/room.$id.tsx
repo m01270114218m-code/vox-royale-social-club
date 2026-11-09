@@ -225,8 +225,14 @@ function RoomPage() {
         setMsgs((current) => current.some((m) => m.id === message.id) ? current : [...current.slice(-99), message]);
       })
       .on("broadcast", { event: "gift_sent" }, async (payload) => {
-        const event = payload.payload as { roomId?: string; giftId?: string; eventId?: string };
+        const event = payload.payload as { roomId?: string; giftId?: string; eventId?: string; lucky?: boolean };
         if (event.roomId !== id || !event.giftId) return;
+        if (event.lucky) {
+          const { data: lucky } = await supabase.from("lucky_gifts").select("asset_key").eq("id", event.giftId).maybeSingle();
+          const image = lucky?.asset_key ? await getAdminAssetUrl(lucky.asset_key) : null;
+          if (image) showGiftAnimation(image);
+          return;
+        }
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url").eq("id", event.giftId).maybeSingle();
         if (!g) return;
         const image = (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || (g.asset_url ? await getAdminAssetUrl(g.asset_url) : null);
