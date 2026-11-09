@@ -86,8 +86,8 @@ function RoomPage() {
   const [luckySel, setLuckySel] = useState<LuckyGiftT | null>(null);
   const [qty, setQty] = useState(1);
   const [coins, setCoins] = useState(0);
-  const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; style: string; speed: number; duration: number; mode: "static" | "animated" } | null>(null);
-  const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; name: string; avatar: string; level: number; vip: number } | null>(null);
+  const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; style: string; speed: number; duration: number; mode: "static" | "animated"; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number } | null>(null);
+  const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; name: string; avatar: string; level: number; vip: number; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
   const [micPermissionGranted, setMicPermissionGranted] = useState(false);
   const [musicFile, setMusicFile] = useState<File | null>(null);
@@ -117,12 +117,21 @@ function RoomPage() {
   const [cardStats, setCardStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0 });
   const [cardRoom, setCardRoom] = useState<{ id: string; name: string; room_no: number } | null>(null);
   const roomCoverUrl = useMedia(room?.cover_url);
-  function showGiftAnimation(image: string, config?: { style?: string; speed?: number; duration?: number; mode?: "static" | "animated" }) {
+  type AssetPlaybackSettings = { display_width?: number; display_height?: number; playback_speed?: number; animation_style?: string; display_duration_ms?: number; audio_enabled?: boolean };
+  async function getAssetPlaybackSettings(assetKey?: string | null): Promise<AssetPlaybackSettings> {
+    if (!assetKey) return {};
+    const { data } = await supabase.from("admin_assets").select("metadata").eq("asset_key", assetKey).eq("is_active", true).maybeSingle();
+    return (data?.metadata ?? {}) as AssetPlaybackSettings;
+  }
+  function showGiftAnimation(image: string, config?: { style?: string; speed?: number; duration?: number; mode?: "static" | "animated"; width?: number; height?: number; audioEnabled?: boolean; playbackSpeed?: number }) {
     const token = Date.now() + Math.floor(Math.random() * 1000);
-    const duration = Math.max(500, Math.min(20000, Number(config?.duration ?? 2600)));
+    const duration = Math.max(500, Math.min(120000, Number(config?.duration ?? 2600)));
     const speed = Math.max(0.25, Math.min(3, Number(config?.speed ?? 1)));
-    setAnim({ key: token, emoji: image, name: "", style: config?.style || "zoom", speed, duration, mode: config?.mode || "animated" });
-    window.setTimeout(() => setAnim((current) => current?.key === token ? null : current), duration);
+    const playbackSpeed = Math.max(0.25, Math.min(3, Number(config?.playbackSpeed ?? 1)));
+    setAnim({ key: token, emoji: image, name: "", style: config?.style || "zoom", speed, duration, mode: config?.mode || "animated", width: config?.width, height: config?.height, audioEnabled: config?.audioEnabled !== false, playbackSpeed });
+    // Still images use the configured display duration. Videos are removed by onEnded,
+    // so the complete original Storage file is played without a shortened timer.
+    if (!isVideoAsset(image)) window.setTimeout(() => setAnim((current) => current?.key === token ? null : current), duration);
   }
   useEffect(() => {
     if (!room) return;
@@ -180,6 +189,7 @@ function RoomPage() {
 
     const src = await getAdminAssetUrl(storeItem.asset_key);
     if (!src) return;
+    const settings = await getAssetPlaybackSettings(storeItem.asset_key);
     const token = Date.now() + Math.floor(Math.random() * 1000);
     setEntryAnim({
       key: token,
@@ -188,8 +198,15 @@ function RoomPage() {
       avatar: profile?.avatar_url || "",
       level: Number(profile?.level || 1),
       vip: Number(profile?.vip_level || 0),
+      width: Number(settings.display_width) || undefined,
+      height: Number(settings.display_height) || undefined,
+      audioEnabled: settings.audio_enabled !== false,
+      playbackSpeed: Math.max(0.25, Math.min(3, Number(settings.playback_speed ?? 1))),
     });
-    window.setTimeout(() => setEntryAnim((current) => current?.key === token ? null : current), 5200);
+    if (!isVideoAsset(src)) {
+      const displayDuration = Math.max(500, Math.min(120000, Number(settings.display_duration_ms ?? 5200)));
+      window.setTimeout(() => setEntryAnim((current) => current?.key === token ? null : current), displayDuration);
+    }
   }
 
   const loadMembers = useCallback(async () => {
@@ -259,14 +276,17 @@ function RoomPage() {
         if (event.lucky) {
           const { data: lucky } = await supabase.from("lucky_gifts").select("asset_key").eq("id", event.giftId).maybeSingle();
           const image = lucky?.asset_key ? await getAdminAssetUrl(lucky.asset_key) : null;
-          if (image) showGiftAnimation(image);
+          const settings = await getAssetPlaybackSettings(lucky?.asset_key);
+          if (image) showGiftAnimation(image, { style: settings.animation_style, speed: settings.playback_speed, playbackSpeed: settings.playback_speed, duration: settings.display_duration_ms, width: settings.display_width, height: settings.display_height, audioEnabled: settings.audio_enabled });
           return;
         }
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url,category_id,animation_style,animation_speed,display_duration_ms").eq("id", event.giftId).maybeSingle();
         if (!g) return;
+        const assetRef = g.asset_key || g.asset_url;
         const image = (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || (g.asset_url ? await getAdminAssetUrl(g.asset_url) : null);
+        const settings = await getAssetPlaybackSettings(assetRef);
         const { data: category } = g.category_id ? await supabase.from("gift_categories").select("display_mode").eq("id",g.category_id).maybeSingle() : { data: null };
-        if (image) showGiftAnimation(image,{style:g.animation_style,speed:g.animation_speed,duration:g.display_duration_ms,mode:category?.display_mode || "animated"});
+        if (image) showGiftAnimation(image,{style:g.animation_style || settings.animation_style,speed:g.animation_speed || settings.playback_speed,playbackSpeed:settings.playback_speed,duration:settings.display_duration_ms || g.display_duration_ms,mode:category?.display_mode || "animated",width:settings.display_width,height:settings.display_height,audioEnabled:settings.audio_enabled});
       })
       .on("broadcast", { event: "member_entered" }, async (payload) => {
         const event = payload.payload as { roomId?: string; userId?: string };
@@ -558,7 +578,10 @@ function RoomPage() {
     }
     setCoins((c) => c - giftSel.price * qty);
     // The sender renders locally; the room broadcast renders for every other connected member.
-    if (giftSel.asset_url) showGiftAnimation(giftSel.asset_url,{style:giftSel.animation_style,speed:giftSel.animation_speed,duration:giftSel.display_duration_ms,mode:giftCategoriesList.find(x=>x.id===giftSel.category_id)?.display_mode || "animated"});
+    const giftAssetRef = giftSel.asset_key || giftSel.asset_url;
+    const giftAssetUrl = giftAssetRef ? await getAdminAssetUrl(giftAssetRef) : null;
+    const giftAssetSettings = await getAssetPlaybackSettings(giftAssetRef);
+    if (giftAssetUrl) showGiftAnimation(giftAssetUrl,{style:giftSel.animation_style || giftAssetSettings.animation_style,speed:giftSel.animation_speed || giftAssetSettings.playback_speed,playbackSpeed:giftAssetSettings.playback_speed,duration:giftAssetSettings.display_duration_ms || giftSel.display_duration_ms,mode:giftCategoriesList.find(x=>x.id===giftSel.category_id)?.display_mode || "animated",width:giftAssetSettings.display_width,height:giftAssetSettings.display_height,audioEnabled:giftAssetSettings.audio_enabled});
     await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: giftSel.id, eventId: crypto.randomUUID(), receiverId: giftTo, quantity: qty } });
     setGiftOpen(false);
   }
@@ -571,7 +594,8 @@ function RoomPage() {
     if (data?.won) toast.success(`🎉 فاز المستخدم بمردود ${Number(data.reward).toLocaleString()} عملة`); else toast.success("تم إرسال هدية الحظ — هذه المرة بدون مردود");
     await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: luckySel.id, eventId: crypto.randomUUID(), receiverId: giftTo, quantity: qty, lucky: true } });
     const luckyAsset = luckySel.asset_key ? await getAdminAssetUrl(luckySel.asset_key) : null;
-    if (luckyAsset) showGiftAnimation(luckyAsset);
+    const luckySettings = await getAssetPlaybackSettings(luckySel.asset_key);
+    if (luckyAsset) showGiftAnimation(luckyAsset,{style:luckySettings.animation_style,speed:luckySettings.playback_speed,playbackSpeed:luckySettings.playback_speed,duration:luckySettings.display_duration_ms,width:luckySettings.display_width,height:luckySettings.display_height,audioEnabled:luckySettings.audio_enabled});
     setGiftOpen(false);
   }
 
@@ -851,7 +875,7 @@ function RoomPage() {
         </div>
       )}
       {entryAnim && (
-        <div key={entryAnim.key} role="status" aria-live="polite" className="pointer-events-none fixed inset-0 z-[75] flex items-center justify-center overflow-hidden bg-slate-950/65 px-5 backdrop-blur-[5px] animate-in fade-in duration-300">
+        <div key={entryAnim.key} role="status" aria-live="polite" className="pointer-events-auto fixed inset-0 z-[75] flex items-center justify-center overflow-hidden bg-slate-950/65 px-5 backdrop-blur-[5px] animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.28),transparent_62%)]" />
           <div className="relative flex w-full max-w-[390px] flex-col items-center">
             <div className="mb-3 text-[11px] font-black tracking-[.38em] text-amber-200 drop-shadow-lg">ROOM ENTRANCE</div>
@@ -867,7 +891,7 @@ function RoomPage() {
                 {entryAnim.vip > 0 && <div className="relative mt-2 inline-flex rounded-full border border-amber-300/50 bg-amber-300/15 px-3 py-1 text-xs font-extrabold text-amber-200">VIP {entryAnim.vip}</div>}
                 {entryAnim.src ? (
                   <div className="relative mt-4 flex justify-center">
-                    {isVideoAsset(entryAnim.src) ? <video key={entryAnim.key} src={entryAnim.src} autoPlay muted playsInline className="max-h-[42vh] max-w-full rounded-2xl object-contain drop-shadow-2xl" /> : <img src={entryAnim.src} alt="تأثير دخول المستخدم" className="max-h-[42vh] max-w-full rounded-2xl object-contain drop-shadow-2xl" />}
+                    {isVideoAsset(entryAnim.src) ? <video key={entryAnim.key} src={entryAnim.src} autoPlay controls muted={!entryAnim.audioEnabled} playsInline preload="auto" onLoadedMetadata={(e) => { e.currentTarget.playbackRate = entryAnim.playbackSpeed; }} onEnded={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)} onError={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)} style={{ width: entryAnim.width ? `${entryAnim.width}px` : undefined, height: entryAnim.height ? `${entryAnim.height}px` : undefined }} className="max-h-[42vh] max-w-full rounded-2xl object-contain drop-shadow-2xl" /> : <img src={entryAnim.src} alt="تأثير دخول المستخدم" style={{ width: entryAnim.width ? `${entryAnim.width}px` : undefined, height: entryAnim.height ? `${entryAnim.height}px` : undefined }} className="max-h-[42vh] max-w-full rounded-2xl object-contain drop-shadow-2xl" />}
                   </div>
                 ) : <div className="relative mt-4 text-3xl text-amber-200">✧ ✦ ✧</div>}
                 <div className="relative mt-4 text-xs font-semibold text-white/70">أهلاً بك في مجلسنا</div>
@@ -880,9 +904,9 @@ function RoomPage() {
 
       {anim && (
         <style>{`@keyframes gift-zoom{0%{opacity:0;transform:scale(.35)}70%{opacity:1;transform:scale(1.06)}100%{transform:scale(1)}}@keyframes gift-slide{0%{opacity:0;transform:translateX(90vw) scale(.8)}100%{opacity:1;transform:translateX(0) scale(1)}}@keyframes gift-float{0%{opacity:0;transform:translateY(55px) scale(.8)}55%{opacity:1;transform:translateY(-12px) scale(1.04)}100%{transform:translateY(0) scale(1)}}@keyframes gift-pulse{0%{opacity:0;transform:scale(.65)}55%{opacity:1;transform:scale(1.12)}100%{transform:scale(1)}}`}</style>
-        <div key={anim.key} role="presentation" className={`pointer-events-none fixed inset-0 z-[80] flex items-center justify-center px-5 ${anim.mode === "animated" ? "bg-black/35" : "bg-black/15"}`}>
-          <div className="relative flex max-h-[82vh] max-w-[92vw] items-center justify-center rounded-3xl border border-amber-200/30 bg-gradient-to-br from-slate-950/55 via-violet-950/25 to-slate-950/55 p-3 shadow-[0_0_55px_rgba(168,85,247,.28)]" style={{animation:anim.mode==="static"?"none":`${anim.style==="slide"?"gift-slide":anim.style==="float"?"gift-float":anim.style==="pulse"?"gift-pulse":"gift-zoom"} ${Math.max(250,900/anim.speed)}ms ease-out both`}}>
-            {isVideoAsset(anim.emoji) ? <video key={anim.key} src={anim.emoji} autoPlay muted playsInline className="max-h-[72vh] max-w-[88vw] object-contain drop-shadow-2xl" /> : <img src={anim.emoji} alt="" aria-hidden="true" className="max-h-[72vh] max-w-[88vw] object-contain drop-shadow-2xl" />}
+        <div key={anim.key} role="presentation" className={`pointer-events-auto fixed inset-0 z-[80] flex items-center justify-center px-5 ${anim.mode === "animated" ? "bg-black/35" : "bg-black/15"}`}>
+          <div className="relative flex max-h-[82vh] max-w-[92vw] items-center justify-center rounded-3xl border border-amber-200/30 bg-gradient-to-br from-slate-950/55 via-violet-950/25 to-slate-950/55 p-3 shadow-[0_0_55px_rgba(168,85,247,.28)]" style={{animation:anim.mode==="static" || anim.style==="none"?"none":`${anim.style==="slide"?"gift-slide":anim.style==="float"?"gift-float":anim.style==="pulse"?"gift-pulse":"gift-zoom"} ${Math.max(250,900/anim.speed)}ms ease-out both`, width:anim.width? `${anim.width}px` : undefined, height:anim.height? `${anim.height}px` : undefined}}>
+            {isVideoAsset(anim.emoji) ? <video key={anim.key} src={anim.emoji} autoPlay controls muted={!anim.audioEnabled} playsInline preload="auto" onLoadedMetadata={(e) => { e.currentTarget.playbackRate = anim.playbackSpeed; }} onEnded={() => setAnim((current) => current?.key === anim.key ? null : current)} onError={() => setAnim((current) => current?.key === anim.key ? null : current)} className="max-h-[72vh] max-w-[88vw] object-contain drop-shadow-2xl" /> : <img src={anim.emoji} alt="" aria-hidden="true" className="max-h-[72vh] max-w-[88vw] object-contain drop-shadow-2xl" />}
           </div>
         </div>
       )}
