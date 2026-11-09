@@ -476,10 +476,18 @@ function RoomPage() {
 
   // If I got banned/kicked, leave.
   useEffect(() => {
-    if (room && members.length && !members.includes(uid)) {
-      toast.error("تمت إزالتك من الغرفة");
-      nav({ to: "/" });
-    }
+    if (!room || !members.length || members.includes(uid)) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void supabase.from("room_members").select("user_id").eq("room_id", id).eq("user_id", uid).maybeSingle()
+        .then(({ data, error }) => {
+          if (active && !error && !data) {
+            toast.error("انتهى وجودك في الغرفة");
+            nav({ to: "/" });
+          }
+        });
+    }, 700);
+    return () => { active = false; window.clearTimeout(timer); };
   }, [members, room, uid, nav]);
 
   const mySeat = seats.find((s) => s.user_id === uid);
@@ -843,7 +851,7 @@ function RoomPage() {
                 </div>
               )}
               {seatMenu.user_id === uid && <Button variant="outline" onClick={() => call("leave_seat", { _room: id })}>مغادرة المقعد</Button>}
-              {isStaff && false && (
+              {isStaff && (
                 <>
                   {seatMenu.seat_index >= 0 && <>
                     <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_locked ? "unlock" : "lock" })}>{seatMenu.is_locked ? "فتح المايك" : "قفل المايك"}</Button>
@@ -942,7 +950,7 @@ function RoomPage() {
                 {entryAnim.vip > 0 && <div className="relative mt-2 inline-flex rounded-full border border-amber-300/50 bg-amber-300/15 px-3 py-1 text-xs font-extrabold text-amber-200">VIP {entryAnim.vip}</div>}
                 {entryAnim.src ? (
                   <div className="relative mt-4 flex justify-center" style={{ animation: entryAnim.animationStyle === "none" ? "none" : `entry-${["slide","float","pulse"].includes(entryAnim.animationStyle) ? entryAnim.animationStyle : "zoom"} ${Math.max(250, 900 / entryAnim.animationSpeed)}ms ease-out both` }}>
-                    {isVideoAsset(entryAnim.src) ? <video key={entryAnim.key} src={entryAnim.src} autoPlay controls muted={!entryAnim.audioEnabled} playsInline preload="auto" volume={entryAnim.audioEnabled ? 1 : 0} onLoadedMetadata={(e) => { e.currentTarget.playbackRate = entryAnim.playbackSpeed; e.currentTarget.volume = entryAnim.audioEnabled ? 1 : 0; void e.currentTarget.play().catch(() => { /* WebView/browser may require a user gesture for unmuted autoplay. */ }); }} onCanPlay={(e) => { if (entryAnim.audioEnabled) void e.currentTarget.play().catch(() => {}); }} onEnded={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)} onError={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)} style={{ width: entryAnim.width ? `${entryAnim.width}px` : undefined, height: entryAnim.height ? `${entryAnim.height}px` : undefined }} className="max-h-[42vh] max-w-full rounded-2xl object-contain drop-shadow-2xl" /> : <img src={entryAnim.src} alt="تأثير دخول المستخدم" style={{ width: entryAnim.width ? `${entryAnim.width}px` : undefined, height: entryAnim.height ? `${entryAnim.height}px` : undefined }} className="max-h-[42vh] max-w-full rounded-2xl object-contain drop-shadow-2xl" />}
+                    {isVideoAsset(entryAnim.src) ? <video key={entryAnim.key} src={entryAnim.src} autoPlay controls muted={!entryAnim.audioEnabled} playsInline preload="auto" volume={entryAnim.audioEnabled ? 1 : 0} onLoadedMetadata={(e) => { e.currentTarget.playbackRate = entryAnim.playbackSpeed; e.currentTarget.volume = entryAnim.audioEnabled ? 1 : 0; void e.currentTarget.play().catch(() => { /* WebView/browser may require a user gesture for unmuted autoplay. */ }); }} onCanPlay={(e) => { if (entryAnim.audioEnabled) void e.currentTarget.play().catch(() => {}); }} onEnded={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)} onError={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)} style={{ width: entryAnim.width ? `${entryAnim.width}px` : undefined, height: entryAnim.height ? `${entryAnim.height}px` : undefined }} className="max-h-[92dvh] max-w-[96vw] rounded-2xl object-contain drop-shadow-2xl" /> : <img src={entryAnim.src} alt="تأثير دخول المستخدم" style={{ width: entryAnim.width ? `${entryAnim.width}px` : undefined, height: entryAnim.height ? `${entryAnim.height}px` : undefined }} className="max-h-[42vh] max-w-full rounded-2xl object-contain drop-shadow-2xl" />}
                   </div>
                 ) : <div className="relative mt-4 text-3xl text-amber-200">✧ ✦ ✧</div>}
                 <div className="relative mt-4 text-xs font-semibold text-white/70">أهلاً بك في مجلسنا</div>
