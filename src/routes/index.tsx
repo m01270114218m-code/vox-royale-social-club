@@ -25,7 +25,7 @@ export const Route = createFileRoute("/")({
   component: HomeRouteComponent,
 });
 
-type Room = { id: string; room_no: number; name: string; description: string | null; category: string; country: string; member_count: number; is_private: boolean; seat_count: number; created_at: string; cover_url?: string | null };
+type Room = { id: string; room_no: number; name: string; description: string | null; category: string; country: string; member_count: number; is_private: boolean; seat_count: number; created_at: string; cover_url?: string | null; room_frame_asset_key?: string | null };
 type RoomBanner = { id: string; title: string; image_url: string; resolved_image_url?: string | null; target_url?: string | null; sort_order: number; is_active: boolean; starts_at?: string | null; ends_at?: string | null };
 
 function HomeRouteComponent() {
@@ -36,9 +36,6 @@ function HomeRouteComponent() {
 export function HomeScreen({ createRequested = false }: { createRequested?: boolean }) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [tab, setTab] = useState<"hot" | "new">("hot");
-  const [country, setCountry] = useState<string | null>(null);
-  const [cat, setCat] = useState<string | null>(null);
-  const [q, setQ] = useState("");
   const [userIdSearch, setUserIdSearch] = useState("");
   const [appBranding, setAppBranding] = useState<{ app_name?: string; logo_path?: string } | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -149,9 +146,7 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
   }, [roomBanners.length]);
 
   const list = useMemo(() => {
-    let r = rooms.filter((x) => (!country || x.country === country) && (!cat || x.category === cat));
-    if (q.trim()) r = r.filter((x) => x.name.includes(q.trim()) || String(x.room_no) === q.trim());
-    return [...r].sort((a, b) => (tab === "hot" ? b.member_count - a.member_count : +new Date(b.created_at) - +new Date(a.created_at)));
+    return [...rooms].sort((a, b) => (tab === "hot" ? b.member_count - a.member_count : +new Date(b.created_at) - +new Date(a.created_at)));
   }, [rooms, tab, country, cat, q]);
 
   return (
@@ -187,27 +182,12 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
           })()}
         </div>
       )}
-      <div className="relative mb-2">
-        <img src={icons3d.search} alt="" className="absolute right-3 top-1.5 h-7 w-7 object-contain" />
-        <Input className="pr-10" placeholder="ابحث باسم الغرفة أو رقمها" value={q} onChange={(e) => setQ(e.target.value)} />
-      </div>\n      <div className="mb-3 flex gap-2"><Input className="flex-1" inputMode="numeric" dir="ltr" placeholder="ابحث عن مستخدم بالـ ID" value={userIdSearch} onChange={(e) => setUserIdSearch(e.target.value.replace(/\\D/g, ""))} /><Button variant="outline" onClick={() => void searchUserById()}><Search className="h-4 w-4" /> مستخدم</Button></div>
+      <div className="mb-3 flex gap-2"><Input className="flex-1" inputMode="numeric" dir="ltr" placeholder="ابحث عن مستخدم بالـ ID" value={userIdSearch} onChange={(e) => setUserIdSearch(e.target.value.replace(/\D/g, ""))} /><Button variant="outline" onClick={() => void searchUserById()}><Search className="h-4 w-4" /> مستخدم</Button></div>
       <div className="mb-2 flex gap-2">
         {(["hot", "new"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1.5 text-sm font-bold ${tab === t ? "bg-gold" : "glass text-muted-foreground"}`}>
+          <button key={t} onClick={() => setTab(t)} className={tab === t ? "rounded-full px-4 py-1.5 text-sm font-bold bg-gold" : "rounded-full px-4 py-1.5 text-sm font-bold glass text-muted-foreground"}>
             {t === "hot" ? "🔥 الشائعة" : "✨ الجديدة"}
           </button>
-        ))}
-      </div>
-      <div className="room-filter-row mb-2 flex flex-wrap items-center gap-1.5">
-        <Chip active={!country} onClick={() => setCountry(null)}>🌍 الكل</Chip>
-        {COUNTRIES.map((c) => (
-          <Chip key={c.code} active={country === c.code} onClick={() => setCountry(c.code)}>{c.flag} {c.name}</Chip>
-        ))}
-      </div>
-      <div className="room-filter-row mb-3 flex flex-wrap items-center gap-1.5">
-        <Chip active={!cat} onClick={() => setCat(null)}>كل التصنيفات</Chip>
-        {CATEGORIES.map((c) => (
-          <Chip key={c.id} active={cat === c.id} onClick={() => setCat(c.id)}>{c.name}</Chip>
         ))}
       </div>
       {list.length === 0 ? (
@@ -216,7 +196,7 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
         <div className="grid grid-cols-2 justify-items-stretch gap-2 sm:gap-3">
           {list.map((r) => (
             <Link key={r.id} to="/room/$id" params={{ id: r.id }} className="card-3d glass group relative aspect-[3/4] overflow-hidden rounded-3xl p-3">
-              <MediaImage src={r.cover_url || roomBackground(r.category)} className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
+              <MediaImage src={r.cover_url || roomBackground(r.category)} className="absolute inset-0 h-full w-full object-cover" />{r.room_frame_asset_key && <RoomFrameOverlay assetKey={r.room_frame_asset_key} />}<div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
               <div className="relative flex h-full flex-col justify-between">
                 <span className="w-fit rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">{catName(r.category)}</span>
                 <div />
@@ -239,6 +219,12 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
       </div>
     </div>
   );
+}
+
+function RoomFrameOverlay({ assetKey }: { assetKey: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => { void getAdminAssetUrl(assetKey).then(setSrc); }, [assetKey]);
+  return src ? <img src={src} alt="" className="pointer-events-none absolute inset-0 z-10 h-full w-full object-fill" /> : null;
 }
 
 function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
