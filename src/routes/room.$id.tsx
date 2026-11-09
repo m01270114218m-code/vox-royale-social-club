@@ -76,6 +76,8 @@ function RoomPage() {
   const [showMembers, setShowMembers] = useState(false);
   const [gifts, setGifts] = useState<GiftT[]>([]);
   const [giftOpen, setGiftOpen] = useState(false);
+  const [giftTab, setGiftTab] = useState<"normal" | "lucky">("normal");
+  const [giftCategory, setGiftCategory] = useState("all");
   const [giftTo, setGiftTo] = useState<string | null>(null);
   const [giftSel, setGiftSel] = useState<GiftT | null>(null);
   const [luckyGifts, setLuckyGifts] = useState<LuckyGiftT[]>([]);
@@ -179,6 +181,15 @@ function RoomPage() {
   useEffect(() => {
     let alive = true;
     const pendingLeave = pendingRoomLeaves.get(id);
+    let joinCompleted = false;
+    let channelReady = false;
+    let entryAnnounced = false;
+    let ch: ReturnType<typeof supabase.channel>;
+    const announceRoomEntry = async () => {
+      if (!joinCompleted || !channelReady || entryAnnounced || !ch) return;
+      entryAnnounced = true;
+      await ch.send({ type: "broadcast", event: "member_entered", payload: { roomId: id, userId: uid, entryId: crypto.randomUUID() } });
+    };
     if (pendingLeave) {
       clearTimeout(pendingLeave);
       pendingRoomLeaves.delete(id);
@@ -196,6 +207,8 @@ function RoomPage() {
       }
       if (!alive) return;
       setRoom(r as Room);
+      joinCompleted = true;
+      void announceRoomEntry();
       const { data: m } = await supabase.from("room_moderators").select("user_id").eq("room_id", id).eq("user_id", uid);
       setIsMod(!!m?.length);
       loadSeats();
@@ -203,7 +216,7 @@ function RoomPage() {
       loadMicRequests();
       // Room chat is live-session only: never replay persisted messages on entry.
     })();
-    const ch = supabase
+    ch = supabase
       .channel(`room-${id}`)
       .on("broadcast", { event: "chat_message" }, (payload) => {
         const message = payload.payload as Msg & { roomId?: string };
@@ -217,6 +230,12 @@ function RoomPage() {
         if (!g) return;
         const image = (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || (g.asset_url ? await getAdminAssetUrl(g.asset_url) : null);
         if (image) showGiftAnimation(image);
+      })
+      .on("broadcast", { event: "member_entered" }, async (payload) => {
+        const event = payload.payload as { roomId?: string; userId?: string };
+        if (event.roomId !== id || !event.userId || event.userId === uid) return;
+        await ensureProfiles([event.userId]);
+        void playEntryFor(event.userId);
       })
       .on("broadcast", { event: "mic_request_changed" }, () => { void loadMicRequests(); })
       .on("broadcast", { event: "member_changed" }, () => { void loadMembers(); void loadSeats(); })
@@ -261,7 +280,7 @@ function RoomPage() {
         const userId = (payload.new as { user_id: string }).user_id;
         setMembers((current) => current.includes(userId) ? current : [...current, userId]);
         await ensureProfiles([userId]);
-        void playEntryFor(userId);
+        // The broadcast also handles re-entry when the membership row already exists.
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, (payload) => {
         const userId = (payload.old as { user_id: string }).user_id;
@@ -287,6 +306,8 @@ function RoomPage() {
             .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${id}` }, (payload) => { setRoom((current) => current ? ({ ...current, ...(payload.new as Partial<Room>) }) : current); })
       .subscribe((status) => {
       if (status === "SUBSCRIBED") {
+        channelReady = true;
+        void announceRoomEntry();
         void Promise.all([loadSeats(), loadMembers(), loadMicRequests()]);
         setMsgs([]); // New subscription starts with an empty live chat.
       }
@@ -475,6 +496,8 @@ function RoomPage() {
     setGiftTo(target ?? seats.find((s) => s.user_id && s.user_id !== uid)?.user_id ?? others[0] ?? null);
     setGiftSel(null);
     setLuckySel(null);
+    setGiftTab("normal");
+    setGiftCategory("all");
     setQty(1);
     setSeatMenu(null);
     setGiftOpen(true);
@@ -532,6 +555,8 @@ function RoomPage() {
 
   if (!room) return <div className="flex min-h-screen items-center justify-center"><img src={icons3d.micHost} alt="صدى شات" className="h-16 w-16 animate-pulse object-contain" /></div>;
   const cols = room.seat_count <= 4 ? "grid-cols-4" : room.seat_count === 6 || room.seat_count === 9 ? "grid-cols-3" : "grid-cols-4";
+  const giftCategories = [...new Set(gifts.map((gift) => gift.tier).filter(Boolean))];
+  const visibleGifts = giftCategory === "all" ? gifts : gifts.filter((gift) => gift.tier === giftCategory);
 
   return (
     <><RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} musicFile={musicFile} musicCommand={musicCommand} onMusicProgress={onMusicProgress} onSpeakingUsers={handleSpeakingUsers} />
@@ -795,8 +820,17 @@ function RoomPage() {
               {members.filter((m) => m !== uid).length === 0 && <option value="">لا يوجد أحد غيرك في الغرفة</option>}
               {members.filter((m) => m !== uid).map((m) => <option key={m} value={m}>إلى: {publicName(m)}</option>)}
             </select>
-            <div className="grid grid-cols-4 gap-2">
-              {gifts.map((g) => (
+            <div className="flex gap-2 overflow-x-auto pb-2" dir="rtl">
+              <Button type="button" size="sm" variant={giftTab === "normal" ? "default" : "outline"} className="shrink-0 rounded-full" onClick={() => setGiftTab("normal")}>الهدايا العادية</Button>
+              <Button type="button" size="sm" variant={giftTab === "lucky" ? "default" : "outline"} className="shrink-0 rounded-full" onClick={() => setGiftTab("lucky")}>هدايا الحظ</Button>
+            </div>
+            {giftTab === "normal" ? <>
+              <div className="flex gap-2 overflow-x-auto pb-2" dir="rtl">
+                <Button type="button" size="sm" variant={giftCategory === "all" ? "default" : "outline"} className="shrink-0 rounded-full" onClick={() => setGiftCategory("all")}>الكل</Button>
+                {giftCategories.map((category) => <Button type="button" size="sm" variant={giftCategory === category ? "default" : "outline"} className="shrink-0 rounded-full" key={category} onClick={() => setGiftCategory(category)}>{category}</Button>)}
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+              {visibleGifts.map((g) => (
                 <Button variant="ghost" key={g.id} onClick={() => setGiftSel(g)} className={`h-auto flex-col gap-1 rounded-xl p-2 ${giftSel?.id === g.id ? "bg-secondary ring-2 ring-primary" : "glass"}`}>
                   {g.asset_url ? (isVideoAsset(g.asset_url) ? <video src={g.asset_url} autoPlay muted loop playsInline className="h-16 w-16 object-contain" /> : <img src={g.asset_url} alt={g.name} className="h-16 w-16 object-contain" />) : <span className="grid h-16 w-16 place-items-center rounded-xl bg-secondary text-muted-foreground"><Gift className="h-7 w-7" /></span>}
                   <span className="text-xs">{g.name}</span>
@@ -804,7 +838,8 @@ function RoomPage() {
                 </Button>
               ))}
             </div>
-            <div className="mt-4 rounded-2xl border border-gold/20 p-3"><div className="mb-2 font-bold text-gold">🎲 هدايا الحظ</div><div className="grid grid-cols-3 gap-2">{luckyGifts.map(g=><Button variant="ghost" key={g.id} onClick={()=>{setLuckySel(g);setGiftSel(null);}} className={`h-auto flex-col gap-1 rounded-xl p-2 ${luckySel?.id===g.id?"bg-secondary ring-2 ring-gold":"glass"}`}><div className="h-14 w-14 rounded-xl bg-secondary grid place-items-center text-2xl">🎲</div><span className="text-xs">{g.name}</span><span className="text-[10px] text-gold">حظ {g.win_chance}% · 🪙{g.price}</span></Button>)}</div></div>\n            <div className="flex items-center gap-2">\n              {[1, 10, 99].map((n) => <Button variant="ghost" size="sm" key={n} onClick={() => setQty(n)} className={`rounded-full ${qty === n ? "bg-gold" : "glass"}`}>x{n}</Button>)}
+            </div>
+            </> : <div className="grid grid-cols-3 gap-2">{luckyGifts.map(g=><Button variant="ghost" key={g.id} onClick={()=>{setLuckySel(g);setGiftSel(null);}} className={`h-auto flex-col gap-1 rounded-xl p-2 ${luckySel?.id===g.id?"bg-secondary ring-2 ring-gold":"glass"}`}><div className="h-14 w-14 rounded-xl bg-secondary grid place-items-center text-2xl">🎲</div><span className="text-xs">{g.name}</span><span className="text-[10px] text-gold">حظ {g.win_chance}% · 🪙{g.price}</span></Button>)}</div>}\n            <div className="flex items-center gap-2">\n              {[1, 10, 99].map((n) => <Button variant="ghost" size="sm" key={n} onClick={() => setQty(n)} className={`rounded-full ${qty === n ? "bg-gold" : "glass"}`}>x{n}</Button>)}
               <Button disabled={(!giftSel && !luckySel) || !giftTo} onClick={luckySel ? sendLuckyGift : sendGift} className="mr-auto bg-gold font-bold">{luckySel ? `إرسال حظ (${luckySel.price * qty})` : `إرسال ${giftSel ? `(${giftSel.price * qty})` : ""}`}</Button>
             </div>
           </div>
