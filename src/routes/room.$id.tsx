@@ -880,6 +880,7 @@ function RoomPage() {
         <>
         <style>{`@keyframes entry-zoom{0%{opacity:0;transform:scale(.35)}70%{opacity:1;transform:scale(1.04)}100%{transform:scale(1)}}@keyframes entry-slide{0%{opacity:0;transform:translateX(80vw)}100%{opacity:1;transform:translateX(0)}}@keyframes entry-float{0%{opacity:0;transform:translateY(45px)}100%{opacity:1;transform:translateY(0)}}@keyframes entry-pulse{0%{opacity:0;transform:scale(.7)}60%{opacity:1;transform:scale(1.08)}100%{transform:scale(1)}}`}</style>
         <div key={entryAnim.key} role="status" aria-live="polite" className="pointer-events-auto fixed inset-0 z-[75] flex items-center justify-center overflow-hidden bg-slate-950/65 px-5 backdrop-blur-[5px] animate-in fade-in duration-300">
+          <button type="button" onClick={() => setEntryAnim(null)} className="absolute right-4 top-4 z-[90] rounded-full border border-white/25 bg-black/70 px-4 py-2 text-xs font-bold text-white">إغلاق الدخولية</button>
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.28),transparent_62%)]" />
           <div className="relative flex w-full max-w-[390px] flex-col items-center">
             <div className="mb-3 text-[11px] font-black tracking-[.38em] text-amber-200 drop-shadow-lg">ROOM ENTRANCE</div>
@@ -908,12 +909,15 @@ function RoomPage() {
       )}
 
       {anim && (
+        <>
         <style>{`@keyframes gift-zoom{0%{opacity:0;transform:scale(.35)}70%{opacity:1;transform:scale(1.06)}100%{transform:scale(1)}}@keyframes gift-slide{0%{opacity:0;transform:translateX(90vw) scale(.8)}100%{opacity:1;transform:translateX(0) scale(1)}}@keyframes gift-float{0%{opacity:0;transform:translateY(55px) scale(.8)}55%{opacity:1;transform:translateY(-12px) scale(1.04)}100%{transform:translateY(0) scale(1)}}@keyframes gift-pulse{0%{opacity:0;transform:scale(.65)}55%{opacity:1;transform:scale(1.12)}100%{transform:scale(1)}}`}</style>
         <div key={anim.key} role="presentation" className={`pointer-events-auto fixed inset-0 z-[80] flex items-center justify-center px-5 ${anim.mode === "animated" ? "bg-black/35" : "bg-black/15"}`}>
+          <button type="button" onClick={() => setAnim(null)} className="absolute right-4 top-4 z-[90] rounded-full border border-white/25 bg-black/70 px-4 py-2 text-xs font-bold text-white">إغلاق الهدية</button>
           <div className="relative flex max-h-[82vh] max-w-[92vw] items-center justify-center rounded-3xl border border-amber-200/30 bg-gradient-to-br from-slate-950/55 via-violet-950/25 to-slate-950/55 p-3 shadow-[0_0_55px_rgba(168,85,247,.28)]" style={{animation:anim.mode==="static" || anim.style==="none"?"none":`${anim.style==="slide"?"gift-slide":anim.style==="float"?"gift-float":anim.style==="pulse"?"gift-pulse":"gift-zoom"} ${Math.max(250,900/anim.speed)}ms ease-out both`, width:anim.width? `${anim.width}px` : undefined, height:anim.height? `${anim.height}px` : undefined}}>
             {isVideoAsset(anim.emoji) ? <video key={anim.key} src={anim.emoji} autoPlay controls muted={!anim.audioEnabled} playsInline preload="auto" onLoadedMetadata={(e) => { e.currentTarget.playbackRate = anim.playbackSpeed; }} onEnded={() => setAnim((current) => current?.key === anim.key ? null : current)} onError={() => setAnim((current) => current?.key === anim.key ? null : current)} className="max-h-[72vh] max-w-[88vw] object-contain drop-shadow-2xl" /> : <img src={anim.emoji} alt="" aria-hidden="true" className="max-h-[72vh] max-w-[88vw] object-contain drop-shadow-2xl" />}
           </div>
         </div>
+        </>
       )}
 
       <Sheet open={giftOpen} onOpenChange={setGiftOpen}>
