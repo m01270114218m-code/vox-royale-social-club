@@ -778,7 +778,7 @@ function AssetsTab() {
   const [grantUserId, setGrantUserId] = useState("");
   const [grantUserNo, setGrantUserNo] = useState("");
   const [grantItemId, setGrantItemId] = useState("");
-  const [grantEquip, setGrantEquip] = useState(false);
+  const grantEquip = true;
   const [grantBusy, setGrantBusy] = useState(false);
   const [category, setCategory] = useState("general");
   const [name, setName] = useState("");
@@ -950,7 +950,7 @@ function AssetsTab() {
     (asset.name.toLowerCase().includes(search.toLowerCase()) || asset.asset_key.toLowerCase().includes(search.toLowerCase()))
   );
   const isImage = (asset: AdminAsset) => (asset.metadata?.content_type ?? "").startsWith("image/");
-  const isVideo = (asset: AdminAsset) => (asset.metadata?.content_type ?? "") === "video/mp4";
+  const isVideo = (asset: AdminAsset) => (asset.metadata?.content_type ?? "").toLowerCase().startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(asset.metadata?.original_name ?? asset.url ?? "");
   const isModel = (asset: AdminAsset) => /model\/gltf|octet-stream/i.test(asset.metadata?.content_type ?? "") || /\.(glb|gltf)$/i.test(asset.name);
 
   return (
@@ -1007,10 +1007,7 @@ function AssetsTab() {
             {grantBusy ? "جارٍ الإرسال…" : "إرسال الشارة"}
           </Button>
         </div>
-        <label className="flex items-center gap-2 text-xs">
-          <input type="checkbox" checked={grantEquip} onChange={(e) => setGrantEquip(e.target.checked)} />
-          تجهيز الشارة فوراً وإظهارها تحت ID المستخدم
-        </label>
+        <p className="text-xs text-emerald-500">سيتم تجهيز الشارة تلقائياً وإظهارها أسفل ID المستخدم فور الإرسال.</p>
         {grantUserId && <div className="text-[11px] text-muted-foreground" dir="ltr">user_id: {grantUserId}</div>}
       </div>
 
