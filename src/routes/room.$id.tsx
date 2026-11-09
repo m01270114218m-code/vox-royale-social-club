@@ -208,7 +208,7 @@ function RoomPage() {
         return nav({ to: "/" });
       }
       if (!alive) return;
-      try { const mini = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string } | null; if (mini?.id === id) { localStorage.removeItem("vox_minimized_room"); window.dispatchEvent(new Event("vox-room-minimized")); } } catch { localStorage.removeItem("vox_minimized_room"); window.dispatchEvent(new Event("vox-room-minimized")); }
+      try { const mini = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string } | null; if (mini?.id === id) { localStorage.removeItem("vox_minimized_room"); localStorage.removeItem("vox_active_room"); localStorage.removeItem("vox_minimized_room_id"); window.dispatchEvent(new Event("vox-room-minimized")); } } catch { localStorage.removeItem("vox_minimized_room"); localStorage.removeItem("vox_active_room"); localStorage.removeItem("vox_minimized_room_id"); window.dispatchEvent(new Event("vox-room-minimized")); }
       setRoom(r as Room);
       joinCompleted = true;
       void announceRoomEntry();
