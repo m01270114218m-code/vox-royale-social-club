@@ -134,6 +134,29 @@ function RoomPage() {
     if (!isVideoAsset(image)) window.setTimeout(() => setAnim((current) => current?.key === token ? null : current), duration);
   }
   useEffect(() => {
+    let active = true;
+    const refreshGiftCatalog = async () => {
+      const [{ data: rows }, { data: cats }] = await Promise.all([
+        supabase.from("gifts").select("id,name,emoji,price,tier,category_id,animation_style,animation_speed,display_duration_ms,asset_key,asset_url").eq("active", true).order("sort"),
+        supabase.from("gift_categories").select("id,name,display_mode,sort_order").eq("is_active", true).order("sort_order"),
+      ]);
+      const resolved = await Promise.all((rows || []).map(async (gift) => ({
+        ...gift,
+        asset_url: (gift.asset_key ? await getAdminAssetUrl(gift.asset_key) : null) || (gift.asset_url ? await getAdminAssetUrl(gift.asset_url) : null),
+      })));
+      if (active) {
+        setGifts(resolved as GiftT[]);
+        setGiftCategoriesList((cats ?? []) as GiftCategoryT[]);
+      }
+    };
+    const channel = supabase.channel(`room-gift-catalog-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "gifts" }, () => { void refreshGiftCatalog(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "gift_categories" }, () => { void refreshGiftCatalog(); })
+      .subscribe();
+    return () => { active = false; void supabase.removeChannel(channel); };
+  }, [id]);
+
+  useEffect(() => {
     if (!room) return;
     const onBack = () => {
       if (roomMinimized) setRoomMinimized(false);
