@@ -199,13 +199,44 @@ export function SettingsTab() {
   const [rows, setRows] = useState<{ key: string; value: unknown; updated_at: string; updated_by: string | null }[]>([]);
   const [key, setKey] = useState("");
   const [value, setValue] = useState("{}");
+  const [authMethods, setAuthMethods] = useState({ email_enabled: true, quick_enabled: true, google_enabled: true, phone_enabled: true });
+  const [authBusy, setAuthBusy] = useState(false);
+
   async function load() {
     const { data, error } = await supabase.from("admin_settings").select("key,value,updated_at,updated_by").order("key");
     if (error) toast.error(errMsg(error));
     setRows((data ?? []) as typeof rows);
+    const authRow = (data ?? []).find((r) => r.key === "auth_methods");
+    if (authRow) {
+      const v = (authRow.value ?? {}) as Record<string, unknown>;
+      setAuthMethods({
+        email_enabled: v.email_enabled !== false,
+        quick_enabled: v.quick_enabled !== false,
+        google_enabled: v.google_enabled !== false,
+        phone_enabled: v.phone_enabled !== false,
+      });
+    }
   }
+
   useEffect(() => { void load(); }, []);
   useAdminRealtime(["admin_settings"], load);
+
+  async function saveAuthMethods(next: typeof authMethods) {
+    setAuthBusy(true);
+    const { data: auth } = await supabase.auth.getUser();
+    const { error } = await supabase.from("admin_settings").upsert({
+      key: "auth_methods",
+      value: next as never,
+      updated_at: new Date().toISOString(),
+      updated_by: auth.user?.id ?? null,
+    });
+    setAuthBusy(false);
+    if (error) { toast.error(errMsg(error)); return; }
+    setAuthMethods(next);
+    toast.success("تم تحديث أزرار تسجيل الدخول");
+    await load();
+  }
+
   async function save() {
     let parsed: unknown;
     try { parsed = JSON.parse(value); } catch { toast.error("قيمة JSON غير صحيحة"); return; }
@@ -214,16 +245,40 @@ export function SettingsTab() {
     const { error } = await supabase.from("admin_settings").upsert({ key: key.trim(), value: parsed as never, updated_at: new Date().toISOString(), updated_by: auth.user?.id ?? null });
     if (error) { toast.error(errMsg(error)); return; }
     toast.success("تم حفظ الإعداد في قاعدة البيانات");
-    setKey(""); setValue("{}");
-    await load();
+    setKey(""); setValue("{}"); await load();
   }
+
   async function remove(k: string) {
     if (!confirm("حذف الإعداد " + k + "؟")) return;
     const { error } = await supabase.from("admin_settings").delete().eq("key", k);
     if (error) { toast.error(errMsg(error)); return; }
     await load();
   }
-  return <div className="space-y-3">
+
+  const authOptions = [
+    { key: "email_enabled" as const, title: "البريد الإلكتروني", description: "زر البريد + كلمة المرور + إنشاء الحساب" },
+    { key: "google_enabled" as const, title: "Google", description: "زر الدخول عبر حساب Google الحقيقي" },
+    { key: "phone_enabled" as const, title: "رقم الهاتف", description: "OTP عبر SMS وتسجيل الرقم في Supabase Auth" },
+    { key: "quick_enabled" as const, title: "الدخول السريع", description: "حساب واحد مرتبط بهذا الجهاز" },
+  ];
+
+  return <div className="space-y-4">
+    <div className="glass rounded-2xl border border-gold/20 p-4">
+      <b className="text-lg">أزرار تسجيل الدخول</b>
+      <p className="mt-1 text-xs text-muted-foreground">إخفاء أو إظهار كل طريقة من واجهة تسجيل الدخول بدون تعديل الكود.</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {authOptions.map((option) => (
+          <div key={option.key} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-background/30 p-3">
+            <div><b className="text-sm">{option.title}</b><p className="text-[11px] text-muted-foreground">{option.description}</p></div>
+            <button type="button" disabled={authBusy} onClick={() => void saveAuthMethods({ ...authMethods, [option.key]: !authMethods[option.key] })} className={`relative h-7 w-12 rounded-full transition ${authMethods[option.key] ? "bg-gold" : "bg-muted"}`}>
+              <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${authMethods[option.key] ? "right-1" : "left-1"}`} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 rounded-xl bg-emerald-500/10 p-3 text-xs text-emerald-300">سياسة الجهاز: بعد ربط حساب بالجهاز، لا يمكن لحساب آخر الاستيلاء على نفس الجهاز عبر تسجيل الدخول السريع أو التسجيل الجديد.</div>
+    </div>
+
     <div className="glass space-y-2 rounded-2xl p-4">
       <b>إعدادات التطبيق المركزية</b>
       <Input value={key} onChange={(e) => setKey(e.target.value)} placeholder="مفتاح الإعداد مثل maintenance_mode" dir="ltr" />
