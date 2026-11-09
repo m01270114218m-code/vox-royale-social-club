@@ -3,7 +3,7 @@ import { UserAvatar, MediaImage } from "@/components/UserAvatar";
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Gift, Settings } from "lucide-react";
+import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Gift, Settings, UserPlus, MessageCircle, DoorOpen, VolumeX, LogOut, Ban, Shield } from "lucide-react";
 import { RoomSettings } from "@/components/RoomSettings";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { catName, errMsg, flagOf } from "@/lib/vox";
-import { getAdminAssetUrl, useMedia } from "@/lib/media";
+import { getAdminAssetUrl, isVideoAsset, useMedia } from "@/lib/media";
 import { RoomVoice } from "@/components/RoomVoice";
 import { AppShell } from "@/components/AppShell";
 import { HomeScreen } from "./index";
@@ -90,6 +90,8 @@ function RoomPage() {
   const [roomMinimized, setRoomMinimized] = useState(false);
   const [isLeavingRoom, setIsLeavingRoom] = useState(false);
   const [following, setFollowing] = useState(false);
+  const [cardStats, setCardStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0 });
+  const [cardRoom, setCardRoom] = useState<{ id: string; name: string; room_no: number } | null>(null);
   const roomCoverUrl = useMedia(room?.cover_url);
   function showGiftAnimation(image: string) {
     const token = Date.now() + Math.floor(Math.random() * 1000);
@@ -369,6 +371,29 @@ function RoomPage() {
     setSeatMenu(null);
   }
 
+  async function openUserCard(target: string) {
+    setSeatMenu(seats.find((s) => s.user_id === target) ?? { seat_index: -1, user_id: target, is_locked: false, is_muted: false });
+    const [followers, graph, posts, roomResult] = await Promise.all([
+      supabase.from("follows").select("follower_id", { count: "exact", head: true }).eq("following_id", target),
+      supabase.from("follows").select("follower_id,following_id").or(`follower_id.eq.${target},following_id.eq.${target}`),
+      supabase.from("posts").select("id", { count: "exact", head: true }).eq("user_id", target),
+      supabase.from("room_members").select("room_id,rooms(id,name,room_no)").eq("user_id", target).maybeSingle(),
+    ]);
+    const followerIds = new Set((graph.data ?? []).filter((r) => r.following_id === target).map((r) => r.follower_id));
+    const followingIds = new Set((graph.data ?? []).filter((r) => r.follower_id === target).map((r) => r.following_id));
+    const friendCount = [...followerIds].filter((x) => followingIds.has(x)).length;
+    let likes = 0;
+    const { data: postRows } = await supabase.from("posts").select("id").eq("user_id", target);
+    const postIds = (postRows ?? []).map((x) => x.id);
+    if (postIds.length) {
+      const { count } = await supabase.from("post_likes").select("id", { count: "exact", head: true }).in("post_id", postIds);
+      likes = count ?? 0;
+    }
+    setCardStats({ followers: followers.count ?? 0, friends: friendCount, posts: posts.count ?? 0, likes });
+    const rr = roomResult.data as { rooms?: { id: string; name: string; room_no: number } | null } | null;
+    setCardRoom(rr?.rooms ?? null);
+  }
+
   async function onSeat(s: Seat) {
     // The seat the user taps is the seat they must receive. Never substitute
     // another free seat; take_seat validates and moves the user atomically.
@@ -389,6 +414,7 @@ function RoomPage() {
     setSeatMenu(s);
     setChatMutedUser(false);
     setTargetIsModerator(false);
+    if (s.user_id) void openUserCard(s.user_id);
     if (isStaff && s.user_id && s.user_id !== uid) {
       const [muteResult, modResult] = await Promise.all([
         supabase.rpc("staff_is_chat_muted", { _room: id, _user: s.user_id }),
@@ -526,7 +552,7 @@ function RoomPage() {
                 {p && <img src={s.is_muted ? voiceControls.muted_asset_url || icons3d.micMuted : voiceControls.mic_asset_url || (host ? icons3d.micHost : icons3d.mic)} alt={s.is_muted ? "مكتوم" : "على المقعد"} className={`absolute -bottom-1 -left-1 h-7 w-7 object-contain ${!s.is_muted && speakingUsers.includes(s.user_id!) ? "speaker-mic-pulse" : ""}`} style={{ filter: voiceControls.mic_style === "neon" ? "drop-shadow(0 0 7px #22d3ee)" : voiceControls.mic_style === "gold" ? "drop-shadow(0 0 7px #e8bd63)" : undefined }} />}
                 {p && voiceControls.show_mic_effect && voiceControls.effect_asset_url && <img src={voiceControls.effect_asset_url} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-contain" />}
               </div>
-              <span className={`max-w-24 truncate text-xs font-bold ${p?.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p?.name_color || undefined, animationDuration: `${p?.name_effect_speed || 1800}ms` }}>{p ? p.display_name : s.seat_index + 1}</span>{p?.display_no && <span className="text-[10px] font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID {p.display_no}</span>}{p && <IdentityBadges level={p.level} vip={p.vip_level} badge={badges[p.id] ?? null} />}
+              <span className={`max-w-24 truncate text-xs font-bold ${p?.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p?.name_color || undefined, animationDuration: `${p?.name_effect_speed || 1800}ms` }}>{p ? p.display_name : s.seat_index + 1}</span>{p?.display_no && <span className="text-[10px] font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID {p.display_no}</span>}{p && badges[p.id] && <div className="flex items-center justify-center gap-1 text-[9px] font-bold" style={{ color: badges[p.id]?.badge_color || "#D4AF37" }}>✦ {badges[p.id]?.badge_name}</div>}
             </Button>
           );
         })}
@@ -654,12 +680,12 @@ function RoomPage() {
       )}
       {entryAnim && (
         <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-black/35">
-          <img src={entryAnim.src} alt="تأثير دخول المستخدم" className="h-72 w-72 animate-bounce object-contain drop-shadow-2xl" />
+          {isVideoAsset(entryAnim.src) ? <video key={entryAnim.key} src={entryAnim.src} autoPlay muted playsInline className="max-h-[78vh] max-w-[92vw] object-contain drop-shadow-2xl" /> : <img src={entryAnim.src} alt="تأثير دخول المستخدم" className="max-h-[78vh] max-w-[92vw] object-contain drop-shadow-2xl" />}
         </div>
       )}
 
       {anim && (
-        <div key={anim.key} role="presentation" className="gift-pop pointer-events-none fixed inset-0 z-[80] flex items-center justify-center bg-black/25 px-5"><img src={anim.emoji} alt="" aria-hidden="true" className="h-64 w-64 object-contain drop-shadow-2xl" /></div>
+        <div key={anim.key} role="presentation" className="gift-pop pointer-events-none fixed inset-0 z-[80] flex items-center justify-center bg-black/25 px-5">{isVideoAsset(anim.emoji) ? <video key={anim.key} src={anim.emoji} autoPlay muted playsInline className="max-h-[72vh] max-w-[90vw] object-contain drop-shadow-2xl" /> : <img src={anim.emoji} alt="" aria-hidden="true" className="max-h-[72vh] max-w-[90vw] object-contain drop-shadow-2xl" />}</div>
       )}
 
       <Sheet open={giftOpen} onOpenChange={setGiftOpen}>
@@ -673,7 +699,7 @@ function RoomPage() {
             <div className="grid grid-cols-4 gap-2">
               {gifts.map((g) => (
                 <Button variant="ghost" key={g.id} onClick={() => setGiftSel(g)} className={`h-auto flex-col gap-1 rounded-xl p-2 ${giftSel?.id === g.id ? "bg-secondary ring-2 ring-primary" : "glass"}`}>
-                  {g.asset_url ? <img src={g.asset_url} alt={g.name} className="h-16 w-16 object-contain" /> : <span className="grid h-16 w-16 place-items-center rounded-xl bg-secondary text-muted-foreground"><Gift className="h-7 w-7" /></span>}
+                  {g.asset_url ? (isVideoAsset(g.asset_url) ? <video src={g.asset_url} autoPlay muted loop playsInline className="h-16 w-16 object-contain" /> : <img src={g.asset_url} alt={g.name} className="h-16 w-16 object-contain" />) : <span className="grid h-16 w-16 place-items-center rounded-xl bg-secondary text-muted-foreground"><Gift className="h-7 w-7" /></span>}
                   <span className="text-xs">{g.name}</span>
                   <span className="text-xs text-primary">🪙{g.price}</span>
                 </Button>
