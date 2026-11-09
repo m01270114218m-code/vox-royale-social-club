@@ -3,6 +3,8 @@ import { icons3d } from "@/lib/assets3d";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { deleteMedia, uploadImage } from "@/lib/media";
 import { UserAvatar } from "@/components/UserAvatar";
+import { AdminAssetMedia } from "@/components/AdminAssetMedia";
+import { useAdminAsset } from "@/lib/media";
 import { useEffect, useState } from "react";
 import { Camera } from "lucide-react";
 import { toast } from "sonner";
@@ -30,12 +32,13 @@ export const Route = createFileRoute("/profile")({
   ),
 });
 
-type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; name_color?: string; name_effect?: string; name_effect_speed?: number; equipped_frame?: string | null; equipped_entry?: string | null; chat_bubble_color?: string | null };
+type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; name_color?: string; name_effect?: string; name_effect_speed?: number; equipped_frame?: string | null; equipped_entry?: string | null; chat_bubble_color?: string | null; profile_card_asset_key?: string | null };
 type Badge = { id: string; badge_key: string; badge_name: string; badge_asset_key: string | null; badge_color: string; is_equipped: boolean };
 function ProfilePage() {
   const { user } = useAuth();
   const nav = useNavigate();
   const [p, setP] = useState<P | null>(null);
+  const profileCardUrl = useAdminAsset(p?.profile_card_asset_key);
   const [draft, setDraft] = useState<P | null>(null);
   const [editing, setEditing] = useState(false);
   const [badges, setBadges] = useState<Badge[]>([]);
@@ -134,7 +137,7 @@ function ProfilePage() {
   const shown = editing && draft ? draft : p;
   return (
     <div className="px-4 pt-6">
-      <div className="glass relative overflow-hidden rounded-3xl p-6 text-center">
+      <div className="glass relative overflow-hidden rounded-3xl p-6 text-center">{profileCardUrl && <AdminAssetMedia src={profileCardUrl} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
         <div className="absolute inset-x-0 top-0 h-24 bg-royal" />
         <label className="relative mx-auto block w-fit cursor-pointer">
           <UserAvatar src={shown.avatar_url} name={shown.display_name} size={112} ring vip={p.vip_level} frameKey={p.equipped_frame} />
@@ -152,7 +155,7 @@ function ProfilePage() {
           <div><div className="text-xl font-bold">{stats.posts}</div><div className="text-[11px] text-muted-foreground">المنشورات</div></div>
           <div><div className="text-xl font-bold">{stats.likes}</div><div className="text-[11px] text-muted-foreground">المعجبون</div></div>
         </div>
-      </div>
+      </div></div>
 
       <section className="glass mt-4 rounded-2xl p-4 text-right">
         <div className="mb-3 font-bold">شاراتي</div>
