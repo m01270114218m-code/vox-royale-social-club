@@ -239,11 +239,12 @@ function Reports() {
 }
 
 function Rooms() {
-  const [rows, setRows] = useState<{ id: string; room_no: number; name: string; member_count: number; created_at: string; is_private: boolean }[]>([]);
+  const [rows, setRows] = useState<{ id: string; room_no: number; name: string; member_count: number; created_at: string; is_private: boolean; room_frame_asset_key?: string|null; sort_order?: number }[]>([]);
   const [q, setQ] = useState("");
   const [frameRef, setFrameRef] = useState<Record<string,string>>({});
+  const [roomOrder, setRoomOrder] = useState<Record<string,string>>({});
   async function load() {
-    let query = supabase.from("rooms").select("id,room_no,name,member_count,created_at,is_private,room_frame_asset_key").order("created_at", { ascending: false }).limit(100);
+    let query = supabase.from("rooms").select("id,room_no,name,member_count,created_at,is_private,room_frame_asset_key,sort_order").order("created_at", { ascending: false }).limit(100);
     if (q) query = /^\d+$/.test(q) ? query.eq("room_no", Number(q)) : query.ilike("name", `%${q}%`);
     const { data } = await query;
     setRows(data ?? []);
@@ -266,7 +267,7 @@ function Rooms() {
             <div className="truncate font-bold">{r.name} {r.is_private && "🔒"}</div>
             <div className="text-xs text-muted-foreground">#{r.room_no} · {r.member_count} عضو · {fmt(r.created_at)}</div>
           </Link>
-          <div className="flex flex-wrap items-center gap-2"><Input className="min-w-0 flex-1" dir="ltr" placeholder="asset_key / مسار إطار الغرفة" value={frameRef[r.id] ?? r.room_frame_asset_key ?? ""} onChange={(e)=>setFrameRef(s=>({...s,[r.id]:e.target.value}))}/><Button size="sm" variant="outline" onClick={async()=>{const {error}=await supabase.rpc("set_room_frame",{_room:r.id,_asset_key:(frameRef[r.id] ?? "").trim() || null}); if(error) toast.error(errMsg(error)); else {toast.success("تم تخصيص إطار الغرفة"); load();}}}>تخصيص الإطار</Button><Button size="sm" variant="destructive" onClick={() => void del(r.id)} aria-label={`حذف ${r.name}`}><Trash2 className="ml-1 h-4 w-4" />حذف</Button></div>
+          <div className="flex flex-wrap items-center gap-2"><Input className="w-20" type="number" min="0" placeholder="ترتيب" value={roomOrder[r.id] ?? String(r.sort_order ?? 0)} onChange={(e)=>setRoomOrder(s=>({...s,[r.id]:e.target.value}))}/><Button size="sm" variant="outline" onClick={async()=>{const {error}=await supabase.from("rooms").update({sort_order:Number(roomOrder[r.id] ?? r.sort_order ?? 0)}).eq("id",r.id);if(error)toast.error(errMsg(error));else {toast.success("تم حفظ ترتيب الغرفة");load();}}}>حفظ الترتيب</Button><Input className="min-w-0 flex-1" dir="ltr" placeholder="asset_key / مسار إطار الغرفة" value={frameRef[r.id] ?? r.room_frame_asset_key ?? ""} onChange={(e)=>setFrameRef(s=>({...s,[r.id]:e.target.value}))}/><Button size="sm" variant="outline" onClick={async()=>{const {error}=await supabase.rpc("set_room_frame",{_room:r.id,_asset_key:(frameRef[r.id] ?? "").trim() || null}); if(error) toast.error(errMsg(error)); else {toast.success("تم تخصيص إطار الغرفة"); load();}}}>تخصيص الإطار</Button><Button size="sm" variant="destructive" onClick={() => void del(r.id)} aria-label={`حذف ${r.name}`}><Trash2 className="ml-1 h-4 w-4" />حذف</Button></div>
         </div>
       ))}
     </div>
