@@ -903,6 +903,7 @@ function AssetsTab() {
     (asset.name.toLowerCase().includes(search.toLowerCase()) || asset.asset_key.toLowerCase().includes(search.toLowerCase()))
   );
   const isImage = (asset: AdminAsset) => (asset.metadata?.content_type ?? "").startsWith("image/");
+  const isVideo = (asset: AdminAsset) => (asset.metadata?.content_type ?? "") === "video/mp4";
   const isModel = (asset: AdminAsset) => /model\/gltf|octet-stream/i.test(asset.metadata?.content_type ?? "") || /\.(glb|gltf)$/i.test(asset.name);
 
   return (
@@ -992,6 +993,8 @@ function AssetsTab() {
             <div className="flex aspect-square items-center justify-center bg-secondary/60 p-2">
               {previews[asset.id] && isImage(asset) ? (
                 <img src={previews[asset.id]} alt={asset.name} className="h-full w-full object-contain" />
+              ) : previews[asset.id] && isVideo(asset) ? (
+                <video src={previews[asset.id]} autoPlay muted loop playsInline className="h-full w-full object-contain" />
               ) : isModel(asset) ? (
                 <div className="text-center"><Box className="mx-auto h-12 w-12 text-primary" /><span className="mt-2 block text-xs">مجسم ثلاثي الأبعاد</span></div>
               ) : (
