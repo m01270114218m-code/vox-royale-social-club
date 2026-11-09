@@ -108,7 +108,11 @@ export function useMedia(value?: string | null): string | null {
 }
 
 export function isVideoAsset(value?: string | null): boolean {
-  return /\.(mp4|webm|mov)(?:\?|$)/i.test(value || "");
+  if (!value) return false;
+  const normalized = value.split("#")[0].split("?")[0];
+  let decoded = normalized;
+  try { decoded = decodeURIComponent(normalized); } catch { /* retain original path */ }
+  return /\.(mp4|webm|mov)$/i.test(decoded);
 }
 
 export async function getAdminAssetUrl(assetKey?: string | null): Promise<string | null> {
@@ -159,6 +163,17 @@ export async function getAdminAssetUrl(assetKey?: string | null): Promise<string
         .eq("id", raw)
         .maybeSingle();
       if (item?.asset_key) return getAdminAssetUrl(item.asset_key);
+    }
+
+    // Older gift/banner rows may store a raw Storage path instead of an
+    // admin_assets.asset_key. Resolve it directly from the private bucket.
+    if (raw.includes("/") || /\.(png|jpe?g|webp|gif|svg|mp4|webm|mov)$/i.test(raw)) {
+      const storagePath = raw.replace(/^\/+/, "");
+      const { data: signed, error } = await supabase.storage.from("admin-assets").createSignedUrl(storagePath, 60 * 60);
+      if (!error && signed?.signedUrl) {
+        cacheSet(adminAssetCache, assetKey, signed.signedUrl, 50 * 60 * 1000);
+        return signed.signedUrl;
+      }
     }
 
     return null;
