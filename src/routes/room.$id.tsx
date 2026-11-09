@@ -226,6 +226,16 @@ function RoomPage() {
         const row = (payload.eventType === "DELETE" ? payload.old : payload.new) as { user_id?: string };
         if (row.user_id === uid) setIsMod(payload.eventType !== "DELETE");
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_badges" }, async (payload) => {
+        const row = (payload.eventType === "DELETE" ? payload.old : payload.new) as { user_id?: string };
+        if (!row.user_id) return;
+        const { data: badge } = await supabase.from("user_badges").select("user_id,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", row.user_id).eq("is_equipped", true).maybeSingle();
+        setBadges((current) => {
+          const next = { ...current };
+          if (badge) next[row.user_id!] = badge as Badge; else delete next[row.user_id!];
+          return next;
+        });
+      })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, async (payload) => {
         const userId = (payload.new as { user_id: string }).user_id;
         setMembers((current) => current.includes(userId) ? current : [...current, userId]);
