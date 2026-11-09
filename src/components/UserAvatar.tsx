@@ -19,5 +19,7 @@ export function UserAvatar({ src, name, size = 48, ring = false, vip = 0, frameK
 export function MediaImage({ src, className }: { src: string; className?: string }) {
   const url = useMedia(src);
   if (!url) return <div className={`animate-pulse bg-muted ${className ?? ""}`} />;
-  return <img src={url} alt="" className={className} loading="lazy" />;
+  return isVideoAsset(url)
+    ? <video src={url} autoPlay muted loop playsInline preload="metadata" aria-hidden="true" className={className} />
+    : <img src={url} alt="" className={className} loading="lazy" />;
 }
