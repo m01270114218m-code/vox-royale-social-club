@@ -358,7 +358,12 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
     } as never), "تم حفظ ID المميز ولونه والمستوى");
     await run(supabase.rpc("admin_set_profile_style" as never, { _user: u.id, _name_color: value.name_color, _name_effect: value.name_effect, _speed: Number(value.name_effect_speed) } as never), "تم حفظ لون الاسم وتأثيره");
   }
-  async function sendDirectAsset(u: U) {\n    const v = directAsset[u.id] ?? { ref: "", name: "", type: "frame" };\n    if (!v.ref.trim() || !v.name.trim()) { toast.error("أدخل رابط/مفتاح الأصل واسم الأصل"); return; }\n    await run(supabase.rpc("send_asset_to_user", { _receiver: u.id, _asset_key: v.ref.trim(), _asset_type: v.type, _asset_name: v.name.trim() }), "تم إرسال الأصل للمستخدم وتفعيله حسب نوعه");\n  }\n  async function grantItem(u: U) {
+  async function sendDirectAsset(u: U) {
+    const v = directAsset[u.id] ?? { ref: "", name: "", type: "frame" };
+    if (!v.ref.trim() || !v.name.trim()) { toast.error("أدخل رابط/مفتاح الأصل واسم الأصل"); return; }
+    await run(supabase.rpc("send_asset_to_user", { _receiver: u.id, _asset_key: v.ref.trim(), _asset_type: v.type, _asset_name: v.name.trim() }), "تم إرسال الأصل للمستخدم وتفعيله حسب نوعه");
+  }
+  async function grantItem(u: U) {
     const itemId = selectedItem[u.id];
     if (!itemId) { toast.error("اختر عنصراً من المتجر أولاً"); return; }
     const item = catalog.find((entry) => entry.id === itemId);
@@ -901,7 +906,8 @@ function AssetsTab() {
 
   async function deleteAsset(asset: AdminAsset) {
     const linked = storeItems.filter((item) => item.asset_key === asset.asset_key);
-    const warning = linked.length ? `\\nسيتم حذف ${linked.length} عنصر متجر مرتبط بهذا الأصل أيضاً.` : "";
+    const warning = linked.length ? `\
+سيتم حذف ${linked.length} عنصر متجر مرتبط بهذا الأصل أيضاً.` : "";
     if (!confirm(`حذف الأصل «${asset.name}» نهائياً؟${warning}`)) return;
     for (const item of linked) {
       const { error } = await supabase.rpc("admin_delete_store_item", { _id: item.id });
