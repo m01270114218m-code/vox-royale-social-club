@@ -34,6 +34,16 @@ export const Route = createFileRoute("/profile")({
 
 type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; name_color?: string; name_effect?: string; name_effect_speed?: number; equipped_frame?: string | null; equipped_entry?: string | null; chat_bubble_color?: string | null; profile_card_asset_key?: string | null };
 type Badge = { id: string; badge_key: string; badge_name: string; badge_asset_key: string | null; badge_color: string; is_equipped: boolean };
+function BadgeTile({ badge }: { badge: Badge }) {
+  const src = useAdminAsset(badge.badge_asset_key);
+  return <div className="flex min-w-20 flex-col items-center gap-1">
+    <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-xl bg-secondary/60">
+      {src ? <AdminAssetMedia src={src} alt={badge.badge_name} className="h-full w-full object-contain" /> : <span className="text-xl text-gold">✦</span>}
+    </div>
+    <span className="max-w-24 truncate text-[11px] font-bold">{badge.badge_name}</span>
+  </div>;
+}
+
 function ProfilePage() {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -159,7 +169,7 @@ function ProfilePage() {
 
       <section className="glass mt-4 rounded-2xl p-4 text-right">
         <div className="mb-3 font-bold">شاراتي</div>
-        <div className="flex flex-wrap gap-2">{badges.length === 0 ? <span className="text-xs text-muted-foreground">لا توجد شارات بعد</span> : badges.map((b) => <button key={b.id} type="button" onClick={async () => { const { error } = await supabase.rpc("equip_badge", { _badge: b.id, _equip: !b.is_equipped }); if (error) toast.error(errMsg(error)); else { setBadges((xs) => xs.map((x) => ({ ...x, is_equipped: x.id === b.id ? !b.is_equipped : false }))); toast.success(!b.is_equipped ? "تم تعيين الشارة" : "تمت إزالة الشارة"); } }} className="rounded-2xl border p-2 text-center text-xs" style={{ borderColor: b.badge_color }}><div>{b.badge_name}</div>{b.is_equipped && <div className="text-[10px] text-primary">مجهزة</div>}</button>)}</div>
+        <div className="flex flex-wrap gap-2">{badges.length === 0 ? <span className="text-xs text-muted-foreground">لا توجد شارات بعد</span> : badges.map((b) => <button key={b.id} type="button" onClick={async () => { const { error } = await supabase.rpc("equip_badge", { _badge: b.id, _equip: !b.is_equipped }); if (error) toast.error(errMsg(error)); else { setBadges((xs) => xs.map((x) => ({ ...x, is_equipped: x.id === b.id ? !b.is_equipped : false }))); toast.success(!b.is_equipped ? "تم تعيين الشارة" : "تمت إزالة الشارة"); } }} className="rounded-2xl border p-2 text-center text-xs" style={{ borderColor: b.badge_color }}><BadgeTile badge={b} />{b.is_equipped && <div className="text-[10px] text-primary">مجهزة على الحساب</div>}</button>)}</div>
       </section>
 
       {editing && draft ? (
