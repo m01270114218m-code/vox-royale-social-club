@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, CreditCard, History, ShoppingCart, Gift, Crown, Package, Users, Sparkles } from "lucide-react";
+import { ArrowRight, CreditCard, History, ShoppingCart, Gift, Sparkles } from "lucide-react";
 import { icons3d } from "@/lib/assets3d";
 import { AppShell } from "@/components/AppShell";
 import { useEffect, useMemo, useState } from "react";
