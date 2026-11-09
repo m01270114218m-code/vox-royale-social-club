@@ -87,7 +87,7 @@ function RoomPage() {
   const [qty, setQty] = useState(1);
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; style: string; speed: number; duration: number; mode: "static" | "animated"; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number } | null>(null);
-  const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; name: string; avatar: string; level: number; vip: number; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number } | null>(null);
+  const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; name: string; avatar: string; level: number; vip: number; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number; animationStyle: string; animationSpeed: number } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
   const [micPermissionGranted, setMicPermissionGranted] = useState(false);
   const [musicFile, setMusicFile] = useState<File | null>(null);
@@ -202,6 +202,8 @@ function RoomPage() {
       height: Number(settings.display_height) || undefined,
       audioEnabled: settings.audio_enabled !== false,
       playbackSpeed: Math.max(0.25, Math.min(3, Number(settings.playback_speed ?? 1))),
+      animationStyle: settings.animation_style || "zoom",
+      animationSpeed: Math.max(0.25, Math.min(3, Number(settings.playback_speed ?? 1))),
     });
     if (!isVideoAsset(src)) {
       const displayDuration = Math.max(500, Math.min(120000, Number(settings.display_duration_ms ?? 5200)));
@@ -875,6 +877,8 @@ function RoomPage() {
         </div>
       )}
       {entryAnim && (
+        <>
+        <style>{`@keyframes entry-zoom{0%{opacity:0;transform:scale(.35)}70%{opacity:1;transform:scale(1.04)}100%{transform:scale(1)}}@keyframes entry-slide{0%{opacity:0;transform:translateX(80vw)}100%{opacity:1;transform:translateX(0)}}@keyframes entry-float{0%{opacity:0;transform:translateY(45px)}100%{opacity:1;transform:translateY(0)}}@keyframes entry-pulse{0%{opacity:0;transform:scale(.7)}60%{opacity:1;transform:scale(1.08)}100%{transform:scale(1)}}`}</style>
         <div key={entryAnim.key} role="status" aria-live="polite" className="pointer-events-auto fixed inset-0 z-[75] flex items-center justify-center overflow-hidden bg-slate-950/65 px-5 backdrop-blur-[5px] animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.28),transparent_62%)]" />
           <div className="relative flex w-full max-w-[390px] flex-col items-center">
@@ -890,7 +894,7 @@ function RoomPage() {
                 <div className="relative mt-2 truncate text-2xl font-black text-white drop-shadow">{entryAnim.name}</div>
                 {entryAnim.vip > 0 && <div className="relative mt-2 inline-flex rounded-full border border-amber-300/50 bg-amber-300/15 px-3 py-1 text-xs font-extrabold text-amber-200">VIP {entryAnim.vip}</div>}
                 {entryAnim.src ? (
-                  <div className="relative mt-4 flex justify-center">
+                  <div className="relative mt-4 flex justify-center" style={{ animation: entryAnim.animationStyle === "none" ? "none" : `entry-${["slide","float","pulse"].includes(entryAnim.animationStyle) ? entryAnim.animationStyle : "zoom"} ${Math.max(250, 900 / entryAnim.animationSpeed)}ms ease-out both` }}>
                     {isVideoAsset(entryAnim.src) ? <video key={entryAnim.key} src={entryAnim.src} autoPlay controls muted={!entryAnim.audioEnabled} playsInline preload="auto" onLoadedMetadata={(e) => { e.currentTarget.playbackRate = entryAnim.playbackSpeed; }} onEnded={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)} onError={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)} style={{ width: entryAnim.width ? `${entryAnim.width}px` : undefined, height: entryAnim.height ? `${entryAnim.height}px` : undefined }} className="max-h-[42vh] max-w-full rounded-2xl object-contain drop-shadow-2xl" /> : <img src={entryAnim.src} alt="تأثير دخول المستخدم" style={{ width: entryAnim.width ? `${entryAnim.width}px` : undefined, height: entryAnim.height ? `${entryAnim.height}px` : undefined }} className="max-h-[42vh] max-w-full rounded-2xl object-contain drop-shadow-2xl" />}
                   </div>
                 ) : <div className="relative mt-4 text-3xl text-amber-200">✧ ✦ ✧</div>}
@@ -900,6 +904,7 @@ function RoomPage() {
             <div className="mt-4 h-1 w-28 overflow-hidden rounded-full bg-white/20"><div className="h-full w-full origin-right animate-pulse rounded-full bg-gradient-to-l from-amber-200 to-violet-400" /></div>
           </div>
         </div>
+        </>
       )}
 
       {anim && (
