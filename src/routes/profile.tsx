@@ -212,3 +212,7 @@ function ProfilePage() {
           }}><img src={icons3d.logout} alt="" className="h-6 w-6 object-contain" /> تسجيل الخروج</Button>
         </div>
       )}
+      )}
+    </div>
+  );
+}
