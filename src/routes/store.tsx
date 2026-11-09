@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { errMsg } from "@/lib/vox";
 import { getAdminAssetUrl } from "@/lib/media";
+import { AdminAssetMedia } from "@/components/AdminAssetMedia";
 
 export const Route = createFileRoute("/store")({
   head: () => ({
@@ -100,7 +101,7 @@ function StorePage() {
                 <div key={item.id} className={`card-3d glass rounded-3xl p-4 text-center ${isEquipped ? "ring-2 ring-primary" : ""}`}>
                   <div className="relative mx-auto mb-2 h-24 w-24">
                     <div className="absolute inset-[18%] overflow-hidden rounded-full bg-secondary" />
-                    {item.asset_url ? <img src={item.asset_url} alt={item.name} className="absolute inset-0 h-full w-full object-contain" /> : <span className="absolute inset-0 grid place-items-center text-[10px] text-muted-foreground">الصورة غير متاحة</span>}
+                    {item.asset_url ? <AdminAssetMedia src={item.asset_url} alt={item.name} className="absolute inset-0 h-full w-full object-contain" /> : <span className="absolute inset-0 grid place-items-center text-[10px] text-muted-foreground">الصورة غير متاحة</span>}
                   </div>
                   <b className="text-sm">{item.name}</b>
                   <p className="min-h-8 text-xs text-muted-foreground">{item.description}</p>
@@ -126,7 +127,7 @@ function StorePage() {
               const isEquipped = equippedEntry === item.asset_key;
               return (
                 <div key={item.id} className={`card-3d glass rounded-3xl p-4 text-center ${isEquipped ? "ring-2 ring-primary" : ""}`}>
-                  {item.asset_url ? <img src={item.asset_url} alt={item.name} className="mx-auto mb-2 h-20 w-20 object-contain" /> : <div className="mx-auto mb-2 grid h-20 w-20 place-items-center rounded-xl bg-secondary text-xs text-muted-foreground">الصورة غير متاحة</div>}
+                  {item.asset_url ? <AdminAssetMedia src={item.asset_url} alt={item.name} className="mx-auto mb-2 h-20 w-20 object-contain" /> : <div className="mx-auto mb-2 grid h-20 w-20 place-items-center rounded-xl bg-secondary text-xs text-muted-foreground">الصورة غير متاحة</div>}
                   <b className="text-sm">{item.name}</b>
                   <p className="min-h-8 text-xs text-muted-foreground">{item.description}</p>
                   {isOwned ? (
@@ -149,7 +150,7 @@ function StorePage() {
           return <section key={kind}><h2 className="mb-2 font-bold">{title}</h2><div className="grid grid-cols-2 gap-3">{items.filter(i => i.kind === kind).map(item => {
             const isOwned = owned.has(item.id); const isEquipped = equipped === item.asset_key;
             return <div key={item.id} className={`card-3d glass rounded-3xl p-4 text-center ${isEquipped ? "ring-2 ring-primary" : ""}`}>
-              <div className="mx-auto mb-2 h-20 w-20 overflow-hidden rounded-2xl bg-secondary">{item.asset_url ? <img src={item.asset_url} alt={item.name} className="h-full w-full object-contain"/> : null}</div>
+              <div className="mx-auto mb-2 h-20 w-20 overflow-hidden rounded-2xl bg-secondary">{item.asset_url ? <AdminAssetMedia src={item.asset_url} alt={item.name} className="h-full w-full object-contain"/> : null}</div>
               <b className="text-sm">{item.name}</b><p className="min-h-8 text-xs text-muted-foreground">{item.description}</p>
               {isOwned ? <Button size="sm" variant={isEquipped ? "outline" : "default"} className="mt-2 w-full" onClick={() => equip(item,!isEquipped)}>{isEquipped ? "إزالة" : "تجهيز"}</Button> : <Button size="sm" className="mt-2 w-full bg-gold" onClick={() => buyItem(item)}><img src={icons3d.coin} alt="" className="h-5 w-5 object-contain"/>{item.price.toLocaleString()}</Button>}
             </div>;
