@@ -221,8 +221,16 @@ export async function getAdminAssetUrl(assetKey?: string | null): Promise<string
   const storagePath = decodeURIComponent(parts.join("/").replace(/^\/+/, ""));
   if (!access || !bucket || !storagePath) return null;
 
-  // Public objects, such as media/<path>, must be used directly.
+  // The admin-assets bucket is private in production even when legacy rows
+  // contain an /object/public/ URL. Refresh those references as signed URLs
+  // instead of returning a URL that Storage will reject with 400/403.
   if (access === "public") {
+    if (bucket === "admin-assets") {
+      const { data: signed, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, 60 * 60);
+      if (error || !signed?.signedUrl) return null;
+      cacheSet(adminAssetCache, assetKey, signed.signedUrl, 50 * 60 * 1000);
+      return signed.signedUrl;
+    }
     cacheSet(adminAssetCache, assetKey, raw, 24 * 60 * 60 * 1000);
     return raw;
   }
