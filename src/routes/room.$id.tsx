@@ -578,7 +578,7 @@ function RoomPage() {
   const visibleGifts = giftCategory === "all" ? gifts : gifts.filter((gift) => gift.tier === giftCategory);
 
   return (
-    <><RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} musicFile={musicFile} musicCommand={musicCommand} onMusicProgress={onMusicProgress} onSpeakingUsers={handleSpeakingUsers} />
+    <>{!roomMinimized && <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} musicFile={musicFile} musicCommand={musicCommand} onMusicProgress={onMusicProgress} onSpeakingUsers={handleSpeakingUsers} />
     <input id="room-music-file" type="file" accept="audio/*" className="hidden" onChange={(e) => {
       const file = e.target.files?.[0] ?? null;
       e.currentTarget.value = "";
@@ -798,7 +798,7 @@ function RoomPage() {
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-5" dir="rtl">
           <div className="w-full max-w-sm space-y-3 rounded-2xl border border-primary/30 bg-background p-5 shadow-2xl">
             <div className="text-center text-lg font-bold">ماذا تريد أن تفعل؟</div>
-            <Button className="w-full" onClick={() => { localStorage.setItem("vox_minimized_room", JSON.stringify({ id, name: room.name, category: room.category, cover_url: room.cover_url })); window.dispatchEvent(new Event("vox-room-minimized")); setExitPrompt(false); setRoomMinimized(true); }}>تصغير الغرفة</Button>
+            <Button className="w-full" onClick={() => { localStorage.setItem("vox_minimized_room", JSON.stringify({ id, name: room.name, category: room.category, cover_url: room.cover_url })); localStorage.setItem("vox_active_room", JSON.stringify({ id, name: room.name, cover: room.cover_url, micEnabled: myMicEnabled && micPermissionGranted })); localStorage.setItem("vox_minimized_room_id", id); window.dispatchEvent(new Event("vox-room-minimized")); setExitPrompt(false); setRoomMinimized(true); }}>تصغير الغرفة</Button>
             <Button variant="destructive" className="w-full" disabled={isLeavingRoom} onClick={async () => {
               setIsLeavingRoom(true);
               localStorage.removeItem("vox_minimized_room");
