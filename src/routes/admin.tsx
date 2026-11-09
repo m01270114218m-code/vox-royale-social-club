@@ -314,6 +314,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
   const [identity, setIdentity] = useState<Record<string, UserIdentityEdit>>({});
   const [selectedItem, setSelectedItem] = useState<Record<string, string>>({});
   const [equipItem, setEquipItem] = useState<Record<string, boolean>>({});
+  const [directAsset, setDirectAsset] = useState<Record<string, { ref: string; name: string; type: string }>>({});
   async function load() {
     const [{ data, error }, { data: items, error: itemsError }, { data: profiles, error: profilesError }] = await Promise.all([
       supabase.rpc("admin_list_users", { _q: q }),
@@ -355,9 +356,9 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
     } as never), "تم حفظ ID المميز ولونه والمستوى");
     await run(supabase.rpc("admin_set_profile_style" as never, { _user: u.id, _name_color: value.name_color, _name_effect: value.name_effect, _speed: Number(value.name_effect_speed) } as never), "تم حفظ لون الاسم وتأثيره");
   }
-  async function grantItem(u: U) {
+  async function sendDirectAsset(u: U) {\n    const v = directAsset[u.id] ?? { ref: "", name: "", type: "frame" };\n    if (!v.ref.trim() || !v.name.trim()) { toast.error("أدخل رابط/مفتاح الأصل واسم الأصل"); return; }\n    await run(supabase.rpc("send_asset_to_user", { _receiver: u.id, _asset_key: v.ref.trim(), _asset_type: v.type, _asset_name: v.name.trim() }), "تم إرسال الأصل للمستخدم وتفعيله حسب نوعه");\n  }\n  async function grantItem(u: U) {
     const itemId = selectedItem[u.id];
-    if (!itemId) { toast.error("اختر إطاراً أو دخولية أو شارة أولاً"); return; }
+    if (!itemId) { toast.error("اختر عنصراً من المتجر أولاً"); return; }
     const item = catalog.find((entry) => entry.id === itemId);
     if (equipItem[u.id] && item?.kind !== "frame" && item?.kind !== "entry") {
       toast.error("يمكن تجهيز الإطار أو الدخولية فقط؛ الشارات تُضاف للمخزون");
@@ -401,6 +402,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
             <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!equipItem[u.id]} onChange={(e) => setEquipItem((s) => ({ ...s, [u.id]: e.target.checked }))} /> تجهيز فوراً (إطار/دخولية)</label>
             <Button size="sm" onClick={() => void grantItem(u)}>إرسال للمستخدم</Button>
           </div>
+          <div className="rounded-xl border border-primary/15 bg-background/40 p-2"><div className="mb-2 text-xs font-bold text-primary">إرسال أصل مباشر من تخزين Supabase — بدون إدخاله في المتجر</div><div className="grid grid-cols-2 gap-2"><select className="rounded-md border border-input bg-input px-2 py-2 text-xs" value={(directAsset[u.id]?.type ?? "frame")} onChange={(e) => setDirectAsset(s => ({...s,[u.id]: {...(s[u.id] ?? {ref:"",name:"",type:"frame"}),type:e.target.value}}))}><option value="frame">إطار</option><option value="entry">دخولية</option><option value="badge">شارة</option><option value="bubble">فقاعة كتابة</option><option value="sound_wave">موجة صوت</option><option value="profile_card">بطاقة تعريف</option></select><Input dir="ltr" placeholder="asset_key أو مسار/رابط التخزين" value={directAsset[u.id]?.ref ?? ""} onChange={(e)=>setDirectAsset(s=>({...s,[u.id]:{...(s[u.id] ?? {ref:"",name:"",type:"frame"}),ref:e.target.value}}))}/><Input placeholder="اسم الأصل" value={directAsset[u.id]?.name ?? ""} onChange={(e)=>setDirectAsset(s=>({...s,[u.id]:{...(s[u.id] ?? {ref:"",name:"",type:"frame"}),name:e.target.value}}))}/><Button size="sm" onClick={()=>void sendDirectAsset(u)}>إرسال الأصل</Button></div></div>
           {isSuper && <div className="flex flex-wrap gap-1">{(["admin", "moderator"] as const).map((r) => {
             const has = u.roles.includes(r);
             return <Button key={r} size="sm" variant={has ? "destructive" : "outline"} onClick={() => void run(supabase.rpc("admin_set_role", { _user: u.id, _role: r, _grant: !has }), "تم تحديث الصلاحية")}>{has ? `إزالة ${r}` : `منح ${r}`}</Button>;
@@ -586,7 +588,7 @@ function VipTab() {
 }
 
 type StoreRow = { id: string; kind: string; name: string; description: string | null; price: number; asset_key: string; sort_order: number };
-const KINDS: Record<string, string> = { frame: "إطار", entry: "دخولية", name_effect: "تأثير اسم", theme: "خلفية" };
+const KINDS: Record<string, string> = { frame: "إطار", entry: "دخولية", bubble: "فقاعة كتابة", sound_wave: "موجة صوت", profile_card: "بطاقة تعريف", name_effect: "تأثير اسم", theme: "خلفية", lucky_gift: "هدية حظ" };
 function StoreTab() {
   const [rows, setRows] = useState<StoreRow[]>([]);
   const [form, setForm] = useState({ kind: "frame", name: "", description: "", price: "100", asset_key: "", sort_order: "0" });
