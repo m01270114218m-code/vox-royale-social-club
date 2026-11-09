@@ -2,12 +2,13 @@ import AgoraRTC, {
   type IAgoraRTCClient,
   type IAgoraRTCRemoteUser,
   type IMicrophoneAudioTrack,
+  type IBufferSourceAudioTrack,
 } from "agora-rtc-sdk-ng";
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type Props = { roomId: string; uid: string; members: string[]; micEnabled: boolean; onSpeakingUsers?: (users: string[]) => void };
+type Props = { roomId: string; uid: string; members: string[]; micEnabled: boolean; musicFile?: File | null; onSpeakingUsers?: (users: string[]) => void };
 
 type TokenResponse = {
   appId: string;
@@ -23,9 +24,10 @@ function numericRtcUid(userId: string): number { let hash = 0x811c9dc5; for (let
 // Serialize Agora clients for the same user/room so React remounts can never overlap joins.
 const rtcLifecycle = new Map<string, Promise<void>>();
 
-export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }: Props) {
+export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, onSpeakingUsers }: Props) {
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const micRef = useRef<IMicrophoneAudioTrack | null>(null);
+  const musicRef = useRef<IBufferSourceAudioTrack | null>(null);
   const joinedRef = useRef(false);
   const publishedRef = useRef(false);
   const aliveRef = useRef(true);
@@ -33,7 +35,9 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
   const operationRef = useRef(Promise.resolve());
   const tokenRefreshRef = useRef<(() => Promise<void>) | null>(null);
   const micEnabledRef = useRef(micEnabled);
+  const musicFileRef = useRef<File | null>(musicFile);
   micEnabledRef.current = micEnabled;
+  musicFileRef.current = musicFile;
   const membersRef = useRef(members);
   membersRef.current = members;
   const onSpeakingUsersRef = useRef(onSpeakingUsers);
@@ -177,6 +181,11 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
       tokenRefreshRef.current = null;
       joinedRef.current = false;
       publishedRef.current = false;
+      if (musicRef.current) {
+        musicRef.current.stop();
+        musicRef.current.close();
+        musicRef.current = null;
+      }
       if (micRef.current) {
         micRef.current.stop();
         micRef.current.close();
@@ -197,6 +206,37 @@ export function RoomVoice({ roomId, uid, members, micEnabled, onSpeakingUsers }:
   // Membership is managed by the server; the token endpoint verifies current membership.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, uid]);
+
+  useEffect(() => {
+    const client = clientRef.current;
+    if (!client || !joinedRef.current) return;
+    operationRef.current = operationRef.current.then(async () => {
+      if (!musicFile) {
+        if (musicRef.current) {
+          await client.unpublish(musicRef.current).catch(() => undefined);
+          musicRef.current.stop();
+          musicRef.current.close();
+          musicRef.current = null;
+        }
+        return;
+      }
+      if (!micEnabled) throw new Error("شغّل الميك أولاً حتى يتم بث الأغاني للجميع");
+      if (musicRef.current) {
+        await client.unpublish(musicRef.current).catch(() => undefined);
+        musicRef.current.stop();
+        musicRef.current.close();
+        musicRef.current = null;
+      }
+      const track = await AgoraRTC.createBufferSourceAudioTrack({ source: musicFile, encoderConfig: "speech_standard" });
+      musicRef.current = track;
+      await client.publish(track);
+      track.play();
+      toast.success("بدأ تشغيل الأغنية للجميع");
+    }).catch(error => {
+      console.error("[Agora] music failed", error);
+      toast.error(error instanceof Error ? error.message : "تعذر تشغيل الأغنية");
+    });
+  }, [musicFile, micEnabled]);
 
   useEffect(() => {
     const client = clientRef.current;
