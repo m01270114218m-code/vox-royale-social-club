@@ -66,7 +66,134 @@ function AuthPage() {
       }
     }
     void loadPublicBranding();
-    const methodCards = [
+    return () => { alive = false; if (timer) clearTimeout(timer); };
+  }, []);
+
+  useEffect(() => {
+    if (user) nav({ to: "/" });
+  }, [user, nav]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      if (mode === "in") {
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+        if (error) throw error;
+      } else if (mode === "up") {
+        const { error } = await supabase.auth.signUp({
+          email: email.trim().toLowerCase(),
+          password,
+          options: { emailRedirectTo: window.location.origin, data: { full_name: name } },
+        });
+        if (error) throw error;
+        toast.success("تم إنشاء الحساب، افتح بريدك لتأكيده");
+        setMode("in");
+      } else {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+        toast.success("أرسلنا رابط استعادة كلمة المرور إلى بريدك");
+      }
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendPhoneOtp() {
+    const value = phone.trim();
+    if (!/^\\+[1-9]\\d{7,14}$/.test(value)) {
+      toast.error("اكتب الرقم بصيغة دولية مثل +2010xxxxxxxx");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ phone: value, options: { shouldCreateUser: true } });
+      if (error) throw error;
+      toast.success("تم إرسال رمز SMS");
+    } catch (err) {
+      toast.error((err as Error).message || "تعذر إرسال رمز SMS");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyPhoneOtp() {
+    if (!otp.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({ phone: phone.trim(), token: otp.trim(), type: "sms" });
+      if (error) throw error;
+      toast.success("تم تسجيل الدخول بنجاح");
+    } catch (err) {
+      toast.error((err as Error).message || "رمز التفعيل غير صحيح");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function quick() {
+    setBusy(true);
+    try {
+      const { data: current, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (current.session?.user) {
+        toast.info("أنت مسجل الدخول بالفعل.");
+        return;
+      }
+      let dev = localStorage.getItem("vox_device_id");
+      if (!dev) {
+        dev = typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID() + crypto.randomUUID()
+          : "vox-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+        localStorage.setItem("vox_device_id", dev);
+      }
+      const saved = localStorage.getItem("vox_guest_refresh");
+      if (saved) {
+        const { data: restored, error: restoreError } = await supabase.auth.refreshSession({ refresh_token: saved });
+        if (!restoreError && restored.session) {
+          localStorage.setItem("vox_guest_refresh", restored.session.refresh_token);
+          toast.success("أهلاً بعودتك");
+          return;
+        }
+        localStorage.removeItem("vox_guest_refresh");
+      }
+      const { data: guest, error } = await supabase.auth.signInAnonymously();
+      if (error) throw error;
+      if (!guest.user || !guest.session) throw new Error("لم يتم إنشاء جلسة دخول سريعة");
+      const { error: deviceError } = await supabase.rpc("register_device", { _device: dev });
+      if (deviceError) {
+        await supabase.auth.signOut({ scope: "local" });
+        throw new Error("تعذر ربط الحساب بهذا الجهاز: " + deviceError.message);
+      }
+      localStorage.setItem("vox_guest_refresh", guest.session.refresh_token);
+      toast.success("تم إنشاء حساب سريع لهذا الجهاز");
+    } catch (err) {
+      toast.error((err as Error).message || "تعذر تسجيل الدخول السريع");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function google() {
+    setBusy(true);
+    try {
+      const redirectTo = (import.meta.env.VITE_AUTH_REDIRECT_URL as string | undefined) || window.location.origin;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+      if (error) throw error;
+    } catch (err) {
+      toast.error((err as Error).message || "تعذر بدء تسجيل الدخول باستخدام Google");
+      setBusy(false);
+    }
+  }
+
+  const methodCards = [
     { key: "email_enabled" as const, label: "البريد الإلكتروني", icon: Mail, tone: "from-sky-500/30 to-blue-600/10", action: () => { setPhoneMode(false); setMode("in"); } },
     { key: "google_enabled" as const, label: "Google", icon: null, tone: "from-red-500/20 to-yellow-500/10", action: google },
     { key: "phone_enabled" as const, label: "رقم الهاتف", icon: Phone, tone: "from-emerald-500/25 to-cyan-500/10", action: () => { setPhoneMode(true); setMode("in"); } },
