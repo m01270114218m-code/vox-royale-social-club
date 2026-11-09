@@ -550,10 +550,13 @@ type VipTier = { level: number; name: string; price_coins: number; duration_days
 function VipTab() {
   const [rows, setRows] = useState<VipTier[]>([]);
   const [form, setForm] = useState({ level: "1", name: "", price_coins: "1000", duration_days: "30" });
+  const [perkRows, setPerkRows] = useState<{code:string;name:string;description:string;min_level:number;icon:string;sort_order:number}[]>([]);
+  const [perkForm, setPerkForm] = useState({code:"",name:"",description:"",min_level:"1",icon:"sparkles",sort_order:"10"});
   async function load() {
-    const { data, error } = await supabase.from("vip_tiers").select("level,name,price_coins,duration_days").order("level");
+    const [{ data, error }, { data: perks, error: perkError }] = await Promise.all([supabase.from("vip_tiers").select("level,name,price_coins,duration_days").order("level"),supabase.from("vip_perks").select("code,name,description,min_level,icon,sort_order").order("sort_order")]);
     if (error) toast.error(errMsg(error));
-    setRows((data as VipTier[]) ?? []);
+    if (perkError) toast.error(errMsg(perkError));
+    setRows((data as VipTier[]) ?? []); setPerkRows((perks as typeof perkRows) ?? []);
   }
   useEffect(() => { load(); }, []);
   useAdminRealtime(["vip_tiers", "profiles"], load);
@@ -585,6 +588,7 @@ function VipTab() {
         </div>
         <Button className="bg-gold" onClick={save}>حفظ المستوى</Button>
       </div>
+      <section className="glass space-y-3 rounded-2xl p-4"><b>صلاحيات ومميزات VIP الفعلية — من الأقل للأعلى</b><div className="grid grid-cols-2 gap-2"><Input placeholder="code" dir="ltr" value={perkForm.code} onChange={e=>setPerkForm({...perkForm,code:e.target.value})}/><Input placeholder="اسم الميزة" value={perkForm.name} onChange={e=>setPerkForm({...perkForm,name:e.target.value})}/><Input placeholder="الوصف" value={perkForm.description} onChange={e=>setPerkForm({...perkForm,description:e.target.value})}/><Input type="number" min="1" max="10" placeholder="أقل VIP" value={perkForm.min_level} onChange={e=>setPerkForm({...perkForm,min_level:e.target.value})}/><Input placeholder="الأيقونة" value={perkForm.icon} onChange={e=>setPerkForm({...perkForm,icon:e.target.value})}/><Input type="number" placeholder="الترتيب" value={perkForm.sort_order} onChange={e=>setPerkForm({...perkForm,sort_order:e.target.value})}/></div><Button className="bg-gold" onClick={async()=>{if(!perkForm.code||!perkForm.name){toast.error("أدخل كود واسم الميزة");return;}const {error}=await supabase.from("vip_perks").upsert({code:perkForm.code.trim(),name:perkForm.name.trim(),description:perkForm.description.trim(),min_level:Number(perkForm.min_level),icon:perkForm.icon.trim()||"sparkles",sort_order:Number(perkForm.sort_order)});if(error)toast.error(errMsg(error));else{toast.success("تم حفظ ميزة VIP");setPerkForm({code:"",name:"",description:"",min_level:"1",icon:"sparkles",sort_order:"10"});load();}}}>حفظ ميزة VIP</Button>{perkRows.map(p=><div key={p.code} className="flex items-center justify-between gap-2 rounded-xl border border-primary/10 p-2 text-sm"><div><b>{p.name}</b><div className="text-xs text-muted-foreground">VIP {p.min_level}+ · {p.description}</div></div><Button size="sm" variant="destructive" onClick={async()=>{const {error}=await supabase.from("vip_perks").delete().eq("code",p.code);if(error)toast.error(errMsg(error));else load();}}>حذف</Button></div>)}</section>
       {rows.map((v) => (
         <div key={v.level} className="glass flex items-center justify-between gap-2 rounded-xl p-3 text-sm">
           <div><b>VIP {v.level} · {v.name}</b><div className="text-xs text-muted-foreground">🪙 {v.price_coins.toLocaleString()} · {v.duration_days} يوم</div></div>
