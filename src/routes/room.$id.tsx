@@ -879,6 +879,7 @@ function RoomPage() {
       )}
 
       {anim && (
+        <style>{`@keyframes gift-zoom{0%{opacity:0;transform:scale(.35)}70%{opacity:1;transform:scale(1.06)}100%{transform:scale(1)}}@keyframes gift-slide{0%{opacity:0;transform:translateX(90vw) scale(.8)}100%{opacity:1;transform:translateX(0) scale(1)}}@keyframes gift-float{0%{opacity:0;transform:translateY(55px) scale(.8)}55%{opacity:1;transform:translateY(-12px) scale(1.04)}100%{transform:translateY(0) scale(1)}}@keyframes gift-pulse{0%{opacity:0;transform:scale(.65)}55%{opacity:1;transform:scale(1.12)}100%{transform:scale(1)}}`}</style>
         <div key={anim.key} role="presentation" className={`pointer-events-none fixed inset-0 z-[80] flex items-center justify-center px-5 ${anim.mode === "animated" ? "bg-black/35" : "bg-black/15"}`}>
           <div className="relative flex max-h-[82vh] max-w-[92vw] items-center justify-center rounded-3xl border border-amber-200/30 bg-gradient-to-br from-slate-950/55 via-violet-950/25 to-slate-950/55 p-3 shadow-[0_0_55px_rgba(168,85,247,.28)]" style={{animation:anim.mode==="static"?"none":`${anim.style==="slide"?"gift-slide":anim.style==="float"?"gift-float":anim.style==="pulse"?"gift-pulse":"gift-zoom"} ${Math.max(250,900/anim.speed)}ms ease-out both`}}>
             {isVideoAsset(anim.emoji) ? <video key={anim.key} src={anim.emoji} autoPlay muted playsInline className="max-h-[72vh] max-w-[88vw] object-contain drop-shadow-2xl" /> : <img src={anim.emoji} alt="" aria-hidden="true" className="max-h-[72vh] max-w-[88vw] object-contain drop-shadow-2xl" />}
