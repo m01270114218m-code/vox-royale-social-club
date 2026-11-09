@@ -188,11 +188,7 @@ function RoomPage() {
       loadSeats();
       loadMembers();
       loadMicRequests();
-      const { data: membership } = await supabase.from("room_members").select("joined_at").eq("room_id", id).eq("user_id", uid).maybeSingle();
-      const joinedAt = membership?.joined_at;
-      const messageQuery = supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).order("created_at", { ascending: true }).limit(100);
-      const { data: ms } = joinedAt ? await messageQuery.gte("created_at", joinedAt) : await messageQuery;
-      if (ms) setMsgs(ms as Msg[]);
+      // Room chat is live-session only: never replay persisted messages on entry.
     })();
     const ch = supabase
       .channel(`room-${id}`)
@@ -279,12 +275,7 @@ function RoomPage() {
       .subscribe((status) => {
       if (status === "SUBSCRIBED") {
         void Promise.all([loadSeats(), loadMembers(), loadMicRequests()]);
-        void supabase.from("room_messages").select("id,user_id,body,created_at,kind").eq("room_id", id).order("created_at", { ascending: false }).limit(50)
-           .then(({ data }) => { if (data) setMsgs((current) => {
-            const byId = new Map(current.map((m) => [m.id, m]));
-            data.forEach((m) => byId.set(m.id, m as Msg));
-            return [...byId.values()].sort((a, b) => a.created_at.localeCompare(b.created_at)).slice(-100);
-          }); });
+        setMsgs([]); // New subscription starts with an empty live chat.
       }
     });
     roomLive.current = ch;
