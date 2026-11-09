@@ -39,6 +39,7 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
   const [country, setCountry] = useState<string | null>(null);
   const [cat, setCat] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [userIdSearch, setUserIdSearch] = useState("");
   const [appBranding, setAppBranding] = useState<{ app_name?: string; logo_path?: string } | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [introBanner, setIntroBanner] = useState<{ title?: string; image_path?: string; enabled?: boolean } | null>(null);
@@ -84,6 +85,16 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
     return () => { alive = false; if (timer) clearTimeout(timer); };
   }, []);
 
+
+  async function searchUserById() {
+    const value = Number(userIdSearch.trim());
+    if (!Number.isSafeInteger(value) || value < 1) { toast.error("أدخل ID مستخدم صحيح"); return; }
+    const { data, error } = await supabase.from("profiles").select("id,display_no").eq("display_no", value).maybeSingle();
+    if (error) { toast.error(errMsg(error)); return; }
+    if (!data) { toast.error("لم يتم العثور على مستخدم بهذا ID"); return; }
+    setUserIdSearch("");
+    window.location.href = `/u/${data.id}`;
+  }
 
   async function loadBanners() {
     const now = new Date().toISOString();
@@ -179,7 +190,7 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
       <div className="relative mb-2">
         <img src={icons3d.search} alt="" className="absolute right-3 top-1.5 h-7 w-7 object-contain" />
         <Input className="pr-10" placeholder="ابحث باسم الغرفة أو رقمها" value={q} onChange={(e) => setQ(e.target.value)} />
-      </div>
+      </div>\n      <div className="mb-3 flex gap-2"><Input className="flex-1" inputMode="numeric" dir="ltr" placeholder="ابحث عن مستخدم بالـ ID" value={userIdSearch} onChange={(e) => setUserIdSearch(e.target.value.replace(/\\D/g, ""))} /><Button variant="outline" onClick={() => void searchUserById()}><Search className="h-4 w-4" /> مستخدم</Button></div>
       <div className="mb-2 flex gap-2">
         {(["hot", "new"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1.5 text-sm font-bold ${tab === t ? "bg-gold" : "glass text-muted-foreground"}`}>
