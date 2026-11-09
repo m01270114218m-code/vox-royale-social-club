@@ -764,13 +764,13 @@ function RoomPage() {
                   )}
                 </>
               )}
-               {seatMenu.user_id && profiles[seatMenu.user_id] && <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-background/95 via-background/90 to-primary/10 p-3 text-right shadow-2xl ring-1 ring-gold/20" dir="rtl">{seatMenu.user_id && cosmeticUrls[seatMenu.user_id]?.card && <AdminAssetMedia src={cosmeticUrls[seatMenu.user_id]!.card} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
-  <div className="mb-2 flex items-center justify-end"><span className="text-[10px] font-bold text-primary">صدى شات</span></div>
+               {seatMenu.user_id && profiles[seatMenu.user_id] && <div className="relative mx-relative w-full max-w-sm overflow-hidden rounded-[28px] border border-amber-300/40 bg-gradient-to-br from-slate-950 via-indigo-950 to-violet-950 p-4 text-right text-white shadow-[0_18px_55px_rgba(0,0,0,.55)] ring-1 ring-amber-200/15" dir="rtl">{seatMenu.user_id && cosmeticUrls[seatMenu.user_id]?.card && <AdminAssetMedia src={cosmeticUrls[seatMenu.user_id]!.card} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
+  <div className="mb-2 flex items-center justify-between"><span className="rounded-full border border-amber-200/30 bg-black/20 px-2 py-1 text-[10px] font-bold text-amber-200">بطاقة تعريف المستخدم</span><span className="text-[10px] font-black tracking-widest text-amber-100">PROFILE</span></div>
   <div className="flex items-center gap-3">
     <button type="button" onClick={() => nav({ to: "/u/$id", params: { id: seatMenu.user_id! } })} className="shrink-0 rounded-full ring-2 ring-primary/40 shadow-gold"><UserAvatar src={profiles[seatMenu.user_id]?.avatar_url} name={profiles[seatMenu.user_id]?.display_name || "مستخدم"} vip={profiles[seatMenu.user_id]?.vip_level} size={68} frameKey={profiles[seatMenu.user_id]?.equipped_frame} /></button>
     <div className="min-w-0 flex-1">
       <button type="button" onClick={() => nav({ to: "/u/$id", params: { id: seatMenu.user_id! } })} className="max-w-full truncate text-right text-base font-bold" style={{ color: profiles[seatMenu.user_id]?.name_color || undefined }}>{profiles[seatMenu.user_id]?.display_name}</button>
-      <div className="mt-0.5 text-xs font-bold" style={{ color: profiles[seatMenu.user_id]?.id_color || "#D4AF37" }}>ID {profiles[seatMenu.user_id]?.display_no}</div>
+      <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px] font-black"><span className="rounded-full border border-amber-200/25 bg-black/25 px-2 py-0.5 text-amber-100">ID {profiles[seatMenu.user_id]?.display_no}</span><span className="rounded-full bg-white/10 px-2 py-0.5 text-white/90">Lv.{profiles[seatMenu.user_id]?.level ?? 1}</span>{(profiles[seatMenu.user_id]?.vip_level ?? 0) > 0 && <span className="rounded-full bg-amber-300/15 px-2 py-0.5 text-amber-200">VIP {profiles[seatMenu.user_id]?.vip_level}</span>}</div>
       {badges[seatMenu.user_id] && <div className="mt-1"><IdentityBadges badge={badges[seatMenu.user_id]} /></div>}
     </div>
   </div>
