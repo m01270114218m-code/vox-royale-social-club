@@ -100,7 +100,10 @@ function UserPage() {
   async function toggleFollow() {
     const { error } = isFollowing
       ? await supabase.from("follows").delete().eq("follower_id", uid).eq("following_id", id)
-      : await supabase.from("follows").insert({ follower_id: uid, following_id: id });
+      : await supabase.from("follows").upsert(
+          { follower_id: uid, following_id: id },
+          { onConflict: "follower_id,following_id", ignoreDuplicates: true },
+        );
     if (error) { toast.error(error.message); return; }
     setIsFollowing(!isFollowing);
     setStats((s) => ({ ...s, followers: s.followers + (isFollowing ? -1 : 1) }));
