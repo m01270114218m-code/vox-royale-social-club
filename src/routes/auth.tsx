@@ -35,6 +35,7 @@ function AuthPage() {
   const [showBanner, setShowBanner] = useState(false);
   const [authMethods, setAuthMethods] = useState({ email_enabled: true, quick_enabled: true, google_enabled: true, phone_enabled: true });
   const [phoneMode, setPhoneMode] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<"email" | "phone" | null>(null);
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
 
@@ -194,9 +195,9 @@ function AuthPage() {
   }
 
   const methodCards = [
-    { key: "email_enabled" as const, label: "البريد الإلكتروني", icon: Mail, tone: "from-sky-500/30 to-blue-600/10", action: () => { setPhoneMode(false); setMode("in"); } },
+    { key: "email_enabled" as const, label: "البريد الإلكتروني", icon: Mail, tone: "from-sky-500/30 to-blue-600/10", action: () => { setPhoneMode(false); setMode("in"); setSelectedMethod("email"); } },
     { key: "google_enabled" as const, label: "Google", icon: null, tone: "from-red-500/20 to-yellow-500/10", action: google },
-    { key: "phone_enabled" as const, label: "رقم الهاتف", icon: Phone, tone: "from-emerald-500/25 to-cyan-500/10", action: () => { setPhoneMode(true); setMode("in"); } },
+    { key: "phone_enabled" as const, label: "رقم الهاتف", icon: Phone, tone: "from-emerald-500/25 to-cyan-500/10", action: () => { setPhoneMode(true); setMode("in"); setSelectedMethod("phone"); } },
     { key: "quick_enabled" as const, label: "دخول سريع", icon: KeyRound, tone: "from-amber-500/30 to-orange-500/10", action: quick },
   ].filter((m) => authMethods[m.key]);
 
@@ -222,7 +223,7 @@ function AuthPage() {
           <p className="mt-2 text-sm text-muted-foreground">دخول آمن وسريع إلى عالم الغرف الصوتية</p>
         </div>
 
-        <div className="mb-4 grid grid-cols-2 gap-3">
+        {!selectedMethod && <div className="mb-4 grid grid-cols-2 gap-3">
           {methodCards.map((item) => {
             const Icon = item.icon;
             return (
@@ -237,7 +238,7 @@ function AuthPage() {
           })}
         </div>
 
-        <form onSubmit={submit} className="glass rounded-[2rem] border border-white/10 p-5 shadow-2xl">
+        <form onSubmit={submit} className="glass rounded-[2rem] border border-white/10 p-5 shadow-2xl">\n          <button type="button" onClick={() => { setSelectedMethod(null); setPhoneMode(false); setMode("in"); setOtp(""); }} className="mb-3 text-sm text-gold">← العودة لطرق تسجيل الدخول</button>
           {authMethods.email_enabled && !phoneMode && (
             <>
               {mode === "up" && <Input placeholder="الاسم" value={name} onChange={(e) => setName(e.target.value)} required maxLength={30} />}
