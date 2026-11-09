@@ -238,7 +238,8 @@ function AuthPage() {
           })}
         </div>
 
-        {selectedMethod && <form onSubmit={submit} className="glass rounded-[2rem] border border-white/10 p-5 shadow-2xl">\n          <button type="button" onClick={() => { setSelectedMethod(null); setPhoneMode(false); setMode("in"); setOtp(""); }} className="mb-3 text-sm text-gold">← العودة لطرق تسجيل الدخول</button>
+        {selectedMethod && <form onSubmit={submit} className="glass rounded-[2rem] border border-white/10 p-5 shadow-2xl">
+          <button type="button" onClick={() => { setSelectedMethod(null); setPhoneMode(false); setMode("in"); setOtp(""); }} className="mb-3 text-sm text-gold">← العودة لطرق تسجيل الدخول</button>
           {authMethods.email_enabled && !phoneMode && (
             <>
               {mode === "up" && <Input placeholder="الاسم" value={name} onChange={(e) => setName(e.target.value)} required maxLength={30} />}
