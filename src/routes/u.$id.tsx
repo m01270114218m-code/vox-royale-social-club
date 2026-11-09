@@ -1,7 +1,7 @@
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { MessageCircle, Flag, Ban, UserPlus, UserCheck } from "lucide-react";
+import { MessageCircle, Flag, Ban, UserPlus, UserCheck, Gift, Coins, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell, PageHeader } from "@/components/AppShell";
@@ -26,7 +26,7 @@ export const Route = createFileRoute("/u/$id")({
   ),
 });
 
-type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; vip_level: number; id_color?: string | null; name_color?: string | null; name_effect?: string | null; name_effect_speed?: number | null; equipped_frame?: string | null; equipped_entry?: string | null };
+type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; vip_level: number; support_xp?: number; total_gifts_received?: number; total_gifts_value?: number; profile_card_asset_key?: string | null; chat_bubble_asset_key?: string | null; sound_wave_asset_key?: string | null; id_color?: string | null; name_color?: string | null; name_effect?: string | null; name_effect_speed?: number | null; equipped_frame?: string | null; equipped_entry?: string | null };
 type Badge = { badge_key: string; badge_name: string; badge_asset_key: string | null; badge_color: string; is_equipped: boolean };
 
 function UserPage() {
@@ -35,11 +35,12 @@ function UserPage() {
   const uid = user!.id;
   const nav = useNavigate();
   const [p, setP] = useState<P | null>(null);
-  const [stats, setStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0 });
+  const [stats, setStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0, gifts: 0, giftsValue: 0, support: 0 });
   const [isFollowing, setIsFollowing] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [currentRoom, setCurrentRoom] = useState<{ id: string; name: string; room_no: number } | null>(null);
+  const [giftRows, setGiftRows] = useState<{ id: string; name: string; emoji: string; asset_key: string | null; quantity: number; total_price: number }[]>([]);
 
   useEffect(() => {
     if (id === uid) {
@@ -56,9 +57,9 @@ function UserPage() {
       })
       .subscribe();
     (async () => {
-      const { data } = await supabase.from("profiles").select("id,display_no,display_name,avatar_url,bio,country,level,vip_level,id_color,name_color,name_effect,name_effect_speed,equipped_frame,equipped_entry").eq("id", id).maybeSingle();
+      const { data } = await supabase.from("profiles").select("id,display_no,display_name,avatar_url,bio,country,level,vip_level,support_xp,total_gifts_received,total_gifts_value,profile_card_asset_key,chat_bubble_asset_key,sound_wave_asset_key,id_color,name_color,name_effect,name_effect_speed,equipped_frame,equipped_entry").eq("id", id).maybeSingle();
       setP(data);
-      const [a, b, c, f, bl, badgeRows, graph, userPosts, roomResult] = await Promise.all([
+      const [a, b, c, f, bl, badgeRows, graph, userPosts, roomResult, giftAgg] = await Promise.all([
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", id),
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", id),
         supabase.from("posts").select("id", { count: "exact" }).eq("user_id", id),
@@ -68,6 +69,7 @@ function UserPage() {
         supabase.from("follows").select("follower_id,following_id").or(`follower_id.eq.${id},following_id.eq.${id}`),
         supabase.from("posts").select("id").eq("user_id", id),
         supabase.from("room_members").select("room_id,rooms(id,name,room_no)").eq("user_id", id).maybeSingle(),
+        supabase.from("gift_transactions").select("gift_id,quantity,total_price,gifts(name,emoji,asset_key)").eq("receiver_id", id),
       ]);
       const followerIds = new Set((graph.data ?? []).filter((r) => r.following_id === id).map((r) => r.follower_id));
       const followingIds = new Set((graph.data ?? []).filter((r) => r.follower_id === id).map((r) => r.following_id));
@@ -78,7 +80,10 @@ function UserPage() {
         const { count } = await supabase.from("post_likes").select("id", { count: "exact", head: true }).in("post_id", postIds);
         likeCount = count ?? 0;
       }
-      setStats({ followers: a.count ?? 0, friends: friendCount, posts: c.count ?? 0, likes: likeCount });
+      const giftMap = new Map<string,{id:string;name:string;emoji:string;asset_key:string|null;quantity:number;total_price:number}>();
+      for (const row of (giftAgg.data ?? []) as any[]) { const g=row.gifts; if (!g) continue; const key=String(row.gift_id); const old=giftMap.get(key) ?? {id:key,name:g.name,emoji:g.emoji,asset_key:g.asset_key ?? null,quantity:0,total_price:0}; old.quantity += Number(row.quantity ?? 0); old.total_price += Number(row.total_price ?? 0); giftMap.set(key,old); }
+      setGiftRows([...giftMap.values()].sort((x,y)=>y.total_price-x.total_price));
+      setStats({ followers: a.count ?? 0, friends: friendCount, posts: c.count ?? 0, likes: likeCount, gifts: Number(data?.total_gifts_received ?? [...giftMap.values()].reduce((n,x)=>n+x.quantity,0)), giftsValue: Number(data?.total_gifts_value ?? [...giftMap.values()].reduce((n,x)=>n+x.total_price,0)), support: Number(data?.support_xp ?? 0) });
       setIsFollowing(!!f.data?.length);
       setBlocked(!!bl.data?.length);
       setBadges((badgeRows.data ?? []) as Badge[]);
@@ -121,11 +126,11 @@ function UserPage() {
   if (!p) return <PageHeader title="…" back />;
   return (
     <div>
-      <PageHeader title="الملف الشخصي" back />
-      <div className="glass mx-4 rounded-3xl p-6 text-center">
+      <PageHeader title="الملف الشخصي الكامل" back />
+      <div className="mx-4 overflow-hidden rounded-[30px] border border-primary/30 bg-gradient-to-br from-primary/15 via-background to-gold/10 p-5 text-center shadow-2xl">
         <div className="mx-auto w-fit"><UserAvatar src={p.avatar_url} name={p.display_name} size={112} ring vip={p.vip_level} frameKey={p.equipped_frame} /></div>
         <h2 className={`mt-3 text-2xl font-bold ${p.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p.name_color || undefined, animationDuration: `${p.name_effect_speed || 1800}ms` }}>{flagOf(p.country)} {p.display_name}</h2>
-        <div className="text-sm font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID: {p.display_no}</div>
+        <div className="text-sm font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID: {p.display_no}</div><div className="mt-2 flex items-center justify-center gap-2"><span className="rounded-full bg-primary/15 px-3 py-1 text-xs font-black">Lv.{p.level}</span>{p.vip_level > 0 && <span className="rounded-full bg-gold/15 px-3 py-1 text-xs font-black text-gold">VIP {p.vip_level}</span>}</div>
         {badges[0] && <div className="mt-1 flex items-center justify-center gap-1 text-xs font-bold" style={{ color: badges[0].badge_color || "#D4AF37" }}>✦ {badges[0].badge_name}</div>}<p className="mt-2 text-sm">{p.bio || "لا توجد نبذة"}</p>
         <div className="mt-4 grid grid-cols-4 gap-2 text-center">
           <div><div className="text-xl font-bold">{stats.followers}</div><div className="text-xs text-muted-foreground">المتابِعون</div></div>
@@ -133,6 +138,8 @@ function UserPage() {
           <div><div className="text-xl font-bold">{stats.posts}</div><div className="text-xs text-muted-foreground">المنشورات</div></div><div><div className="text-xl font-bold">{stats.likes}</div><div className="text-xs text-muted-foreground">المعجبون</div></div>
         </div>
       </div>
+      <div className="mx-4 mt-4 grid grid-cols-3 gap-2"><div className="rounded-2xl border border-primary/15 bg-background/60 p-3 text-center"><Gift className="mx-auto h-5 w-5 text-gold"/><b className="mt-1 block">{stats.gifts.toLocaleString()}</b><span className="text-[10px] text-muted-foreground">الهدايا المستلمة</span></div><div className="rounded-2xl border border-primary/15 bg-background/60 p-3 text-center"><Coins className="mx-auto h-5 w-5 text-gold"/><b className="mt-1 block">{stats.giftsValue.toLocaleString()}</b><span className="text-[10px] text-muted-foreground">العملات المستلمة</span></div><div className="rounded-2xl border border-primary/15 bg-background/60 p-3 text-center"><Sparkles className="mx-auto h-5 w-5 text-primary"/><b className="mt-1 block">{stats.support.toLocaleString()}</b><span className="text-[10px] text-muted-foreground">دعم / XP</span></div></div>
+      {giftRows.length > 0 && <section className="mx-4 mt-4 rounded-3xl border border-gold/20 bg-background/70 p-4"><div className="mb-3 flex items-center gap-2 font-bold"><Gift className="h-5 w-5 text-gold"/>الهدايا المستلمة</div><div className="grid grid-cols-4 gap-2">{giftRows.map(g=><div key={g.id} className="rounded-2xl border border-border/50 bg-black/10 p-2 text-center"><div className="text-2xl">{g.emoji}</div><div className="truncate text-[10px] font-bold">{g.name}</div><div className="text-[9px] text-muted-foreground">×{g.quantity}</div></div>)}</div></section>}
       <div className="mx-4 mt-4 grid grid-cols-2 gap-2">
         <Button onClick={toggleFollow} className={isFollowing ? "" : "bg-gold font-bold"} variant={isFollowing ? "outline" : "default"}>
           {isFollowing ? <><UserCheck className="h-4 w-4" /> متابَع</> : <><UserPlus className="h-4 w-4" /> متابعة</>}
