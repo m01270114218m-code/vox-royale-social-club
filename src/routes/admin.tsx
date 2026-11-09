@@ -545,7 +545,7 @@ function GiftsTab() {
     setCategories((cats as GiftCategory[]) ?? []);
   }
   useEffect(() => { load(); }, []);
-  useAdminRealtime(["gifts", "gift_transactions"], load);
+  useAdminRealtime(["gifts", "gift_transactions", "gift_categories"], load);
   async function saveGift() {
     if (!form.name.trim() || !form.emoji.trim() || !Number.isFinite(Number(form.price_coins)) || Number(form.price_coins) < 0) {
       toast.error("أدخل اسم الهدية ورمزها وسعراً صحيحاً");
