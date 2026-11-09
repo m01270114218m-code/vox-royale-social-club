@@ -189,6 +189,8 @@ function RoomPage() {
       if (!joinCompleted || !channelReady || entryAnnounced || !ch) return;
       entryAnnounced = true;
       await ch.send({ type: "broadcast", event: "member_entered", payload: { roomId: id, userId: uid, entryId: crypto.randomUUID() } });
+      // The joining user sees the same equipped entrance animation as everyone else.
+      void playEntryFor(uid);
     };
     if (pendingLeave) {
       clearTimeout(pendingLeave);
