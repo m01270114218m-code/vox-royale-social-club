@@ -482,7 +482,6 @@ function RoomPage() {
       void supabase.from("room_members").select("user_id").eq("room_id", id).eq("user_id", uid).maybeSingle()
         .then(({ data, error }) => {
           if (active && !error && !data) {
-            toast.error("انتهى وجودك في الغرفة");
             nav({ to: "/" });
           }
         });
