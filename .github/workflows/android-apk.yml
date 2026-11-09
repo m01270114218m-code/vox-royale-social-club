@@ -15,110 +15,123 @@ concurrency:
 jobs:
   android:
     runs-on: ubuntu-latest
-    timeout-minutes: 60 # verified rebuild after storage/gift/security fixes
+    timeout-minutes: 60
     steps:
-      - name: Checkout source without external actions
-        run: |
-          BRANCH="$GITHUB_REF_NAME"
-          git clone --depth 1 --branch "$BRANCH" "https://github.com/${GITHUB_REPOSITORY}.git" source
-          cd source
-          test -f package.json
-          test -f bun.lock
-          test -f capacitor.config.json
-          test -s public/control-center/index.html
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: admin-asset-center
+          fetch-depth: 1
 
-      - name: Install locked dependencies and build static app shell
-        working-directory: source
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Verify project inputs
         run: |
-          curl -fsSL https://bun.sh/install | bash
-          export PATH="$HOME/.bun/bin:$PATH"
+          set -euo pipefail
+          test -s package.json
+          test -s bun.lock
+          test -s capacitor.config.json
+          test -s public/sdy-chat-icon.svg
+          test -s public/control-center/index.html
+          java -version
           bun --version
-          bun install
-          bun add @capacitor/app@latest
-          export VITE_APP_VERSION="$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")"
-          echo "Building app version $VITE_APP_VERSION"
+          adb version || true
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          bun add --no-save @capacitor/core @capacitor/cli @capacitor/android @capacitor/app
+          bunx cap --version
+
+      - name: Build web application
+        env:
+          VITE_APP_VERSION: ${{ github.sha }}
+          NITRO_PRESET: render-com
+        run: |
+          set -euo pipefail
           bun run build
           test -s .output/public/index.html
-          if grep -Eqi 'lovable\\.app|lovable\\.dev' .output/public/index.html; then
-            echo "::error::Lovable preview branding or host reference remains in the Android app shell."
+          test -s .output/public/control-center/index.html
+          if grep -RqiE 'lovable\\.app|lovable\\.dev' .output/public 2>/dev/null; then
+            echo "::error::Lovable preview branding or host reference remains in the Android web bundle."
             exit 1
           fi
 
-      - name: Select compatible Java 21
+      - name: Prepare Android project
         run: |
-          if [ -n "${JAVA_HOME_21_X64:-}" ] && [ -x "$JAVA_HOME_21_X64/bin/java" ]; then
-            JDK_HOME="$JAVA_HOME_21_X64"
-          else
-            sudo apt-get update
-            sudo apt-get install -y openjdk-21-jdk
-            JDK_HOME="/usr/lib/jvm/java-21-openjdk-amd64"
+          set -euo pipefail
+          if [ ! -d android ]; then
+            bunx cap add android
           fi
-          echo "JAVA_HOME=$JDK_HOME" >> "$GITHUB_ENV"
-          echo "$JDK_HOME/bin" >> "$GITHUB_PATH"
-
-      - name: Prepare Android toolchain
-        working-directory: source
-        run: |
-          export PATH="$HOME/.bun/bin:$PATH"
-          java -version 2>&1 | grep -Eq 'version "21([.]|")'
-          test -n "$ANDROID_HOME" || test -n "$ANDROID_SDK_ROOT"
-          bun add @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/app@latest
-          bunx cap add android
-          # Declare microphone permissions for Agora/WebView audio capture.
           python3 - <<'PY'
           from pathlib import Path
           manifest = Path("android/app/src/main/AndroidManifest.xml")
           xml = manifest.read_text()
-          if "android.permission.RECORD_AUDIO" not in xml:
-              xml = xml.replace(
-                  "<application",
-                  '    <uses-permission android:name="android.permission.RECORD_AUDIO" />' + chr(10) + '    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' + chr(10) + '    <application',
-                  1,
-              )
-          manifest.write_text(xml)
+          perms = [
+              '    <uses-permission android:name="android.permission.RECORD_AUDIO" />',
+              '    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />',
+          ]
+          marker = "<application"
+          missing = [p for p in perms if p not in xml]
+          if missing:
+              xml = xml.replace(marker, "\n".join(missing) + "\n    " + marker, 1)
+              manifest.write_text(xml)
           PY
           sudo apt-get update
           sudo apt-get install -y imagemagick librsvg2-bin
           mkdir -p android/app/src/main/res/mipmap-mdpi android/app/src/main/res/mipmap-hdpi android/app/src/main/res/mipmap-xhdpi android/app/src/main/res/mipmap-xxhdpi android/app/src/main/res/mipmap-xxxhdpi
           for spec in "mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192"; do
-            density="${spec%%:*}"; size="${spec##*:}"
+            density="${spec%%:*}"
+            size="${spec##*:}"
             convert public/sdy-chat-icon.svg -background none -resize "${size}x${size}" "android/app/src/main/res/mipmap-${density}/ic_launcher.png"
             cp "android/app/src/main/res/mipmap-${density}/ic_launcher.png" "android/app/src/main/res/mipmap-${density}/ic_launcher_round.png"
           done
           VERSION="$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")"
-          VERSION_CODE="$(node -p "const p=process.argv[1].split('.').map(Number); p[0]*10000+p[1]*100+p[2]" "$VERSION")"
+          VERSION_CODE="$(node -p "const p=process.argv[1].split('.').map(Number); (p[0]||0)*10000+(p[1]||0)*100+(p[2]||0)" "$VERSION")"
           sed -i -E "s/versionCode [0-9]+/versionCode $VERSION_CODE/; s/versionName \"[^\"]+\"/versionName \"$VERSION\"/" android/app/build.gradle
 
-      - name: Sync bundled web assets into Android
-        working-directory: source
+      - name: Sync web bundle into Android
         run: |
-          export PATH="$HOME/.bun/bin:$PATH"
+          set -euo pipefail
           bunx cap sync android
           test -s android/app/src/main/assets/public/index.html
 
       - name: Build debug APK
-        working-directory: source/android
+        working-directory: android
         run: |
+          set -euo pipefail
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew clean assembleDebug --no-daemon --stacktrace
+          test -s app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload APK as workflow artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: vox-royale-android-apk-${{ github.sha }}
-          path: source/android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
 
       - name: Publish APK release
-        working-directory: source
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           TAG="vox-royale-apk-${GITHUB_SHA::7}"
-          gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --title "VOX ROYALE Android APK ${GITHUB_SHA::7}" --notes "Bundled Android APK for commit $GITHUB_SHA on branch $GITHUB_REF_NAME. App UI is packaged locally; Supabase services require internet access."
-
-
-# Build trigger 2026-11-09 APK artifact fix
+          gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --title "VOX ROYALE Android APK ${GITHUB_SHA::7}" --notes "Android APK built from commit $GITHUB_SHA on branch $GITHUB_REF_NAME."
