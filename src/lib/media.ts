@@ -117,7 +117,7 @@ export function isVideoAsset(value?: string | null): boolean {
   return /\.(mp4|webm|mov)$/i.test(decoded);
 }
 
-export async function getAdminAssetUrl(assetKey?: string | null): Promise<string | null> {
+async function resolveAdminAssetUrl(assetKey?: string | null): Promise<string | null> {
   if (!assetKey) return null;
   const cached = cacheGet(adminAssetCache, assetKey);
   if (cached) return cached;
@@ -248,6 +248,16 @@ export async function getAdminAssetUrl(assetKey?: string | null): Promise<string
   }
 
   return null;
+}
+
+/** Resolve an asset without allowing transient Storage/network failures to crash a screen. */
+export async function getAdminAssetUrl(assetKey?: string | null): Promise<string | null> {
+  try {
+    return await resolveAdminAssetUrl(assetKey);
+  } catch (error) {
+    console.warn("[assets] failed to resolve admin asset", assetKey, error);
+    return null;
+  }
 }
 
 export function useAdminAsset(assetKey?: string | null): string | null {
