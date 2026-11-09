@@ -67,8 +67,14 @@ export function AppUpdateGate() {
       loadPolicy(),
     ]);
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      void refreshAdminAccess(session?.user?.id);
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      // Keep an already-authenticated user's update gate visible during token refresh
+      // or transient auth events. Only a deliberate sign-out clears the session gate.
+      if (session?.user?.id) {
+        void refreshAdminAccess(session.user.id);
+      } else if (event === "SIGNED_OUT") {
+        void refreshAdminAccess(undefined);
+      }
     });
 
     const channel = supabase
