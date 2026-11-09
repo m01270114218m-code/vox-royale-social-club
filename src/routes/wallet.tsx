@@ -69,7 +69,7 @@ function WalletPage() {
   return <div dir="rtl" className="min-h-full px-4 pt-5 pb-10">
     <div className="mb-4 flex items-center justify-between">
       <Link to="/profile" className="glass rounded-full p-2"><ArrowRight className="h-5 w-5" /></Link>
-      <div className="text-center"><div className="text-[10px] font-bold tracking-[.28em] text-muted-foreground">VOX ROYALE</div><h1 className="text-2xl font-black text-gold">المحفظة</h1></div><span className="w-9" />
+      <div className="text-center"><div className="text-[10px] font-bold tracking-[.28em] text-muted-foreground">صدى شات</div><h1 className="text-2xl font-black text-gold">المحفظة</h1></div><span className="w-9" />
     </div>
 
     <div className="card-3d relative overflow-hidden rounded-[28px] border border-gold/30 p-5 shadow-gold">
