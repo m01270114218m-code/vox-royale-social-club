@@ -112,34 +112,93 @@ function UserPage() {
 
   if (!p) return <PageHeader title="…" back />;
   return (
-    <div>
-      <PageHeader title="الملف الشخصي" back />
-      <div className="glass mx-4 rounded-3xl p-6 text-center">
-        <div className="mx-auto w-fit"><UserAvatar src={p.avatar_url} name={p.display_name} size={112} ring vip={p.vip_level} frameKey={p.equipped_frame} /></div>
-        <h2 className={`mt-3 text-2xl font-bold ${p.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p.name_color || undefined, animationDuration: `${p.name_effect_speed || 1800}ms` }}>{flagOf(p.country)} {p.display_name}</h2>
-        <div className="text-sm font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID: {p.display_no}</div>
-        <IdentityBadges level={p.level} vip={p.vip_level} badge={badges[0] ?? null} /><p className="mt-2 text-sm">{p.bio || "لا توجد نبذة"}</p>
-        <div className="mt-4 grid grid-cols-2 gap-2 text-center">
-          <div><div className="text-xl font-bold">{stats.followers}</div><div className="text-xs text-muted-foreground">المتابِعون</div></div>
-          <div><div className="text-xl font-bold">{stats.following}</div><div className="text-xs text-muted-foreground">يتابع</div></div>
-          <div><div className="text-xl font-bold">{stats.posts}</div><div className="text-xs text-muted-foreground">منشورات</div></div>
-          <div><div className="text-xl font-bold">{stats.friends}</div><div className="text-xs text-muted-foreground">أصدقاء متبادلون</div></div>
+    <div className="-mx-4 -mt-4 min-h-screen bg-background pb-8" dir="rtl">
+      <section className="relative overflow-hidden bg-[#111c2b] px-4 pb-8 pt-4 text-white">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(55,116,173,.32),transparent_55%)]" />
+        <div className="relative z-10 flex items-center justify-between">
+          <PageHeader title="" back />
+          <div className="flex items-center gap-3 text-white/80">
+            <button type="button" aria-label="إبلاغ" onClick={report}><Flag className="h-5 w-5" /></button>
+            <button type="button" aria-label="حظر" onClick={toggleBlock}><Ban className="h-5 w-5" /></button>
+          </div>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl bg-secondary/40 p-3 text-center">
-          <div><div className="font-bold">{stats.supportCoins.toLocaleString("en-US")}</div><div className="text-[11px] text-muted-foreground">دعم بالعملات</div></div>
-          <div><div className="font-bold">{stats.supportDiamonds.toLocaleString("en-US")}</div><div className="text-[11px] text-muted-foreground">ألماس مكتسب</div></div>
-          <div><div className="font-bold">{stats.supporters}</div><div className="text-[11px] text-muted-foreground">الداعمون</div></div>
+        <div className="relative z-10 mx-auto mt-5 flex max-w-md flex-col items-center text-center">
+          <div className="relative">
+            <UserAvatar src={p.avatar_url} name={p.display_name} size={148} ring vip={p.vip_level} frameKey={p.equipped_frame} />
+            {p.vip_level > 0 && <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-amber-300/70 bg-gradient-to-r from-amber-500 to-yellow-300 px-3 py-1 text-[11px] font-black text-[#38220a] shadow-lg">VIP {p.vip_level}</div>}
+          </div>
+          <h2 className={`mt-5 text-2xl font-black ${p.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p.name_color || "#ffffff", animationDuration: `${p.name_effect_speed || 1800}ms` }}>{p.display_name}</h2>
+          <div className="mt-1 flex items-center justify-center gap-2 text-sm text-white/80">
+            <span>{flagOf(p.country)}</span>
+            <span className="rounded-full bg-sky-500/90 px-3 py-0.5 text-xs font-bold">♂</span>
+            <span className="font-bold tracking-wide">ID: {p.display_no}</span>
+          </div>
+          <div className="mt-3"><IdentityBadges level={p.level} vip={p.vip_level} badge={badges[0] ?? null} /></div>
+          <div className="mt-5 flex w-full flex-wrap items-center justify-center gap-2">
+            {badges.map((b) => <span key={b.badge_key} className="rounded-full border px-3 py-1 text-xs font-bold" style={{ borderColor: b.badge_color, color: b.badge_color }}>{b.badge_name}</span>)}
+          </div>
         </div>
-      </div>
-      <div className="mx-4 mt-4 space-y-2">
-        <div className="glass rounded-2xl p-4"><h3 className="mb-3 font-bold">منشورات المستخدم</h3>{posts.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد منشورات</p> : <div className="space-y-3">{posts.map((post) => <article key={post.id} className="rounded-xl bg-secondary/40 p-3"><p className="whitespace-pre-wrap text-sm">{post.body}</p>{post.image_url && <img src={post.image_url} alt="منشور" loading="lazy" className="mt-2 max-h-72 w-full rounded-xl object-cover" />}<div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>♥ {post.like_count} إعجاب · {post.comment_count} تعليق</span><span>{new Date(post.created_at).toLocaleDateString("ar-EG")}</span></div></article>)}</div>}</div>
-        <div className="glass rounded-2xl p-4"><h3 className="mb-3 font-bold">الهدايا والدعم الذي استلمه</h3>{support.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد هدايا مستلمة بعد</p> : <div className="space-y-2">{support.map((g, i) => <div key={`${g.sender_id}-${g.created_at}-${i}`} className="flex items-center justify-between gap-2 rounded-xl bg-secondary/40 p-2"><div className="min-w-0"><div className="truncate text-sm font-bold">{g.gift_name} · {g.quantity}x</div><div className="truncate text-xs text-muted-foreground">من {g.sender_name}</div></div><div className="shrink-0 text-left text-xs"><div>🪙 {g.total_price}</div><div className="text-primary">💎 {Math.floor(g.total_price * 0.15)}</div></div></div>)}</div>}</div>
-        <Button onClick={toggleFollow} className={isFollowing ? "" : "bg-gold font-bold"} variant={isFollowing ? "outline" : "default"}>
-          {isFollowing ? <><UserCheck className="h-4 w-4" /> متابَع</> : <><UserPlus className="h-4 w-4" /> متابعة</>}
-        </Button>
-        <Button onClick={message} variant="outline"><MessageCircle className="h-4 w-4" /> مراسلة</Button>
-        <Button onClick={toggleBlock} variant="outline"><Ban className="h-4 w-4" /> {blocked ? "إلغاء الحظر" : "حظر"}</Button>
-        <Button onClick={report} variant="outline"><Flag className="h-4 w-4" /> إبلاغ</Button>
+      </section>
+
+      <section className="grid grid-cols-4 gap-1 bg-white px-2 py-5 text-center text-slate-900">
+        {[
+          [stats.posts, "المنشورات"],
+          [stats.friends, "الأصدقاء"],
+          [stats.following, "المتابَعون"],
+          [stats.followers, "المتابعون"],
+        ].map(([value, label]) => <div key={String(label)} className="min-w-0">
+          <div className="text-xl font-black tabular-nums">{Number(value).toLocaleString("en-US")}</div>
+          <div className="mt-1 text-xs text-slate-500">{label}</div>
+        </div>)}
+      </section>
+
+      <div className="space-y-4 px-4 py-5">
+        <section className="rounded-2xl bg-card p-4 shadow-sm">
+          <p className="whitespace-pre-wrap text-right text-[15px] leading-7 text-foreground">{p.bio || "لا توجد نبذة شخصية حتى الآن."}</p>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-sm">
+            <span className="text-muted-foreground">الدعم الذي استلمه</span>
+            <span className="font-bold">🪙 {stats.supportCoins.toLocaleString("en-US")} عملة</span>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="text-muted-foreground">الألماس المكتسب · 15%</span>
+            <span className="font-bold text-sky-600">💎 {stats.supportDiamonds.toLocaleString("en-US")}</span>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="text-muted-foreground">عدد الداعمين</span>
+            <span className="font-bold">{stats.supporters.toLocaleString("en-US")}</span>
+          </div>
+        </section>
+
+        <section className="rounded-2xl bg-card p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="font-black">مساحة CP</h3>
+            <span className="text-xs text-muted-foreground">CP</span>
+          </div>
+          <div className="flex items-center justify-center gap-4 rounded-xl bg-gradient-to-l from-pink-50 via-rose-100 to-pink-50 p-4 dark:from-pink-950/30 dark:via-rose-950/30 dark:to-pink-950/30">
+            <UserAvatar src={p.avatar_url} name={p.display_name} size={54} />
+            <span className="text-2xl text-pink-500">♥</span>
+            <div className="grid h-[54px] w-[54px] place-items-center rounded-full border-2 border-white bg-white/80 text-2xl text-slate-300 shadow">＋</div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl bg-card p-4 shadow-sm">
+          <h3 className="mb-3 font-black">منشورات المستخدم</h3>
+          {posts.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد منشورات</p> : <div className="space-y-3">{posts.map((post) => <article key={post.id} className="rounded-xl bg-secondary/40 p-3"><p className="whitespace-pre-wrap text-sm">{post.body}</p>{post.image_url && <img src={post.image_url} alt="منشور" loading="lazy" className="mt-2 max-h-72 w-full rounded-xl object-cover" />}<div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>♥ {post.like_count} إعجاب · {post.comment_count} تعليق</span><span>{new Date(post.created_at).toLocaleDateString("ar-EG")}</span></div></article>)}</div>}
+        </section>
+
+        <section className="rounded-2xl bg-card p-4 shadow-sm">
+          <h3 className="mb-3 font-black">الهدايا والدعم الذي استلمه</h3>
+          {support.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد هدايا مستلمة بعد</p> : <div className="space-y-2">{support.map((g, i) => <div key={`${g.sender_id}-${g.created_at}-${i}`} className="flex items-center justify-between gap-2 rounded-xl bg-secondary/40 p-2"><div className="min-w-0"><div className="truncate text-sm font-bold">{g.gift_name} · {g.quantity}x</div><div className="truncate text-xs text-muted-foreground">من {g.sender_name}</div></div><div className="shrink-0 text-left text-xs"><div>🪙 {g.total_price}</div><div className="text-sky-600">💎 {Math.floor(g.total_price * 0.15)}</div></div></div>)}</div>}
+        </section>
+
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          <Button onClick={toggleFollow} className={isFollowing ? "rounded-full" : "rounded-full bg-emerald-500 font-bold text-white hover:bg-emerald-600"} variant={isFollowing ? "outline" : "default"}>
+            {isFollowing ? <><UserCheck className="h-4 w-4" /> متابَع</> : <><UserPlus className="h-4 w-4" /> متابعة</>}
+          </Button>
+          <Button onClick={message} className="rounded-full bg-emerald-600 font-bold text-white hover:bg-emerald-700"><MessageCircle className="h-4 w-4" /> مراسلة</Button>
+          <Button onClick={message} className="rounded-full bg-amber-400 font-bold text-slate-900 hover:bg-amber-500">قل مرحباً</Button>
+        </div>
+        <Button onClick={toggleBlock} variant="outline" className="w-full">{blocked ? "إلغاء الحظر" : "حظر المستخدم"}</Button>
       </div>
     </div>
   );
