@@ -107,7 +107,11 @@ export function useMedia(value?: string | null): string | null {
   return url;
 }
 
-export function isVideoAsset(value?: string | null): boolean {\n  return /\\.(mp4|webm|mov)(?:\\?|$)/i.test(value || "");\n}\n\nexport async function getAdminAssetUrl(assetKey?: string | null): Promise<string | null> {
+export function isVideoAsset(value?: string | null): boolean {
+  return /\.(mp4|webm|mov)(?:\?|$)/i.test(value || "");
+}
+
+export async function getAdminAssetUrl(assetKey?: string | null): Promise<string | null> {
   if (!assetKey) return null;
   const cached = cacheGet(adminAssetCache, assetKey);
   if (cached) return cached;
