@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowRight, Coins, CreditCard, History, ShoppingCart, Gift } from "lucide-react";
+import { ArrowRight, CreditCard, History, ShoppingCart, Gift } from "lucide-react";
+import { icons3d } from "@/lib/assets3d";
 import { AppShell } from "@/components/AppShell";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,7 +56,7 @@ function WalletPage() {
     </div>
     <div className="card-3d glass overflow-hidden rounded-3xl border border-gold/30 p-5 shadow-gold">
       <div className="flex items-center gap-4">
-        <img src="/assets/icons3d/coin.png" alt="" className="h-16 w-16 object-contain" onError={(e)=>{e.currentTarget.style.display="none";}} />
+        <img src={icons3d.wallet} alt="" className="h-16 w-16 object-contain drop-shadow-lg" />
         <div><div className="text-sm text-muted-foreground">رصيدي الحالي</div><div className="text-4xl font-black text-gold">{loading ? "…" : coins.toLocaleString()} <span className="text-base">عملة</span></div></div>
       </div>
     </div>
