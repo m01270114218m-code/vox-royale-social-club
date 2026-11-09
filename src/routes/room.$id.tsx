@@ -1,5 +1,6 @@
 import { icons3d, roomBackground } from "@/lib/assets3d";
 import { UserAvatar, MediaImage } from "@/components/UserAvatar";
+import { AdminAssetMedia } from "@/components/AdminAssetMedia";
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -585,7 +586,7 @@ function RoomPage() {
                 {p && speakingUsers.includes(s.user_id!) && <><span className="speaker-ring speaker-ring-one" /><span className="speaker-ring speaker-ring-two" /><span className="speaker-glow" /></>}
                 {p ? <UserAvatar src={p.avatar_url} name={p.display_name} vip={p.vip_level} size={72} frameKey={p.equipped_frame} /> : <img src={s.is_locked ? icons3d.micLocked : voiceControls.mic_asset_url || (s.seat_index === 0 ? icons3d.micHost : icons3d.mic)} alt="" className="h-20 w-20 object-contain" />}
                 {p && <img src={s.is_muted ? voiceControls.muted_asset_url || icons3d.micMuted : voiceControls.mic_asset_url || (host ? icons3d.micHost : icons3d.mic)} alt={s.is_muted ? "مكتوم" : "على المقعد"} className={`absolute -bottom-1 -left-1 h-7 w-7 object-contain ${!s.is_muted && speakingUsers.includes(s.user_id!) ? "speaker-mic-pulse" : ""}`} style={{ filter: voiceControls.mic_style === "neon" ? "drop-shadow(0 0 7px #22d3ee)" : voiceControls.mic_style === "gold" ? "drop-shadow(0 0 7px #e8bd63)" : undefined }} />}
-                {p && cosmeticUrls[p.id]?.wave && <img src={cosmeticUrls[p.id]!.wave} alt="" className="pointer-events-none absolute -inset-2 h-[calc(100%+16px)] w-[calc(100%+16px)] object-contain opacity-90" />}{p && voiceControls.show_mic_effect && voiceControls.effect_asset_url && <img src={voiceControls.effect_asset_url} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-contain" />}
+                {p && cosmeticUrls[p.id]?.wave && <AdminAssetMedia src={cosmeticUrls[p.id]!.wave} className="pointer-events-none absolute -inset-2 h-[calc(100%+16px)] w-[calc(100%+16px)] object-contain opacity-90" />}{p && voiceControls.show_mic_effect && voiceControls.effect_asset_url && <AdminAssetMedia src={voiceControls.effect_asset_url} className="pointer-events-none absolute inset-0 h-full w-full object-contain" />}
               </div>
               <span className={`max-w-24 truncate text-xs font-bold ${p?.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p?.name_color || undefined, animationDuration: `${p?.name_effect_speed || 1800}ms` }}>{p ? p.display_name : s.seat_index + 1}</span>{p?.display_no && <span className="text-[10px] font-bold" style={{ color: p.id_color || "#D4AF37" }}>ID {p.display_no}</span>}{p && badges[p.id] && <div className="flex items-center justify-center gap-1 text-[9px] font-bold" style={{ color: badges[p.id]?.badge_color || "#D4AF37" }}>✦ {badges[p.id]?.badge_name}</div>}
             </Button>
@@ -596,9 +597,9 @@ function RoomPage() {
       <div className="flex-1 space-y-2 overflow-y-auto px-4">
         <div className="rounded-xl bg-secondary/60 p-2 text-xs text-primary">📢 مرحباً بك في {room.name}. {room.description}</div>
         {msgs.map((m) => (
-          <div key={m.id} className={`w-fit max-w-[85%] rounded-2xl px-3 py-1.5 text-sm ${m.kind === "gift" ? "bg-gold font-bold" : "glass"}`} style={{ backgroundColor: m.kind === "gift" ? undefined : profiles[m.user_id]?.chat_bubble_color || undefined, backgroundImage: m.kind !== "gift" && cosmeticUrls[m.user_id]?.bubble ? `url(${cosmeticUrls[m.user_id]!.bubble})` : undefined, backgroundSize: "100% 100%" }}>
-            <button type="button" className="font-bold" style={{ color: profiles[m.user_id]?.name_color || undefined }} onClick={() => void openUserCard(m.user_id)}>{publicName(m.user_id)}: </button>
-            {m.body}
+          <div key={m.id} className={`relative isolate w-fit max-w-[85%] overflow-hidden rounded-2xl px-3 py-1.5 text-sm ${m.kind === "gift" ? "bg-gold font-bold" : "glass"}`} style={{ backgroundColor: m.kind === "gift" ? undefined : profiles[m.user_id]?.chat_bubble_color || undefined }}>
+            {m.kind !== "gift" && cosmeticUrls[m.user_id]?.bubble && <AdminAssetMedia src={cosmeticUrls[m.user_id]!.bubble} className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-fill opacity-90" />}
+            <span className="relative z-10"><button type="button" className="font-bold" style={{ color: profiles[m.user_id]?.name_color || undefined }} onClick={() => void openUserCard(m.user_id)}>{publicName(m.user_id)}: </button>{m.body}</span>
           </div>
         ))}
         <div ref={chatEnd} />
@@ -684,7 +685,7 @@ function RoomPage() {
                   )}
                 </>
               )}
-               {seatMenu.user_id && profiles[seatMenu.user_id] && <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-background/95 via-background/90 to-primary/10 p-3 text-right shadow-2xl ring-1 ring-gold/20" dir="rtl">{seatMenu.user_id && cosmeticUrls[seatMenu.user_id]?.card && <img src={cosmeticUrls[seatMenu.user_id]!.card} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
+               {seatMenu.user_id && profiles[seatMenu.user_id] && <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-background/95 via-background/90 to-primary/10 p-3 text-right shadow-2xl ring-1 ring-gold/20" dir="rtl">{seatMenu.user_id && cosmeticUrls[seatMenu.user_id]?.card && <AdminAssetMedia src={cosmeticUrls[seatMenu.user_id]!.card} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
   <div className="mb-2 flex items-center justify-end"><span className="text-[10px] font-bold text-primary">VOX ROYALE</span></div>
   <div className="flex items-center gap-3">
     <button type="button" onClick={() => nav({ to: "/u/$id", params: { id: seatMenu.user_id! } })} className="shrink-0 rounded-full ring-2 ring-primary/40 shadow-gold"><UserAvatar src={profiles[seatMenu.user_id]?.avatar_url} name={profiles[seatMenu.user_id]?.display_name || "مستخدم"} vip={profiles[seatMenu.user_id]?.vip_level} size={68} frameKey={profiles[seatMenu.user_id]?.equipped_frame} /></button>
