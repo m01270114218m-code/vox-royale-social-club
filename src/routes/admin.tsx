@@ -712,6 +712,7 @@ const ASSET_CATEGORIES: Record<string, string> = {
   room: "الغرف والخلفيات",
   gift: "الهدايا",
   frame: "إطارات الصور",
+  entry: "الدخوليات",
   vip: "شارات VIP",
   badge: "الشارات المميزة",
   level: "المستويات",
@@ -735,6 +736,8 @@ function AssetsTab() {
   const [grantBusy, setGrantBusy] = useState(false);
   const [category, setCategory] = useState("general");
   const [name, setName] = useState("");
+  const [displayWidth, setDisplayWidth] = useState("240");
+  const [displayHeight, setDisplayHeight] = useState("240");
   const [files, setFiles] = useState<File[]>([]);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -774,6 +777,12 @@ function AssetsTab() {
       toast.error("اختر ملفاً واحداً على الأقل");
       return;
     }
+    const needsDisplaySize = ["gift", "frame", "entry"].includes(category);
+    const width = Number(displayWidth), height = Number(displayHeight);
+    if (needsDisplaySize && (!Number.isInteger(width) || width < 24 || width > 2048 || !Number.isInteger(height) || height < 24 || height > 2048)) {
+      toast.error("حدد عرض وطول الأصل بين 24 و2048 بكسل");
+      return;
+    }
     const invalid = files.find((file) => file.size > MAX_ASSET_SIZE);
     if (invalid) {
       toast.error(`حجم ${invalid.name} أكبر من الحد المسموح (50 ميجابايت)`);
@@ -798,7 +807,7 @@ function AssetsTab() {
         name: name.trim() || file.name.replace(/\.[^.]+$/, ""),
         category,
         url: path,
-        metadata: { storage_path: path, content_type: file.type || "application/octet-stream", size: file.size, original_name: file.name },
+        metadata: { storage_path: path, content_type: file.type || "application/octet-stream", size: file.size, original_name: file.name, display_width: needsDisplaySize ? width : undefined, display_height: needsDisplaySize ? height : undefined },
         is_active: true,
       });
       if (rowError) {
@@ -811,6 +820,8 @@ function AssetsTab() {
     setUploading(false);
     setFiles([]);
     setName("");
+    setDisplayWidth("240");
+    setDisplayHeight("240");
     const picker = document.getElementById("admin-asset-files") as HTMLInputElement | null;
     if (picker) picker.value = "";
     if (uploaded) toast.success(`تم رفع وإضافة ${uploaded} أصل بنجاح`);
