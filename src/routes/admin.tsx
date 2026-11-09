@@ -702,7 +702,7 @@ type AdminAsset = {
   name: string;
   category: string;
   url: string | null;
-  metadata: { storage_path?: string; content_type?: string; size?: number } | null;
+  metadata: { storage_path?: string; content_type?: string; size?: number; display_width?: number; display_height?: number } | null;
   is_active: boolean;
   created_at: string;
 };
