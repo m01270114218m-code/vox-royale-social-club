@@ -1,7 +1,7 @@
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { icons3d } from "@/lib/assets3d";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { deleteMedia, uploadImage, useAdminAsset } from "@/lib/media";
+import { deleteMedia, uploadImage } from "@/lib/media";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useEffect, useState } from "react";
 import { Camera } from "lucide-react";
