@@ -931,33 +931,43 @@ function RoomPage() {
       )}
       {entryAnim && (
         <>
-        <style>{`@keyframes entry-zoom{0%{opacity:0;transform:scale(.35)}70%{opacity:1;transform:scale(1.04)}100%{transform:scale(1)}}@keyframes entry-slide{0%{opacity:0;transform:translateX(80vw)}100%{opacity:1;transform:translateX(0)}}@keyframes entry-float{0%{opacity:0;transform:translateY(45px)}100%{opacity:1;transform:translateY(0)}}@keyframes entry-pulse{0%{opacity:0;transform:scale(.7)}60%{opacity:1;transform:scale(1.08)}100%{transform:scale(1)}}`}</style>
-        <div key={entryAnim.key} role="status" aria-live="polite" className="pointer-events-auto fixed inset-0 z-[75] flex items-center justify-center overflow-hidden bg-slate-950/65 px-5 backdrop-blur-[5px] animate-in fade-in duration-300">
-          <button type="button" onClick={() => setEntryAnim(null)} className="absolute right-4 top-4 z-[90] rounded-full border border-white/25 bg-black/70 px-4 py-2 text-xs font-bold text-white">إغلاق الدخولية</button>
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.28),transparent_62%)]" />
-          <div className="relative flex w-full max-w-[390px] flex-col items-center">
-            <div className="mb-3 text-[11px] font-black tracking-[.38em] text-amber-200 drop-shadow-lg">ROOM ENTRANCE</div>
-            <div className="relative w-full overflow-hidden rounded-[28px] border border-amber-300/60 bg-gradient-to-br from-[#17152f] via-[#211849] to-[#10172d] p-[1px] shadow-[0_0_55px_rgba(167,139,250,.35)]">
-              <div className="relative overflow-hidden rounded-[27px] px-5 py-6 text-center">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(251,191,36,.22),transparent_52%)]" />
-                <div className="relative mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full border-[3px] border-amber-300 bg-gradient-to-br from-violet-500 to-indigo-950 p-1 shadow-[0_0_28px_rgba(251,191,36,.35)]">
-                  {entryAnim.avatar ? <img src={entryAnim.avatar} alt="" className="h-full w-full rounded-full object-cover" /> : <span className="text-4xl">👑</span>}
-                  <span className="absolute -bottom-2 rounded-full border border-amber-200 bg-amber-400 px-3 py-0.5 text-[10px] font-black text-slate-950">LV.{entryAnim.level}</span>
-                </div>
-                <div className="relative text-[10px] font-bold tracking-[.25em] text-violet-200">✦ انضم إلى الغرفة ✦</div>
-                <div className="relative mt-2 truncate text-2xl font-black text-white drop-shadow">{entryAnim.name}</div>
-                {entryAnim.vip > 0 && <div className="relative mt-2 inline-flex rounded-full border border-amber-300/50 bg-amber-300/15 px-3 py-1 text-xs font-extrabold text-amber-200">VIP {entryAnim.vip}</div>}
-                {entryAnim.src ? (
-                  <div className="relative mt-4 flex justify-center" style={{ animation: entryAnim.animationStyle === "none" ? "none" : `entry-${["slide","float","pulse"].includes(entryAnim.animationStyle) ? entryAnim.animationStyle : "zoom"} ${Math.max(250, 900 / entryAnim.animationSpeed)}ms ease-out both` }}>
-                    {isVideoAsset(entryAnim.src) ? <video key={entryAnim.key} src={entryAnim.src} autoPlay controls muted={!entryAnim.audioEnabled} playsInline preload="auto" volume={entryAnim.audioEnabled ? 1 : 0} onLoadedMetadata={(e) => { e.currentTarget.playbackRate = entryAnim.playbackSpeed; e.currentTarget.volume = entryAnim.audioEnabled ? 1 : 0; void e.currentTarget.play().catch(() => { /* WebView/browser may require a user gesture for unmuted autoplay. */ }); }} onCanPlay={(e) => { if (entryAnim.audioEnabled) void e.currentTarget.play().catch(() => {}); }} onEnded={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)} onError={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)} style={{ width: entryAnim.width ? `${entryAnim.width}px` : undefined, height: entryAnim.height ? `${entryAnim.height}px` : undefined }} className="max-h-[92dvh] max-w-[96vw] rounded-2xl object-contain drop-shadow-2xl" /> : <img src={entryAnim.src} alt="تأثير دخول المستخدم" style={{ width: entryAnim.width ? `${entryAnim.width}px` : undefined, height: entryAnim.height ? `${entryAnim.height}px` : undefined }} className="max-h-[42vh] max-w-full rounded-2xl object-contain drop-shadow-2xl" />}
-                  </div>
-                ) : <div className="relative mt-4 text-3xl text-amber-200">✧ ✦ ✧</div>}
-                <div className="relative mt-4 text-xs font-semibold text-white/70">أهلاً بك في مجلسنا</div>
-              </div>
+          <style>{`@keyframes entry-zoom{0%{opacity:0;transform:scale(.35)}70%{opacity:1;transform:scale(1.04)}100%{transform:scale(1)}}@keyframes entry-slide{0%{opacity:0;transform:translateX(80vw)}100%{opacity:1;transform:translateX(0)}}@keyframes entry-float{0%{opacity:0;transform:translateY(45px)}100%{opacity:1;transform:translateY(0)}}@keyframes entry-pulse{0%{opacity:0;transform:scale(.7)}60%{opacity:1;transform:scale(1.08)}100%{transform:scale(1)}}`}</style>
+          <div key={entryAnim.key} role="status" aria-live="polite" className="pointer-events-auto fixed inset-0 z-[75] flex items-center justify-center overflow-hidden bg-black/95">
+            <button type="button" onClick={() => setEntryAnim(null)} className="absolute right-4 top-4 z-[90] rounded-full border border-white/30 bg-black/75 px-4 py-2 text-xs font-bold text-white">إغلاق</button>
+            <div className="flex h-full w-full items-center justify-center overflow-hidden">
+              {isVideoAsset(entryAnim.src) ? (
+                <video
+                  key={entryAnim.key}
+                  src={entryAnim.src}
+                  autoPlay
+                  controls
+                  muted={!entryAnim.audioEnabled}
+                  playsInline
+                  preload="auto"
+                  onLoadedMetadata={(e) => {
+                    e.currentTarget.playbackRate = entryAnim.playbackSpeed;
+                    e.currentTarget.volume = entryAnim.audioEnabled ? 1 : 0;
+                    void e.currentTarget.play().catch(() => { /* WebView may require a tap before audio playback. */ });
+                  }}
+                  onCanPlay={(e) => {
+                    if (entryAnim.audioEnabled) void e.currentTarget.play().catch(() => {});
+                  }}
+                  onEnded={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)}
+                  onError={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)}
+                  style={{ animation: entryAnim.animationStyle === "none" ? "none" : `entry-${["slide","float","pulse"].includes(entryAnim.animationStyle) ? entryAnim.animationStyle : "zoom"} ${Math.max(250, 900 / entryAnim.animationSpeed)}ms ease-out both` }}
+                  className="block h-auto w-auto max-h-[100dvh] max-w-[100vw] object-contain"
+                />
+              ) : (
+                <img
+                  src={entryAnim.src}
+                  alt="دخولية المستخدم"
+                  onError={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)}
+                  style={{ animation: entryAnim.animationStyle === "none" ? "none" : `entry-${["slide","float","pulse"].includes(entryAnim.animationStyle) ? entryAnim.animationStyle : "zoom"} ${Math.max(250, 900 / entryAnim.animationSpeed)}ms ease-out both` }}
+                  className="block h-auto w-auto max-h-[100dvh] max-w-[100vw] object-contain"
+                />
+              )}
             </div>
-            <div className="mt-4 h-1 w-28 overflow-hidden rounded-full bg-white/20"><div className="h-full w-full origin-right animate-pulse rounded-full bg-gradient-to-l from-amber-200 to-violet-400" /></div>
           </div>
-        </div>
         </>
       )}
 
