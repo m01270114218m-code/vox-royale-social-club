@@ -17,9 +17,9 @@ import { errMsg, flagOf } from "@/lib/vox";
 export const Route = createFileRoute("/moments")({
   head: () => ({
     meta: [
-      { title: "اللحظات — VOX ROYALE" },
+      { title: "اللحظات — صدى شات" },
       { name: "description", content: "شارك لحظاتك وصورك وتفاعل مع منشورات أصدقائك." },
-      { property: "og:title", content: "اللحظات — VOX ROYALE" },
+      { property: "og:title", content: "اللحظات — صدى شات" },
       { property: "og:description", content: "شارك لحظاتك وتفاعل مع أصدقائك." },
     ],
   }),
