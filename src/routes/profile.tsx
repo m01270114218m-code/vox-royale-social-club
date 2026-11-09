@@ -149,7 +149,7 @@ function ProfilePage() {
   return (
     <div className="px-4 pt-6">
       <div className="relative overflow-hidden rounded-[30px] border border-amber-300/35 bg-gradient-to-br from-slate-950 via-slate-900 to-violet-950 p-6 text-center text-white shadow-[0_20px_60px_rgba(0,0,0,.4)] ring-1 ring-amber-200/10">{profileCardUrl && <AdminAssetMedia src={profileCardUrl} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
-        <div className="absolute inset-x-0 top-0 h-24 bg-royal" />
+
         <label className="relative mx-auto block w-fit cursor-pointer">
           <UserAvatar src={shown.avatar_url} name={shown.display_name} size={112} ring vip={p.vip_level} frameKey={p.equipped_frame} />
           <span className="absolute bottom-0 left-0 rounded-full bg-gold p-1.5"><Camera className="h-4 w-4" /></span>
