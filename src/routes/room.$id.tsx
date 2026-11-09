@@ -98,8 +98,7 @@ function RoomPage() {
   const onMusicProgress = useCallback((progress: { currentTime: number; duration: number; playing: boolean }) => {
     setMusicProgress(progress);
   }, []);
-  const speakingUsersState = useState<string[]>([]);
-  const [speakingUsers, setSpeakingUsers] = speakingUsersState;
+  const [speakingUsers, setSpeakingUsers] = useState<string[]>([]);
   const [micRequests, setMicRequests] = useState<{ id: string; user_id: string; created_at: string }[]>([]);
   const [myMicRequest, setMyMicRequest] = useState<{ id: string } | null>(null);
   const [chatMutedUser, setChatMutedUser] = useState(false);
