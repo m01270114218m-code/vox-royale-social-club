@@ -259,14 +259,14 @@ function RoomPage() {
         if (event.lucky) {
           const { data: lucky } = await supabase.from("lucky_gifts").select("asset_key").eq("id", event.giftId).maybeSingle();
           const image = lucky?.asset_key ? await getAdminAssetUrl(lucky.asset_key) : null;
-          const category = g.category_id ? giftCategoriesList.find(x=>x.id===g.category_id) : undefined;
-        if (image) showGiftAnimation(image,{style:g.animation_style,speed:g.animation_speed,duration:g.display_duration_ms,mode:category?.display_mode || "animated"});
+          if (image) showGiftAnimation(image);
           return;
         }
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url,category_id,animation_style,animation_speed,display_duration_ms").eq("id", event.giftId).maybeSingle();
         if (!g) return;
         const image = (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || (g.asset_url ? await getAdminAssetUrl(g.asset_url) : null);
-        if (image) showGiftAnimation(image);
+        const category = g.category_id ? giftCategoriesList.find(x=>x.id===g.category_id) : undefined;
+        if (image) showGiftAnimation(image,{style:g.animation_style,speed:g.animation_speed,duration:g.display_duration_ms,mode:category?.display_mode || "animated"});
       })
       .on("broadcast", { event: "member_entered" }, async (payload) => {
         const event = payload.payload as { roomId?: string; userId?: string };
