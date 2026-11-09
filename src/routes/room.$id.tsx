@@ -118,10 +118,33 @@ function RoomPage() {
   const [cardRoom, setCardRoom] = useState<{ id: string; name: string; room_no: number } | null>(null);
   const roomCoverUrl = useMedia(room?.cover_url);
   type AssetPlaybackSettings = { display_width?: number; display_height?: number; playback_speed?: number; animation_style?: string; display_duration_ms?: number; audio_enabled?: boolean };
-  async function getAssetPlaybackSettings(assetKey?: string | null): Promise<AssetPlaybackSettings> {
-    if (!assetKey) return {};
-    const { data } = await supabase.from("admin_assets").select("metadata").eq("asset_key", assetKey).eq("is_active", true).maybeSingle();
-    return (data?.metadata ?? {}) as AssetPlaybackSettings;
+  async function getAssetPlaybackSettings(assetRef?: string | null): Promise<AssetPlaybackSettings> {
+    if (!assetRef) return {};
+    const { data: byKey } = await supabase.from("admin_assets").select("metadata").eq("asset_key", assetRef).eq("is_active", true).maybeSingle();
+    if (byKey?.metadata) return byKey.metadata as AssetPlaybackSettings;
+
+    // Older gift rows may keep a signed Storage URL instead of the stable asset_key.
+    // Resolve its bucket path so the settings saved on the original admin asset are used.
+    let storagePath = assetRef;
+    if (/^https?:\/\//i.test(assetRef)) {
+      const marker = "/storage/v1/object/";
+      const markerIndex = assetRef.indexOf(marker);
+      if (markerIndex >= 0) {
+        const tail = assetRef.slice(markerIndex + marker.length).split("?")[0];
+        const parts = tail.split("/");
+        const access = parts.shift();
+        const bucket = parts.shift();
+        if (bucket !== "admin-assets" || !access) return {};
+        try { storagePath = decodeURIComponent(parts.join("/").replace(/^\/+/, "")); }
+        catch { storagePath = parts.join("/").replace(/^\/+/, ""); }
+      }
+    }
+    if (!storagePath || storagePath === assetRef && !storagePath.includes("/")) return {};
+    const { data: byPath } = await supabase.from("admin_assets").select("metadata")
+      .filter("metadata->>storage_path", "eq", storagePath)
+      .eq("is_active", true)
+      .maybeSingle();
+    return (byPath?.metadata ?? {}) as AssetPlaybackSettings;
   }
   function showGiftAnimation(image: string, config?: { style?: string; speed?: number; duration?: number; mode?: "static" | "animated"; width?: number; height?: number; audioEnabled?: boolean; playbackSpeed?: number }) {
     const token = Date.now() + Math.floor(Math.random() * 1000);
