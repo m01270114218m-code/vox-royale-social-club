@@ -660,7 +660,7 @@ function RoomPage() {
                   {seatMenu.seat_index >= 0 && <>
                     <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_locked ? "unlock" : "lock" })}>{seatMenu.is_locked ? "فتح المايك" : "قفل المايك"}</Button>
                     <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_muted ? "unmute" : "mute" })}>{seatMenu.is_muted ? "إلغاء الكتم" : "كتم المايك"}</Button>
-                    {seatMenu.user_id && seatMenu.user_id !== uid && <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick" })}>إنزال من المايك</Button>}
+                    {seatMenu.user_id && seatMenu.user_id !== uid && <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick_seat" })}>إنزال من المايك</Button>}
                   </>}
                   {seatMenu.user_id && (
                     <>
@@ -700,7 +700,7 @@ function RoomPage() {
   {isStaff && seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && <div className="mt-2 grid grid-cols-4 gap-1 border-t border-primary/10 pt-2">
     <Button size="sm" variant="outline" title="طرد" onClick={() => call("staff_kick_room_user", { _room: id, _user: seatMenu.user_id! })}><LogOut className="h-4 w-4" /></Button>
     <Button size="sm" variant="outline" title="كتم" onClick={() => call("staff_set_chat_mute", { _room: id, _user: seatMenu.user_id!, _muted: !chatMutedUser })}><VolumeX className="h-4 w-4" /></Button>
-    <Button size="sm" variant="outline" title="إنزال من المايك" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick" })}><Ban className="h-4 w-4" /></Button>
+    <Button size="sm" variant="outline" title="إنزال من المايك" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick_seat" })}><Ban className="h-4 w-4" /></Button>
     {isOwner && <Button size="sm" variant="outline" title={targetIsModerator ? "إزالة الأدمن" : "إضافة أدمن"} onClick={() => call("staff_set_room_moderator", { _room: id, _user: seatMenu.user_id!, _enabled: !targetIsModerator })}><UserPlus className="h-4 w-4" /></Button>}
   </div>}
 </div>}
