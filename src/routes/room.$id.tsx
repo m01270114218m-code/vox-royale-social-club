@@ -635,7 +635,7 @@ function RoomPage() {
   const visibleGifts = giftCategory === "all" ? gifts : gifts.filter((gift) => gift.category_id === giftCategory);
 
   return (
-    <>{!roomMinimized && <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} musicFile={musicFile} musicCommand={musicCommand} onMusicProgress={onMusicProgress} onSpeakingUsers={handleSpeakingUsers} />
+    <>{!roomMinimized && <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} musicFile={musicFile} musicCommand={musicCommand} onMusicProgress={onMusicProgress} onSpeakingUsers={handleSpeakingUsers} />}
     <input id="room-music-file" type="file" accept="audio/*" className="hidden" onChange={(e) => {
       const file = e.target.files?.[0] ?? null;
       e.currentTarget.value = "";
