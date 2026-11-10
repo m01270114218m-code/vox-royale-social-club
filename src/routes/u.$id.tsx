@@ -1,12 +1,11 @@
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { MessageCircle, Flag, Ban, UserPlus, UserCheck, Gift, Coins, Sparkles } from "lucide-react";
+import { MessageCircle, Flag, Ban, UserPlus, UserCheck, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { UserAvatar } from "@/components/UserAvatar";
-import { AdminAssetMedia } from "@/components/AdminAssetMedia";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { errMsg, flagOf } from "@/lib/vox";
@@ -37,12 +36,11 @@ function UserPage() {
   const uid = user!.id;
   const nav = useNavigate();
   const [p, setP] = useState<P | null>(null);
-  const [stats, setStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0, gifts: 0, giftsValue: 0, support: 0 });
+  const [stats, setStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0, support: 0 });
   const [isFollowing, setIsFollowing] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [currentRoom, setCurrentRoom] = useState<{ id: string; name: string; room_no: number } | null>(null);
-  const [giftRows, setGiftRows] = useState<{ id: string; name: string; emoji: string; asset_key: string | null; asset_url?: string | null; quantity: number; total_price: number }[]>([]);
   const [profileCardUrl, setProfileCardUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -63,7 +61,7 @@ function UserPage() {
       const { data } = await supabase.from("profiles").select("id,display_no,display_name,avatar_url,bio,country,level,vip_level,support_xp,total_gifts_received,total_gifts_value,profile_card_asset_key,chat_bubble_asset_key,sound_wave_asset_key,id_color,name_color,name_effect,name_effect_speed,equipped_frame,equipped_entry").eq("id", id).maybeSingle();
       setP(data);
       if (data?.profile_card_asset_key) setProfileCardUrl(await getAdminAssetUrl(data.profile_card_asset_key));
-      const [a, b, c, f, bl, badgeRows, graph, userPosts, roomResult, giftAgg] = await Promise.all([
+      const [a, b, c, f, bl, badgeRows, graph, userPosts, roomResult] = await Promise.all([
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", id),
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", id),
         supabase.from("posts").select("id", { count: "exact" }).eq("user_id", id),
@@ -73,7 +71,6 @@ function UserPage() {
         supabase.from("follows").select("follower_id,following_id").or(`follower_id.eq.${id},following_id.eq.${id}`),
         supabase.from("posts").select("id").eq("user_id", id),
         supabase.from("room_members").select("room_id,rooms(id,name,room_no)").eq("user_id", id).maybeSingle(),
-        supabase.from("gift_transactions").select("gift_id,quantity,total_price,gifts(name,emoji,asset_key)").eq("receiver_id", id),
       ]);
       const followerIds = new Set((graph.data ?? []).filter((r) => r.following_id === id).map((r) => r.follower_id));
       const followingIds = new Set((graph.data ?? []).filter((r) => r.follower_id === id).map((r) => r.following_id));
@@ -84,10 +81,7 @@ function UserPage() {
         const { count } = await supabase.from("post_likes").select("id", { count: "exact", head: true }).in("post_id", postIds);
         likeCount = count ?? 0;
       }
-      const giftMap = new Map<string,{id:string;name:string;emoji:string;asset_key:string|null;asset_url?:string|null;quantity:number;total_price:number}>();
-      for (const row of (giftAgg.data ?? []) as any[]) { const g=row.gifts; if (!g) continue; const key=String(row.gift_id); const old=giftMap.get(key) ?? {id:key,name:g.name,emoji:g.emoji,asset_key:g.asset_key ?? null,quantity:0,total_price:0}; old.quantity += Number(row.quantity ?? 0); old.total_price += Number(row.total_price ?? 0); giftMap.set(key,old); }
-      const resolvedGifts = await Promise.all([...giftMap.values()].sort((x,y)=>y.total_price-x.total_price).map(async g => ({...g, asset_url: g.asset_key ? await getAdminAssetUrl(g.asset_key) : null}))); setGiftRows(resolvedGifts);
-      setStats({ followers: a.count ?? 0, friends: friendCount, posts: c.count ?? 0, likes: likeCount, gifts: Number(data?.total_gifts_received ?? [...giftMap.values()].reduce((n,x)=>n+x.quantity,0)), giftsValue: Number(data?.total_gifts_value ?? [...giftMap.values()].reduce((n,x)=>n+x.total_price,0)), support: Number(data?.support_xp ?? 0) });
+      setStats({ followers: a.count ?? 0, friends: friendCount, posts: c.count ?? 0, likes: likeCount, support: Number(data?.support_xp ?? 0) });
       setIsFollowing(!!f.data?.length);
       setBlocked(!!bl.data?.length);
       setBadges((badgeRows.data ?? []) as Badge[]);
@@ -147,8 +141,7 @@ function UserPage() {
         </div>
       </div>
       </div>
-      <div className="mx-4 mt-4 grid grid-cols-3 gap-2"><div className="rounded-2xl border border-primary/15 bg-background/60 p-3 text-center"><Gift className="mx-auto h-5 w-5 text-gold"/><b className="mt-1 block">{stats.gifts.toLocaleString()}</b><span className="text-[10px] text-muted-foreground">الهدايا المستلمة</span></div><div className="rounded-2xl border border-primary/15 bg-background/60 p-3 text-center"><Coins className="mx-auto h-5 w-5 text-gold"/><b className="mt-1 block">{stats.giftsValue.toLocaleString()}</b><span className="text-[10px] text-muted-foreground">العملات المستلمة</span></div><div className="rounded-2xl border border-primary/15 bg-background/60 p-3 text-center"><Sparkles className="mx-auto h-5 w-5 text-primary"/><b className="mt-1 block">{stats.support.toLocaleString()}</b><span className="text-[10px] text-muted-foreground">دعم / XP</span></div></div>
-      {giftRows.length > 0 && <section className="mx-4 mt-4 rounded-3xl border border-gold/20 bg-background/70 p-4"><div className="mb-3 flex items-center gap-2 font-bold"><Gift className="h-5 w-5 text-gold"/>الهدايا المستلمة</div><div className="grid grid-cols-4 gap-2">{giftRows.map(g=><div key={g.id} className="rounded-2xl border border-border/50 bg-black/10 p-2 text-center">{g.asset_url ? <AdminAssetMedia src={g.asset_url} alt={g.name} className="mx-auto h-12 w-12 object-contain"/> : <div className="text-2xl">{g.emoji}</div>}<div className="truncate text-[10px] font-bold">{g.name}</div><div className="text-[9px] text-muted-foreground">×{g.quantity}</div></div>)}</div></section>}
+      <div className="mx-4 mt-4 rounded-2xl border border-primary/15 bg-background/60 p-3 text-center"><Sparkles className="mx-auto h-5 w-5 text-primary"/><b className="mt-1 block">{stats.support.toLocaleString()}</b><span className="text-[10px] text-muted-foreground">دعم / XP</span></div>
       <div className="mx-4 mt-4 grid grid-cols-2 gap-2">
         <Button onClick={toggleFollow} className={isFollowing ? "" : "bg-gold font-bold"} variant={isFollowing ? "outline" : "default"}>
           {isFollowing ? <><UserCheck className="h-4 w-4" /> متابَع</> : <><UserPlus className="h-4 w-4" /> متابعة</>}
