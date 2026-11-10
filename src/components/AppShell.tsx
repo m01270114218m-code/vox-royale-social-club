@@ -3,7 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { Home, User, Crown, Sparkles, MessageCircle, Mic, Shield } from "lucide-react";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
+import { getDeviceId, useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useAppUiConfig } from "@/hooks/useAppUiConfig";
@@ -23,13 +23,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
       return () => { active = false; };
     }
     setDeviceAllowed(false);
-    let deviceId = localStorage.getItem("vox_device_id");
-    if (!deviceId) {
-      deviceId = typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID() + crypto.randomUUID()
-        : "vox-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      localStorage.setItem("vox_device_id", deviceId);
-    }
+    const deviceId = getDeviceId();
     const checkDeviceAccess = async () => {
       try {
         const { error } = await supabase.rpc("register_device", { _device: deviceId });
