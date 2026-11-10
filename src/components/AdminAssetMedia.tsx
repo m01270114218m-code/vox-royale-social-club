@@ -7,7 +7,12 @@ type Props = { src?: string | null; alt?: string; className?: string; videoClass
 export function AdminAssetMedia({ src, alt = "", className = "", videoClassName, loop = true }: Props) {
   const [failed, setFailed] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  useEffect(() => { setFailed(false); }, [src]);
+  useEffect(() => {
+    setFailed(false);
+    const unlockAudio = () => { void videoRef.current?.play().catch(() => {}); };
+    window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
+    return () => window.removeEventListener("pointerdown", unlockAudio, true);
+  }, [src]);
 
   if (!src || failed) return <span role={alt ? "img" : undefined} aria-label={alt || undefined} aria-hidden={alt ? undefined : true} className={className} />;
 
