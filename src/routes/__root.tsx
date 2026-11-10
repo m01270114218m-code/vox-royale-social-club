@@ -10,6 +10,9 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { Capacitor } from "@capacitor/core";
+import { App } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -121,6 +124,38 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let active = true;
+    let appUrlListener: { remove: () => Promise<void> } | undefined;
+
+    const completeGoogleOAuth = async (url: string) => {
+      if (!url.startsWith("com.voxroyale.app://auth/callback")) return;
+      const { error } = await supabase.auth.exchangeCodeForSession(url);
+      if (!active) return;
+      if (error) {
+        console.error("[Google OAuth] Callback exchange failed:", error.message);
+        await Browser.close().catch(() => undefined);
+        void navigate({ to: "/auth", replace: true });
+        return;
+      }
+      await Browser.close().catch(() => undefined);
+      void navigate({ to: "/", replace: true });
+    };
+
+    void App.addListener("appUrlOpen", ({ url }) => { void completeGoogleOAuth(url); })
+      .then((listener) => { appUrlListener = listener; if (!active) void listener.remove(); });
+    void App.getLaunchUrl().then((launch) => {
+      if (active && launch?.url) void completeGoogleOAuth(launch.url);
+    }).catch((error) => console.warn("[Google OAuth] Could not read launch URL:", error));
+
+    return () => {
+      active = false;
+      if (appUrlListener) void appUrlListener.remove();
+    };
+  }, [navigate]);
 
   return (
     <QueryClientProvider client={queryClient}>
