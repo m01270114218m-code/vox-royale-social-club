@@ -142,12 +142,15 @@ function AuthPage() {
       const { data: current, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (current.session?.user) {
-        if (current.session.user.is_anonymous && current.session.refresh_token) {
-          localStorage.setItem("vox_guest_refresh", current.session.refresh_token);
-          localStorage.setItem("vox_guest_account_created", "1");
+        if (current.session.user.is_anonymous) {
           const { error: deviceError } = await supabase.rpc("register_device", { _device: getDeviceId() });
           if (deviceError) throw new Error("تعذر التحقق من هذا الجهاز: " + deviceError.message);
-          toast.success("تم فتح حسابك السريع المحفوظ على هذا الجهاز");
+          localStorage.setItem("vox_guest_refresh", current.session.refresh_token);
+          localStorage.setItem("vox_guest_account_created", "1");
+          localStorage.removeItem("vox_guest_logged_out");
+          window.dispatchEvent(new Event("vox-auth-visibility-change"));
+          toast.success("تم فتح نفس حسابك السريع المحفوظ على هذا الجهاز");
+          nav({ to: "/" });
         } else toast.info("أنت مسجل الدخول بالفعل.");
         return;
       }
@@ -158,7 +161,10 @@ function AuthPage() {
         if (!restoreError && restored.session) {
           localStorage.setItem("vox_guest_refresh", restored.session.refresh_token);
           localStorage.setItem("vox_guest_account_created", "1");
+          localStorage.removeItem("vox_guest_logged_out");
+          window.dispatchEvent(new Event("vox-auth-visibility-change"));
           toast.success("أهلاً بعودتك إلى حساب هذا الجهاز");
+          nav({ to: "/" });
           return;
         }
         // Do not silently create a second anonymous account when this device's
@@ -176,6 +182,7 @@ function AuthPage() {
         await supabase.auth.signOut({ scope: "local" });
         throw new Error("تعذر ربط الحساب بهذا الجهاز: " + deviceError.message);
       }
+      localStorage.removeItem("vox_guest_logged_out");
       localStorage.setItem("vox_guest_refresh", guest.session.refresh_token);
       localStorage.setItem("vox_guest_account_created", "1");
       toast.success("تم تسجيل الدخول إلى الحساب السريع لهذا الجهاز");
