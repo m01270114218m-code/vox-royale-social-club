@@ -7,6 +7,7 @@ import AgoraRTC, {
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { App as CapacitorApp } from "@capacitor/app";
 
 type MusicCommand = { id: number; action: "pause" | "resume" | "seek" | "volume"; value?: number };
 type MusicProgress = { currentTime: number; duration: number; playing: boolean };
@@ -136,8 +137,8 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
 
     // Android may suspend the WebView while another app is in front. Keep the
     // Agora client alive at the root and refresh/rejoin it when the app returns.
-    const resumeRtc = () => {
-      if (document.visibilityState !== "visible" || !client || !joinedRef.current) return;
+    const resumeRtc = (fromNative = false) => {
+      if ((!fromNative && document.visibilityState !== "visible") || !client || !joinedRef.current) return;
       void serialize(async () => {
         if (!client || !joinedRef.current) return;
         if (client.connectionState === "DISCONNECTED") {
@@ -153,9 +154,16 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
           if (micEnabledRef.current && nextRole === "host") await publishMicrophone();
         } else {
           await refreshToken();
+          if (micEnabledRef.current && roleRef.current === "host") {
+            if (!publishedRef.current) await publishMicrophone();
+            else if (micRef.current && !micRef.current.enabled) await micRef.current.setEnabled(true);
+          }
         }
       });
     };
+    const nativeStateListener = CapacitorApp.addListener("appStateChange", ({ isActive }) => {
+      if (isActive) resumeRtc(true);
+    });
     document.addEventListener("visibilitychange", resumeRtc);
     window.addEventListener("pageshow", resumeRtc);
 
@@ -216,6 +224,7 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
       aliveRef.current = false;
       document.removeEventListener("visibilitychange", resumeRtc);
       window.removeEventListener("pageshow", resumeRtc);
+      void nativeStateListener.then((listener) => listener.remove()).catch(() => undefined);
       tokenRefreshRef.current = null;
       joinedRef.current = false;
       publishedRef.current = false;
