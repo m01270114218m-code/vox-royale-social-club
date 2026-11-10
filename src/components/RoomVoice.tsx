@@ -134,6 +134,31 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
       user.audioTrack?.stop();
     };
 
+    // Android may suspend the WebView while another app is in front. Keep the
+    // Agora client alive at the root and refresh/rejoin it when the app returns.
+    const resumeRtc = () => {
+      if (document.visibilityState !== "visible" || !client || !joinedRef.current) return;
+      void serialize(async () => {
+        if (!client || !joinedRef.current) return;
+        if (client.connectionState === "DISCONNECTED") {
+          await client.leave().catch(() => undefined);
+          joinedRef.current = false;
+          publishedRef.current = false;
+          const access = await getToken();
+          const nextRole = access.role === "publisher" ? "host" : "audience";
+          await client.setClientRole(nextRole);
+          roleRef.current = nextRole;
+          await client.join(access.appId, access.channel, access.token, access.uid);
+          joinedRef.current = true;
+          if (micEnabledRef.current && nextRole === "host") await publishMicrophone();
+        } else {
+          await refreshToken();
+        }
+      });
+    };
+    document.addEventListener("visibilitychange", resumeRtc);
+    window.addEventListener("pageshow", resumeRtc);
+
     const start = async () => {
       try {
         await previousLifecycle;
@@ -189,6 +214,8 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
     return () => {
       effectAlive = false;
       aliveRef.current = false;
+      document.removeEventListener("visibilitychange", resumeRtc);
+      window.removeEventListener("pageshow", resumeRtc);
       tokenRefreshRef.current = null;
       joinedRef.current = false;
       publishedRef.current = false;
