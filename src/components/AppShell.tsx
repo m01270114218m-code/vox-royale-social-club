@@ -121,23 +121,6 @@ function ShellInner({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const nav = useNavigate();
   const unread = useUnread(user?.id);
-  const [miniRoom, setMiniRoom] = useState<{ id: string; name?: string } | null>(null);
-  useEffect(() => {
-    const refreshMiniRoom = () => {
-      try {
-        const value = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string; name?: string } | null;
-        setMiniRoom(value?.id ? { id: value.id, name: value.name } : null);
-      } catch { setMiniRoom(null); }
-    };
-    refreshMiniRoom();
-    window.addEventListener("storage", refreshMiniRoom);
-    // Same-tab route changes do not emit the browser "storage" event.
-    window.addEventListener("vox-room-minimized", refreshMiniRoom);
-    return () => {
-      window.removeEventListener("storage", refreshMiniRoom);
-      window.removeEventListener("vox-room-minimized", refreshMiniRoom);
-    };
-  }, []);
   useEffect(() => {
     const onPop = () => {
       if (window.history.length <= 1) return;
@@ -181,7 +164,6 @@ function ShellInner({ children }: { children: ReactNode }) {
   return (
     <>
       <div className="app-shell-content min-h-dvh w-full pb-24">{children}</div>
-      {miniRoom && <button type="button" onClick={() => { window.dispatchEvent(new Event("vox-room-restore")); nav({ to: "/room/$id", params: { id: miniRoom.id } }); }} className="fixed bottom-24 right-4 z-50 flex items-center gap-2 rounded-full border border-gold/50 bg-background/95 px-3 py-2 text-xs font-bold text-gold shadow-2xl backdrop-blur" aria-label="العودة إلى الغرفة المصغرة"><Mic className="h-5 w-5" /><span className="max-w-32 truncate">{miniRoom.name || "العودة إلى الغرفة"}</span><span className="h-2 w-2 rounded-full bg-green-500" /></button>}
       <nav className="app-bottom-nav glass fixed inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md items-end justify-around gap-1 rounded-full px-2 py-2">
         <Link to="/" className={item} activeProps={active} activeOptions={{ exact: true }}>
           <img src={ui.bottom_nav.home_icon || icons3d.home} alt="" className="h-7 w-7 drop-shadow-lg" />
