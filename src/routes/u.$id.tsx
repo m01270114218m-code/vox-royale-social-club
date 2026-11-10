@@ -1,7 +1,8 @@
 import { IdentityBadges } from "@/components/IdentityBadges";
+import { AdminAssetMedia } from "@/components/AdminAssetMedia";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { MessageCircle, Flag, Ban, UserPlus, UserCheck, Sparkles } from "lucide-react";
+import { MessageCircle, Flag, Ban, UserPlus, UserCheck, Sparkles, DoorOpen } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell, PageHeader } from "@/components/AppShell";
