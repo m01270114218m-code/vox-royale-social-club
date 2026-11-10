@@ -219,10 +219,17 @@ function ProfilePage() {
           )}
           <Button variant="outline" onClick={async () => {
             if (isGuest) {
-              // Keep the guest session valid so "quick login" on this device restores the same account.
-              const { data: cur } = await supabase.auth.getSession();
-              if (cur.session) localStorage.setItem("vox_guest_refresh", cur.session.refresh_token);
-              await supabase.auth.signOut({ scope: "local" });
+              // Supabase revokes the anonymous refresh token on signOut.
+              // Pause the app session instead, so quick login reopens this exact account.
+              const { data: cur, error } = await supabase.auth.getSession();
+              if (error || !cur.session?.user?.is_anonymous) {
+                toast.error("تعذر حفظ جلسة الحساب السريع. حاول مرة أخرى.");
+                return;
+              }
+              localStorage.setItem("vox_guest_refresh", cur.session.refresh_token);
+              localStorage.setItem("vox_guest_account_created", "1");
+              localStorage.setItem("vox_guest_logged_out", "1");
+              window.dispatchEvent(new Event("vox-auth-visibility-change"));
             } else {
               await supabase.auth.signOut();
             }
