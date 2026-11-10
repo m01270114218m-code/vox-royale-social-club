@@ -18,6 +18,8 @@ export function AdminAssetMedia({ src, alt = "", className = "", videoClassName,
   }
   if (isVideoAsset(src)) {
     return (
+      <>
+      <style>{`.admin-asset-video{pointer-events:none!important;-webkit-appearance:none;appearance:none}.admin-asset-video::-webkit-media-controls,.admin-asset-video::-webkit-media-controls-panel,.admin-asset-video::-webkit-media-controls-play-button,.admin-asset-video::-webkit-media-controls-start-playback-button,.admin-asset-video::-webkit-media-controls-timeline,.admin-asset-video::-webkit-media-controls-current-time-display,.admin-asset-video::-webkit-media-controls-time-remaining-display{display:none!important;-webkit-appearance:none!important;opacity:0!important}`}</style>
       <video
         src={src}
         autoPlay
@@ -31,9 +33,10 @@ export function AdminAssetMedia({ src, alt = "", className = "", videoClassName,
         controlsList="nodownload noplaybackrate noremoteplayback"
         aria-label={alt || undefined}
         onError={() => setFailed(true)}
-        className={videoClassName ?? className}
+        className={`admin-asset-video ${videoClassName ?? className}`}
       />
+      </>
     );
   }
-  return <img src={src} alt={alt} className={className} decoding="async" onLoad={() => setReady(true)} onError={() => setFailed(true)} />;
+  return <img src={src} alt={alt} className={className} decoding="async" onError={() => setFailed(true)} />;
 }
