@@ -61,7 +61,7 @@ function ProfilePage() {
 
   async function sendPhoneLinkCode() {
     const value = phoneToLink.trim();
-    if (!/^\\+[1-9]\\d{7,14}$/.test(value)) { toast.error("اكتب الرقم بصيغة دولية مثل +2010xxxxxxxx"); return; }
+    if (!/^\+[1-9]\d{7,14}$/.test(value)) { toast.error("اكتب الرقم بصيغة دولية مثل +2010xxxxxxxx"); return; }
     const { error } = await supabase.auth.updateUser({ phone: value });
     if (error) { toast.error(error.message); return; }
     setPhoneOtpSent(true);
