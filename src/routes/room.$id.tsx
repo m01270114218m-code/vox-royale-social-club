@@ -1003,7 +1003,7 @@ function RoomPage() {
                   onEnded={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)}
                   onError={() => setEntryAnim((current) => current?.key === entryAnim.key ? null : current)}
                   style={{ animation: entryAnim.animationStyle === "none" ? "none" : `entry-${["slide","float","pulse"].includes(entryAnim.animationStyle) ? entryAnim.animationStyle : "zoom"} ${Math.max(250, 900 / entryAnim.animationSpeed)}ms ease-out both` }}
-                  className="block h-auto w-auto max-h-[100dvh] max-w-[100vw] object-contain"
+                  className="admin-asset-video block h-auto w-auto max-h-[100dvh] max-w-[100vw] object-contain"
                 />
               ) : (
                 <img
@@ -1025,7 +1025,7 @@ function RoomPage() {
         <div key={anim.key} role="presentation" className={`pointer-events-auto fixed inset-0 z-[80] flex items-center justify-center px-5 ${anim.mode === "animated" ? "bg-black/35" : "bg-black/15"}`}>
           <button type="button" onClick={() => setAnim(null)} className="absolute right-4 top-4 z-[90] rounded-full border border-white/25 bg-black/70 px-4 py-2 text-xs font-bold text-white">إغلاق الهدية</button>
           <div className="relative flex max-h-[82vh] max-w-[92vw] items-center justify-center rounded-3xl border border-amber-200/30 bg-gradient-to-br from-slate-950/55 via-violet-950/25 to-slate-950/55 p-3 shadow-[0_0_55px_rgba(168,85,247,.28)]" style={{animation:anim.mode==="static" || anim.style==="none"?"none":`${anim.style==="slide"?"gift-slide":anim.style==="float"?"gift-float":anim.style==="pulse"?"gift-pulse":"gift-zoom"} ${Math.max(250,900/anim.speed)}ms ease-out both`, width:anim.width? `${anim.width}px` : undefined, height:anim.height? `${anim.height}px` : undefined}}>
-            {isVideoAsset(anim.emoji) ? <video key={anim.key} src={anim.emoji} autoPlay controls={false} disablePictureInPicture disableRemotePlayback controlsList="nodownload noplaybackrate noremoteplayback" muted={!anim.audioEnabled} playsInline preload="auto" volume={anim.audioEnabled ? 1 : 0} onLoadedMetadata={(e) => { e.currentTarget.playbackRate = anim.playbackSpeed; e.currentTarget.volume = anim.audioEnabled ? 1 : 0; void e.currentTarget.play().catch(() => { /* WebView/browser may require a user gesture for unmuted autoplay. */ }); }} onCanPlay={(e) => { if (anim.audioEnabled) void e.currentTarget.play().catch(() => {}); }} onEnded={() => setAnim((current) => current?.key === anim.key ? null : current)} onError={() => setAnim((current) => current?.key === anim.key ? null : current)} className="max-h-[72vh] max-w-[88vw] object-contain drop-shadow-2xl" /> : <img src={anim.emoji} alt="" aria-hidden="true" className="max-h-[72vh] max-w-[88vw] object-contain drop-shadow-2xl" />}
+            {isVideoAsset(anim.emoji) ? <video key={anim.key} src={anim.emoji} autoPlay controls={false} disablePictureInPicture disableRemotePlayback controlsList="nodownload noplaybackrate noremoteplayback" muted={!anim.audioEnabled} playsInline preload="auto" volume={anim.audioEnabled ? 1 : 0} onLoadedMetadata={(e) => { e.currentTarget.playbackRate = anim.playbackSpeed; e.currentTarget.volume = anim.audioEnabled ? 1 : 0; void e.currentTarget.play().catch(() => { /* WebView/browser may require a user gesture for unmuted autoplay. */ }); }} onCanPlay={(e) => { if (anim.audioEnabled) void e.currentTarget.play().catch(() => {}); }} onEnded={() => setAnim((current) => current?.key === anim.key ? null : current)} onError={() => setAnim((current) => current?.key === anim.key ? null : current)} className="admin-asset-video max-h-[72vh] max-w-[88vw] object-contain drop-shadow-2xl" /> : <img src={anim.emoji} alt="" aria-hidden="true" className="max-h-[72vh] max-w-[88vw] object-contain drop-shadow-2xl" />}
           </div>
         </div>
         </>
@@ -1051,7 +1051,7 @@ function RoomPage() {
               <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3" dir="rtl" style={{scrollbarWidth:"none"}}>
               {visibleGifts.map((g) => (
                 <Button variant="ghost" key={g.id} onClick={() => setGiftSel(g)} className={`h-auto w-28 shrink-0 snap-start flex-col gap-1 rounded-xl p-2 ${giftSel?.id === g.id ? "bg-secondary ring-2 ring-primary" : "glass"}`}>
-                  {g.asset_url ? (isVideoAsset(g.asset_url) ? <video src={g.asset_url} autoPlay muted loop playsInline className="h-16 w-16 object-contain" /> : <img src={g.asset_url} alt={g.name} className="h-16 w-16 object-contain" />) : <span className="grid h-16 w-16 place-items-center rounded-xl bg-secondary text-muted-foreground"><Gift className="h-7 w-7" /></span>}
+                  {g.asset_url ? (isVideoAsset(g.asset_url) ? <video src={g.asset_url} autoPlay muted loop playsInline preload="auto" controls={false} disablePictureInPicture disableRemotePlayback className="admin-asset-video h-16 w-16 object-contain" /> : <img src={g.asset_url} alt={g.name} className="h-16 w-16 object-contain" />) : <span className="grid h-16 w-16 place-items-center rounded-xl bg-secondary text-muted-foreground"><Gift className="h-7 w-7" /></span>}
                   <span className="text-xs">{g.name}</span>
                   <span className="text-xs text-primary">🪙{g.price}</span>
                 </Button>
