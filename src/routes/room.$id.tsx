@@ -84,6 +84,8 @@ function RoomPage() {
   const [luckyGifts, setLuckyGifts] = useState<LuckyGiftT[]>([]);
   const [luckySel, setLuckySel] = useState<LuckyGiftT | null>(null);
   const [qty, setQty] = useState(1);
+  const [repeatGift, setRepeatGift] = useState<{ kind: "normal"; gift: GiftT; receiverId: string; qty: number } | { kind: "lucky"; gift: LuckyGiftT; receiverId: string; qty: number } | null>(null);
+  const [luckyBanner, setLuckyBanner] = useState<{ id: number; name: string; message: string; assetUrl?: string | null } | null>(null);
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; style: string; speed: number; duration: number; mode: "static" | "animated"; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number } | null>(null);
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; name: string; avatar: string; level: number; vip: number; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number; animationStyle: string; animationSpeed: number } | null>(null);
@@ -717,6 +719,7 @@ function RoomPage() {
     const giftAssetSettings = await getAssetPlaybackSettings(giftAssetRef);
     if (giftAssetUrl) showGiftAnimation(giftAssetUrl,{style:giftSel.animation_style || giftAssetSettings.animation_style,speed:giftSel.animation_speed || giftAssetSettings.playback_speed,playbackSpeed:giftAssetSettings.playback_speed,duration:giftAssetSettings.display_duration_ms || giftSel.display_duration_ms,mode:giftCategoriesList.find(x=>x.id===giftSel.category_id)?.display_mode || "animated",width:giftAssetSettings.display_width,height:giftAssetSettings.display_height,audioEnabled:giftAssetSettings.audio_enabled});
     await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: giftSel.id, eventId: crypto.randomUUID(), receiverId: giftTo, quantity: qty } });
+    setRepeatGift({ kind: "normal", gift: giftSel, receiverId: giftTo, qty });
     setGiftOpen(false);
   }
 
@@ -725,12 +728,44 @@ function RoomPage() {
     const { data, error } = await supabase.rpc("send_lucky_gift", { _gift: luckySel.id, _receiver: giftTo, _room: id, _qty: qty });
     if (error) { toast.error(errMsg(error)); return; }
     setCoins(c => c - luckySel.price * qty);
-    if (data?.won) toast.success(`🎉 فاز المستخدم بمردود ${Number(data.reward).toLocaleString()} عملة`); else toast.success("تم إرسال هدية الحظ — هذه المرة بدون مردود");
-    await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: luckySel.id, eventId: crypto.randomUUID(), receiverId: giftTo, quantity: qty, lucky: true } });
     const luckyAsset = luckySel.asset_key ? await getAdminAssetUrl(luckySel.asset_key) : null;
     const luckySettings = await getAssetPlaybackSettings(luckySel.asset_key);
     if (luckyAsset) showGiftAnimation(luckyAsset,{style:luckySettings.animation_style,speed:luckySettings.playback_speed,playbackSpeed:luckySettings.playback_speed,duration:luckySettings.display_duration_ms,width:luckySettings.display_width,height:luckySettings.display_height,audioEnabled:luckySettings.audio_enabled});
+    const bannerId = Date.now();
+    setLuckyBanner({ id: bannerId, name: luckySel.name, message: data?.won ? `مبروك! مردود ${Number(data.reward).toLocaleString()} عملة` : `تم إرسال ${luckySel.name} ×${qty}`, assetUrl: luckyAsset });
+    window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), 5200);
+    await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: luckySel.id, eventId: crypto.randomUUID(), receiverId: giftTo, quantity: qty, lucky: true } });
+    setRepeatGift({ kind: "lucky", gift: luckySel, receiverId: giftTo, qty });
     setGiftOpen(false);
+  }
+
+  async function sendAgain() {
+    if (!repeatGift) return;
+    const target = repeatGift.receiverId;
+    const amount = repeatGift.qty;
+    if (repeatGift.kind === "normal") {
+      const gift = repeatGift.gift;
+      const { error } = await supabase.rpc("send_gift", { _room: id, _receiver: target, _gift: gift.id, _qty: amount });
+      if (error) { toast.error(errMsg(error)); return; }
+      setCoins((current) => current - gift.price * amount);
+      const assetRef = gift.asset_key || gift.asset_url;
+      const image = assetRef ? await getAdminAssetUrl(assetRef) : null;
+      const settings = await getAssetPlaybackSettings(assetRef);
+      if (image) showGiftAnimation(image, { style: gift.animation_style || settings.animation_style, speed: gift.animation_speed || settings.playback_speed, playbackSpeed: settings.playback_speed, duration: settings.display_duration_ms || gift.display_duration_ms, mode: giftCategoriesList.find((item) => item.id === gift.category_id)?.display_mode || "animated", width: settings.display_width, height: settings.display_height, audioEnabled: settings.audio_enabled });
+      await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: gift.id, eventId: crypto.randomUUID(), receiverId: target, quantity: amount } });
+    } else {
+      const gift = repeatGift.gift;
+      const { data, error } = await supabase.rpc("send_lucky_gift", { _gift: gift.id, _receiver: target, _room: id, _qty: amount });
+      if (error) { toast.error(errMsg(error)); return; }
+      setCoins((current) => current - gift.price * amount);
+      const image = gift.asset_key ? await getAdminAssetUrl(gift.asset_key) : null;
+      const settings = await getAssetPlaybackSettings(gift.asset_key);
+      if (image) showGiftAnimation(image, { style: settings.animation_style, speed: settings.playback_speed, playbackSpeed: settings.playback_speed, duration: settings.display_duration_ms, width: settings.display_width, height: settings.display_height, audioEnabled: settings.audio_enabled });
+      const bannerId = Date.now();
+      setLuckyBanner({ id: bannerId, name: gift.name, message: data?.won ? `مبروك! مردود ${Number(data.reward).toLocaleString()} عملة` : `تم إرسال ${gift.name} ×${amount}`, assetUrl: image });
+      window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), 5200);
+      await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: gift.id, eventId: crypto.randomUUID(), receiverId: target, quantity: amount, lucky: true } });
+    }
   }
 
   async function send(e: React.FormEvent) {
@@ -1074,6 +1109,12 @@ function RoomPage() {
         </>
       )}
 
+      {luckyBanner && <div key={luckyBanner.id} className="pointer-events-none fixed left-1/2 top-20 z-[140] flex w-[min(92vw,390px)] -translate-x-1/2 items-center gap-3 rounded-2xl border border-amber-300/80 bg-gradient-to-r from-[#120d27] via-[#392052] to-[#7b4a12] p-3 text-white shadow-[0_12px_40px_rgba(0,0,0,.65)] ring-1 ring-amber-200/40 animate-in slide-in-from-top-4">
+        <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-amber-200/60 bg-black/35 shadow-inner">{luckyBanner.assetUrl ? <AdminAssetMedia src={luckyBanner.assetUrl} alt={luckyBanner.name} muted className="h-full w-full object-contain" /> : <Gift className="h-8 w-8 text-amber-200" />}</div>
+        <div className="min-w-0 flex-1"><div className="text-[10px] font-black tracking-widest text-amber-200">VOX ROYALE · LUCKY GIFT</div><div className="truncate text-sm font-black">{luckyBanner.name}</div><div className="text-xs text-amber-100">{luckyBanner.message}</div></div>
+        <span className="text-2xl">✨</span>
+      </div>}
+      {repeatGift && <button type="button" onClick={() => void sendAgain()} className="fixed bottom-24 left-4 z-[135] flex items-center gap-2 rounded-full border border-amber-300/80 bg-gradient-to-r from-[#221332] to-[#805018] px-4 py-3 text-sm font-black text-amber-50 shadow-[0_10px_30px_rgba(0,0,0,.55)] ring-1 ring-amber-100/30"><Gift className="h-5 w-5" />إرسال متتالي ×{repeatGift.qty}</button>}
       <Sheet open={giftOpen} onOpenChange={setGiftOpen}>
         <SheetContent side="bottom" dir="rtl" className="max-h-[80vh] overflow-y-auto rounded-t-3xl">
           <SheetHeader><SheetTitle className="flex justify-between"><span>الهدايا</span><span className="text-primary">🪙 {coins}</span></SheetTitle></SheetHeader>
@@ -1100,7 +1141,7 @@ function RoomPage() {
                 </Button>
               ))}
               </div>
-            </> : <div className="grid grid-cols-3 gap-2">{luckyGifts.map(g=><Button variant="ghost" key={g.id} onClick={()=>{setLuckySel(g);setGiftSel(null);}} className={`h-auto flex-col gap-1 rounded-xl p-2 ${luckySel?.id===g.id?"bg-secondary ring-2 ring-gold":"glass"}`}>{g.asset_url ? <AdminAssetMedia src={g.asset_url} alt={g.name} muted className="h-14 w-14 object-contain" /> : <div className="h-14 w-14 rounded-xl bg-secondary grid place-items-center text-2xl">🎲</div>}<span className="text-xs">{g.name}</span><span className="text-[10px] text-gold">حظ {g.win_chance}% · 🪙{g.price}</span></Button>)}</div>}\n            <div className="flex items-center gap-2">\n              {[1, 10, 99].map((n) => <Button variant="ghost" size="sm" key={n} onClick={() => setQty(n)} className={`rounded-full ${qty === n ? "bg-gold" : "glass"}`}>x{n}</Button>)}
+            </> : <div className="grid grid-cols-3 gap-2">{luckyGifts.map(g=><Button variant="ghost" key={g.id} onClick={()=>{setLuckySel(g);setGiftSel(null);}} className={`h-auto flex-col gap-1 rounded-xl p-2 ${luckySel?.id===g.id?"bg-secondary ring-2 ring-gold":"glass"}`}>{g.asset_url ? <AdminAssetMedia src={g.asset_url} alt={g.name} muted className="h-14 w-14 object-contain" /> : <div className="h-14 w-14 rounded-xl bg-secondary grid place-items-center text-2xl">🎲</div>}<span className="text-xs">{g.name}</span><span className="text-[10px] text-gold">حظ {g.win_chance}% · 🪙{g.price}</span></Button>)}</div>}\n            <div className="flex items-center gap-2">\n              {[1, 10, 99].map((n) => <Button type="button" variant="ghost" size="sm" key={n} onClick={() => setQty(n)} className={`rounded-full ${qty === n ? "bg-gold" : "glass"}`}>x{n}</Button>)}
               <Button disabled={(!giftSel && !luckySel) || !giftTo} onClick={luckySel ? sendLuckyGift : sendGift} className="mr-auto bg-gold font-bold">{luckySel ? `إرسال حظ (${luckySel.price * qty})` : `إرسال ${giftSel ? `(${giftSel.price * qty})` : ""}`}</Button>
             </div>
           </div>
