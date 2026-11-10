@@ -42,7 +42,7 @@ type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is
 type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
 type GiftT = { id: string; name: string; emoji: string; price: number; tier: string; category_id?: string | null; animation_style?: string; animation_speed?: number; display_duration_ms?: number; asset_key?: string | null; asset_url?: string | null };
 type GiftCategoryT = { id: string; name: string; display_mode: "static" | "animated"; sort_order: number };
-type LuckyGiftT = { id: string; name: string; asset_key?: string | null; price: number; win_chance: number; min_reward: number; max_reward: number };
+type LuckyGiftT = { id: string; name: string; asset_key?: string | null; asset_url?: string | null; price: number; win_chance: number; min_reward: number; max_reward: number };
 type Room = { id: string; room_no: number; owner_id: string; name: string; description: string | null; category: string; country: string; seat_count: number; is_private?: boolean; cover_url?: string | null; mic_mode?: "request" | "direct" };
 
 function formatMusicTime(value: number) { const seconds = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0; return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`; }
@@ -458,11 +458,17 @@ function RoomPage() {
       ]);
       const resolved = await Promise.all((rows || []).map(async (g) => ({
         ...g,
-        // Always resolve the exact admin-uploaded file from its stable asset_key.
-        // Do not fall back to the generic gift box when an uploaded asset exists.
+        // Resolve the exact original admin-uploaded gift asset.
         asset_url: (g.asset_key ? await getAdminAssetUrl(g.asset_key) : null) || (g.asset_url ? await getAdminAssetUrl(g.asset_url) : null),
       })));
-      setGifts(resolved as GiftT[]); setLuckyGifts((lucky ?? []) as LuckyGiftT[]); setGiftCategoriesList((cats ?? []) as GiftCategoryT[]);
+      const resolvedLucky = await Promise.all((lucky || []).map(async (g) => ({
+        ...g,
+        // Lucky gifts store the stable admin asset_key; display that exact upload.
+        asset_url: g.asset_key ? await getAdminAssetUrl(g.asset_key) : null,
+      })));
+      setGifts(resolved as GiftT[]);
+      setLuckyGifts(resolvedLucky as LuckyGiftT[]);
+      setGiftCategoriesList((cats ?? []) as GiftCategoryT[]);
     };
     void loadCatalog();
     const loadVoiceControls = async () => {
@@ -1088,13 +1094,13 @@ function RoomPage() {
               <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3" dir="rtl" style={{scrollbarWidth:"none"}}>
               {visibleGifts.map((g) => (
                 <Button variant="ghost" key={g.id} onClick={() => setGiftSel(g)} className={`h-auto w-28 shrink-0 snap-start flex-col gap-1 rounded-xl p-2 ${giftSel?.id === g.id ? "bg-secondary ring-2 ring-primary" : "glass"}`}>
-                  {g.asset_url ? (isVideoAsset(g.asset_url) ? <video src={g.asset_url} autoPlay muted loop playsInline preload="auto" controls={false} disablePictureInPicture disableRemotePlayback className="admin-asset-video h-16 w-16 object-contain" /> : <img src={g.asset_url} alt={g.name} className="h-16 w-16 object-contain" />) : <span className="grid h-16 w-16 place-items-center rounded-xl bg-secondary text-muted-foreground"><Gift className="h-7 w-7" /></span>}
+                  {g.asset_url ? <AdminAssetMedia src={g.asset_url} alt={g.name} muted className="h-16 w-16 object-contain" /> : <span className="grid h-16 w-16 place-items-center rounded-xl bg-secondary text-muted-foreground"><Gift className="h-7 w-7" /></span>}
                   <span className="text-xs">{g.name}</span>
                   <span className="text-xs text-primary">🪙{g.price}</span>
                 </Button>
               ))}
               </div>
-            </> : <div className="grid grid-cols-3 gap-2">{luckyGifts.map(g=><Button variant="ghost" key={g.id} onClick={()=>{setLuckySel(g);setGiftSel(null);}} className={`h-auto flex-col gap-1 rounded-xl p-2 ${luckySel?.id===g.id?"bg-secondary ring-2 ring-gold":"glass"}`}><div className="h-14 w-14 rounded-xl bg-secondary grid place-items-center text-2xl">🎲</div><span className="text-xs">{g.name}</span><span className="text-[10px] text-gold">حظ {g.win_chance}% · 🪙{g.price}</span></Button>)}</div>}\n            <div className="flex items-center gap-2">\n              {[1, 10, 99].map((n) => <Button variant="ghost" size="sm" key={n} onClick={() => setQty(n)} className={`rounded-full ${qty === n ? "bg-gold" : "glass"}`}>x{n}</Button>)}
+            </> : <div className="grid grid-cols-3 gap-2">{luckyGifts.map(g=><Button variant="ghost" key={g.id} onClick={()=>{setLuckySel(g);setGiftSel(null);}} className={`h-auto flex-col gap-1 rounded-xl p-2 ${luckySel?.id===g.id?"bg-secondary ring-2 ring-gold":"glass"}`}>{g.asset_url ? <AdminAssetMedia src={g.asset_url} alt={g.name} muted className="h-14 w-14 object-contain" /> : <div className="h-14 w-14 rounded-xl bg-secondary grid place-items-center text-2xl">🎲</div>}<span className="text-xs">{g.name}</span><span className="text-[10px] text-gold">حظ {g.win_chance}% · 🪙{g.price}</span></Button>)}</div>}\n            <div className="flex items-center gap-2">\n              {[1, 10, 99].map((n) => <Button variant="ghost" size="sm" key={n} onClick={() => setQty(n)} className={`rounded-full ${qty === n ? "bg-gold" : "glass"}`}>x{n}</Button>)}
               <Button disabled={(!giftSel && !luckySel) || !giftTo} onClick={luckySel ? sendLuckyGift : sendGift} className="mr-auto bg-gold font-bold">{luckySel ? `إرسال حظ (${luckySel.price * qty})` : `إرسال ${giftSel ? `(${giftSel.price * qty})` : ""}`}</Button>
             </div>
           </div>
