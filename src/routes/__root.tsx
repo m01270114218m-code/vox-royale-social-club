@@ -182,6 +182,10 @@ function MiniRoomController() {
       }));
     };
     const onMin = () => read();
+    const onMusicFile = (event: Event) => {
+      const file = (event as CustomEvent<{ file: File | null }>).detail?.file ?? null;
+      setActive((current) => current ? { ...current, musicFile: file } : current);
+    };
     const onRestore = () => {
       localStorage.removeItem("vox_minimized_room_id");
       localStorage.removeItem("vox_minimized_room");
@@ -195,11 +199,13 @@ function MiniRoomController() {
     };
     read();
     window.addEventListener("vox-room-session", onSession);
+    window.addEventListener("vox-room-music-file", onMusicFile);
     window.addEventListener("vox-room-minimized", onMin);
     window.addEventListener("vox-room-restored", onRestore);
     window.addEventListener("vox-room-closed", onClose);
     return () => {
       window.removeEventListener("vox-room-session", onSession);
+      window.removeEventListener("vox-room-music-file", onMusicFile);
       window.removeEventListener("vox-room-minimized", onMin);
       window.removeEventListener("vox-room-restored", onRestore);
       window.removeEventListener("vox-room-closed", onClose);
@@ -255,6 +261,8 @@ function MiniRoomController() {
           micEnabled={!!active.micEnabled}
           musicFile={active.musicFile ?? null}
           musicCommand={active.musicCommand ?? null}
+          onMusicProgress={(progress) => window.dispatchEvent(new CustomEvent("vox-room-music-progress", { detail: progress }))}
+          onSpeakingUsers={(users) => window.dispatchEvent(new CustomEvent("vox-room-speaking-users", { detail: users }))}
         />
       </Suspense>
       {active.minimized && <button
