@@ -23,18 +23,27 @@ export function RequireAuth({ children }: { children: ReactNode }) {
       return () => { active = false; };
     }
     setDeviceAllowed(false);
-    const deviceId = getDeviceId();
+    let checking = false;
+    let deviceId = getDeviceId();
     const registrationKey = `vox_device_registered:${user.id}`;
-    const checkDeviceAccess = async () => {
+    const checkDeviceAccess = async (retry = false) => {
+      if (checking || !active) return;
+      checking = true;
       try {
-        // This RPC only checks active account/device bans. It never changes
-        // device_accounts, so resuming the same quick account cannot relink it.
+        // Refresh an expired access token before checking device permissions.
+        let { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) {
+          const refreshed = await supabase.auth.refreshSession();
+          if (refreshed.error) throw refreshed.error;
+          sessionData = { session: refreshed.data.session };
+        }
+        if (!sessionData.session) throw new Error("not_authenticated");
+
         const { data: allowed, error } = await supabase.rpc("check_device_access", { _device: deviceId });
         if (error) throw error;
         if (allowed !== true) throw new Error("device_access_denied");
 
-        // Register a permanent account on this device once, not on every
-        // foreground/resume event. Anonymous quick accounts register at creation.
+        // Anonymous quick accounts are already registered once during creation.
         if (!user.is_anonymous && localStorage.getItem(registrationKey) !== "1") {
           const { error: registerError } = await supabase.rpc("register_device", { _device: deviceId });
           if (registerError) throw registerError;
@@ -46,14 +55,33 @@ export function RequireAuth({ children }: { children: ReactNode }) {
         const message = error instanceof Error ? error.message : String(error);
         const banned = message.includes("account_banned") || message.includes("device_banned");
         const linked = message.includes("device_already_linked");
-        toast.error(
-          message.includes("account_banned") ? "هذا الحساب محظور من استخدام التطبيق"
-            : message.includes("device_banned") ? "هذا الجهاز محظور من استخدام التطبيق"
-            : linked ? "هذا الجهاز مرتبط بحساب آخر بالفعل"
-            : "تعذر التحقق من الجهاز مؤقتًا. أعد المحاولة بعد التأكد من اتصال الإنترنت."
-        );
-        if (banned) await supabase.auth.signOut({ scope: "local" });
-        if (active) setDeviceAllowed(false);
+        const invalidDevice = message.includes("invalid_device_id");
+        const denied = message.includes("device_access_denied");
+        if (invalidDevice && !retry) {
+          localStorage.removeItem("vox_royale_device_id");
+          localStorage.removeItem("vox_device_id");
+          deviceId = getDeviceId();
+          checking = false;
+          await checkDeviceAccess(true);
+          return;
+        }
+        if (banned) {
+          toast.error(message.includes("account_banned") ? "هذا الحساب محظور من استخدام التطبيق" : "هذا الجهاز محظور من استخدام التطبيق");
+          await supabase.auth.signOut({ scope: "local" });
+          if (active) setDeviceAllowed(false);
+        } else if (linked || denied) {
+          toast.error(linked ? "هذا الجهاز مرتبط بحساب آخر بالفعل" : "تم رفض صلاحية هذا الجهاز");
+          if (active) setDeviceAllowed(false);
+        } else {
+          // A temporary network/Auth API outage must not strand an already
+          // authenticated user behind a permanent spinner. Bans remain enforced
+          // whenever the server responds; retry the check on the next resume.
+          console.warn("[Device access] temporary verification failure:", message);
+          if (active) setDeviceAllowed(true);
+          toast.error("تعذر الاتصال بخدمة التحقق مؤقتًا؛ سنعيد المحاولة تلقائيًا عند عودة الاتصال");
+        }
+      } finally {
+        checking = false;
       }
     };
     void checkDeviceAccess();
