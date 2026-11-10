@@ -88,7 +88,7 @@ function RoomPage() {
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; style: string; speed: number; duration: number; mode: "static" | "animated"; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number } | null>(null);
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; name: string; avatar: string; level: number; vip: number; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number; animationStyle: string; animationSpeed: number } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
-  const [micPermissionGranted, setMicPermissionGranted] = useState(false);
+  const [micPermissionGranted, setMicPermissionGranted] = useState(() => localStorage.getItem("vox_mic_permission_granted") === "1");
   const [musicFile, setMusicFileState] = useState<File | null>(null);
   const setMusicFile = useCallback((file: File | null) => {
     setMusicFileState(file);
@@ -904,6 +904,7 @@ function RoomPage() {
                 if (!navigator.mediaDevices?.getUserMedia) throw new Error("الوصول للميكروفون غير مدعوم على هذا الجهاز");
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 stream.getTracks().forEach((track) => track.stop());
+                localStorage.setItem("vox_mic_permission_granted", "1");
                 setMicPermissionGranted(true);
                 if (mySeat.is_muted) await call("toggle_my_mute", { _room: id });
               } catch (error) {
