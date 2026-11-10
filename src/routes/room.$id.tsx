@@ -202,7 +202,7 @@ function RoomPage() {
   useEffect(() => {
     if (!room) return;
     const onBack = () => {
-      if (roomMinimized) setRoomMinimized(false);
+      if (roomMinimized) window.dispatchEvent(new Event("vox-room-restored"));
       else setExitPrompt(true);
       window.history.pushState({ roomExitGuard: true }, "");
     };
