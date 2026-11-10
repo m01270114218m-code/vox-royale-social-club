@@ -142,7 +142,13 @@ function AuthPage() {
       const { data: current, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (current.session?.user) {
-        toast.info("أنت مسجل الدخول بالفعل.");
+        if (current.session.user.is_anonymous && current.session.refresh_token) {
+          localStorage.setItem("vox_guest_refresh", current.session.refresh_token);
+          localStorage.setItem("vox_guest_account_created", "1");
+          const { error: deviceError } = await supabase.rpc("register_device", { _device: getDeviceId() });
+          if (deviceError) throw new Error("تعذر التحقق من هذا الجهاز: " + deviceError.message);
+          toast.success("تم فتح حسابك السريع المحفوظ على هذا الجهاز");
+        } else toast.info("أنت مسجل الدخول بالفعل.");
         return;
       }
       const dev = getDeviceId();
