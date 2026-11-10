@@ -133,7 +133,15 @@ function RootComponent() {
 
     const completeGoogleOAuth = async (url: string) => {
       if (!url.startsWith("com.voxroyale.app://auth/callback")) return;
-      const { error } = await supabase.auth.exchangeCodeForSession(url);
+      const callbackUrl = new URL(url);
+      const authCode = callbackUrl.searchParams.get("code");
+      if (!authCode) {
+        console.error("[Google OAuth] Callback did not include an authorization code:", callbackUrl.searchParams.get("error_description"));
+        await Browser.close().catch(() => undefined);
+        void navigate({ to: "/auth", replace: true });
+        return;
+      }
+      const { error } = await supabase.auth.exchangeCodeForSession(authCode);
       if (!active) return;
       if (error) {
         console.error("[Google OAuth] Callback exchange failed:", error.message);
