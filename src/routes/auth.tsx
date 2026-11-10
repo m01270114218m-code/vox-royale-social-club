@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { icons3d } from "@/lib/assets3d";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { getDeviceId, useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, Phone, KeyRound, ArrowRight, ShieldCheck } from "lucide-react";
@@ -145,13 +145,7 @@ function AuthPage() {
         toast.info("أنت مسجل الدخول بالفعل.");
         return;
       }
-      let dev = localStorage.getItem("vox_device_id");
-      if (!dev) {
-        dev = typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID() + crypto.randomUUID()
-          : "vox-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
-        localStorage.setItem("vox_device_id", dev);
-      }
+      const dev = getDeviceId();
       const saved = localStorage.getItem("vox_guest_refresh");
       if (saved) {
         const { data: restored, error: restoreError } = await supabase.auth.refreshSession({ refresh_token: saved });
@@ -160,7 +154,12 @@ function AuthPage() {
           toast.success("أهلاً بعودتك");
           return;
         }
-        localStorage.removeItem("vox_guest_refresh");
+        // Do not silently create a second anonymous account when this device's
+        // saved refresh token has expired or been revoked.
+        throw new Error("تعذر استعادة الحساب السريع المحفوظ لهذا الجهاز. لم ننشئ حسابًا جديدًا حفاظًا على حسابك السابق.");
+      }
+      if (localStorage.getItem("vox_guest_account_created") === "1") {
+        throw new Error("الحساب السريع لهذا الجهاز موجود، لكن بيانات استعادته غير متاحة. لم ننشئ حسابًا مكررًا.");
       }
       const { data: guest, error } = await supabase.auth.signInAnonymously();
       if (error) throw error;
@@ -171,7 +170,8 @@ function AuthPage() {
         throw new Error("تعذر ربط الحساب بهذا الجهاز: " + deviceError.message);
       }
       localStorage.setItem("vox_guest_refresh", guest.session.refresh_token);
-      toast.success("تم إنشاء حساب سريع لهذا الجهاز");
+      localStorage.setItem("vox_guest_account_created", "1");
+      toast.success("تم تسجيل الدخول إلى الحساب السريع لهذا الجهاز");
     } catch (err) {
       toast.error((err as Error).message || "تعذر تسجيل الدخول السريع");
     } finally {
