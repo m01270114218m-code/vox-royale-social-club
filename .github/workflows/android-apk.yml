@@ -76,7 +76,7 @@ jobs:
                   1,
               )
           # Route the Supabase OAuth callback back into the installed Android app.
-          if "com.voxroyale.app" not in xml:
+          if 'android:scheme="com.voxroyale.app"' not in xml:
               callback_filter = """            <intent-filter>
                           <action android:name="android.intent.action.VIEW" />
                           <category android:name="android.intent.category.DEFAULT" />
