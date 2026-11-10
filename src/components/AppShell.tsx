@@ -88,10 +88,14 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     // Re-check when the app returns to the foreground so a newly applied ban
     // is enforced on the next app resume, not only after a fresh login.
     const onVisibility = () => { if (document.visibilityState === "visible") void checkDeviceAccess(); };
+    const nativeStateListener = CapacitorApp.addListener("appStateChange", ({ isActive }) => {
+      if (isActive) void checkDeviceAccess();
+    });
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       active = false;
       document.removeEventListener("visibilitychange", onVisibility);
+      void nativeStateListener.then((listener) => listener.remove()).catch(() => undefined);
     };
   }, [loading, user?.id]);
   if (loading || !user || !deviceAllowed)
