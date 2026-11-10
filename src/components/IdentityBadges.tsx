@@ -13,9 +13,11 @@ function BadgeChip({ badge }: { badge: ProfileBadge }) {
 
 export function IdentityBadges({ level, vip = 0, badge, badges = [] }: { level?: number; vip?: number; badge?: ProfileBadge | null; badges?: ProfileBadge[] }) {
   const equipped = badges.length ? badges : badge ? [badge] : [];
-  return <div className="flex flex-wrap items-center justify-center gap-2">
-    {level !== undefined && <span className="inline-flex items-center gap-1 text-xs font-bold"><img src={levelBadge(level)} alt="" width={30} height={30} className="h-[30px] w-[30px] object-contain" loading="lazy" /><span>Lv.{level}</span></span>}
-    {vip > 0 && <span className="inline-flex items-center gap-1 text-xs font-bold text-primary"><img src={vipBadge(vip)} alt="" width={30} height={30} className="h-[30px] w-[30px] object-contain" loading="lazy" /><span>VIP {vip}</span></span>}
-    {equipped.map((item, index) => <BadgeChip key={item.badge_key || item.badge_name + index} badge={item} />)}
+  return <div className="flex w-full flex-col items-center justify-center gap-2">
+    {(level !== undefined || vip > 0) && <div className="flex flex-wrap items-center justify-center gap-2">
+      {level !== undefined && <span className="inline-flex items-center gap-1 text-xs font-bold"><img src={levelBadge(level)} alt="" width={30} height={30} className="h-[30px] w-[30px] object-contain" loading="lazy" /><span>Lv.{level}</span></span>}
+      {vip > 0 && <span className="inline-flex items-center gap-1 text-xs font-bold text-primary"><img src={vipBadge(vip)} alt="" width={30} height={30} className="h-[30px] w-[30px] object-contain" loading="lazy" /><span>VIP {vip}</span></span>}
+    </div>}
+    {equipped.length > 0 && <div className="flex flex-wrap items-center justify-center gap-2">{equipped.map((item, index) => <BadgeChip key={item.badge_key || item.badge_name + index} badge={item} />)}</div>}
   </div>;
 }
