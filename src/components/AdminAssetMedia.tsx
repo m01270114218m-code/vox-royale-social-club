@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { isVideoAsset } from "@/lib/media";
 
-type Props = { src?: string | null; alt?: string; className?: string; videoClassName?: string; loop?: boolean };
+type Props = { src?: string | null; alt?: string; className?: string; videoClassName?: string; loop?: boolean; muted?: boolean };
 
 /** Displays MP4 assets as animated artwork without video labels or loading overlays. */
-export function AdminAssetMedia({ src, alt = "", className = "", videoClassName, loop = true }: Props) {
+export function AdminAssetMedia({ src, alt = "", className = "", videoClassName, loop = true, muted = false }: Props) {
   const [failed, setFailed] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
@@ -23,7 +23,7 @@ export function AdminAssetMedia({ src, alt = "", className = "", videoClassName,
         ref={videoRef}
         src={src}
         autoPlay
-        muted={false}
+        muted={muted}
         loop={loop}
         playsInline
         preload="auto"
