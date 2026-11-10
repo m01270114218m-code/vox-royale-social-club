@@ -24,16 +24,35 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     }
     setDeviceAllowed(false);
     const deviceId = getDeviceId();
+    const registrationKey = `vox_device_registered:${user.id}`;
     const checkDeviceAccess = async () => {
       try {
-        const { error } = await supabase.rpc("register_device", { _device: deviceId });
+        // This RPC only checks active account/device bans. It never changes
+        // device_accounts, so resuming the same quick account cannot relink it.
+        const { data: allowed, error } = await supabase.rpc("check_device_access", { _device: deviceId });
         if (error) throw error;
+        if (allowed !== true) throw new Error("device_access_denied");
+
+        // Register a permanent account on this device once, not on every
+        // foreground/resume event. Anonymous quick accounts register at creation.
+        if (!user.is_anonymous && localStorage.getItem(registrationKey) !== "1") {
+          const { error: registerError } = await supabase.rpc("register_device", { _device: deviceId });
+          if (registerError) throw registerError;
+          localStorage.setItem(registrationKey, "1");
+        }
         if (active) setDeviceAllowed(true);
       } catch (error) {
         if (!active) return;
         const message = error instanceof Error ? error.message : String(error);
-        toast.error(message.includes("account_banned") ? "هذا الحساب محظور من استخدام التطبيق" : message.includes("device_banned") ? "هذا الجهاز محظور من استخدام التطبيق" : "تعذر التحقق من صلاحية الحساب والجهاز");
-        await supabase.auth.signOut({ scope: "local" });
+        const banned = message.includes("account_banned") || message.includes("device_banned");
+        const linked = message.includes("device_already_linked");
+        toast.error(
+          message.includes("account_banned") ? "هذا الحساب محظور من استخدام التطبيق"
+            : message.includes("device_banned") ? "هذا الجهاز محظور من استخدام التطبيق"
+            : linked ? "هذا الجهاز مرتبط بحساب آخر بالفعل"
+            : "تعذر التحقق من الجهاز مؤقتًا. أعد المحاولة بعد التأكد من اتصال الإنترنت."
+        );
+        if (banned) await supabase.auth.signOut({ scope: "local" });
         if (active) setDeviceAllowed(false);
       }
     };
