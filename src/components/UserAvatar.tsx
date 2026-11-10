@@ -20,6 +20,6 @@ export function MediaImage({ src, className }: { src: string; className?: string
   const url = useMedia(src);
   if (!url) return <div className={`animate-pulse bg-muted ${className ?? ""}`} />;
   return isVideoAsset(url)
-    ? <video src={url} autoPlay muted loop playsInline preload="metadata" aria-hidden="true" className={className} />
+    ? <span className={`relative block overflow-hidden ${className ?? ""}`}><video src={url} autoPlay muted loop playsInline preload="auto" aria-hidden="true" className="h-full w-full object-cover" /><span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/75 px-1 py-0.5 text-[8px] font-black text-white">▶ MP4</span></span>
     : <img src={url} alt="" className={className} loading="lazy" />;
 }
