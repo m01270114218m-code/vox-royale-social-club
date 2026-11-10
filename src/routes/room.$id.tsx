@@ -972,7 +972,6 @@ function RoomPage() {
             <div className={seatMenu.user_id ? "flex w-full items-center justify-center p-4" : "grid gap-2 p-4"}>
               {!seatMenu.user_id && !seatMenu.is_locked && <Button onClick={async () => { const { error } = await supabase.rpc("take_seat", { _room: id, _seat: seatMenu.seat_index }); if (error) toast.error(errMsg(error)); else { await syncRoomSeats(); setSeatMenu(null); toast.success("تم الصعود للميك مباشرة"); } }} className="bg-gold">الصعود للميك بنفسك</Button>}
               {isStaff && seatMenu.seat_index >= 0 && !seatMenu.user_id && <Button variant="outline" onClick={() => setInviteOpen(true)} className="w-full">دعوة مستخدم للمايك</Button>}
-              {seatMenu.user_id === uid && <Button variant="outline" onClick={() => call("leave_seat", { _room: id })}>مغادرة المقعد</Button>}
                {seatMenu.user_id && profiles[seatMenu.user_id] && <div className="relative mx-auto mb-0 h-[min(86vw,320px)] w-[min(86vw,320px)] max-w-[320px] overflow-y-auto overflow-x-hidden rounded-2xl border border-white/15 bg-black/45 p-3 text-right text-white shadow-2xl backdrop-blur-xl" dir="rtl">{seatMenu.user_id && cosmeticUrls[seatMenu.user_id]?.card && <AdminAssetMedia src={cosmeticUrls[seatMenu.user_id]!.card} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
   <div className="flex items-center gap-3">
     <button type="button" onClick={() => nav({ to: "/u/$id", params: { id: seatMenu.user_id! } })} className="shrink-0 rounded-full"><UserAvatar src={profiles[seatMenu.user_id]?.avatar_url} name={profiles[seatMenu.user_id]?.display_name || "مستخدم"} vip={profiles[seatMenu.user_id]?.vip_level} size={68} frameKey={profiles[seatMenu.user_id]?.equipped_frame} /></button>
@@ -997,6 +996,7 @@ function RoomPage() {
     {isOwner && <button type="button" title={targetIsModerator ? "إزالة الأدمن" : "تعيين أدمن"} aria-label={targetIsModerator ? "إزالة الأدمن" : "تعيين أدمن"} className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-amber-200" onClick={() => call("staff_set_room_moderator", { _room: id, _user: seatMenu.user_id!, _enabled: !targetIsModerator })}><Shield className="h-5 w-5" /></button>}
   </div>}
 </div></div>}
+              {seatMenu.user_id === uid && <div className="mt-2 flex w-full justify-center"><button type="button" title="مغادرة المقعد" aria-label="مغادرة المقعد" onClick={() => void call("leave_seat", { _room: id })} className="grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-gradient-to-br from-slate-800/90 to-violet-950/90 text-rose-200 shadow-[0_8px_24px_rgba(0,0,0,.4)] backdrop-blur-xl"><LogOut className="h-5 w-5" /></button></div>}
             </div>
           )}
         </SheetContent>
