@@ -4,7 +4,7 @@ import { AdminAssetMedia } from "@/components/AdminAssetMedia";
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Gift, Settings, UserPlus, MessageCircle, DoorOpen, VolumeX, LogOut, Ban, Shield, Music2, Play, Pause, SkipBack, SkipForward, Volume2 } from "lucide-react";
+import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Gift, Settings, UserPlus, MessageCircle, DoorOpen, VolumeX, LogOut, Ban, Shield, ArrowDownToLine, Music2, Play, Pause, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { RoomSettings } from "@/components/RoomSettings";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -542,19 +542,45 @@ function RoomPage() {
   async function call(fn: string, args: Record<string, unknown>) {
     const { error } = await supabase.rpc(fn as never, args as never);
     if (error) {
-      toast.error(error.message === "vip_protected" ? "VIP 5+ محمي من الكتم والطرد" : errMsg(error));
+      const message = error.message === "vip_protected" ? "هذا المستخدم محمي بمستوى VIP" : errMsg(error);
+      toast.error(message);
+      return;
+    }
+
+    const seatAction = fn === "staff_room_member_seat_action";
+    const seatIndex = typeof args._seat === "number" ? args._seat : undefined;
+    if (seatIndex !== undefined || seatAction || fn === "leave_seat" || fn === "toggle_my_mute" || fn === "take_seat" || fn === "staff_invite_to_mic" || fn === "staff_invite_to_seat") {
+      await syncRoomSeats();
+      await loadSeats();
+    }
+    if (["staff_kick_room_user", "staff_kick_user_24h", "ban_user"].includes(fn)) {
+      await Promise.all([loadMembers(), syncRoomSeats(), loadSeats()]);
+      toast.success("تم طرد المستخدم من الغرفة");
       setSeatMenu(null);
       return;
     }
-    // Publish a complete authoritative seat snapshot immediately after every mic change.
-    // This clears the previous seat when a user moves and prevents stale/vanishing mic UI.
-    const seatIndex = typeof args._seat === "number" ? args._seat : undefined;
-    if (seatIndex !== undefined || fn === "leave_seat" || fn === "toggle_my_mute" || fn === "take_seat" || fn === "staff_invite_to_mic" || fn === "staff_invite_to_seat") {
-      await syncRoomSeats();
+    if (seatAction) {
+      const action = String(args._action);
+      if (action === "mute" || action === "unmute") {
+        setSeatMenu((current) => current ? { ...current, is_muted: action === "mute" } : current);
+        toast.success(action === "mute" ? "تم كتم صوت المستخدم" : "تم السماح للمستخدم بالتحدث");
+        return;
+      }
+      if (action === "lower") {
+        toast.success("تم إنزال المستخدم من الميك");
+        setSeatMenu(null);
+        return;
+      }
     }
-    if (["staff_kick_room_user", "staff_kick_user_24h", "ban_user"].includes(fn)) {
-      // Refresh authoritative room membership and the fixed seat layout after a kick.
-      await Promise.all([loadMembers(), syncRoomSeats(), loadSeats()]);
+    if (fn === "staff_set_chat_mute") {
+      setChatMutedUser(!!args._muted);
+      toast.success(args._muted ? "تم منع المستخدم من الكتابة" : "تم السماح للمستخدم بالكتابة");
+      return;
+    }
+    if (fn === "staff_set_room_moderator") {
+      setTargetIsModerator(!!args._enabled);
+      toast.success(args._enabled ? "تم تعيين المستخدم أدمن للغرفة" : "تمت إزالة صلاحية الأدمن");
+      return;
     }
     setSeatMenu(null);
   }
@@ -892,10 +918,11 @@ function RoomPage() {
     {seatMenu.user_id !== uid && <Button size="sm" variant="outline" onClick={() => void openGifts(seatMenu.user_id!)}><Gift className="h-4 w-4" />هدية</Button>}
     {seatMenu.user_id !== uid && <Button size="sm" variant="outline" onClick={async () => { const { data, error } = await supabase.rpc("get_or_create_conversation", { _other: seatMenu.user_id! }); if (error) toast.error(errMsg(error)); else nav({ to: "/chat/$id", params: { id: data as string } }); }}><MessageCircle className="h-4 w-4" />رسالة</Button>}
   </div>
-  {isStaff && seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && <div className="mt-3 flex items-center justify-center gap-3 border-t border-white/15 pt-3">
+  {isStaff && seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t border-white/15 pt-3">
+    {seatMenu.seat_index >= 0 && <button type="button" title={seatMenu.is_muted ? "إلغاء كتم صوت المستخدم" : "كتم صوت المستخدم"} aria-label={seatMenu.is_muted ? "إلغاء كتم صوت المستخدم" : "كتم صوت المستخدم"} className={`grid h-10 w-10 place-items-center rounded-full ${seatMenu.is_muted ? "bg-emerald-500/20 text-emerald-200" : "bg-white/10"}`} onClick={() => call("staff_room_member_seat_action", { _room: id, _user: seatMenu.user_id!, _action: seatMenu.is_muted ? "unmute" : "mute" })}><VolumeX className="h-5 w-5" /></button>}
+    {seatMenu.seat_index >= 0 && <button type="button" title="إنزال المستخدم من الميك" aria-label="إنزال المستخدم من الميك" className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-orange-200" onClick={() => call("staff_room_member_seat_action", { _room: id, _user: seatMenu.user_id!, _action: "lower" })}><ArrowDownToLine className="h-5 w-5" /></button>}
     <button type="button" title="طرد من الغرفة" aria-label="طرد من الغرفة" className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-red-300" onClick={() => call("staff_kick_room_user", { _room: id, _user: seatMenu.user_id! })}><LogOut className="h-5 w-5" /></button>
-    <button type="button" title={micBlockedUser ? "فك كتم المايك" : "كتم المايك"} aria-label={micBlockedUser ? "فك كتم المايك" : "كتم المايك"} className="grid h-10 w-10 place-items-center rounded-full bg-white/10" onClick={() => call("staff_set_mic_access", { _room: id, _user: seatMenu.user_id!, _blocked: !micBlockedUser })}><VolumeX className="h-5 w-5" /></button>
-    <button type="button" title={chatMutedUser ? "السماح بالكتابة" : "منع الكتابة"} aria-label={chatMutedUser ? "السماح بالكتابة" : "منع الكتابة"} className="grid h-10 w-10 place-items-center rounded-full bg-white/10" onClick={() => call("staff_set_chat_mute", { _room: id, _user: seatMenu.user_id!, _muted: !chatMutedUser })}><MessageCircle className="h-5 w-5" /></button>
+    <button type="button" title={chatMutedUser ? "السماح بالكتابة" : "منع الكتابة"} aria-label={chatMutedUser ? "السماح بالكتابة" : "منع الكتابة"} className={`grid h-10 w-10 place-items-center rounded-full ${chatMutedUser ? "bg-emerald-500/20 text-emerald-200" : "bg-white/10"}`} onClick={() => call("staff_set_chat_mute", { _room: id, _user: seatMenu.user_id!, _muted: !chatMutedUser })}><MessageCircle className="h-5 w-5" /></button>
     {isOwner && <button type="button" title={targetIsModerator ? "إزالة الأدمن" : "تعيين أدمن"} aria-label={targetIsModerator ? "إزالة الأدمن" : "تعيين أدمن"} className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-amber-200" onClick={() => call("staff_set_room_moderator", { _room: id, _user: seatMenu.user_id!, _enabled: !targetIsModerator })}><Shield className="h-5 w-5" /></button>}
   </div>}
 </div></div>}
