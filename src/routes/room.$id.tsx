@@ -87,16 +87,9 @@ function RoomPage() {
   const [qty, setQty] = useState(1);
   const [repeatGift, setRepeatGift] = useState<{ kind: "normal"; gift: GiftT; receiverId: string; qty: number } | { kind: "lucky"; gift: LuckyGiftT; receiverId: string; qty: number } | null>(null);
   const repeatGiftTimer = useRef<number | null>(null);
-  const messageSwipeStart = useRef<{ id: string; x: number; y: number } | null>(null);
-  const messageTimers = useRef(new Map<string, number>());
   const showRoomMessage = useCallback((message: Msg) => {
     setMsgs((current) => current.some((item) => item.id === message.id) ? current : [...current.slice(-99), message]);
-    const previous = messageTimers.current.get(message.id);
-    if (previous !== undefined) window.clearTimeout(previous);
-    const timer = window.setTimeout(() => { setMsgs((current) => current.filter((item) => item.id !== message.id)); messageTimers.current.delete(message.id); }, 5000);
-    messageTimers.current.set(message.id, timer);
   }, []);
-  useEffect(() => () => { messageTimers.current.forEach((timer) => window.clearTimeout(timer)); messageTimers.current.clear(); }, []);
   const [luckyBanner, setLuckyBanner] = useState<{ id: number; name: string; message: string; assetUrl?: string | null } | null>(null);
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; style: string; speed: number; duration: number; mode: "static" | "animated"; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number } | null>(null);
@@ -974,7 +967,7 @@ function RoomPage() {
       <div className="flex-1 space-y-2 overflow-y-auto px-4">
         <div className="rounded-xl bg-secondary/60 p-2 text-xs text-primary">📢 مرحباً بك في {room.name}. {room.description}</div>
         {msgs.map((m) => (
-          <div key={m.id} onTouchStart={(event) => { const touch = event.touches[0]; if (touch) messageSwipeStart.current = { id: m.id, x: touch.clientX, y: touch.clientY }; }} onTouchEnd={(event) => { const start = messageSwipeStart.current; messageSwipeStart.current = null; const touch = event.changedTouches[0]; if (!start || start.id !== m.id || !touch) return; const dx = touch.clientX - start.x; const dy = touch.clientY - start.y; if (Math.abs(dx) >= 55 && Math.abs(dx) > Math.abs(dy) * 1.15) setMsgs((current) => current.filter((item) => item.id !== m.id)); }} className={`relative isolate w-fit max-w-[85%] overflow-hidden rounded-2xl px-3 py-1.5 text-sm ${m.kind === "gift" ? "bg-gold font-bold" : "glass"}`} style={{ backgroundColor: m.kind === "gift" ? undefined : profiles[m.user_id]?.chat_bubble_color || undefined, touchAction: "pan-y" }}>
+          <div key={m.id} className={`relative isolate w-fit max-w-[85%] overflow-hidden rounded-2xl px-3 py-1.5 text-sm ${m.kind === "gift" ? "bg-gold font-bold" : "glass"}`} style={{ backgroundColor: m.kind === "gift" ? undefined : profiles[m.user_id]?.chat_bubble_color || undefined, }}>
             {m.kind !== "gift" && cosmeticUrls[m.user_id]?.bubble && <AdminAssetMedia src={cosmeticUrls[m.user_id]!.bubble} className="pointer-events-none absolute inset-0 z-0 h-full w-full object-fill opacity-90" />}
             <span className="relative z-10"><button type="button" className="font-bold" style={{ color: profiles[m.user_id]?.name_color || undefined }} onClick={() => void openUserCard(m.user_id)}>{publicName(m.user_id)}: </button>{m.body}</span>
           </div>
