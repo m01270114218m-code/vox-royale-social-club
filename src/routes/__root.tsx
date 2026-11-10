@@ -230,7 +230,7 @@ function MiniRoomController() {
         .eq("room_id", active.id).eq("user_id", user.id).maybeSingle();
       if (!alive) return;
       setActive((current) => current?.id === active.id
-        ? { ...current, micEnabled: !!seat && !seat.is_muted }
+        ? { ...current, micEnabled: !!seat && !seat.is_muted && localStorage.getItem("vox_mic_permission_granted") === "1" }
         : current);
     };
     void refreshRoomState();
