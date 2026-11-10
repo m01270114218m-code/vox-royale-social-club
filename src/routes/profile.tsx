@@ -44,6 +44,9 @@ function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [stats, setStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0, visitors: 0 });
   const [linkEmail, setLinkEmail] = useState("");
+  const [phoneToLink, setPhoneToLink] = useState("");
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
   const isGuest = !!user?.is_anonymous;
   async function daily() {
     const { error } = await supabase.rpc("claim_daily_bonus");
@@ -51,9 +54,27 @@ function ProfilePage() {
     toast.success("+100 عملة 🎉");
   }
   async function link() {
-    const { error } = await supabase.auth.updateUser({ email: linkEmail });
+    const { error } = await supabase.auth.updateUser({ email: linkEmail.trim().toLowerCase() });
     if (error) { toast.error(error.message); return; }
     toast.success("أرسلنا رابط تأكيد إلى بريدك لربط الحساب");
+  }
+
+  async function sendPhoneLinkCode() {
+    const value = phoneToLink.trim();
+    if (!/^\\+[1-9]\\d{7,14}$/.test(value)) { toast.error("اكتب الرقم بصيغة دولية مثل +2010xxxxxxxx"); return; }
+    const { error } = await supabase.auth.updateUser({ phone: value });
+    if (error) { toast.error(error.message); return; }
+    setPhoneOtpSent(true);
+    toast.success("تم طلب رمز SMS لربط الرقم بالحساب الحالي");
+  }
+
+  async function verifyPhoneLinkCode() {
+    if (!phoneOtp.trim()) return;
+    const { error } = await supabase.auth.verifyOtp({ phone: phoneToLink.trim(), token: phoneOtp.trim(), type: "phone_change" });
+    if (error) { toast.error(error.message); return; }
+    setPhoneOtpSent(false);
+    setPhoneOtp("");
+    toast.success("تم تأكيد وربط رقم الهاتف بحسابك");
   }
 
   useEffect(() => {
@@ -203,6 +224,19 @@ function ProfilePage() {
               <div className="flex gap-2"><Input type="email" dir="ltr" value={linkEmail} onChange={(e) => setLinkEmail(e.target.value)} placeholder="email@example.com" /><Button onClick={link} variant="outline">ربط</Button></div>
             </div>
           )}
+          <div className="glass space-y-2 rounded-2xl p-3 text-sm">
+            <div className="font-bold text-primary">ربط رقم هاتف حقيقي بالحساب</div>
+            <p className="text-muted-foreground">يتم ربط الرقم بحساب المصادقة الحالي بعد تأكيد رمز SMS، دون إنشاء حساب جديد.</p>
+            {user?.phone && <p className="text-emerald-400">رقم موثّق: <span dir="ltr">{user.phone}</span></p>}
+            <div className="flex gap-2">
+              <Input type="tel" inputMode="tel" dir="ltr" value={phoneToLink} onChange={(e) => setPhoneToLink(e.target.value)} placeholder="+2010xxxxxxxx" />
+              <Button onClick={() => void sendPhoneLinkCode()} variant="outline">إرسال الرمز</Button>
+            </div>
+            {phoneOtpSent && <div className="flex gap-2">
+              <Input inputMode="numeric" dir="ltr" value={phoneOtp} onChange={(e) => setPhoneOtp(e.target.value)} placeholder="رمز SMS" maxLength={8} />
+              <Button onClick={() => void verifyPhoneLinkCode()} className="bg-gold">تأكيد</Button>
+            </div>}
+          </div>
           <Button variant="outline" onClick={async () => {
             if (isGuest) {
               // Supabase revokes the anonymous refresh token on signOut.
