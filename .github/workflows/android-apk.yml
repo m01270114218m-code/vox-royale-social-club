@@ -34,7 +34,7 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           bun --version
           bun install
-          bun add @capacitor/app@latest
+          bun add @capacitor/core@latest @capacitor/app@latest @capacitor/browser@latest
           export VITE_APP_VERSION="$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")"
           echo "Building app version $VITE_APP_VERSION"
           bun run build
@@ -62,7 +62,7 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           java -version 2>&1 | grep -Eq 'version "21([.]|")'
           test -n "$ANDROID_HOME" || test -n "$ANDROID_SDK_ROOT"
-          bun add @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/app@latest
+          bun add @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/app@latest @capacitor/browser@latest
           bunx cap add android
           # Declare microphone permissions for Agora/WebView audio capture.
           python3 - <<'PY'
@@ -75,6 +75,16 @@ jobs:
                   '    <uses-permission android:name="android.permission.RECORD_AUDIO" />' + chr(10) + '    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' + chr(10) + '    <application',
                   1,
               )
+          # Route the Supabase OAuth callback back into the installed Android app.
+          if "com.voxroyale.app" not in xml:
+              callback_filter = """            <intent-filter>
+                          <action android:name="android.intent.action.VIEW" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <category android:name="android.intent.category.BROWSABLE" />
+                          <data android:scheme="com.voxroyale.app" android:host="auth" android:pathPrefix="/callback" />
+                      </intent-filter>
+          """
+              xml = xml.replace("</activity>", callback_filter + "        </activity>", 1)
           manifest.write_text(xml)
           PY
           sudo apt-get update
