@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { deleteMedia, getAdminAssetUrl, uploadImage } from "@/lib/media";
 import { UserAvatar } from "@/components/UserAvatar";
 import { AdminAssetMedia } from "@/components/AdminAssetMedia";
+import { IdentityBadges } from "@/components/IdentityBadges";
 import { useAdminAsset } from "@/lib/media";
 import { useEffect, useState } from "react";
 import { Camera } from "lucide-react";
@@ -32,10 +33,12 @@ export const Route = createFileRoute("/profile")({
 });
 
 type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; name_color?: string; name_effect?: string; name_effect_speed?: number; equipped_frame?: string | null; equipped_entry?: string | null; chat_bubble_color?: string | null; profile_card_asset_key?: string | null };
+type ProfileBadge = { user_id: string; badge_name: string; badge_asset_key?: string | null; badge_color?: string | null; is_equipped?: boolean };
 function ProfilePage() {
   const { user } = useAuth();
   const nav = useNavigate();
   const [p, setP] = useState<P | null>(null);
+  const [equippedBadges, setEquippedBadges] = useState<ProfileBadge[]>([]);
   const profileCardUrl = useAdminAsset(p?.profile_card_asset_key);
   const [draft, setDraft] = useState<P | null>(null);
   const [editing, setEditing] = useState(false);
@@ -56,16 +59,21 @@ function ProfilePage() {
   useEffect(() => {
     if (!user) return;
     let alive = true;
+    const refreshBadges = async () => {
+      const { data, error } = await supabase.from("user_badges").select("user_id,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", user.id).eq("is_equipped", true);
+      if (alive && !error) setEquippedBadges((data ?? []) as ProfileBadge[]);
+    };
     const channel = supabase.channel(`profile-live-${user.id}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` }, (payload) => {
         if (!alive) return;
         setP((current) => current ? ({ ...current, ...(payload.new as P) }) : (payload.new as P));
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_badges", filter: `user_id=eq.${user.id}` }, () => { void refreshBadges(); })
       .subscribe();
     (async () => {
-      const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
-      if (data) setP(data as P);
-      })();
+      const [{ data }] = await Promise.all([supabase.from("profiles").select("*").eq("id", user!.id).single(), refreshBadges()]);
+      if (data && alive) setP(data as P);
+    })();
     return () => { alive = false; void supabase.removeChannel(channel); };
   }, [user]);
 
@@ -143,6 +151,7 @@ function ProfilePage() {
         </label>
         <h2 className={`mt-3 text-2xl font-bold ${shown.name_effect && shown.name_effect !== "none" ? `name-effect-${shown.name_effect}` : ""}`} style={{ color: shown.name_color || undefined, animationDuration: `${shown.name_effect_speed || 1800}ms` }}>{flagOf(shown.country)} {shown.display_name}</h2>
         <div className="text-sm font-bold" style={{ color: shown.id_color || "#D4AF37" }}>ID: {p.display_no}</div>
+        <div className="mt-2 flex justify-center"><IdentityBadges level={shown.level} vip={shown.vip_level} badges={equippedBadges} /></div>
         <p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
         {editing && <div className="mt-2 text-xs text-primary">معاينة — لم يتم الحفظ بعد</div>}
         <div className="mt-4 grid grid-cols-5 gap-1 rounded-2xl border border-white/10 bg-black/25 p-3 text-center text-white backdrop-blur">
