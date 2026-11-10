@@ -3,6 +3,12 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 const DEVICE_STORAGE_KEY = "vox_royale_device_id";
+const QUICK_LOGIN_PAUSED_KEY = "vox_guest_logged_out";
+
+function isQuickLoginPaused(): boolean {
+  try { return localStorage.getItem(QUICK_LOGIN_PAUSED_KEY) === "1"; }
+  catch { return false; }
+}
 
 export function getDeviceId(): string {
   try {
@@ -46,7 +52,7 @@ async function registerCurrentDevice(): Promise<boolean> {
 let cachedUser: User | null = null;
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(cachedUser);
+  const [user, setUser] = useState<User | null>(() => isQuickLoginPaused() ? null : cachedUser);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -61,11 +67,25 @@ export function useAuth() {
         catch (error) { console.warn("[Auth] Could not persist quick-login recovery token:", error); }
       }
       if (mounted) {
-        setUser(cachedUser);
+        setUser(isQuickLoginPaused() ? null : cachedUser);
         setLoading(false);
       }
       if (session?.user) void registerCurrentDevice();
     });
+
+    const onQuickLoginVisibilityChange = () => {
+      if (isQuickLoginPaused()) {
+        if (mounted) setUser(null);
+        return;
+      }
+      void supabase.auth.getSession().then(({ data }) => {
+        if (!mounted) return;
+        cachedUser = data.session?.user ?? null;
+        setUser(cachedUser);
+        setLoading(false);
+      }).catch((error: unknown) => console.warn("[Auth] Could not refresh visible session:", error));
+    };
+    window.addEventListener("vox-auth-visibility-change", onQuickLoginVisibilityChange);
 
     // getSession may resolve after a SIGNED_IN / SIGNED_OUT event.
     // Do not let that older snapshot overwrite the newer auth event.
@@ -78,7 +98,7 @@ export function useAuth() {
         try { localStorage.setItem("vox_guest_refresh", data.session.refresh_token); localStorage.setItem("vox_guest_account_created", "1"); }
         catch (persistError) { console.warn("[Auth] Could not persist quick-login recovery token:", persistError); }
       }
-      setUser(cachedUser);
+      setUser(isQuickLoginPaused() ? null : cachedUser);
       setLoading(false);
       if (data.session?.user) void registerCurrentDevice();
     }).catch((error: unknown) => {
@@ -92,6 +112,7 @@ export function useAuth() {
     return () => {
       mounted = false;
       subscription.subscription.unsubscribe();
+      window.removeEventListener("vox-auth-visibility-change", onQuickLoginVisibilityChange);
     };
   }, []);
 
