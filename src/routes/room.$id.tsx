@@ -89,7 +89,11 @@ function RoomPage() {
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; name: string; avatar: string; level: number; vip: number; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number; animationStyle: string; animationSpeed: number } | null>(null);
   const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
   const [micPermissionGranted, setMicPermissionGranted] = useState(false);
-  const [musicFile, setMusicFile] = useState<File | null>(null);
+  const [musicFile, setMusicFileState] = useState<File | null>(null);
+  const setMusicFile = useCallback((file: File | null) => {
+    setMusicFileState(file);
+    window.dispatchEvent(new CustomEvent("vox-room-music-file", { detail: { file } }));
+  }, []);
   const [musicQueue, setMusicQueue] = useState<File[]>([]);
   const [musicQueueIndex, setMusicQueueIndex] = useState(0);
   const [musicOpen, setMusicOpen] = useState(false);
@@ -99,9 +103,6 @@ function RoomPage() {
   const musicCommandId = useRef(0);
   const sendMusicCommand = useCallback((action: "pause" | "resume" | "seek" | "volume", value?: number) => {
     setMusicCommand({ id: ++musicCommandId.current, action, value });
-  }, []);
-  const onMusicProgress = useCallback((progress: { currentTime: number; duration: number; playing: boolean }) => {
-    setMusicProgress(progress);
   }, []);
   const [speakingUsers, setSpeakingUsers] = useState<string[]>([]);
   const [micRequests, setMicRequests] = useState<{ id: string; user_id: string; created_at: string }[]>([]);
@@ -114,21 +115,24 @@ function RoomPage() {
   const [exitPrompt, setExitPrompt] = useState(false);
   const [roomMinimized, setRoomMinimized] = useState(false);
   useEffect(() => {
-    const restore = () => {
-      try {
-        const mini = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string } | null;
-        if (mini?.id === id) {
-          localStorage.removeItem("vox_minimized_room");
-          localStorage.removeItem("vox_active_room");
-          localStorage.removeItem("vox_minimized_room_id");
-          setRoomMinimized(false);
-          window.dispatchEvent(new Event("vox-room-minimized"));
-        }
-      } catch { /* ignore an invalid minimized-room marker */ }
+    const restore = () => setRoomMinimized(false);
+    const onProgress = (event: Event) => {
+      const progress = (event as CustomEvent<{ currentTime: number; duration: number; playing: boolean }>).detail;
+      if (progress) setMusicProgress(progress);
+    };
+    const onSpeaking = (event: Event) => {
+      const users = (event as CustomEvent<string[]>).detail;
+      if (Array.isArray(users)) setSpeakingUsers(users);
     };
     window.addEventListener("vox-room-restored", restore);
-    return () => window.removeEventListener("vox-room-restored", restore);
-  }, [id]);
+    window.addEventListener("vox-room-music-progress", onProgress);
+    window.addEventListener("vox-room-speaking-users", onSpeaking);
+    return () => {
+      window.removeEventListener("vox-room-restored", restore);
+      window.removeEventListener("vox-room-music-progress", onProgress);
+      window.removeEventListener("vox-room-speaking-users", onSpeaking);
+    };
+  }, []);
   const [isLeavingRoom, setIsLeavingRoom] = useState(false);
   const [following, setFollowing] = useState(false);
   const [cardStats, setCardStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0 });
@@ -522,7 +526,6 @@ function RoomPage() {
   }, [members, room, uid, nav]);
 
   const mySeat = seats.find((s) => s.user_id === uid);
-  const handleSpeakingUsers = useCallback((users: string[]) => setSpeakingUsers(users), []);
   const myMicEnabled = !!mySeat && !mySeat.is_muted && !isLeavingRoom;
 
   // A single RoomVoice instance lives in the root controller. Route changes and
@@ -537,9 +540,9 @@ function RoomPage() {
     };
     localStorage.setItem("vox_active_room", JSON.stringify(snapshot));
     window.dispatchEvent(new CustomEvent("vox-room-session", {
-      detail: { ...snapshot, members, musicFile, musicCommand },
+      detail: { ...snapshot, members, musicCommand },
     }));
-  }, [room?.id, room?.name, room?.cover_url, uid, myMicEnabled, micPermissionGranted, members, musicFile, musicCommand]);
+  }, [room?.id, room?.name, room?.cover_url, uid, myMicEnabled, micPermissionGranted, members, musicCommand]);
 
   const roomLive = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
