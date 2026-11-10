@@ -114,6 +114,22 @@ function RoomPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exitPrompt, setExitPrompt] = useState(false);
   const [roomMinimized, setRoomMinimized] = useState(false);
+  useEffect(() => {
+    const restore = () => {
+      try {
+        const mini = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string } | null;
+        if (mini?.id === id) {
+          localStorage.removeItem("vox_minimized_room");
+          localStorage.removeItem("vox_active_room");
+          localStorage.removeItem("vox_minimized_room_id");
+          setRoomMinimized(false);
+          window.dispatchEvent(new Event("vox-room-minimized"));
+        }
+      } catch { /* ignore an invalid minimized-room marker */ }
+    };
+    window.addEventListener("vox-room-restore", restore);
+    return () => window.removeEventListener("vox-room-restore", restore);
+  }, [id]);
   const [isLeavingRoom, setIsLeavingRoom] = useState(false);
   const [following, setFollowing] = useState(false);
   const [cardStats, setCardStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0 });
@@ -690,7 +706,7 @@ function RoomPage() {
   const visibleGifts = giftCategory === "all" ? gifts : gifts.filter((gift) => gift.category_id === giftCategory);
 
   return (
-    <>{!roomMinimized && <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} musicFile={musicFile} musicCommand={musicCommand} onMusicProgress={onMusicProgress} onSpeakingUsers={handleSpeakingUsers} />}
+    <><RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} musicFile={musicFile} musicCommand={musicCommand} onMusicProgress={onMusicProgress} onSpeakingUsers={handleSpeakingUsers} />
 
     <input id="room-music-file" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.flac" multiple className="hidden" onChange={(e) => {
       const files = Array.from(e.target.files ?? []);
