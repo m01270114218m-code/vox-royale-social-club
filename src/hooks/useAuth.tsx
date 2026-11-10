@@ -56,6 +56,10 @@ export function useAuth() {
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       authEventVersion += 1;
       cachedUser = session?.user ?? null;
+      if (session?.user?.is_anonymous && session.refresh_token) {
+        try { localStorage.setItem("vox_guest_refresh", session.refresh_token); localStorage.setItem("vox_guest_account_created", "1"); }
+        catch (error) { console.warn("[Auth] Could not persist quick-login recovery token:", error); }
+      }
       if (mounted) {
         setUser(cachedUser);
         setLoading(false);
@@ -70,6 +74,10 @@ export function useAuth() {
       if (!mounted || authEventVersion !== initialVersion) return;
       if (error) console.error("[Auth] Unable to restore session:", error.message);
       cachedUser = data.session?.user ?? null;
+      if (data.session?.user?.is_anonymous && data.session.refresh_token) {
+        try { localStorage.setItem("vox_guest_refresh", data.session.refresh_token); localStorage.setItem("vox_guest_account_created", "1"); }
+        catch (persistError) { console.warn("[Auth] Could not persist quick-login recovery token:", persistError); }
+      }
       setUser(cachedUser);
       setLoading(false);
       if (data.session?.user) void registerCurrentDevice();
