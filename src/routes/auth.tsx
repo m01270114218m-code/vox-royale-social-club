@@ -1,4 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 import { useEffect, useState } from "react";
 import { icons3d } from "@/lib/assets3d";
 import { toast } from "sonner";
@@ -198,12 +200,23 @@ function AuthPage() {
   async function google() {
     setBusy(true);
     try {
-      const redirectTo = (import.meta.env.VITE_AUTH_REDIRECT_URL as string | undefined) || window.location.origin;
-      const { error } = await supabase.auth.signInWithOAuth({
+      const nativeApp = Capacitor.isNativePlatform();
+      // Android returns to the installed app through its verified custom-scheme callback.
+      // Web continues to use the configured HTTPS site URL.
+      const redirectTo = nativeApp
+        ? "com.voxroyale.app://auth/callback"
+        : (import.meta.env.VITE_AUTH_REDIRECT_URL as string | undefined) || window.location.origin;
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo },
+        options: { redirectTo, skipBrowserRedirect: nativeApp },
       });
       if (error) throw error;
+      if (nativeApp) {
+        if (!data.url) throw new Error("لم يتم إنشاء رابط تسجيل Google");
+        // Android Custom Tab keeps the flow visually attached to the app without
+        // embedding Google's sign-in page inside an insecure WebView.
+        await Browser.open({ url: data.url, presentationStyle: "popover" });
+      }
     } catch (err) {
       toast.error((err as Error).message || "تعذر بدء تسجيل الدخول باستخدام Google");
       setBusy(false);
