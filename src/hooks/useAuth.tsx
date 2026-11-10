@@ -4,10 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 
 const DEVICE_STORAGE_KEY = "vox_royale_device_id";
 
-function getDeviceId(): string {
+export function getDeviceId(): string {
   try {
     const existing = localStorage.getItem(DEVICE_STORAGE_KEY);
     if (existing && existing.length >= 16) return existing;
+    // Migrate the legacy quick-login key to the single canonical device key.
+    const legacy = localStorage.getItem("vox_device_id");
+    if (legacy && legacy.length >= 16) {
+      localStorage.setItem(DEVICE_STORAGE_KEY, legacy);
+      return legacy;
+    }
     const id = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
