@@ -151,7 +151,8 @@ function AuthPage() {
         const { data: restored, error: restoreError } = await supabase.auth.refreshSession({ refresh_token: saved });
         if (!restoreError && restored.session) {
           localStorage.setItem("vox_guest_refresh", restored.session.refresh_token);
-          toast.success("أهلاً بعودتك");
+          localStorage.setItem("vox_guest_account_created", "1");
+          toast.success("أهلاً بعودتك إلى حساب هذا الجهاز");
           return;
         }
         // Do not silently create a second anonymous account when this device's
