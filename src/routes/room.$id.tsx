@@ -669,12 +669,20 @@ function RoomPage() {
 
   async function openUserCard(target: string) {
     setSeatMenu(seats.find((s) => s.user_id === target) ?? { seat_index: -1, user_id: target, is_locked: false, is_muted: false });
-    const [followers, graph, posts, roomResult] = await Promise.all([
+    void ensureProfiles([target]);
+    const [followers, graph, posts, roomResult, moderatorResult, badgeResult] = await Promise.all([
       supabase.from("follows").select("follower_id", { count: "exact", head: true }).eq("following_id", target),
       supabase.from("follows").select("follower_id,following_id").or(`follower_id.eq.${target},following_id.eq.${target}`),
       supabase.from("posts").select("id", { count: "exact", head: true }).eq("user_id", target),
       supabase.from("room_members").select("room_id,rooms(id,name,room_no)").eq("user_id", target).maybeSingle(),
+      isStaff && target !== uid ? supabase.from("room_moderators").select("user_id").eq("room_id", id).eq("user_id", target).maybeSingle() : Promise.resolve({ data: null }),
+      supabase.from("user_badges").select("user_id,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", target).eq("is_equipped", true),
     ]);
+    if (!moderatorResult.error) setTargetIsModerator(!!moderatorResult.data);
+    if (!badgeResult.error) {
+      setBadges((current) => ({ ...current, [target]: (badgeResult.data ?? []) as Badge[] }));
+      badgesLoadedRef.current.add(target);
+    }
     const followerIds = new Set((graph.data ?? []).filter((r) => r.following_id === target).map((r) => r.follower_id));
     const followingIds = new Set((graph.data ?? []).filter((r) => r.follower_id === target).map((r) => r.following_id));
     const friendCount = [...followerIds].filter((x) => followingIds.has(x)).length;
