@@ -30,7 +30,10 @@ export function getDeviceId(): string {
   }
 }
 
-async function registerCurrentDevice(): Promise<boolean> {
+async function registerCurrentDevice(user?: User | null): Promise<boolean> {
+  // Anonymous quick accounts are registered explicitly once, at creation.
+  // Re-registering on every auth event causes false device-link failures.
+  if (user?.is_anonymous) return true;
   const deviceId = getDeviceId();
   const { error } = await supabase.rpc("register_device", { _device: deviceId });
   if (!error) return true;
@@ -70,7 +73,7 @@ export function useAuth() {
         setUser(isQuickLoginPaused() ? null : cachedUser);
         setLoading(false);
       }
-      if (session?.user) void registerCurrentDevice();
+      if (session?.user) void registerCurrentDevice(session?.user);
     });
 
     const onQuickLoginVisibilityChange = () => {
@@ -100,7 +103,7 @@ export function useAuth() {
       }
       setUser(isQuickLoginPaused() ? null : cachedUser);
       setLoading(false);
-      if (data.session?.user) void registerCurrentDevice();
+      if (data.session?.user) void registerCurrentDevice(data.session.user);
     }).catch((error: unknown) => {
       if (!mounted || authEventVersion !== initialVersion) return;
       console.error("[Auth] Session restore failed:", error);
