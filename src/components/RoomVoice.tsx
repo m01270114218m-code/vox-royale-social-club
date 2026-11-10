@@ -164,8 +164,9 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
     const nativeStateListener = CapacitorApp.addListener("appStateChange", ({ isActive }) => {
       if (isActive) resumeRtc(true);
     });
-    document.addEventListener("visibilitychange", resumeRtc);
-    window.addEventListener("pageshow", resumeRtc);
+    const onDocumentResume = () => resumeRtc();
+    document.addEventListener("visibilitychange", onDocumentResume);
+    window.addEventListener("pageshow", onDocumentResume);
 
     const start = async () => {
       try {
@@ -222,8 +223,8 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
     return () => {
       effectAlive = false;
       aliveRef.current = false;
-      document.removeEventListener("visibilitychange", resumeRtc);
-      window.removeEventListener("pageshow", resumeRtc);
+      document.removeEventListener("visibilitychange", onDocumentResume);
+      window.removeEventListener("pageshow", onDocumentResume);
       void nativeStateListener.then((listener) => listener.remove()).catch(() => undefined);
       tokenRefreshRef.current = null;
       joinedRef.current = false;
