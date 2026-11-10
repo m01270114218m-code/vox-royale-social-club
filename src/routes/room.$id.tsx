@@ -967,7 +967,6 @@ function RoomPage() {
       </div>
 
       <form onSubmit={send} className="glass m-3 flex items-center gap-2 rounded-full p-2">
-        {!mySeat && <Button type="button" variant="ghost" size="icon" onClick={async () => { const { error } = await supabase.rpc("take_any_seat", { _room: id }); if (error) toast.error(errMsg(error)); else { await syncRoomSeats(); toast.success("تم الصعود للميك مباشرة"); } }} aria-label="صعود مباشر للميك" title="صعود مباشر للميك"><Mic className="h-7 w-7" /></Button>}
         {mySeat && (
           <Button type="button" variant="ghost" size="icon" onClick={async () => {
             if (!micPermissionGranted) {
