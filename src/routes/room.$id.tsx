@@ -108,7 +108,6 @@ function RoomPage() {
   const [micRequests, setMicRequests] = useState<{ id: string; user_id: string; created_at: string }[]>([]);
   const [myMicRequest, setMyMicRequest] = useState<{ id: string } | null>(null);
   const [chatMutedUser, setChatMutedUser] = useState(false);
-  const [micBlockedUser, setMicBlockedUser] = useState(false);
   const [targetIsModerator, setTargetIsModerator] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -660,17 +659,14 @@ function RoomPage() {
     }
     setSeatMenu(s);
     setChatMutedUser(false);
-    setMicBlockedUser(false);
     setTargetIsModerator(false);
     if (s.user_id) void openUserCard(s.user_id);
     if (isStaff && s.user_id && s.user_id !== uid) {
-      const [muteResult, micResult, modResult] = await Promise.all([
+      const [muteResult, modResult] = await Promise.all([
         supabase.rpc("staff_is_chat_muted", { _room: id, _user: s.user_id }),
-        supabase.rpc("staff_is_mic_blocked", { _room: id, _user: s.user_id }),
         supabase.from("room_moderators").select("user_id").eq("room_id", id).eq("user_id", s.user_id).maybeSingle(),
       ]);
       if (!muteResult.error) setChatMutedUser(!!muteResult.data);
-      if (!micResult.error) setMicBlockedUser(!!micResult.data);
       setTargetIsModerator(!!modResult.data);
     }
   }
