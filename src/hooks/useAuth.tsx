@@ -30,27 +30,6 @@ export function getDeviceId(): string {
   }
 }
 
-async function registerCurrentDevice(user?: User | null): Promise<boolean> {
-  // Anonymous quick accounts are registered explicitly once, at creation.
-  // Re-registering on every auth event causes false device-link failures.
-  if (user?.is_anonymous) return true;
-  const deviceId = getDeviceId();
-  const { error } = await supabase.rpc("register_device", { _device: deviceId });
-  if (!error) return true;
-  const message = String(error.message || "");
-  if (message.includes("account_banned") || message.includes("device_banned") || message.includes("device_already_linked")) {
-    await supabase.auth.signOut();
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("vox-account-blocked", { detail: { message } }));
-    }
-    return false;
-  }
-  // A device-registration failure must not silently lock users out during a
-  // temporary network/API outage; the server-side RPC still enforces bans.
-  console.error("[Auth] Device registration failed:", message);
-  return true;
-}
-
 // Keep one coherent auth snapshot across route-level hook instances.
 let cachedUser: User | null = null;
 
@@ -73,7 +52,6 @@ export function useAuth() {
         setUser(isQuickLoginPaused() ? null : cachedUser);
         setLoading(false);
       }
-      if (session?.user) void registerCurrentDevice(session?.user);
     });
 
     const onQuickLoginVisibilityChange = () => {
@@ -103,7 +81,6 @@ export function useAuth() {
       }
       setUser(isQuickLoginPaused() ? null : cachedUser);
       setLoading(false);
-      if (data.session?.user) void registerCurrentDevice(data.session.user);
     }).catch((error: unknown) => {
       if (!mounted || authEventVersion !== initialVersion) return;
       console.error("[Auth] Session restore failed:", error);
