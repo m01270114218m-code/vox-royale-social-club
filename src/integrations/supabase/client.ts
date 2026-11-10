@@ -68,6 +68,10 @@ function createSupabaseClient() {
       fetch: createSupabaseFetch(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY),
     },
     auth: {
+      // Use Authorization Code + PKCE for web and Android OAuth.
+      // Implicit flow returns access_token/refresh_token in the URL fragment,
+      // which cannot be exchanged by the native deep-link callback.
+      flowType: 'pkce',
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
