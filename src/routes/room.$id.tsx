@@ -37,7 +37,7 @@ export const Route = createFileRoute("/room/$id")({
 const pendingRoomLeaves = new Map<string, ReturnType<typeof setTimeout>>();
 
 type Profile = { id: string; display_name: string; display_no?: number; id_color?: string | null; avatar_url: string | null; level: number; vip_level: number; equipped_frame?: string | null; name_color?: string | null; name_effect?: string | null; name_effect_speed?: number | null; chat_bubble_color?: string | null; chat_bubble_asset_key?: string | null; sound_wave_asset_key?: string | null; profile_card_asset_key?: string | null };
-type Badge = { badge_name: string; badge_asset_key?: string | null; badge_color?: string | null; is_equipped?: boolean };
+type Badge = { user_id: string; badge_name: string; badge_asset_key?: string | null; badge_color?: string | null; is_equipped?: boolean };
 type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
 type Msg = { id: string; user_id: string; body: string; created_at: string; kind?: string };
 type GiftT = { id: string; name: string; emoji: string; price: number; tier: string; category_id?: string | null; animation_style?: string; animation_speed?: number; display_duration_ms?: number; asset_key?: string | null; asset_url?: string | null };
@@ -68,7 +68,8 @@ function RoomPage() {
   const [members, setMembers] = useState<string[]>([]);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
-  const [badges, setBadges] = useState<Record<string, Badge>>({});
+  const [badges, setBadges] = useState<Record<string, Badge[]>>({});
+  const badgesLoadedRef = useRef(new Set<string>());
   const [cosmeticUrls, setCosmeticUrls] = useState<Record<string,{bubble?:string;wave?:string;card?:string}>>({});
   const [isMod, setIsMod] = useState(false);
   const [text, setText] = useState("");
@@ -85,6 +86,8 @@ function RoomPage() {
   const [luckySel, setLuckySel] = useState<LuckyGiftT | null>(null);
   const [qty, setQty] = useState(1);
   const [repeatGift, setRepeatGift] = useState<{ kind: "normal"; gift: GiftT; receiverId: string; qty: number } | { kind: "lucky"; gift: LuckyGiftT; receiverId: string; qty: number } | null>(null);
+  const repeatGiftTimer = useRef<number | null>(null);
+  const messageSwipeStart = useRef<{ id: string; x: number; y: number } | null>(null);
   const [luckyBanner, setLuckyBanner] = useState<{ id: number; name: string; message: string; assetUrl?: string | null } | null>(null);
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; style: string; speed: number; duration: number; mode: "static" | "animated"; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number } | null>(null);
@@ -115,6 +118,19 @@ function RoomPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exitPrompt, setExitPrompt] = useState(false);
   const [roomMinimized, setRoomMinimized] = useState(false);
+  useEffect(() => {
+    if (repeatGiftTimer.current !== null) window.clearTimeout(repeatGiftTimer.current);
+    repeatGiftTimer.current = null;
+    if (!repeatGift || giftOpen) return;
+    repeatGiftTimer.current = window.setTimeout(() => {
+      setRepeatGift(null);
+      repeatGiftTimer.current = null;
+    }, 5000);
+    return () => {
+      if (repeatGiftTimer.current !== null) window.clearTimeout(repeatGiftTimer.current);
+      repeatGiftTimer.current = null;
+    };
+  }, [repeatGift, giftOpen]);
   useEffect(() => {
     const restore = () => setRoomMinimized(false);
     const onProgress = (event: Event) => {
@@ -219,16 +235,30 @@ function RoomPage() {
   const publicName = (userId: string, fallback = "…") => { const p = profiles[userId]; if (!p) return fallback; const effect = p.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""; return <span className={effect} style={{ color: p.name_color || undefined, animationDuration: `${p.name_effect_speed || 1800}ms` }}>{p.display_name}</span>; };
 
   const ensureProfiles = useCallback(async (ids: string[]) => {
-    const missing = ids.filter((x) => x && !profiles[x]);
-    if (!missing.length) return;
+    const uniqueIds = [...new Set(ids.filter(Boolean))];
+    const missingProfiles = uniqueIds.filter((x) => !profiles[x]);
+    const missingBadges = uniqueIds.filter((x) => !badgesLoadedRef.current.has(x));
+    if (!missingProfiles.length && !missingBadges.length) return;
     const [{ data }, { data: badgeRows }] = await Promise.all([
-      supabase.from("profiles").select("id,display_name,display_no,id_color,avatar_url,level,vip_level,equipped_frame,name_color,name_effect,name_effect_speed,chat_bubble_color,chat_bubble_asset_key,sound_wave_asset_key,profile_card_asset_key").in("id", missing),
-      supabase.from("user_badges").select("user_id,badge_name,badge_asset_key,badge_color,is_equipped").in("user_id", missing).eq("is_equipped", true),
+      missingProfiles.length
+        ? supabase.from("profiles").select("id,display_name,display_no,id_color,avatar_url,level,vip_level,equipped_frame,name_color,name_effect,name_effect_speed,chat_bubble_color,chat_bubble_asset_key,sound_wave_asset_key,profile_card_asset_key").in("id", missingProfiles)
+        : Promise.resolve({ data: [] as Profile[] }),
+      missingBadges.length
+        ? supabase.from("user_badges").select("user_id,badge_name,badge_asset_key,badge_color,is_equipped").in("user_id", missingBadges).eq("is_equipped", true)
+        : Promise.resolve({ data: [] as Badge[] }),
     ]);
-    if (data) setProfiles((p) => ({ ...p, ...Object.fromEntries(data.map((d) => [d.id, d as Profile])) }));
-    if (badgeRows) setBadges((b) => ({ ...b, ...Object.fromEntries(badgeRows.map((d) => [d.user_id, d as Badge])) }));
+    if (data?.length) setProfiles((p) => ({ ...p, ...Object.fromEntries(data.map((d) => [d.id, d as Profile])) }));
+    if (missingBadges.length) {
+      const grouped: Record<string, Badge[]> = Object.fromEntries(missingBadges.map((userId) => [userId, []]));
+      (badgeRows ?? []).forEach((row) => {
+        const badge = row as Badge;
+        (grouped[badge.user_id] ??= []).push(badge);
+      });
+      setBadges((current) => ({ ...current, ...grouped }));
+      missingBadges.forEach((userId) => badgesLoadedRef.current.add(userId));
+    }
     const cosmeticEntries = await Promise.all((data ?? []).map(async (d) => [d.id, { bubble: d.chat_bubble_asset_key ? await getAdminAssetUrl(d.chat_bubble_asset_key) : undefined, wave: d.sound_wave_asset_key ? await getAdminAssetUrl(d.sound_wave_asset_key) : undefined, card: d.profile_card_asset_key ? await getAdminAssetUrl(d.profile_card_asset_key) : undefined }] as const));
-    setCosmeticUrls((v) => ({ ...v, ...Object.fromEntries(cosmeticEntries) }));
+    if (cosmeticEntries.length) setCosmeticUrls((v) => ({ ...v, ...Object.fromEntries(cosmeticEntries) }));
   }, [profiles]);
 
   const loadSeats = useCallback(async () => {
@@ -408,12 +438,9 @@ function RoomPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "user_badges" }, async (payload) => {
         const row = (payload.eventType === "DELETE" ? payload.old : payload.new) as { user_id?: string };
         if (!row.user_id) return;
-        const { data: badge } = await supabase.from("user_badges").select("user_id,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", row.user_id).eq("is_equipped", true).maybeSingle();
-        setBadges((current) => {
-          const next = { ...current };
-          if (badge) next[row.user_id!] = badge as Badge; else delete next[row.user_id!];
-          return next;
-        });
+        const { data: badgeRows } = await supabase.from("user_badges").select("user_id,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", row.user_id).eq("is_equipped", true);
+        setBadges((current) => ({ ...current, [row.user_id!]: (badgeRows ?? []) as Badge[] }));
+        badgesLoadedRef.current.add(row.user_id!);
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, async (payload) => {
         const userId = (payload.new as { user_id: string }).user_id;
@@ -741,6 +768,7 @@ function RoomPage() {
 
   async function sendAgain() {
     if (!repeatGift) return;
+    setRepeatGift((current) => current ? { ...current } : current);
     const target = repeatGift.receiverId;
     const amount = repeatGift.qty;
     if (repeatGift.kind === "normal") {
@@ -920,6 +948,8 @@ function RoomPage() {
                 {p && cosmeticUrls[p.id]?.wave && <AdminAssetMedia src={cosmeticUrls[p.id]!.wave} className="pointer-events-none absolute -inset-2 h-[calc(100%+16px)] w-[calc(100%+16px)] object-contain opacity-90" />}{p && voiceControls.show_mic_effect && voiceControls.effect_asset_url && <AdminAssetMedia src={voiceControls.effect_asset_url} className="pointer-events-none absolute inset-0 h-full w-full object-contain" />}
               </div>
               <span className={`max-w-24 truncate text-xs font-bold ${p?.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p?.name_color || undefined, animationDuration: `${p?.name_effect_speed || 1800}ms` }}>{p ? p.display_name : s.seat_index + 1}</span>
+              {p && <span className="text-[9px] leading-none text-white/65">ID {p.display_no ?? "—"}</span>}
+              {p && (badges[p.id]?.length ?? 0) > 0 && <div className="max-w-[96px]"><IdentityBadges badges={badges[p.id]} /></div>}
             </Button>
           );
         })}
@@ -928,7 +958,7 @@ function RoomPage() {
       <div className="flex-1 space-y-2 overflow-y-auto px-4">
         <div className="rounded-xl bg-secondary/60 p-2 text-xs text-primary">📢 مرحباً بك في {room.name}. {room.description}</div>
         {msgs.map((m) => (
-          <div key={m.id} className={`relative isolate w-fit max-w-[85%] overflow-hidden rounded-2xl px-3 py-1.5 text-sm ${m.kind === "gift" ? "bg-gold font-bold" : "glass"}`} style={{ backgroundColor: m.kind === "gift" ? undefined : profiles[m.user_id]?.chat_bubble_color || undefined }}>
+          <div key={m.id} onTouchStart={(event) => { const touch = event.touches[0]; if (touch) messageSwipeStart.current = { id: m.id, x: touch.clientX, y: touch.clientY }; }} onTouchEnd={(event) => { const start = messageSwipeStart.current; messageSwipeStart.current = null; const touch = event.changedTouches[0]; if (!start || start.id !== m.id || !touch) return; const dx = touch.clientX - start.x; const dy = touch.clientY - start.y; if (Math.abs(dx) >= 55 && Math.abs(dx) > Math.abs(dy) * 1.15) setMsgs((current) => current.filter((item) => item.id !== m.id)); }} className={`relative isolate w-fit max-w-[85%] overflow-hidden rounded-2xl px-3 py-1.5 text-sm ${m.kind === "gift" ? "bg-gold font-bold" : "glass"}`} style={{ backgroundColor: m.kind === "gift" ? undefined : profiles[m.user_id]?.chat_bubble_color || undefined, touchAction: "pan-y" }}>
             {m.kind !== "gift" && cosmeticUrls[m.user_id]?.bubble && <AdminAssetMedia src={cosmeticUrls[m.user_id]!.bubble} className="pointer-events-none absolute inset-0 z-0 h-full w-full object-fill opacity-90" />}
             <span className="relative z-10"><button type="button" className="font-bold" style={{ color: profiles[m.user_id]?.name_color || undefined }} onClick={() => void openUserCard(m.user_id)}>{publicName(m.user_id)}: </button>{m.body}</span>
           </div>
@@ -965,20 +995,26 @@ function RoomPage() {
         <Button type="submit" size="icon" aria-label="إرسال" title="إرسال" className="rounded-full bg-gold"><img src={icons3d.send} alt="" className="h-7 w-7 object-contain" /></Button>
       </form>
 
+      <div className="pointer-events-auto fixed bottom-[82px] left-1/2 z-[105] flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/20 bg-slate-950/45 px-3 py-2 text-white shadow-[0_10px_30px_rgba(0,0,0,.35)] backdrop-blur-2xl" dir="rtl">
+        {!mySeat && <button type="button" onClick={async () => { const { error } = await supabase.rpc("take_any_seat", { _room: id }); if (error) toast.error(errMsg(error)); else { await syncRoomSeats(); toast.success("تم الصعود للميك مباشرة"); } }} className="flex items-center gap-1.5 rounded-full border border-emerald-200/25 bg-emerald-400/15 px-3 py-2 text-xs font-bold text-emerald-100"><Mic className="h-4 w-4" />صعود للميك</button>}
+        {isStaff && <button type="button" onClick={() => setInviteOpen(true)} className="flex items-center gap-1.5 rounded-full border border-violet-200/25 bg-violet-400/15 px-3 py-2 text-xs font-bold text-violet-100"><UserPlus className="h-4 w-4" />دعوة مستخدم</button>}
+        {mySeat && <span className="px-2 text-[11px] font-semibold text-white/75">أنت على الميك</span>}
+      </div>
       <Sheet open={!!seatMenu} onOpenChange={(o) => !o && setSeatMenu(null)}>
         <SheetContent side="bottom" dir="rtl" overlayClassName={seatMenu?.user_id ? "!bg-transparent" : undefined} className={seatMenu?.user_id ? "!fixed !inset-0 !h-[100dvh] !w-full !max-w-none !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-transparent !p-0 !shadow-none flex items-center justify-center [&>button:first-child]:hidden" : "!border-0 !bg-transparent !p-0 !shadow-none flex items-end justify-center"}>
           {!seatMenu?.user_id && <SheetHeader><SheetTitle>{seatMenu && seatMenu.seat_index >= 0 ? `المقعد ${seatMenu.seat_index + 1}` : "إدارة المستخدم"}</SheetTitle></SheetHeader>}
           {seatMenu && (
-            <div className={seatMenu.user_id ? "flex w-full items-center justify-center p-4" : "grid gap-2 p-4"}>
+            <div className={seatMenu.user_id ? "flex w-full flex-col items-center justify-center gap-2 p-4" : "grid gap-2 p-4"}>
               {!seatMenu.user_id && !seatMenu.is_locked && <Button onClick={async () => { const { error } = await supabase.rpc("take_seat", { _room: id, _seat: seatMenu.seat_index }); if (error) toast.error(errMsg(error)); else { await syncRoomSeats(); setSeatMenu(null); toast.success("تم الصعود للميك مباشرة"); } }} className="bg-gold">الصعود للميك بنفسك</Button>}
               {isStaff && seatMenu.seat_index >= 0 && !seatMenu.user_id && <Button variant="outline" onClick={() => setInviteOpen(true)} className="w-full">دعوة مستخدم للمايك</Button>}
-               {seatMenu.user_id && profiles[seatMenu.user_id] && <div className="relative mx-auto mb-0 h-[min(86vw,320px)] w-[min(86vw,320px)] max-w-[320px] overflow-y-auto overflow-x-hidden rounded-2xl border border-white/15 bg-black/45 p-3 text-right text-white shadow-2xl backdrop-blur-xl" dir="rtl">{seatMenu.user_id && cosmeticUrls[seatMenu.user_id]?.card && <AdminAssetMedia src={cosmeticUrls[seatMenu.user_id]!.card} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
+              {isOwner && seatMenu.seat_index >= 0 && <Button type="button" variant="outline" onClick={() => void call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_locked ? "unlock" : "lock" })} className="w-full border-amber-300/30 bg-black/40 text-amber-100">{seatMenu.is_locked ? "فتح الميك" : "قفل الميك"}</Button>}
+               {seatMenu.user_id && profiles[seatMenu.user_id] && <div className="relative mx-auto max-h-[78dvh] w-[min(92vw,380px)] max-w-[380px] overflow-y-auto overflow-x-hidden rounded-2xl border border-white/15 bg-black/45 p-4 text-right text-white shadow-2xl backdrop-blur-xl" dir="rtl">{seatMenu.user_id && cosmeticUrls[seatMenu.user_id]?.card && <AdminAssetMedia src={cosmeticUrls[seatMenu.user_id]!.card} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
   <div className="flex items-center gap-3">
     <button type="button" onClick={() => nav({ to: "/u/$id", params: { id: seatMenu.user_id! } })} className="shrink-0 rounded-full"><UserAvatar src={profiles[seatMenu.user_id]?.avatar_url} name={profiles[seatMenu.user_id]?.display_name || "مستخدم"} vip={profiles[seatMenu.user_id]?.vip_level} size={68} frameKey={profiles[seatMenu.user_id]?.equipped_frame} /></button>
     <div className="min-w-0 flex-1">
       <button type="button" onClick={() => nav({ to: "/u/$id", params: { id: seatMenu.user_id! } })} className="max-w-full truncate text-right text-base font-bold" style={{ color: profiles[seatMenu.user_id]?.name_color || undefined }}>{profiles[seatMenu.user_id]?.display_name}</button>
       <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px] font-black"><span className="rounded-full border border-amber-200/25 bg-black/25 px-2 py-0.5 text-amber-100">ID {profiles[seatMenu.user_id]?.display_no}</span><span className="rounded-full bg-white/10 px-2 py-0.5 text-white/90">Lv.{profiles[seatMenu.user_id]?.level ?? 1}</span>{(profiles[seatMenu.user_id]?.vip_level ?? 0) > 0 && <span className="rounded-full bg-amber-300/15 px-2 py-0.5 text-amber-200">VIP {profiles[seatMenu.user_id]?.vip_level}</span>}</div>
-      {badges[seatMenu.user_id] && <div className="mt-1"><IdentityBadges badge={badges[seatMenu.user_id]} /></div>}
+      {(badges[seatMenu.user_id]?.length ?? 0) > 0 && <div className="mt-1"><IdentityBadges badges={badges[seatMenu.user_id]} /></div>}
     </div>
   </div>
   <div className="mt-3 grid grid-cols-4 gap-1 rounded-2xl bg-black/15 p-2 text-center text-[10px]"><div><b className="block text-sm">{cardStats.followers}</b>متابعون</div><div><b className="block text-sm">{cardStats.friends}</b>أصدقاء</div><div><b className="block text-sm">{cardStats.posts}</b>منشورات</div><div><b className="block text-sm">{cardStats.likes}</b>معجبون</div></div>
@@ -989,6 +1025,7 @@ function RoomPage() {
     {seatMenu.user_id !== uid && <Button size="sm" variant="outline" onClick={async () => { const { data, error } = await supabase.rpc("get_or_create_conversation", { _other: seatMenu.user_id! }); if (error) toast.error(errMsg(error)); else nav({ to: "/chat/$id", params: { id: data as string } }); }}><MessageCircle className="h-4 w-4" />رسالة</Button>}
   </div>
   {isStaff && seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t border-white/15 pt-3">
+    {isOwner && seatMenu.seat_index >= 0 && <button type="button" title={seatMenu.is_locked ? "فتح الميك" : "قفل الميك"} aria-label={seatMenu.is_locked ? "فتح الميك" : "قفل الميك"} className={`grid h-10 w-10 place-items-center rounded-full ${seatMenu.is_locked ? "bg-amber-400/20 text-amber-200" : "bg-white/10 text-amber-100"}`} onClick={() => void call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_locked ? "unlock" : "lock" })}><Lock className="h-5 w-5" /></button>}
     {seatMenu.seat_index >= 0 && <button type="button" title={seatMenu.is_muted ? "إلغاء كتم صوت المستخدم" : "كتم صوت المستخدم"} aria-label={seatMenu.is_muted ? "إلغاء كتم صوت المستخدم" : "كتم صوت المستخدم"} className={`grid h-10 w-10 place-items-center rounded-full ${seatMenu.is_muted ? "bg-emerald-500/20 text-emerald-200" : "bg-white/10"}`} onClick={() => call("staff_room_member_seat_action", { _room: id, _user: seatMenu.user_id!, _action: seatMenu.is_muted ? "unmute" : "mute" })}><VolumeX className="h-5 w-5" /></button>}
     {seatMenu.seat_index >= 0 && <button type="button" title="إنزال المستخدم من الميك" aria-label="إنزال المستخدم من الميك" className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-orange-200" onClick={() => call("staff_room_member_seat_action", { _room: id, _user: seatMenu.user_id!, _action: "lower" })}><ArrowDownToLine className="h-5 w-5" /></button>}
     <button type="button" title="طرد من الغرفة" aria-label="طرد من الغرفة" className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-red-300" onClick={() => call("staff_kick_room_user", { _room: id, _user: seatMenu.user_id! })}><LogOut className="h-5 w-5" /></button>
@@ -996,7 +1033,7 @@ function RoomPage() {
     {isOwner && <button type="button" title={targetIsModerator ? "إزالة الأدمن" : "تعيين أدمن"} aria-label={targetIsModerator ? "إزالة الأدمن" : "تعيين أدمن"} className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-amber-200" onClick={() => call("staff_set_room_moderator", { _room: id, _user: seatMenu.user_id!, _enabled: !targetIsModerator })}><Shield className="h-5 w-5" /></button>}
   </div>}
 </div></div>}
-              {seatMenu.user_id === uid && <div className="mt-2 flex w-full justify-center"><button type="button" title="مغادرة المقعد" aria-label="مغادرة المقعد" onClick={() => void call("leave_seat", { _room: id })} className="grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-gradient-to-br from-slate-800/90 to-violet-950/90 text-rose-200 shadow-[0_8px_24px_rgba(0,0,0,.4)] backdrop-blur-xl"><LogOut className="h-5 w-5" /></button></div>}
+              {seatMenu.user_id === uid && seatMenu.seat_index >= 0 && <Button type="button" variant="outline" onClick={() => void call("leave_seat", { _room: id })} className="w-[min(92vw,380px)] border-rose-300/40 bg-black/60 text-rose-100 shadow-xl backdrop-blur-xl"><LogOut className="ml-2 h-4 w-4" />نزول من الميك</Button>}
             </div>
           )}
         </SheetContent>
