@@ -1114,7 +1114,7 @@ function RoomPage() {
         <div className="min-w-0 flex-1"><div className="text-[10px] font-black tracking-widest text-amber-200">VOX ROYALE · LUCKY GIFT</div><div className="truncate text-sm font-black">{luckyBanner.name}</div><div className="text-xs text-amber-100">{luckyBanner.message}</div></div>
         <span className="text-2xl">✨</span>
       </div>}
-      {repeatGift && <button type="button" onClick={() => void sendAgain()} className="fixed bottom-24 left-4 z-[135] flex items-center gap-2 rounded-full border border-amber-300/80 bg-gradient-to-r from-[#221332] to-[#805018] px-4 py-3 text-sm font-black text-amber-50 shadow-[0_10px_30px_rgba(0,0,0,.55)] ring-1 ring-amber-100/30"><Gift className="h-5 w-5" />إرسال متتالي ×{repeatGift.qty}</button>}
+      {repeatGift && !giftOpen && <button type="button" onClick={() => void sendAgain()} className="fixed bottom-24 left-4 z-[135] flex items-center gap-2 rounded-full border border-amber-300/80 bg-gradient-to-r from-[#221332] to-[#805018] px-4 py-3 text-sm font-black text-amber-50 shadow-[0_10px_30px_rgba(0,0,0,.55)] ring-1 ring-amber-100/30"><Gift className="h-5 w-5" />إرسال متتالي ×{repeatGift.qty}</button>}
       <Sheet open={giftOpen} onOpenChange={setGiftOpen}>
         <SheetContent side="bottom" dir="rtl" className="max-h-[80vh] overflow-y-auto rounded-t-3xl">
           <SheetHeader><SheetTitle className="flex justify-between"><span>الهدايا</span><span className="text-primary">🪙 {coins}</span></SheetTitle></SheetHeader>
