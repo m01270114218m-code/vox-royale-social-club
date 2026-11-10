@@ -143,8 +143,8 @@ function AuthPage() {
       if (sessionError) throw sessionError;
       if (current.session?.user) {
         if (current.session.user.is_anonymous) {
-          const { error: deviceError } = await supabase.rpc("register_device", { _device: getDeviceId() });
-          if (deviceError) throw new Error("تعذر التحقق من هذا الجهاز: " + deviceError.message);
+          // This is already the saved anonymous account on this device.
+          // Do not re-register it: register_device may reject a pre-existing device link.
           localStorage.setItem("vox_guest_refresh", current.session.refresh_token);
           localStorage.setItem("vox_guest_account_created", "1");
           localStorage.removeItem("vox_guest_logged_out");
@@ -159,6 +159,8 @@ function AuthPage() {
       if (saved) {
         const { data: restored, error: restoreError } = await supabase.auth.refreshSession({ refresh_token: saved });
         if (!restoreError && restored.session) {
+          // refreshSession proves the saved account; its device link was created
+          // when the account was first registered, so do not register it again.
           localStorage.setItem("vox_guest_refresh", restored.session.refresh_token);
           localStorage.setItem("vox_guest_account_created", "1");
           localStorage.removeItem("vox_guest_logged_out");
