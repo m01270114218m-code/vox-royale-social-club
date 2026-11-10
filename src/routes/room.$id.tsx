@@ -110,7 +110,7 @@ function RoomPage() {
   const [chatMutedUser, setChatMutedUser] = useState(false);
   const [micBlockedUser, setMicBlockedUser] = useState(false);
   const [targetIsModerator, setTargetIsModerator] = useState(false);
-  const [inviteUserSearch, setInviteUserSearch] = useState("");
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exitPrompt, setExitPrompt] = useState(false);
   const [roomMinimized, setRoomMinimized] = useState(false);
@@ -869,58 +869,14 @@ function RoomPage() {
       </form>
 
       <Sheet open={!!seatMenu} onOpenChange={(o) => !o && setSeatMenu(null)}>
-        <SheetContent side="bottom" dir="rtl" className="rounded-t-3xl">
+        <SheetContent side="bottom" dir="rtl" className="!border-0 !bg-transparent !p-0 !shadow-none flex items-end justify-center">
           <SheetHeader><SheetTitle>{seatMenu && seatMenu.seat_index >= 0 ? `المقعد ${seatMenu.seat_index + 1}` : "إدارة المستخدم"}</SheetTitle></SheetHeader>
           {seatMenu && (
             <div className="grid gap-2 p-4">
               {!seatMenu.user_id && !seatMenu.is_locked && <Button onClick={async () => { const { error } = await supabase.rpc("take_seat", { _room: id, _seat: seatMenu.seat_index }); if (error) toast.error(errMsg(error)); else { await syncRoomSeats(); setSeatMenu(null); toast.success("تم الصعود للميك مباشرة"); } }} className="bg-gold">الصعود للميك بنفسك</Button>}
-              {isStaff && seatMenu.seat_index >= 0 && !seatMenu.user_id && (
-                <div className="space-y-2 rounded-xl border border-primary/20 p-3">
-                  <div className="font-bold text-sm">دعوة مستخدم محدد إلى المقعد {seatMenu.seat_index + 1}</div>
-                  <Input value={inviteUserSearch} onChange={(e) => setInviteUserSearch(e.target.value)} placeholder="ابحث باسم المستخدم أو ID" />
-                  <div className="max-h-48 space-y-1 overflow-y-auto">
-                    {members.filter((memberId) => memberId !== uid && memberId !== room?.owner_id && !seats.some((seat) => seat.user_id === memberId))
-                      .filter((memberId) => {
-                        const p = profiles[memberId];
-                        const q = inviteUserSearch.trim().toLowerCase();
-                        return !q || (p?.display_name || "").toLowerCase().includes(q) || String(p?.display_no ?? "").includes(q);
-                      }).map((memberId) => (
-                        <div key={memberId} className="flex items-center justify-between gap-2 rounded-lg bg-secondary/50 p-2">
-                          <span className="min-w-0 truncate text-sm">{profiles[memberId]?.display_name || "مستخدم"} · ID {profiles[memberId]?.display_no ?? "—"}</span>
-                          <Button size="sm" onClick={() => call("staff_invite_to_seat", { _room: id, _seat: seatMenu.seat_index, _user: memberId })}>دعوة لهذا المقعد</Button>
-                        </div>
-                      ))}
-                    {members.filter((memberId) => memberId !== uid && memberId !== room?.owner_id && !seats.some((seat) => seat.user_id === memberId)).length === 0 && <p className="text-xs text-muted-foreground">لا يوجد أعضاء متاحون للدعوة حالياً</p>}
-                  </div>
-                </div>
-              )}
+              {isStaff && seatMenu.seat_index >= 0 && !seatMenu.user_id && <Button variant="outline" onClick={() => setInviteOpen(true)} className="w-full">دعوة مستخدم للمايك</Button>}
               {seatMenu.user_id === uid && <Button variant="outline" onClick={() => call("leave_seat", { _room: id })}>مغادرة المقعد</Button>}
-              {isStaff && (
-                <>
-                  {seatMenu.seat_index >= 0 && <>
-                    <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_locked ? "unlock" : "lock" })}>{seatMenu.is_locked ? "فتح المايك" : "قفل المايك"}</Button>
-                    <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: seatMenu.is_muted ? "unmute" : "mute" })}>{seatMenu.is_muted ? "إلغاء الكتم" : "كتم المايك"}</Button>
-                    {seatMenu.user_id && seatMenu.user_id !== uid && <Button variant="outline" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick_seat" })}>إنزال من المايك</Button>}
-                  </>}
-                  {seatMenu.user_id && (
-                    <>
-                      {((profiles[seatMenu.user_id]?.vip_level ?? 0) < 5 || isOwner) && <>
-                        {seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && (isOwner || !targetIsModerator) && (
-                        <>
-                          <Button variant="outline" onClick={() => call("staff_kick_room_user", { _room: id, _user: seatMenu.user_id })}>طرد من الغرفة</Button>
-                          <Button variant="outline" onClick={() => call("staff_kick_user_24h", { _room: id, _user: seatMenu.user_id })}>طرد لمدة 24 ساعة</Button>
-                          <Button variant="destructive" onClick={() => call("ban_user", { _room: id, _user: seatMenu.user_id })}>حظر دائم</Button>
-                          <Button variant="outline" onClick={() => call("staff_set_chat_mute", { _room: id, _user: seatMenu.user_id, _muted: !chatMutedUser })}>{chatMutedUser ? "إلغاء منع الكتابة" : "منع الكتابة في الشات"}</Button>
-                          {isOwner && <Button variant="outline" onClick={() => call("staff_set_room_moderator", { _room: id, _user: seatMenu.user_id, _enabled: !targetIsModerator })}>{targetIsModerator ? "إلغاء تعيين المشرف" : "تعيين مشرف للغرفة"}</Button>}
-                        </>
-                      )}
-                      </>}
-                      {(profiles[seatMenu.user_id]?.vip_level ?? 0) >= 5 && !isOwner && <div className="rounded-xl border border-gold/40 bg-gold/10 p-2 text-center text-xs font-bold text-gold">🛡️ VIP {profiles[seatMenu.user_id]?.vip_level} — محمي من الكتم والطرد</div>}
-                    </>
-                  )}
-                </>
-              )}
-               {seatMenu.user_id && profiles[seatMenu.user_id] && <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-2xl p-3 text-right text-white" dir="rtl">{seatMenu.user_id && cosmeticUrls[seatMenu.user_id]?.card && <AdminAssetMedia src={cosmeticUrls[seatMenu.user_id]!.card} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
+               {seatMenu.user_id && profiles[seatMenu.user_id] && <div className="relative mx-auto mb-3 w-[min(88vw,340px)] max-w-[340px] overflow-hidden rounded-2xl border border-white/15 bg-black/45 p-3 text-right text-white shadow-2xl backdrop-blur-xl" dir="rtl">{seatMenu.user_id && cosmeticUrls[seatMenu.user_id]?.card && <AdminAssetMedia src={cosmeticUrls[seatMenu.user_id]!.card} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
   <div className="flex items-center gap-3">
     <button type="button" onClick={() => nav({ to: "/u/$id", params: { id: seatMenu.user_id! } })} className="shrink-0 rounded-full"><UserAvatar src={profiles[seatMenu.user_id]?.avatar_url} name={profiles[seatMenu.user_id]?.display_name || "مستخدم"} vip={profiles[seatMenu.user_id]?.vip_level} size={68} frameKey={profiles[seatMenu.user_id]?.equipped_frame} /></button>
     <div className="min-w-0 flex-1">
@@ -936,15 +892,38 @@ function RoomPage() {
     {seatMenu.user_id !== uid && <Button size="sm" variant="outline" onClick={() => void openGifts(seatMenu.user_id!)}><Gift className="h-4 w-4" />هدية</Button>}
     {seatMenu.user_id !== uid && <Button size="sm" variant="outline" onClick={async () => { const { data, error } = await supabase.rpc("get_or_create_conversation", { _other: seatMenu.user_id! }); if (error) toast.error(errMsg(error)); else nav({ to: "/chat/$id", params: { id: data as string } }); }}><MessageCircle className="h-4 w-4" />رسالة</Button>}
   </div>
-  {isStaff && seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && <div className="mt-2 grid grid-cols-4 gap-1 border-t border-primary/10 pt-2">
-    <Button size="sm" variant="outline" title="طرد" onClick={() => call("staff_kick_room_user", { _room: id, _user: seatMenu.user_id! })}><LogOut className="h-4 w-4" /></Button>
-    <Button size="sm" variant="outline" title={micBlockedUser ? "فك كتم المايك" : "كتم المايك"} onClick={() => call("staff_set_mic_access", { _room: id, _user: seatMenu.user_id!, _blocked: !micBlockedUser })}><VolumeX className="h-4 w-4" /></Button>
-    <Button size="sm" variant="outline" title="إنزال من المايك" onClick={() => call("staff_seat_action", { _room: id, _seat: seatMenu.seat_index, _action: "kick_seat" })}><Ban className="h-4 w-4" /></Button>
-    {isOwner && <Button size="sm" variant="outline" title={targetIsModerator ? "إزالة الأدمن" : "إضافة أدمن"} onClick={() => call("staff_set_room_moderator", { _room: id, _user: seatMenu.user_id!, _enabled: !targetIsModerator })}><UserPlus className="h-4 w-4" /></Button>}
+  {isStaff && seatMenu.user_id !== uid && seatMenu.user_id !== room.owner_id && <div className="mt-3 flex items-center justify-center gap-3 border-t border-white/15 pt-3">
+    <button type="button" title="طرد من الغرفة" aria-label="طرد من الغرفة" className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-red-300" onClick={() => call("staff_kick_room_user", { _room: id, _user: seatMenu.user_id! })}><LogOut className="h-5 w-5" /></button>
+    <button type="button" title={micBlockedUser ? "فك كتم المايك" : "كتم المايك"} aria-label={micBlockedUser ? "فك كتم المايك" : "كتم المايك"} className="grid h-10 w-10 place-items-center rounded-full bg-white/10" onClick={() => call("staff_set_mic_access", { _room: id, _user: seatMenu.user_id!, _blocked: !micBlockedUser })}><VolumeX className="h-5 w-5" /></button>
+    <button type="button" title={chatMutedUser ? "السماح بالكتابة" : "منع الكتابة"} aria-label={chatMutedUser ? "السماح بالكتابة" : "منع الكتابة"} className="grid h-10 w-10 place-items-center rounded-full bg-white/10" onClick={() => call("staff_set_chat_mute", { _room: id, _user: seatMenu.user_id!, _muted: !chatMutedUser })}><MessageCircle className="h-5 w-5" /></button>
+    {isOwner && <button type="button" title={targetIsModerator ? "إزالة الأدمن" : "تعيين أدمن"} aria-label={targetIsModerator ? "إزالة الأدمن" : "تعيين أدمن"} className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-amber-200" onClick={() => call("staff_set_room_moderator", { _room: id, _user: seatMenu.user_id!, _enabled: !targetIsModerator })}><Shield className="h-5 w-5" /></button>}
   </div>}
 </div></div>}
             </div>
           )}
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={inviteOpen} onOpenChange={setInviteOpen}>
+        <SheetContent side="bottom" dir="rtl" className="max-h-[60vh] rounded-t-3xl">
+          <SheetHeader><SheetTitle>دعوة مشاهد للمايك</SheetTitle></SheetHeader>
+          <div className="max-h-[45vh] space-y-2 overflow-y-auto p-3">
+            {members.filter((memberId) => memberId !== uid && memberId !== room?.owner_id && !seats.some((seat) => seat.user_id === memberId)).map((memberId) => (
+              <div key={memberId} className="flex items-center gap-3 rounded-xl bg-secondary/60 p-2">
+                <UserAvatar src={profiles[memberId]?.avatar_url} name={profiles[memberId]?.display_name || "مستخدم"} vip={profiles[memberId]?.vip_level} size={42} frameKey={profiles[memberId]?.equipped_frame} />
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">{profiles[memberId]?.display_name || "مستخدم"}</span>
+                <Button size="sm" onClick={async () => {
+                  if (seatMenu?.seat_index != null && seatMenu.seat_index >= 0) {
+                    await call("staff_invite_to_seat", { _room: id, _seat: seatMenu.seat_index, _user: memberId });
+                  } else {
+                    await call("staff_invite_to_mic", { _room: id, _user: memberId });
+                  }
+                  setInviteOpen(false);
+                }}>دعوة</Button>
+              </div>
+            ))}
+            {members.filter((memberId) => memberId !== uid && memberId !== room?.owner_id && !seats.some((seat) => seat.user_id === memberId)).length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">لا يوجد مشاهدون متاحون للدعوة حاليًا</p>}
+          </div>
         </SheetContent>
       </Sheet>
 
