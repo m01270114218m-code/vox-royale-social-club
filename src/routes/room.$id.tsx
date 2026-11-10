@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { catName, errMsg, flagOf } from "@/lib/vox";
 import { getAdminAssetUrl, isVideoAsset, useMedia } from "@/lib/media";
-import { RoomVoice } from "@/components/RoomVoice";
 import { AppShell } from "@/components/AppShell";
 import { HomeScreen } from "./index";
 
@@ -127,8 +126,8 @@ function RoomPage() {
         }
       } catch { /* ignore an invalid minimized-room marker */ }
     };
-    window.addEventListener("vox-room-restore", restore);
-    return () => window.removeEventListener("vox-room-restore", restore);
+    window.addEventListener("vox-room-restored", restore);
+    return () => window.removeEventListener("vox-room-restored", restore);
   }, [id]);
   const [isLeavingRoom, setIsLeavingRoom] = useState(false);
   const [following, setFollowing] = useState(false);
@@ -475,6 +474,9 @@ function RoomPage() {
       let isMinimized = false;
       try { const mini = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string } | null; isMinimized = mini?.id === id; } catch { /* invalid marker: leave normally */ }
       if (!isMinimized) {
+        localStorage.removeItem("vox_active_room");
+        localStorage.removeItem("vox_minimized_room_id");
+        window.dispatchEvent(new Event("vox-room-closed"));
         // Defer leaving so a quick remount/reconnect cannot remove the fresh membership.
         const timer = setTimeout(() => {
           pendingRoomLeaves.delete(id);
@@ -510,6 +512,22 @@ function RoomPage() {
   const mySeat = seats.find((s) => s.user_id === uid);
   const handleSpeakingUsers = useCallback((users: string[]) => setSpeakingUsers(users), []);
   const myMicEnabled = !!mySeat && !mySeat.is_muted && !isLeavingRoom;
+
+  // A single RoomVoice instance lives in the root controller. Route changes and
+  // minimizing the room therefore never unmount/recreate the Agora client.
+  useEffect(() => {
+    if (!room?.id || !uid) return;
+    const snapshot = {
+      id: room.id,
+      name: room.name,
+      cover: room.cover_url ?? null,
+      micEnabled: myMicEnabled && micPermissionGranted,
+    };
+    localStorage.setItem("vox_active_room", JSON.stringify(snapshot));
+    window.dispatchEvent(new CustomEvent("vox-room-session", {
+      detail: { ...snapshot, members, musicFile, musicCommand },
+    }));
+  }, [room?.id, room?.name, room?.cover_url, uid, myMicEnabled, micPermissionGranted, members, musicFile, musicCommand]);
 
   const roomLive = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -732,7 +750,7 @@ function RoomPage() {
   const visibleGifts = giftCategory === "all" ? gifts : gifts.filter((gift) => gift.category_id === giftCategory);
 
   return (
-    <>{!roomMinimized && <RoomVoice roomId={id} uid={uid} members={members} micEnabled={myMicEnabled && micPermissionGranted} musicFile={musicFile} musicCommand={musicCommand} onMusicProgress={onMusicProgress} onSpeakingUsers={handleSpeakingUsers} />}
+    <>
 
     <input id="room-music-file" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.flac" multiple className="hidden" onChange={(e) => {
       const files = Array.from(e.target.files ?? []);
@@ -962,7 +980,9 @@ function RoomPage() {
             <Button variant="destructive" className="w-full" disabled={isLeavingRoom} onClick={async () => {
               setIsLeavingRoom(true);
               localStorage.removeItem("vox_minimized_room");
-              window.dispatchEvent(new Event("vox-room-minimized"));
+              localStorage.removeItem("vox_active_room");
+              localStorage.removeItem("vox_minimized_room_id");
+              window.dispatchEvent(new Event("vox-room-closed"));
               setExitPrompt(false);
               // Free the mic seat before removing room membership.
               const { error: seatError } = await supabase.rpc("leave_seat", { _room: id });
