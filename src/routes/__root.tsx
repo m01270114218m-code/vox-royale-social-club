@@ -134,61 +134,113 @@ function RootComponent() {
 }
 
 
+type ActiveRoomState = {
+  id: string;
+  name: string;
+  cover?: string | null;
+  micEnabled?: boolean;
+  minimized: boolean;
+  members: string[];
+  musicFile?: File | null;
+  musicCommand?: { id: number; action: "pause" | "resume" | "seek" | "volume"; value?: number } | null;
+};
+
 function MiniRoomController() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [active, setActive] = useState<{ id: string; name: string; cover?: string | null; micEnabled?: boolean } | null>(null);
-  const [members, setMembers] = useState<string[]>([]);
+  const [active, setActive] = useState<ActiveRoomState | null>(null);
 
   useEffect(() => {
     const read = () => {
       try {
         const raw = localStorage.getItem("vox_active_room");
-        const minimized = localStorage.getItem("vox_minimized_room_id");
-        if (!raw || !minimized) {
-          setActive(null);
-          return;
-        }
+        if (!raw) { setActive(null); return; }
         const parsed = JSON.parse(raw) as { id: string; name: string; cover?: string | null; micEnabled?: boolean };
-        if (parsed.id !== minimized) {
-          setActive(null);
-          return;
-        }
-        setActive(parsed);
-      } catch {
-        setActive(null);
-      }
+        if (!parsed.id) { setActive(null); return; }
+        const minimized = localStorage.getItem("vox_minimized_room_id") === parsed.id
+          || !window.location.pathname.startsWith(`/room/${parsed.id}`);
+        setActive((current) => ({
+          ...parsed,
+          minimized,
+          members: current?.id === parsed.id ? current.members : [],
+          musicFile: current?.id === parsed.id ? current.musicFile : null,
+          musicCommand: current?.id === parsed.id ? current.musicCommand : null,
+        }));
+      } catch { setActive(null); }
     };
-    read();
+    const onSession = (event: Event) => {
+      const detail = (event as CustomEvent<Partial<ActiveRoomState>>).detail;
+      if (!detail?.id || !detail.name) return;
+      const persisted = { id: detail.id, name: detail.name, cover: detail.cover ?? null, micEnabled: !!detail.micEnabled };
+      localStorage.setItem("vox_active_room", JSON.stringify(persisted));
+      setActive((current) => ({
+        ...persisted,
+        minimized: localStorage.getItem("vox_minimized_room_id") === detail.id,
+        members: detail.members ?? current?.members ?? [],
+        musicFile: detail.musicFile === undefined ? current?.musicFile ?? null : detail.musicFile,
+        musicCommand: detail.musicCommand === undefined ? current?.musicCommand ?? null : detail.musicCommand,
+      }));
+    };
     const onMin = () => read();
+    const onRestore = () => {
+      localStorage.removeItem("vox_minimized_room_id");
+      localStorage.removeItem("vox_minimized_room");
+      setActive((current) => current ? { ...current, minimized: false } : current);
+    };
     const onClose = () => {
       localStorage.removeItem("vox_active_room");
       localStorage.removeItem("vox_minimized_room_id");
+      localStorage.removeItem("vox_minimized_room");
       setActive(null);
     };
+    read();
+    window.addEventListener("vox-room-session", onSession);
     window.addEventListener("vox-room-minimized", onMin);
+    window.addEventListener("vox-room-restored", onRestore);
     window.addEventListener("vox-room-closed", onClose);
     return () => {
+      window.removeEventListener("vox-room-session", onSession);
       window.removeEventListener("vox-room-minimized", onMin);
+      window.removeEventListener("vox-room-restored", onRestore);
       window.removeEventListener("vox-room-closed", onClose);
     };
   }, []);
 
   useEffect(() => {
-    if (!active?.id) return;
+    if (!active?.id || !user?.id) return;
     let alive = true;
-    void supabase.from("room_members").select("user_id").eq("room_id", active.id).then(({ data }) => {
-      if (alive) setMembers((data ?? []).map((row) => row.user_id));
-    });
-    return () => { alive = false; };
-  }, [active?.id]);
+    const refreshRoomState = async () => {
+      const { data: membership, error: memberError } = await supabase.from("room_members")
+        .select("user_id").eq("room_id", active.id).eq("user_id", user.id).maybeSingle();
+      if (!alive || memberError) return;
+      if (!membership) {
+        localStorage.removeItem("vox_active_room");
+        localStorage.removeItem("vox_minimized_room_id");
+        localStorage.removeItem("vox_minimized_room");
+        setActive(null);
+        return;
+      }
+      const { data: seat } = await supabase.from("room_seats").select("user_id,is_muted")
+        .eq("room_id", active.id).eq("user_id", user.id).maybeSingle();
+      if (!alive) return;
+      setActive((current) => current?.id === active.id
+        ? { ...current, micEnabled: !!seat && !seat.is_muted }
+        : current);
+    };
+    void refreshRoomState();
+    const channel = supabase.channel(`persistent-room-${active.id}-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_members", filter: `room_id=eq.${active.id}` }, () => { void refreshRoomState(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_seats", filter: `room_id=eq.${active.id}` }, () => { void refreshRoomState(); })
+      .subscribe();
+    return () => { alive = false; void supabase.removeChannel(channel); };
+  }, [active?.id, user?.id]);
 
   if (!active || !user?.id) return null;
 
   const restore = () => {
     localStorage.removeItem("vox_minimized_room_id");
-    localStorage.removeItem("vox_active_room");
-    setActive(null);
+    localStorage.removeItem("vox_minimized_room");
+    setActive((current) => current ? { ...current, minimized: false } : current);
     window.dispatchEvent(new CustomEvent("vox-room-restored"));
     void navigate({ to: "/room/$id", params: { id: active.id } });
   };
@@ -199,11 +251,13 @@ function MiniRoomController() {
         <MiniRoomVoice
           roomId={active.id}
           uid={user.id}
-          members={members}
+          members={active.members}
           micEnabled={!!active.micEnabled}
+          musicFile={active.musicFile ?? null}
+          musicCommand={active.musicCommand ?? null}
         />
       </Suspense>
-      <button
+      {active.minimized && <button
         type="button"
         onClick={restore}
         aria-label={`العودة إلى غرفة ${active.name}`}
@@ -216,7 +270,7 @@ function MiniRoomController() {
           <span className="text-2xl">🎙️</span>
         )}
         <span className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full bg-gold px-1.5 py-0.5 text-[9px] font-black text-black">الغرفة</span>
-      </button>
+      </button>}
     </>
   );
 }
