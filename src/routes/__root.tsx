@@ -131,26 +131,50 @@ function RootComponent() {
     let active = true;
     let appUrlListener: { remove: () => Promise<void> } | undefined;
 
+    // Android may deliver the same callback through both appUrlOpen and
+    // getLaunchUrl. Lock each authorization code so it is exchanged only once.
+    const inFlightOAuthCodes = new Set<string>();
+    const completedOAuthCodes = new Set<string>();
+
     const completeGoogleOAuth = async (url: string) => {
-      if (!url.startsWith("com.voxroyale.app://auth/callback")) return;
-      const callbackUrl = new URL(url);
+      let callbackUrl: URL;
+      try {
+        callbackUrl = new URL(url);
+      } catch {
+        return;
+      }
+      if (
+        callbackUrl.protocol !== "com.voxroyale.app:" ||
+        callbackUrl.hostname !== "auth" ||
+        callbackUrl.pathname !== "/callback"
+      ) return;
+
       const authCode = callbackUrl.searchParams.get("code");
       if (!authCode) {
-        console.error("[Google OAuth] Callback did not include an authorization code:", callbackUrl.searchParams.get("error_description"));
+        const oauthError = callbackUrl.searchParams.get("error_description") || callbackUrl.searchParams.get("error");
+        console.error("[Google OAuth] Callback did not include an authorization code:", oauthError);
         await Browser.close().catch(() => undefined);
-        void navigate({ to: "/auth", replace: true });
+        if (active) void navigate({ to: "/auth", replace: true });
         return;
       }
-      const { error } = await supabase.auth.exchangeCodeForSession(authCode);
-      if (!active) return;
-      if (error) {
-        console.error("[Google OAuth] Callback exchange failed:", error.message);
+      if (completedOAuthCodes.has(authCode) || inFlightOAuthCodes.has(authCode)) return;
+
+      inFlightOAuthCodes.add(authCode);
+      try {
+        const { error } = await supabase.auth.exchangeCodeForSession(authCode);
+        if (!active) return;
+        if (error) {
+          console.error("[Google OAuth] Callback exchange failed:", error.message);
+          await Browser.close().catch(() => undefined);
+          void navigate({ to: "/auth", replace: true });
+          return;
+        }
+        completedOAuthCodes.add(authCode);
         await Browser.close().catch(() => undefined);
-        void navigate({ to: "/auth", replace: true });
-        return;
+        if (active) void navigate({ to: "/", replace: true });
+      } finally {
+        inFlightOAuthCodes.delete(authCode);
       }
-      await Browser.close().catch(() => undefined);
-      void navigate({ to: "/", replace: true });
     };
 
     void App.addListener("appUrlOpen", ({ url }) => { void completeGoogleOAuth(url); })
