@@ -32,8 +32,8 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           bun --version
           bun install
-          # AppShell imports the Capacitor App plugin; install it in CI just like the Android workflow.
-          bun add @capacitor/app@latest
+          # The app shell uses Capacitor App + Browser for native OAuth deep links.
+          bun add @capacitor/core@latest @capacitor/app@latest @capacitor/browser@latest
           export NITRO_PRESET=render-com
           bun run build
           test -s .output/server/index.mjs
