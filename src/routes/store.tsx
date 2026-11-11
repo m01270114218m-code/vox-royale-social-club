@@ -36,7 +36,7 @@ const PACKS = [
   { coins: 350000, price: "$49.99" },
 ];
 
-type StoreItem = { id: string; kind: string; name: string; description: string | null; price: number; asset_key: string; asset_url?: string | null };
+type StoreItem = { id: string; kind: string; name: string; description: string | null; price: number; asset_key: string; is_direct_grant?: boolean; asset_url?: string | null };
 
 function StorePage() {
   const { user } = useAuth();
@@ -58,7 +58,7 @@ function StorePage() {
     (async () => {
       const [{ data: p }, { data: si }, { data: ui }] = await Promise.all([
         supabase.from("profiles").select("equipped_frame, equipped_entry, chat_bubble_asset_key, sound_wave_asset_key, profile_card_asset_key").eq("id", user!.id).single(),
-        supabase.from("store_items").select("id, kind, name, description, price, asset_key").order("sort_order"),
+        supabase.from("store_items").select("id, kind, name, description, price, asset_key, is_direct_grant").eq("is_direct_grant", false).order("sort_order"),
         supabase.from("user_items").select("item_id").eq("user_id", user!.id),
       ]);
       setEquippedFrame(p?.equipped_frame ?? null);
