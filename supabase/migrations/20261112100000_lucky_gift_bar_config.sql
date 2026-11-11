@@ -19,3 +19,12 @@ drop policy if exists lucky_gift_bar_admin_write on public.lucky_gift_bar_config
 create policy lucky_gift_bar_admin_write on public.lucky_gift_bar_config for all to authenticated
 using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
 grant select, insert, update on public.lucky_gift_bar_config to authenticated;
+
+do $$
+begin
+  begin
+    alter publication supabase_realtime add table public.lucky_gift_bar_config;
+  exception when duplicate_object then
+    null;
+  end;
+end $$;
