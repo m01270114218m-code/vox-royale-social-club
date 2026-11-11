@@ -600,6 +600,7 @@ function GiftsTab() {
   const [categories, setCategories] = useState<GiftCategory[]>([]);
   const [categoryName, setCategoryName] = useState("");
   const [categoryMode, setCategoryMode] = useState<"static" | "animated">("static");
+  const [luckyBar, setLuckyBar] = useState({ enabled: true, position: "top", duration_ms: "5200", width_px: "390", gift_size_px: "56", show_name: true });
   const [form, setForm] = useState({ name: "", emoji: "🎁", price_coins: "100", asset_url: "", category_id: "", animation_style: "zoom", animation_speed: "1", display_duration_ms: "2600" });
   async function load() {
     const [{ data, error }, { data: gifts, error: catalogError }, { data: lucky, error: luckyError }, { data: cats, error: categoryError }] = await Promise.all([
@@ -608,6 +609,8 @@ function GiftsTab() {
       supabase.from("lucky_gifts").select("id,name,asset_key,price,win_chance,min_reward,max_reward,active").order("sort_order").order("price"),
       supabase.from("gift_categories").select("id,name,display_mode,sort_order,is_active").order("sort_order"),
     ]);
+    const { data: barConfig, error: barError } = await supabase.from("lucky_gift_bar_config").select("enabled,position,duration_ms,width_px,gift_size_px,show_name").eq("id", true).maybeSingle();
+    if (barError) toast.error(errMsg(barError));
     if (error) toast.error(errMsg(error));
     if (catalogError) toast.error(errMsg(catalogError));
     if (luckyError) toast.error(errMsg(luckyError));
@@ -616,6 +619,29 @@ function GiftsTab() {
     setCatalog((gifts as GiftCatalog[]) ?? []);
     setLuckyRows((lucky as typeof luckyRows) ?? []);
     setCategories((cats as GiftCategory[]) ?? []);
+    if (barConfig) setLuckyBar({
+      enabled: barConfig.enabled !== false,
+      position: barConfig.position ?? "top",
+      duration_ms: String(barConfig.duration_ms ?? 5200),
+      width_px: String(barConfig.width_px ?? 390),
+      gift_size_px: String(barConfig.gift_size_px ?? 56),
+      show_name: barConfig.show_name !== false,
+    });
+  }
+  async function saveLuckyBar() {
+    const payload = {
+      id: true,
+      enabled: luckyBar.enabled,
+      position: luckyBar.position,
+      duration_ms: Number(luckyBar.duration_ms),
+      width_px: Number(luckyBar.width_px),
+      gift_size_px: Number(luckyBar.gift_size_px),
+      show_name: luckyBar.show_name,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("lucky_gift_bar_config").upsert(payload);
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تم حفظ إعدادات شريط هدايا الحظ");
   }
   useEffect(() => { load(); }, []);
   useAdminRealtime(["gifts", "gift_transactions", "gift_categories"], load);
@@ -681,6 +707,19 @@ function GiftsTab() {
           <div className="flex flex-wrap items-center gap-1"><select aria-label="قسم الهدية" className="max-w-28 rounded-md border border-input bg-input p-1 text-xs" value={g.category_id ?? ""} onChange={async e=>{const {error}=await supabase.from("gifts").update({category_id:e.target.value||null}).eq("id",g.id);if(error)toast.error(errMsg(error));else load();}}><option value="">بدون قسم</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select aria-label="حركة الهدية" className="rounded-md border border-input bg-input p-1 text-xs" value={g.animation_style||"zoom"} onChange={async e=>{const {error}=await supabase.from("gifts").update({animation_style:e.target.value}).eq("id",g.id);if(error)toast.error(errMsg(error));else load();}}><option value="zoom">تكبير</option><option value="slide">انزلاق</option><option value="float">طفو</option><option value="pulse">نبض</option></select><select aria-label="سرعة الهدية" className="rounded-md border border-input bg-input p-1 text-xs" value={String(g.animation_speed??1)} onChange={async e=>{const {error}=await supabase.from("gifts").update({animation_speed:Number(e.target.value)}).eq("id",g.id);if(error)toast.error(errMsg(error));else load();}}><option value="0.5">بطيئة</option><option value="0.75">أقل</option><option value="1">طبيعية</option><option value="1.5">سريعة</option><option value="2">سريعة جدًا</option></select><Input aria-label="مدة العرض بالمللي ثانية" className="w-24" type="number" min="500" max="20000" step="500" value={String(g.display_duration_ms??2600)} onChange={e=>setCatalog(prev=>prev.map(x=>x.id===g.id?{...x,display_duration_ms:Number(e.target.value)}:x))} onBlur={async e=>{const n=Math.max(500,Math.min(20000,Number(e.target.value)||2600));const {error}=await supabase.from("gifts").update({display_duration_ms:n}).eq("id",g.id);if(error)toast.error(errMsg(error));else load();}}/><Button size="sm" variant="outline" onClick={() => toggleGift(g)}>{g.active ? "إيقاف" : "تفعيل"}</Button><Button size="sm" variant="destructive" onClick={() => deleteGift(g)}>حذف</Button></div>
         </div>
       ))}
+      <section className="glass space-y-3 rounded-2xl p-4">
+        <b>تخصيص شريط هدايا الحظ</b>
+        <p className="text-xs text-muted-foreground">يظهر فقط أصل الهدية واسمها بدون رموز أو نسبة حظ أو سعر أو نصوص إضافية.</p>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-xs text-muted-foreground">التفعيل<select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={luckyBar.enabled ? "on" : "off"} onChange={e=>setLuckyBar({...luckyBar,enabled:e.target.value==="on"})}><option value="on">مفعل</option><option value="off">مخفي</option></select></label>
+          <label className="text-xs text-muted-foreground">الموضع<select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={luckyBar.position} onChange={e=>setLuckyBar({...luckyBar,position:e.target.value})}><option value="top">أعلى الشاشة</option><option value="center">منتصف الشاشة</option><option value="bottom">أسفل الشاشة</option></select></label>
+          <Input type="number" min="1500" max="15000" step="100" placeholder="مدة العرض ms" value={luckyBar.duration_ms} onChange={e=>setLuckyBar({...luckyBar,duration_ms:e.target.value})}/>
+          <Input type="number" min="220" max="700" placeholder="عرض الشريط px" value={luckyBar.width_px} onChange={e=>setLuckyBar({...luckyBar,width_px:e.target.value})}/>
+          <Input type="number" min="32" max="140" placeholder="حجم الهدية px" value={luckyBar.gift_size_px} onChange={e=>setLuckyBar({...luckyBar,gift_size_px:e.target.value})}/>
+          <label className="flex items-center gap-2 rounded-md border border-input bg-input px-3 py-2 text-sm"><input type="checkbox" checked={luckyBar.show_name} onChange={e=>setLuckyBar({...luckyBar,show_name:e.target.checked})}/> عرض اسم الهدية</label>
+        </div>
+        <Button className="bg-gold" onClick={() => void saveLuckyBar()}>حفظ تخصيص الشريط</Button>
+      </section>
       <section className="glass space-y-3 rounded-2xl p-4"><b>هدايا الحظ — تحكم كامل في نسبة الفوز والمردود</b><div className="grid grid-cols-2 gap-2"><Input placeholder="اسم الهدية" value={luckyForm.name} onChange={e=>setLuckyForm({...luckyForm,name:e.target.value})}/><Input dir="ltr" placeholder="asset_key" value={luckyForm.asset_key} onChange={e=>setLuckyForm({...luckyForm,asset_key:e.target.value})}/><Input type="number" placeholder="السعر" value={luckyForm.price} onChange={e=>setLuckyForm({...luckyForm,price:e.target.value})}/><Input type="number" min="0" max="100" step="0.01" placeholder="نسبة الحظ %" value={luckyForm.win_chance} onChange={e=>setLuckyForm({...luckyForm,win_chance:e.target.value})}/><Input type="number" min="0" placeholder="أقل مردود" value={luckyForm.min_reward} onChange={e=>setLuckyForm({...luckyForm,min_reward:e.target.value})}/><Input type="number" min="0" placeholder="أعلى مردود" value={luckyForm.max_reward} onChange={e=>setLuckyForm({...luckyForm,max_reward:e.target.value})}/></div><Button className="bg-gold" onClick={async()=>{const {error}=await supabase.from("lucky_gifts").insert({name:luckyForm.name.trim(),asset_key:luckyForm.asset_key.trim()||null,price:Number(luckyForm.price),win_chance:Number(luckyForm.win_chance),min_reward:Number(luckyForm.min_reward),max_reward:Number(luckyForm.max_reward),active:true}); if(error) toast.error(errMsg(error)); else {toast.success("تم حفظ هدية الحظ");setLuckyForm({name:"",asset_key:"",price:"1000",win_chance:"10",min_reward:"0",max_reward:"5000"});load();}}}>إضافة هدية حظ</Button>{luckyRows.map(g=><div key={g.id} className="rounded-xl border border-gold/20 p-3 text-sm"><div className="flex items-center justify-between gap-2"><b>{g.name}</b><span className="text-gold">{g.win_chance}%</span></div><div className="mt-1 text-xs text-muted-foreground">السعر {Number(g.price).toLocaleString()} · المردود {Number(g.min_reward).toLocaleString()}–{Number(g.max_reward).toLocaleString()}</div><div className="mt-2 flex gap-2"><Button size="sm" variant="outline" onClick={async()=>{const {error}=await supabase.from("lucky_gifts").update({active:!g.active}).eq("id",g.id);if(error)toast.error(errMsg(error));else load();}}>{g.active?"إيقاف":"تفعيل"}</Button><Button size="sm" variant="destructive" onClick={async()=>{if(!confirm("حذف هدية الحظ؟"))return;const {error}=await supabase.from("lucky_gifts").delete().eq("id",g.id);if(error)toast.error(errMsg(error));else load();}}>حذف</Button></div></div>)}</section>
       <div className="border-t border-border pt-3"><b>سجل إرسال الهدايا</b></div>
       {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد معاملات</p>}
