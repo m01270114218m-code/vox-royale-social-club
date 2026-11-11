@@ -79,7 +79,7 @@ function UserPage() {
       let likeCount = 0;
       const postIds = (userPosts.data ?? []).map((r) => r.id);
       if (postIds.length) {
-        const { count } = await supabase.from("post_likes").select("id", { count: "exact", head: true }).in("post_id", postIds);
+        const { count } = await supabase.from("post_likes").select("post_id", { count: "exact", head: true }).in("post_id", postIds);
         likeCount = count ?? 0;
       }
       setStats({ followers: a.count ?? 0, friends: friendCount, posts: c.count ?? 0, likes: likeCount, support: Number(data?.support_xp ?? 0) });
