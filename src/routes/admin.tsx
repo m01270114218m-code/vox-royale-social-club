@@ -849,7 +849,7 @@ function AssetsTab() {
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [voiceConfig, setVoiceConfig] = useState({ mic_asset_key: "", muted_asset_key: "", effect_asset_key: "", show_mic_effect: true, seat_gap_px: "20" });
+  const [voiceConfig, setVoiceConfig] = useState({ mic_asset_key: "", muted_asset_key: "", locked_asset_key: "", effect_asset_key: "", show_mic_effect: true, seat_gap_px: "20", avatar_size_px: "72", mic_icon_size_px: "28" });
   const [voiceSaving, setVoiceSaving] = useState(false);
 
   async function loadVoiceControls() {
@@ -859,20 +859,27 @@ function AssetsTab() {
     setVoiceConfig({
       mic_asset_key: String(cfg.mic_asset_key ?? ""),
       muted_asset_key: String(cfg.muted_asset_key ?? ""),
+      locked_asset_key: String(cfg.locked_asset_key ?? ""),
       effect_asset_key: String(cfg.effect_asset_key ?? ""),
       show_mic_effect: cfg.show_mic_effect !== false,
       seat_gap_px: String(Math.max(0, Math.min(80, Number(cfg.seat_gap_px ?? 20)))),
+      avatar_size_px: String(Math.max(40, Math.min(120, Number(cfg.avatar_size_px ?? 72)))),
+      mic_icon_size_px: String(Math.max(16, Math.min(48, Number(cfg.mic_icon_size_px ?? 28)))),
     });
   }
 
   async function saveVoiceControls() {
     const gap = Number(voiceConfig.seat_gap_px);
+    const avatarSize = Number(voiceConfig.avatar_size_px);
+    const micIconSize = Number(voiceConfig.mic_icon_size_px);
     if (!Number.isFinite(gap) || gap < 0 || gap > 80) { toast.error("المسافة بين الميكات يجب أن تكون من 0 إلى 80 بكسل"); return; }
+    if (!Number.isInteger(avatarSize) || avatarSize < 40 || avatarSize > 120) { toast.error("حجم صورة المستخدم يجب أن يكون من 40 إلى 120 بكسل"); return; }
+    if (!Number.isInteger(micIconSize) || micIconSize < 16 || micIconSize > 48) { toast.error("حجم علامة الميك يجب أن يكون من 16 إلى 48 بكسل"); return; }
     setVoiceSaving(true);
     const { data: auth } = await supabase.auth.getUser();
     const { error } = await supabase.from("admin_settings").upsert({
       key: "voice_controls",
-      value: { ...voiceConfig, seat_gap_px: gap } as never,
+      value: { ...voiceConfig, seat_gap_px: gap, avatar_size_px: avatarSize, mic_icon_size_px: micIconSize } as never,
       updated_at: new Date().toISOString(),
       updated_by: auth.user?.id ?? null,
     });
@@ -1146,6 +1153,12 @@ function AssetsTab() {
               {rows.filter(a => a.category === "mic" && a.is_active).map(a => <option key={a.asset_key} value={a.asset_key}>{a.name} · {a.asset_key}</option>)}
             </select>
           </label>
+          <label className="space-y-1 text-xs"><span>شكل الميك المقفول</span>
+            <select className="w-full rounded-md border border-input bg-input px-3 py-2" value={voiceConfig.locked_asset_key} onChange={(e) => setVoiceConfig(v => ({ ...v, locked_asset_key: e.target.value }))}>
+              <option value="">الشكل الافتراضي للمقعد المقفول</option>
+              {rows.filter(a => a.category === "mic" && a.is_active).map(a => <option key={a.asset_key} value={a.asset_key}>{a.name} · {a.asset_key}</option>)}
+            </select>
+          </label>
           <label className="space-y-1 text-xs sm:col-span-2"><span>تأثير الميك أثناء التحدث</span>
             <select className="w-full rounded-md border border-input bg-input px-3 py-2" value={voiceConfig.effect_asset_key} onChange={(e) => setVoiceConfig(v => ({ ...v, effect_asset_key: e.target.value }))}>
               <option value="">بدون تأثير إضافي</option>
@@ -1153,6 +1166,8 @@ function AssetsTab() {
             </select>
           </label>
           <label className="space-y-1 text-xs"><span>المسافة بين الميكات (بكسل)</span><Input type="number" min="0" max="80" value={voiceConfig.seat_gap_px} onChange={(e) => setVoiceConfig(v => ({ ...v, seat_gap_px: e.target.value }))} /></label>
+          <label className="space-y-1 text-xs"><span>حجم صورة المستخدم مع الإطار (40–120 px)</span><Input type="number" min="40" max="120" value={voiceConfig.avatar_size_px} onChange={(e) => setVoiceConfig(v => ({ ...v, avatar_size_px: e.target.value }))} /></label>
+          <label className="space-y-1 text-xs"><span>حجم علامة الميك (16–48 px)</span><Input type="number" min="16" max="48" value={voiceConfig.mic_icon_size_px} onChange={(e) => setVoiceConfig(v => ({ ...v, mic_icon_size_px: e.target.value }))} /></label>
           <label className="flex items-center gap-2 self-end pb-2 text-xs"><input type="checkbox" checked={voiceConfig.show_mic_effect} onChange={(e) => setVoiceConfig(v => ({ ...v, show_mic_effect: e.target.checked }))} /> إظهار تأثير التحدث</label>
         </div>
         <Button className="w-full bg-gold" disabled={voiceSaving} onClick={() => void saveVoiceControls()}>{voiceSaving ? "جارٍ الحفظ…" : "حفظ إعدادات الميكات"}</Button>
