@@ -56,6 +56,7 @@ function AdminPage() {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [isSuper, setIsSuper] = useState(false);
   const [hasAdminRole, setHasAdminRole] = useState(false);
+  const [sectionPermissions, setSectionPermissions] = useState<string[]>([]);
   const [stats, setStats] = useState<Record<string, number> | null>(null);
   const [tab, setTab] = useState<Tab>("reports");
 
@@ -68,6 +69,11 @@ function AdminPage() {
       supabase.rpc("has_role", { _user_id: user.id, _role: "super_admin" }),
     ]);
     setAllowed(access === true);
+    if (access === true && !superRole) {
+      const { data: sectionData, error: sectionError } = await supabase.rpc("my_admin_permissions");
+      if (sectionError) toast.error(errMsg(sectionError));
+      setSectionPermissions((sectionData as string[] | null) ?? []);
+    } else if (superRole) { setSectionPermissions(["*"]); } else { setSectionPermissions([]); }
     setHasAdminRole(!!adminRole || !!moderatorRole || !!superRole);
     setIsSuper(!!superRole);
     if (access === true) {
@@ -128,6 +134,14 @@ function AdminPage() {
     { id: "analytics", label: "التحليلات", icon: BarChart3 },
     { id: "audit", label: "سجل الإجراءات", icon: ScrollText },
   ];
+  const sectionKey: Record<Tab, string> = {
+    reports: "section_reports", rooms: "section_rooms", seats: "section_seats", posts: "section_posts",
+    users: "section_users", wallet: "section_wallet", gifts: "section_gifts", vip: "section_vip",
+    store: "section_store", assets: "section_assets", banners: "section_banners",
+    notifications: "section_notifications", roles: "section_roles", settings: "section_settings",
+    app_builder: "section_app_builder", analytics: "section_analytics", audit: "section_audit",
+  };
+  const visibleTabs = isSuper ? tabs : tabs.filter((item) => sectionPermissions.includes(sectionKey[item.id]));
   // Keep dashboard cards aligned with the keys returned by public.admin_stats().
   const statLabels: Record<string, string> = {
     users: "المستخدمون",
@@ -167,30 +181,30 @@ function AdminPage() {
         </div>
       )}
       <div className="mt-4 flex gap-2 overflow-x-auto">
-        {tabs.map((t) => (
+        {visibleTabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-1 whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab === t.id ? "bg-gold" : "glass"}`}>
             <t.icon className="h-4 w-4" />{t.label}
           </button>
         ))}
       </div>
       <div className="mt-4">
-        {tab === "reports" && <Reports />}
-        {tab === "rooms" && <Rooms />}
-        {tab === "seats" && <SeatsTab />}
-        {tab === "posts" && <Posts />}
-        {tab === "users" && <UsersTab isSuper={isSuper} />}
-        {tab === "wallet" && <WalletTab />}
-        {tab === "gifts" && <GiftsTab />}
-        {tab === "vip" && <VipTab />}
-        {tab === "store" && <StoreTab />}
-        {tab === "assets" && <AssetsTab />}
-        {tab === "banners" && <BannersTab />}
-        {tab === "notifications" && <NotificationsTab />}
-        {tab === "roles" && <AdminRolesTab isSuper={isSuper} />}
-        {tab === "settings" && <SettingsTab />}
-        {tab === "app_builder" && <AppBuilderTab />}
-        {tab === "analytics" && <AnalyticsTab />}
-        {tab === "audit" && <AuditTab />}
+        {tab === "reports" && (isSuper || sectionPermissions.includes("section_reports")) && <Reports />}
+        {tab === "rooms" && (isSuper || sectionPermissions.includes("section_rooms")) && <Rooms />}
+        {tab === "seats" && (isSuper || sectionPermissions.includes("section_seats")) && <SeatsTab />}
+        {tab === "posts" && (isSuper || sectionPermissions.includes("section_posts")) && <Posts />}
+        {tab === "users" && (isSuper || sectionPermissions.includes("section_users")) && <UsersTab isSuper={isSuper} />}
+        {tab === "wallet" && (isSuper || sectionPermissions.includes("section_wallet")) && <WalletTab />}
+        {tab === "gifts" && (isSuper || sectionPermissions.includes("section_gifts")) && <GiftsTab />}
+        {tab === "vip" && (isSuper || sectionPermissions.includes("section_vip")) && <VipTab />}
+        {tab === "store" && (isSuper || sectionPermissions.includes("section_store")) && <StoreTab />}
+        {tab === "assets" && (isSuper || sectionPermissions.includes("section_assets")) && <AssetsTab />}
+        {tab === "banners" && (isSuper || sectionPermissions.includes("section_banners")) && <BannersTab />}
+        {tab === "notifications" && (isSuper || sectionPermissions.includes("section_notifications")) && <NotificationsTab />}
+        {tab === "roles" && (isSuper || sectionPermissions.includes("section_roles")) && <AdminRolesTab isSuper={isSuper} />}
+        {tab === "settings" && (isSuper || sectionPermissions.includes("section_settings")) && <SettingsTab />}
+        {tab === "app_builder" && (isSuper || sectionPermissions.includes("section_app_builder")) && <AppBuilderTab />}
+        {tab === "analytics" && (isSuper || sectionPermissions.includes("section_analytics")) && <AnalyticsTab />}
+        {tab === "audit" && (isSuper || sectionPermissions.includes("section_audit")) && <AuditTab />}
       </div>
     </div>
   );
