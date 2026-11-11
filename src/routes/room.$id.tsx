@@ -134,7 +134,13 @@ function RoomPage() {
     };
   }, [repeatGift, giftOpen]);
   useEffect(() => {
-    const restore = () => setRoomMinimized(false);
+    const restore = () => {
+      // If this RoomPage is still mounted, consume the marker here. If it was
+      // unmounted while minimized, the mount effect consumes it after rejoining.
+      localStorage.removeItem("vox_minimized_room");
+      localStorage.removeItem("vox_minimized_room_id");
+      setRoomMinimized(false);
+    };
     const onProgress = (event: Event) => {
       const progress = (event as CustomEvent<{ currentTime: number; duration: number; playing: boolean }>).detail;
       if (progress) setMusicProgress(progress);
