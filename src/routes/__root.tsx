@@ -254,8 +254,8 @@ function MiniRoomController() {
       setActive((current) => current ? { ...current, musicFile: file } : current);
     };
     const onRestore = () => {
-      localStorage.removeItem("vox_minimized_room_id");
-      localStorage.removeItem("vox_minimized_room");
+      // Keep the restore marker until RoomPage consumes it. Removing it here
+      // makes a restored room look like a fresh join and replays the entry effect.
       setActive((current) => current ? { ...current, minimized: false } : current);
     };
     const onClose = () => {
@@ -311,8 +311,8 @@ function MiniRoomController() {
   if (!active || !user?.id) return null;
 
   const restore = () => {
-    localStorage.removeItem("vox_minimized_room_id");
-    localStorage.removeItem("vox_minimized_room");
+    // Do not clear the marker before the room route can detect restoration.
+    // RoomPage clears it after it has resumed the existing room session.
     setActive((current) => current ? { ...current, minimized: false } : current);
     window.dispatchEvent(new CustomEvent("vox-room-restored"));
     void navigate({ to: "/room/$id", params: { id: active.id } });
