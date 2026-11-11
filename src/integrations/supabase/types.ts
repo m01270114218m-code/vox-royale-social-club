@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_dashboard_access: {
+        Row: {
+          enabled: boolean
+          granted_by: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          enabled?: boolean
+          granted_by?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          enabled?: boolean
+          granted_by?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       admin_assets: {
         Row: {
           asset_key: string
@@ -1971,10 +1992,12 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_set_dashboard_access: { Args: { _enabled: boolean; _user: string }; Returns: undefined }
       ban_user: { Args: { _room: string; _user: string }; Returns: undefined }
       buy_item: { Args: { _item_id: string }; Returns: number }
       buy_vip: { Args: { _level: number }; Returns: number }
       claim_daily_bonus: { Args: never; Returns: number }
+      can_access_admin_dashboard: { Args: never; Returns: boolean }
       claim_first_admin: { Args: never; Returns: boolean }
       create_family: {
         Args: { _description: string; _emblem: string; _name: string }
