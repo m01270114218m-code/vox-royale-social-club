@@ -172,14 +172,23 @@ function ShellInner({ children }: { children: ReactNode }) {
     };
   }, [nav]);
   const ui = useAppUiConfig();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [canSeeAdmin, setCanSeeAdmin] = useState(false);
   useEffect(() => {
     let active = true;
-    if (!user?.id) { setIsAdmin(false); return; }
-    supabase.rpc("is_admin", { _uid: user.id }).then(({ data, error }) => {
-      if (active) setIsAdmin(!error && !!data);
-    });
-    return () => { active = false; };
+    if (!user?.id) { setCanSeeAdmin(false); return; }
+    const refresh = async () => {
+      const { data, error } = await supabase.rpc("can_access_admin_dashboard");
+      if (active) setCanSeeAdmin(!error && data === true);
+    };
+    void refresh();
+    const onVisible = () => { if (document.visibilityState === "visible") void refresh(); };
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [user?.id]);
   const item = "flex flex-1 flex-col items-center gap-0.5 text-[11px] text-muted-foreground";
   const active = { className: "text-primary" };
@@ -217,7 +226,7 @@ function ShellInner({ children }: { children: ReactNode }) {
           <img src={ui.bottom_nav.profile_icon || icons3d.profile} alt="" className="h-8 w-8 drop-shadow-lg" />
           {ui.bottom_nav.profile_label || "أنا"}
         </Link>
-        {isAdmin && (
+        {canSeeAdmin && (
           <Link to="/admin" className={item} activeProps={active}>
             <Shield className="h-7 w-7" />
             الإدارة
