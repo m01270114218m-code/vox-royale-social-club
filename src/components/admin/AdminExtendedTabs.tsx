@@ -167,12 +167,19 @@ type RoleUser = { id: string; display_name: string; display_no: number; roles: s
 export function AdminRolesTab({ isSuper }: { isSuper: boolean }) {
   const [rows, setRows] = useState<RoleUser[]>([]);
   const [query, setQuery] = useState("");
+  const [dashboardEnabled, setDashboardEnabled] = useState<string[]>([]);
   async function load() {
     const { data, error } = await supabase.rpc("admin_list_users", { _q: query });
     if (error) toast.error(errMsg(error));
     setRows(((data ?? []) as RoleUser[]).filter((user) => user.roles.length > 0));
+    if (isSuper) {
+      const { data: accessRows, error: accessError } = await supabase
+        .from("admin_dashboard_access").select("user_id").eq("enabled", true);
+      if (accessError) toast.error(errMsg(accessError));
+      setDashboardEnabled((accessRows ?? []).map((row) => row.user_id));
+    }
   }
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [isSuper]);
   useAdminRealtime(["user_roles", "profiles"], load);
   async function change(user: RoleUser, role: "admin" | "moderator", grant: boolean) {
     if (!isSuper) { toast.error("إدارة الصلاحيات متاحة للمشرف الأعلى فقط"); return; }
@@ -181,16 +188,31 @@ export function AdminRolesTab({ isSuper }: { isSuper: boolean }) {
     toast.success("تم تحديث دور المستخدم");
     await load();
   }
+  async function toggleDashboard(user: RoleUser) {
+    if (!isSuper) return;
+    const enabled = dashboardEnabled.includes(user.id);
+    const { error } = await supabase.rpc("admin_set_dashboard_access", { _user: user.id, _enabled: !enabled });
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success(!enabled ? "تم إظهار زر لوحة التحكم لهذا الحساب" : "تم إخفاء زر لوحة التحكم لهذا الحساب");
+    await load();
+  }
   return <div className="space-y-3">
     {!isSuper && <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">عرض الصلاحيات فقط. التعديل متاح للمشرف الأعلى.</p>}
     <div className="flex gap-2"><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث بالاسم أو رقم المستخدم" /><Button variant="outline" onClick={() => void load()}>بحث</Button></div>
-    {rows.map((user) => <div key={user.id} className="glass flex flex-wrap items-center justify-between gap-3 rounded-xl p-3 text-sm">
-      <div><b>{user.display_name}</b><div className="text-xs text-muted-foreground">ID {user.display_no} · {user.roles.join(", ")}</div></div>
-      <div className="flex gap-1">{(["admin", "moderator"] as const).map((role) => {
-        const active = user.roles.includes(role);
-        return <Button key={role} size="sm" disabled={!isSuper} variant={active ? "destructive" : "outline"} onClick={() => void change(user, role, !active)}>{active ? "إزالة " : "منح "}{role}</Button>;
-      })}</div>
-    </div>)}
+    {rows.map((user) => {
+      const canHaveDashboard = user.roles.includes("admin") || user.roles.includes("moderator");
+      const dashboardIsEnabled = dashboardEnabled.includes(user.id);
+      return <div key={user.id} className="glass flex flex-wrap items-center justify-between gap-3 rounded-xl p-3 text-sm">
+        <div><b>{user.display_name}</b><div className="text-xs text-muted-foreground">ID {user.display_no} · {user.roles.join(", ")}</div></div>
+        <div className="flex flex-wrap gap-1">
+          {(["admin", "moderator"] as const).map((role) => {
+            const active = user.roles.includes(role);
+            return <Button key={role} size="sm" disabled={!isSuper} variant={active ? "destructive" : "outline"} onClick={() => void change(user, role, !active)}>{active ? "إزالة " : "منح "}{role}</Button>;
+          })}
+          {canHaveDashboard && <Button size="sm" disabled={!isSuper} variant={dashboardIsEnabled ? "default" : "outline"} onClick={() => void toggleDashboard(user)}>{dashboardIsEnabled ? "إخفاء لوحة التحكم" : "إظهار لوحة التحكم"}</Button>}
+        </div>
+      </div>;
+    })}
     {rows.length === 0 && <p className="glass rounded-xl p-5 text-center text-sm text-muted-foreground">لا توجد صلاحيات إضافية مسجلة</p>}
   </div>;
 }
