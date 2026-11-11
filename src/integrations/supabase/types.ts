@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_user_permissions: {
+        Row: {
+          enabled: boolean
+          granted_by: string | null
+          permission_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          enabled?: boolean
+          granted_by?: string | null
+          permission_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          enabled?: boolean
+          granted_by?: string | null
+          permission_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       admin_dashboard_access: {
         Row: {
           enabled: boolean
@@ -1970,6 +1994,8 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_set_user_permission: { Args: { _enabled: boolean; _permission: string; _user: string }; Returns: undefined }
+      my_admin_permissions: { Args: never; Returns: string[] }
       admin_set_role: {
         Args: {
           _grant: boolean
