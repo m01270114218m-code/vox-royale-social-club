@@ -94,7 +94,7 @@ function RoomPage() {
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; style: string; speed: number; duration: number; mode: "static" | "animated"; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number } | null>(null);
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; name: string; avatar: string; level: number; vip: number; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number; animationStyle: string; animationSpeed: number } | null>(null);
-  const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string; seat_gap_px?: number }>({});
+  const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; locked_asset_url?: string; effect_asset_url?: string; seat_gap_px?: number; avatar_size_px?: number; mic_icon_size_px?: number }>({});
   const [micPermissionGranted, setMicPermissionGranted] = useState(() => localStorage.getItem("vox_mic_permission_granted") === "1");
   const [musicFile, setMusicFileState] = useState<File | null>(null);
   const setMusicFile = useCallback((file: File | null) => {
@@ -512,7 +512,7 @@ function RoomPage() {
     void loadCatalog();
     const loadVoiceControls = async () => {
       const { data } = await supabase.from("admin_settings").select("value").eq("key", "voice_controls").maybeSingle();
-      const cfg = (data?.value || {}) as { mic_style?: string; show_mic_effect?: boolean; mic_asset_key?: string; muted_asset_key?: string; effect_asset_key?: string; seat_gap_px?: number };
+      const cfg = (data?.value || {}) as { mic_style?: string; show_mic_effect?: boolean; mic_asset_key?: string; muted_asset_key?: string; locked_asset_key?: string; effect_asset_key?: string; seat_gap_px?: number; avatar_size_px?: number; mic_icon_size_px?: number };
       const getUrl = async (key?: string) => {
         if (!key) return undefined;
         const { data: asset } = await supabase.from("admin_assets").select("url,metadata").eq("asset_key", key).eq("is_active", true).maybeSingle();
@@ -521,8 +521,8 @@ function RoomPage() {
         const { data: signed } = await supabase.storage.from("admin-assets").createSignedUrl(path, 3600);
         return signed?.signedUrl;
       };
-      const [mic_asset_url, muted_asset_url, effect_asset_url] = await Promise.all([getUrl(cfg.mic_asset_key), getUrl(cfg.muted_asset_key), getUrl(cfg.effect_asset_key)]);
-      setVoiceControls({ mic_style: cfg.mic_style, show_mic_effect: cfg.show_mic_effect, mic_asset_url, muted_asset_url, effect_asset_url, seat_gap_px: Math.max(0, Math.min(80, Number(cfg.seat_gap_px ?? 20))) });
+      const [mic_asset_url, muted_asset_url, locked_asset_url, effect_asset_url] = await Promise.all([getUrl(cfg.mic_asset_key), getUrl(cfg.muted_asset_key), getUrl(cfg.locked_asset_key), getUrl(cfg.effect_asset_key)]);
+      setVoiceControls({ mic_style: cfg.mic_style, show_mic_effect: cfg.show_mic_effect, mic_asset_url, muted_asset_url, locked_asset_url, effect_asset_url, seat_gap_px: Math.max(0, Math.min(80, Number(cfg.seat_gap_px ?? 20))), avatar_size_px: Math.max(40, Math.min(120, Number(cfg.avatar_size_px ?? 72))), mic_icon_size_px: Math.max(16, Math.min(48, Number(cfg.mic_icon_size_px ?? 28))) });
     };
     void loadVoiceControls();
     const voiceSettingsChannel = supabase.channel(`room-voice-settings-${id}`)
@@ -907,18 +907,6 @@ function RoomPage() {
         </div>
       </SheetContent>
     </Sheet>
-    {musicFile && myMicEnabled && micPermissionGranted && !musicOpen && !roomMinimized && (
-      <div className="fixed bottom-3 left-3 right-3 z-[94] mx-auto flex max-w-xl items-center gap-3 rounded-2xl border border-gold/30 bg-[#17131f]/95 p-3 shadow-2xl backdrop-blur-xl" dir="rtl">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold/15 text-gold"><Music2 className="h-5 w-5" /></div>
-        <button type="button" onClick={() => setMusicOpen(true)} className="min-w-0 flex-1 text-right">
-          <div className="truncate text-xs font-bold">{musicFile.name}</div>
-          <div className="mt-1 text-[10px] text-emerald-300">{musicProgress.playing ? "يتم بث الأغنية للغرفة" : "متوقف مؤقتًا"} · {musicQueueIndex + 1}/{Math.max(1, musicQueue.length)}</div>
-        </button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => sendMusicCommand(musicProgress.playing ? "pause" : "resume")} aria-label={musicProgress.playing ? "إيقاف مؤقت" : "تشغيل"}>{musicProgress.playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}</Button>
-        <Button type="button" variant="ghost" size="icon" disabled={musicQueueIndex >= musicQueue.length - 1} onClick={() => { const index = musicQueueIndex + 1; setMusicQueueIndex(index); setMusicFile(musicQueue[index]); setMusicProgress({ currentTime: 0, duration: 0, playing: true }); }} aria-label="التالي"><SkipForward className="h-5 w-5" /></Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => setMusicOpen(true)} aria-label="فتح قائمة الأغاني"><ArrowRight className="h-5 w-5" /></Button>
-      </div>
-    )}
     {roomMinimized ? (
       <>
         <AppShell>
@@ -966,10 +954,10 @@ function RoomPage() {
           const host = s.user_id === room.owner_id;
           return (
             <Button variant="ghost" key={s.seat_index} aria-label={`المقعد ${s.seat_index + 1}${s.is_locked ? " مقفل" : ""}`} onClick={() => onSeat(s)} className="h-auto min-w-0 flex-col gap-1 p-0 hover:bg-transparent">
-              <div className={`relative flex h-20 w-20 items-center justify-center ${p && speakingUsers.includes(s.user_id!) ? "speaker-active" : ""}`}>
+              <div className="relative flex items-center justify-center" style={{ width: Number(voiceControls.avatar_size_px ?? 72), height: Number(voiceControls.avatar_size_px ?? 72) }}>
                 {p && speakingUsers.includes(s.user_id!) && <><span className="speaker-ring speaker-ring-one" /><span className="speaker-ring speaker-ring-two" /><span className="speaker-glow" /></>}
-                {p ? <UserAvatar src={p.avatar_url} name={p.display_name} vip={p.vip_level} size={72} frameKey={p.equipped_frame} /> : <AdminAssetMedia src={s.is_locked ? icons3d.micLocked : voiceControls.mic_asset_url || (s.seat_index === 0 ? icons3d.micHost : icons3d.mic)} className="h-20 w-20 object-contain" />}
-                {p && <AdminAssetMedia src={s.is_muted ? voiceControls.muted_asset_url || icons3d.micMuted : voiceControls.mic_asset_url || (host ? icons3d.micHost : icons3d.mic)} alt={s.is_muted ? "مكتوم" : "على المقعد"} className={`absolute -bottom-1 -left-1 h-7 w-7 object-contain ${!s.is_muted && speakingUsers.includes(s.user_id!) ? "speaker-mic-pulse" : ""}`} videoClassName={`absolute -bottom-1 -left-1 h-7 w-7 object-contain ${!s.is_muted && speakingUsers.includes(s.user_id!) ? "speaker-mic-pulse" : ""}`} />}
+                {p ? <UserAvatar src={p.avatar_url} name={p.display_name} vip={p.vip_level} size={Number(voiceControls.avatar_size_px ?? 72)} frameKey={p.equipped_frame} /> : <AdminAssetMedia src={s.is_locked ? voiceControls.locked_asset_url || icons3d.micLocked : voiceControls.mic_asset_url || (s.seat_index === 0 ? icons3d.micHost : icons3d.mic)} className="h-20 w-20 object-contain" />}
+                {p && <span className="absolute -bottom-1 -left-1 block" style={{ width: Number(voiceControls.mic_icon_size_px ?? 28), height: Number(voiceControls.mic_icon_size_px ?? 28) }}><AdminAssetMedia src={s.is_muted ? voiceControls.muted_asset_url || icons3d.micMuted : voiceControls.mic_asset_url || (host ? icons3d.micHost : icons3d.mic)} alt={s.is_muted ? "مكتوم" : "على المقعد"} className={`h-full w-full object-contain ${!s.is_muted && speakingUsers.includes(s.user_id!) ? "speaker-mic-pulse" : ""}`} videoClassName={`h-full w-full object-contain ${!s.is_muted && speakingUsers.includes(s.user_id!) ? "speaker-mic-pulse" : ""}`} /></span>}
                 {p && cosmeticUrls[p.id]?.wave && <AdminAssetMedia src={cosmeticUrls[p.id]!.wave} className="pointer-events-none absolute -inset-2 h-[calc(100%+16px)] w-[calc(100%+16px)] object-contain opacity-90" />}{p && voiceControls.show_mic_effect && voiceControls.effect_asset_url && <AdminAssetMedia src={voiceControls.effect_asset_url} className="pointer-events-none absolute inset-0 h-full w-full object-contain" />}
               </div>
               <span className={`max-w-24 truncate text-xs font-bold ${p?.name_effect && p.name_effect !== "none" ? `name-effect-${p.name_effect}` : ""}`} style={{ color: p?.name_color || undefined, animationDuration: `${p?.name_effect_speed || 1800}ms` }}>{p ? p.display_name : s.seat_index + 1}</span>
