@@ -469,15 +469,30 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
             {can("ban_device") && <Button size="sm" variant={deviceBans.has(u.id) ? "outline" : "destructive"} disabled={!registeredDevices.has(u.id) && !deviceBans.has(u.id)} onClick={() => void updateBan(u, "device", !deviceBans.has(u.id))}>{deviceBans.has(u.id) ? "رفع حظر الجهاز" : "حظر الجهاز"}</Button>}
             <span className="text-[10px] text-muted-foreground">{registeredDevices.has(u.id) ? "الجهاز مسجل" : "لم يسجل الجهاز دخوله بعد"}</span>
           </div>}
-          <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
-            <select aria-label="اختر عنصراً لإرساله" className="min-w-0 rounded-md border border-input bg-input px-2 py-2 text-xs" value={selectedItem[u.id] ?? ""} onChange={(e) => setSelectedItem((s) => ({ ...s, [u.id]: e.target.value }))}>
-              <option value="">اختر إطاراً أو دخولية أو شارة</option>
-              {catalog.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.kind}</option>)}
-            </select>
-            <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!equipItem[u.id]} onChange={(e) => setEquipItem((s) => ({ ...s, [u.id]: e.target.checked }))} /> تجهيز فوراً (إطار/دخولية)</label>
-            <Button size="sm" onClick={() => void grantItem(u)}>إرسال للمستخدم</Button>
-          </div>
-          <div className="rounded-xl border border-primary/15 bg-background/40 p-2"><div className="mb-2 text-xs font-bold text-primary">إرسال أصل مباشر من تخزين Supabase — بدون إدخاله في المتجر</div><div className="grid grid-cols-2 gap-2"><select className="rounded-md border border-input bg-input px-2 py-2 text-xs" value={(directAsset[u.id]?.type ?? "frame")} onChange={(e) => setDirectAsset(s => ({...s,[u.id]: {...(s[u.id] ?? {ref:"",name:"",type:"frame"}),type:e.target.value}}))}><option value="frame">إطار</option><option value="entry">دخولية</option><option value="badge">شارة</option><option value="bubble">فقاعة كتابة</option><option value="sound_wave">موجة صوت</option><option value="profile_card">بطاقة تعريف</option></select><Input dir="ltr" placeholder="asset_key أو مسار/رابط التخزين" value={directAsset[u.id]?.ref ?? ""} onChange={(e)=>setDirectAsset(s=>({...s,[u.id]:{...(s[u.id] ?? {ref:"",name:"",type:"frame"}),ref:e.target.value}}))}/><Input placeholder="اسم الأصل" value={directAsset[u.id]?.name ?? ""} onChange={(e)=>setDirectAsset(s=>({...s,[u.id]:{...(s[u.id] ?? {ref:"",name:"",type:"frame"}),name:e.target.value}}))}/><Button size="sm" onClick={()=>void sendDirectAsset(u)}>إرسال الأصل</Button></div></div>
+          {(can("send_frame") || can("send_entry") || can("send_badge") || can("send_profile_assets")) && <>
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+              <select aria-label="اختر عنصراً لإرساله" className="min-w-0 rounded-md border border-input bg-input px-2 py-2 text-xs" value={selectedItem[u.id] ?? ""} onChange={(e) => setSelectedItem((s) => ({ ...s, [u.id]: e.target.value }))}>
+                <option value="">اختر عنصراً لإرساله</option>
+                {catalog.filter((item) => can(item.kind === "frame" ? "send_frame" : item.kind === "entry" ? "send_entry" : item.kind === "badge" ? "send_badge" : "send_profile_assets")).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.kind}</option>)}
+              </select>
+              <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!equipItem[u.id]} onChange={(e) => setEquipItem((s) => ({ ...s, [u.id]: e.target.checked }))} /> تجهيز فوراً (إطار/دخولية)</label>
+              <Button size="sm" disabled={!selectedItem[u.id]} onClick={() => void grantItem(u)}>إرسال للمستخدم</Button>
+            </div>
+            <div className="rounded-xl border border-primary/15 bg-background/40 p-2">
+              <div className="mb-2 text-xs font-bold text-primary">إرسال أصل مباشر من تخزين Supabase — بدون إدخاله في المتجر</div>
+              <div className="grid grid-cols-2 gap-2">
+                <select className="rounded-md border border-input bg-input px-2 py-2 text-xs" value={(directAsset[u.id]?.type ?? (can("send_frame") ? "frame" : can("send_entry") ? "entry" : can("send_badge") ? "badge" : "bubble"))} onChange={(e) => setDirectAsset(s => ({...s,[u.id]: {...(s[u.id] ?? {ref:"",name:"",type:"frame"}),type:e.target.value}}))}>
+                  {can("send_frame") && <option value="frame">إطار</option>}
+                  {can("send_entry") && <option value="entry">دخولية</option>}
+                  {can("send_badge") && <option value="badge">شارة</option>}
+                  {can("send_profile_assets") && <><option value="bubble">فقاعة كتابة</option><option value="sound_wave">موجة صوت</option><option value="profile_card">بطاقة تعريف</option></>}
+                </select>
+                <Input dir="ltr" placeholder="asset_key أو مسار/رابط التخزين" value={directAsset[u.id]?.ref ?? ""} onChange={(e) => setDirectAsset(s=>({...s,[u.id]:{...(s[u.id] ?? {ref:"",name:"",type:"frame"}),ref:e.target.value}}))}/>
+                <Input placeholder="اسم الأصل" value={directAsset[u.id]?.name ?? ""} onChange={(e) => setDirectAsset(s=>({...s,[u.id]:{...(s[u.id] ?? {ref:"",name:"",type:"frame"}),name:e.target.value}}))}/>
+                <Button size="sm" onClick={()=>void sendDirectAsset(u)}>إرسال الأصل</Button>
+              </div>
+            </div>
+          </>}
           {isSuper && <div className="flex flex-wrap gap-1">{(["admin", "moderator"] as const).map((r) => {
             const has = u.roles.includes(r);
             return <Button key={r} size="sm" variant={has ? "destructive" : "outline"} onClick={() => void run(supabase.rpc("admin_set_role", { _user: u.id, _role: r, _grant: !has }), "تم تحديث الصلاحية")}>{has ? `إزالة ${r}` : `منح ${r}`}</Button>;
