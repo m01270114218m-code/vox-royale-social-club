@@ -172,13 +172,24 @@ function ShellInner({ children }: { children: ReactNode }) {
     };
   }, [nav]);
   const ui = useAppUiConfig();
-  const [canSeeAdmin, setCanSeeAdmin] = useState(false);
+  const [adminEntry, setAdminEntry] = useState<{ mode: "dashboard" | "section"; section?: string }>({ mode: "section" });
   useEffect(() => {
     let active = true;
-    if (!user?.id) { setCanSeeAdmin(false); return; }
+    if (!user?.id) { setAdminEntry({ mode: "section" }); return; }
     const refresh = async () => {
-      const { data, error } = await supabase.rpc("can_access_admin_dashboard");
-      if (active) setCanSeeAdmin(!error && data === true);
+      const [{ data: dashboard, error: dashboardError }, { data: permissions, error: permissionsError }] = await Promise.all([
+        supabase.rpc("can_access_admin_dashboard"),
+        supabase.rpc("my_admin_permissions"),
+      ]);
+      if (!active) return;
+      if (!dashboardError && dashboard === true) {
+        setAdminEntry({ mode: "dashboard" });
+        return;
+      }
+      if (!permissionsError) {
+        const section = ((permissions as string[] | null) ?? []).find((key) => key.startsWith("section_"));
+        setAdminEntry(section ? { mode: "section", section } : { mode: "section" });
+      }
     };
     void refresh();
     const onVisible = () => { if (document.visibilityState === "visible") void refresh(); };
@@ -190,6 +201,26 @@ function ShellInner({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [user?.id]);
+
+  const adminSectionLabels: Record<string, string> = {
+    section_reports: "البلاغات",
+    section_rooms: "الغرف",
+    section_seats: "المقاعد",
+    section_posts: "المنشورات",
+    section_users: "المستخدمون",
+    section_wallet: "المحافظ",
+    section_gifts: "الهدايا",
+    section_vip: "VIP",
+    section_store: "المتجر",
+    section_assets: "الأصول",
+    section_banners: "البانرات",
+    section_notifications: "الإشعارات",
+    section_roles: "الصلاحيات",
+    section_settings: "الإعدادات",
+    section_app_builder: "تطوير التطبيق",
+    section_analytics: "التحليلات",
+    section_audit: "سجل الإجراءات",
+  };
   const item = "flex flex-1 flex-col items-center gap-0.5 text-[11px] text-muted-foreground";
   const active = { className: "text-primary" };
 
@@ -226,10 +257,15 @@ function ShellInner({ children }: { children: ReactNode }) {
           <img src={ui.bottom_nav.profile_icon || icons3d.profile} alt="" className="h-8 w-8 drop-shadow-lg" />
           {ui.bottom_nav.profile_label || "أنا"}
         </Link>
-        {canSeeAdmin && (
-          <Link to="/admin" className={item} activeProps={active}>
+        {(adminEntry.mode === "dashboard" || adminEntry.section) && (
+          <Link
+            to="/admin"
+            search={adminEntry.mode === "section" ? { section: adminEntry.section } : {}}
+            className={item}
+            activeProps={active}
+          >
             <Shield className="h-7 w-7" />
-            الإدارة
+            {adminEntry.mode === "dashboard" ? "الإدارة" : ("إدارة " + (adminSectionLabels[adminEntry.section!] ?? "القسم"))}
           </Link>
         )}
       </nav>
