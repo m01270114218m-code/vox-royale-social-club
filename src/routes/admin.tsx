@@ -103,18 +103,6 @@ function AdminPage() {
     check();
   }
 
-  if (allowed === null) return <div className="p-10 text-center text-muted-foreground">جارٍ التحقق…</div>;
-  if (!allowed)
-    return (
-      <div className="mx-auto max-w-md p-6 pt-20 text-center">
-        <Shield className="mx-auto h-14 w-14 text-primary" />
-        <h1 className="font-display text-gold mt-4 text-3xl">لوحة التحكم</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{hasAdminRole ? "صلاحية ظهور لوحة التحكم غير مفعّلة لهذا الحساب. اطلب من المشرف الأعلى تفعيلها لك." : "ليست لديك صلاحية إدارة. إذا لم يكن هناك مشرف بعد يمكنك المطالبة بالصلاحية كأول مشرف."}</p>
-        {!hasAdminRole && <Button className="mt-6 w-full bg-gold" onClick={claim}>المطالبة بصلاحية المشرف الأول</Button>}
-        <Link to="/" className="mt-4 block text-sm text-muted-foreground">العودة للتطبيق</Link>
-      </div>
-    );
-
   const tabs: { id: Tab; label: string; icon: typeof Flag }[] = [
     { id: "reports", label: "البلاغات", icon: Flag },
     { id: "rooms", label: "الغرف", icon: DoorOpen },
@@ -145,6 +133,19 @@ function AdminPage() {
   useEffect(() => {
     if (visibleTabs.length > 0 && !visibleTabs.some((item) => item.id === tab)) setTab(visibleTabs[0].id);
   }, [visibleTabs.map((item) => item.id).join("|"), tab]);
+
+  if (allowed === null) return <div className="p-10 text-center text-muted-foreground">جارٍ التحقق…</div>;
+  if (!allowed)
+    return (
+      <div className="mx-auto max-w-md p-6 pt-20 text-center">
+        <Shield className="mx-auto h-14 w-14 text-primary" />
+        <h1 className="font-display text-gold mt-4 text-3xl">لوحة التحكم</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{hasAdminRole ? "صلاحية ظهور لوحة التحكم غير مفعّلة لهذا الحساب. اطلب من المشرف الأعلى تفعيلها لك." : "ليست لديك صلاحية إدارة. إذا لم يكن هناك مشرف بعد يمكنك المطالبة بالصلاحية كأول مشرف."}</p>
+        {!hasAdminRole && <Button className="mt-6 w-full bg-gold" onClick={claim}>المطالبة بصلاحية المشرف الأول</Button>}
+        <Link to="/" className="mt-4 block text-sm text-muted-foreground">العودة للتطبيق</Link>
+      </div>
+    );
+
   // Keep dashboard cards aligned with the keys returned by public.admin_stats().
   const statLabels: Record<string, string> = {
     users: "المستخدمون",
