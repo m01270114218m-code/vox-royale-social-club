@@ -61,13 +61,14 @@ function AdminPage() {
 
   async function check() {
     if (!user?.id) { setAllowed(false); setHasAdminRole(false); setIsSuper(false); return; }
-    const [{ data: access }, { data: adminRole }, { data: superRole }] = await Promise.all([
+    const [{ data: access }, { data: adminRole }, { data: moderatorRole }, { data: superRole }] = await Promise.all([
       supabase.rpc("can_access_admin_dashboard"),
       supabase.rpc("is_admin", { _uid: user.id }),
+      supabase.rpc("has_role", { _user_id: user.id, _role: "moderator" }),
       supabase.rpc("has_role", { _user_id: user.id, _role: "super_admin" }),
     ]);
     setAllowed(access === true);
-    setHasAdminRole(!!adminRole);
+    setHasAdminRole(!!adminRole || !!moderatorRole || !!superRole);
     setIsSuper(!!superRole);
     if (access === true) {
       const { data } = await supabase.rpc("admin_stats");
