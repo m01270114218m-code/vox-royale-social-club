@@ -1,0 +1,2 @@
+-- Keep the administrator-provided asset name on a directly delivered badge.
+-- The full function definition is re-applied in the following migration state by Supabase.
