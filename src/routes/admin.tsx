@@ -142,6 +142,9 @@ function AdminPage() {
     app_builder: "section_app_builder", analytics: "section_analytics", audit: "section_audit",
   };
   const visibleTabs = isSuper ? tabs : tabs.filter((item) => sectionPermissions.includes(sectionKey[item.id]));
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.some((item) => item.id === tab)) setTab(visibleTabs[0].id);
+  }, [visibleTabs.map((item) => item.id).join("|"), tab]);
   // Keep dashboard cards aligned with the keys returned by public.admin_stats().
   const statLabels: Record<string, string> = {
     users: "المستخدمون",
