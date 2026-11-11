@@ -13,6 +13,9 @@ import { errMsg } from "@/lib/vox";
 import { getAdminAssetUrl } from "@/lib/media";
 
 export const Route = createFileRoute("/admin")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    section: typeof search.section === "string" ? search.section : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "لوحة التحكم — صدى شات" },
@@ -52,31 +55,34 @@ const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
 
 function AdminPage() {
   const { user } = useAuth();
+  const { section: requestedSection } = Route.useSearch();
   const externalAdminUrl = (import.meta.env.VITE_ADMIN_PANEL_URL as string | undefined) || "/control-center/";
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [isSuper, setIsSuper] = useState(false);
   const [hasAdminRole, setHasAdminRole] = useState(false);
   const [sectionPermissions, setSectionPermissions] = useState<string[]>([]);
+  const [sectionOnly, setSectionOnly] = useState(false);
   const [stats, setStats] = useState<Record<string, number> | null>(null);
   const [tab, setTab] = useState<Tab>("reports");
 
   async function check() {
     if (!user?.id) { setAllowed(false); setHasAdminRole(false); setIsSuper(false); return; }
-    const [{ data: access }, { data: adminRole }, { data: moderatorRole }, { data: superRole }] = await Promise.all([
+    const [{ data: access }, { data: adminRole }, { data: moderatorRole }, { data: superRole }, { data: sectionData, error: sectionError }] = await Promise.all([
       supabase.rpc("can_access_admin_dashboard"),
       supabase.rpc("is_admin", { _uid: user.id }),
       supabase.rpc("has_role", { _user_id: user.id, _role: "moderator" }),
       supabase.rpc("has_role", { _user_id: user.id, _role: "super_admin" }),
+      supabase.rpc("my_admin_permissions"),
     ]);
-    setAllowed(access === true);
-    if (access === true && !superRole) {
-      const { data: sectionData, error: sectionError } = await supabase.rpc("my_admin_permissions");
-      if (sectionError) toast.error(errMsg(sectionError));
-      setSectionPermissions((sectionData as string[] | null) ?? []);
-    } else if (superRole) { setSectionPermissions(["*"]); } else { setSectionPermissions([]); }
+    if (sectionError) toast.error(errMsg(sectionError));
+    const permissions = (sectionData as string[] | null) ?? [];
+    const isSectionOnly = !superRole && access !== true && permissions.some((key) => key.startsWith("section_"));
+    setSectionPermissions(superRole ? ["*"] : permissions.filter((key) => key.startsWith("section_")));
+    setSectionOnly(isSectionOnly);
+    setAllowed(access === true || !!superRole || isSectionOnly);
     setHasAdminRole(!!adminRole || !!moderatorRole || !!superRole);
     setIsSuper(!!superRole);
-    if (access === true) {
+    if ((access === true || !!superRole) && !isSectionOnly) {
       const { data } = await supabase.rpc("admin_stats");
       setStats(data as Record<string, number>);
     } else {
@@ -129,10 +135,15 @@ function AdminPage() {
     notifications: "section_notifications", roles: "section_roles", settings: "section_settings",
     app_builder: "section_app_builder", analytics: "section_analytics", audit: "section_audit",
   };
-  const visibleTabs = isSuper ? tabs : tabs.filter((item) => sectionPermissions.includes(sectionKey[item.id]));
+  const authorizedTabs = isSuper ? tabs : tabs.filter((item) => sectionPermissions.includes(sectionKey[item.id]));
+  const visibleTabs = sectionOnly
+    ? authorizedTabs.filter((item) => sectionKey[item.id] === requestedSection).slice(0, 1)
+    : authorizedTabs;
+  const effectiveTabs = sectionOnly && visibleTabs.length === 0 ? authorizedTabs.slice(0, 1) : visibleTabs;
+  const selectedTab = sectionOnly ? (effectiveTabs[0]?.id ?? tab) : tab;
   useEffect(() => {
-    if (visibleTabs.length > 0 && !visibleTabs.some((item) => item.id === tab)) setTab(visibleTabs[0].id);
-  }, [visibleTabs.map((item) => item.id).join("|"), tab]);
+    if (effectiveTabs.length > 0 && !effectiveTabs.some((item) => item.id === tab)) setTab(effectiveTabs[0].id);
+  }, [effectiveTabs.map((item) => item.id).join("|"), tab]);
 
   if (allowed === null) return <div className="p-10 text-center text-muted-foreground">جارٍ التحقق…</div>;
   if (!allowed)
@@ -142,6 +153,15 @@ function AdminPage() {
         <h1 className="font-display text-gold mt-4 text-3xl">لوحة التحكم</h1>
         <p className="mt-2 text-sm text-muted-foreground">{hasAdminRole ? "صلاحية ظهور لوحة التحكم غير مفعّلة لهذا الحساب. اطلب من المشرف الأعلى تفعيلها لك." : "ليست لديك صلاحية إدارة. إذا لم يكن هناك مشرف بعد يمكنك المطالبة بالصلاحية كأول مشرف."}</p>
         {!hasAdminRole && <Button className="mt-6 w-full bg-gold" onClick={claim}>المطالبة بصلاحية المشرف الأول</Button>}
+        <Link to="/" className="mt-4 block text-sm text-muted-foreground">العودة للتطبيق</Link>
+      </div>
+    );
+
+  if (sectionOnly && effectiveTabs.length === 0)
+    return (
+      <div className="mx-auto max-w-md p-6 pt-20 text-center">
+        <Shield className="mx-auto h-14 w-14 text-primary" />
+        <h1 className="font-display text-gold mt-4 text-3xl">لا توجد صلاحية قسم فعالة</h1>
         <Link to="/" className="mt-4 block text-sm text-muted-foreground">العودة للتطبيق</Link>
       </div>
     );
@@ -164,9 +184,9 @@ function AdminPage() {
   return (
     <div className="mx-auto max-w-6xl p-4">
       <header className="flex flex-wrap items-center justify-between gap-3 py-3">
-        <h1 className="font-display text-gold text-3xl">لوحة التحكم</h1>
+        <h1 className="font-display text-gold text-3xl">{sectionOnly ? "إدارة القسم" : "لوحة التحكم"}</h1>
         <div className="flex items-center gap-2">
-          {externalAdminUrl && (
+          {!sectionOnly && externalAdminUrl && (
             <a href={externalAdminUrl} target="_blank" rel="noreferrer">
               <Button size="sm" variant="outline"><ExternalLink className="mr-1 h-4 w-4" /> اللوحة الخارجية</Button>
             </a>
@@ -174,7 +194,7 @@ function AdminPage() {
           <Link to="/" className="text-sm text-muted-foreground">← التطبيق</Link>
         </div>
       </header>
-      {stats && (
+      {!sectionOnly && stats && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
           {Object.entries(statLabels).map(([k, l]) => (
             <div key={k} className="card-3d glass rounded-2xl p-3">
@@ -184,31 +204,31 @@ function AdminPage() {
           ))}
         </div>
       )}
-      <div className="mt-4 flex gap-2 overflow-x-auto">
-        {visibleTabs.map((t) => (
+      {!sectionOnly && <div className="mt-4 flex gap-2 overflow-x-auto">
+        {effectiveTabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-1 whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab === t.id ? "bg-gold" : "glass"}`}>
             <t.icon className="h-4 w-4" />{t.label}
           </button>
         ))}
-      </div>
+      </div>}
       <div className="mt-4">
-        {tab === "reports" && (isSuper || sectionPermissions.includes("section_reports")) && <Reports />}
-        {tab === "rooms" && (isSuper || sectionPermissions.includes("section_rooms")) && <Rooms />}
-        {tab === "seats" && (isSuper || sectionPermissions.includes("section_seats")) && <SeatsTab />}
-        {tab === "posts" && (isSuper || sectionPermissions.includes("section_posts")) && <Posts />}
-        {tab === "users" && (isSuper || sectionPermissions.includes("section_users")) && <UsersTab isSuper={isSuper} />}
-        {tab === "wallet" && (isSuper || sectionPermissions.includes("section_wallet")) && <WalletTab />}
-        {tab === "gifts" && (isSuper || sectionPermissions.includes("section_gifts")) && <GiftsTab />}
-        {tab === "vip" && (isSuper || sectionPermissions.includes("section_vip")) && <VipTab />}
-        {tab === "store" && (isSuper || sectionPermissions.includes("section_store")) && <StoreTab />}
-        {tab === "assets" && (isSuper || sectionPermissions.includes("section_assets")) && <AssetsTab />}
-        {tab === "banners" && (isSuper || sectionPermissions.includes("section_banners")) && <BannersTab />}
-        {tab === "notifications" && (isSuper || sectionPermissions.includes("section_notifications")) && <NotificationsTab />}
-        {tab === "roles" && (isSuper || sectionPermissions.includes("section_roles")) && <AdminRolesTab isSuper={isSuper} />}
-        {tab === "settings" && (isSuper || sectionPermissions.includes("section_settings")) && <SettingsTab />}
-        {tab === "app_builder" && (isSuper || sectionPermissions.includes("section_app_builder")) && <AppBuilderTab />}
-        {tab === "analytics" && (isSuper || sectionPermissions.includes("section_analytics")) && <AnalyticsTab />}
-        {tab === "audit" && (isSuper || sectionPermissions.includes("section_audit")) && <AuditTab />}
+        {selectedTab === "reports" && (isSuper || sectionPermissions.includes("section_reports")) && <Reports />}
+        {selectedTab === "rooms" && (isSuper || sectionPermissions.includes("section_rooms")) && <Rooms />}
+        {selectedTab === "seats" && (isSuper || sectionPermissions.includes("section_seats")) && <SeatsTab />}
+        {selectedTab === "posts" && (isSuper || sectionPermissions.includes("section_posts")) && <Posts />}
+        {selectedTab === "users" && (isSuper || sectionPermissions.includes("section_users")) && <UsersTab isSuper={isSuper} />}
+        {selectedTab === "wallet" && (isSuper || sectionPermissions.includes("section_wallet")) && <WalletTab />}
+        {selectedTab === "gifts" && (isSuper || sectionPermissions.includes("section_gifts")) && <GiftsTab />}
+        {selectedTab === "vip" && (isSuper || sectionPermissions.includes("section_vip")) && <VipTab />}
+        {selectedTab === "store" && (isSuper || sectionPermissions.includes("section_store")) && <StoreTab />}
+        {selectedTab === "assets" && (isSuper || sectionPermissions.includes("section_assets")) && <AssetsTab />}
+        {selectedTab === "banners" && (isSuper || sectionPermissions.includes("section_banners")) && <BannersTab />}
+        {selectedTab === "notifications" && (isSuper || sectionPermissions.includes("section_notifications")) && <NotificationsTab />}
+        {selectedTab === "roles" && (isSuper || sectionPermissions.includes("section_roles")) && <AdminRolesTab isSuper={isSuper} />}
+        {selectedTab === "settings" && (isSuper || sectionPermissions.includes("section_settings")) && <SettingsTab />}
+        {selectedTab === "app_builder" && (isSuper || sectionPermissions.includes("section_app_builder")) && <AppBuilderTab />}
+        {selectedTab === "analytics" && (isSuper || sectionPermissions.includes("section_analytics")) && <AnalyticsTab />}
+        {selectedTab === "audit" && (isSuper || sectionPermissions.includes("section_audit")) && <AuditTab />}
       </div>
     </div>
   );
