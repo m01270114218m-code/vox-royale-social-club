@@ -164,23 +164,44 @@ export function NotificationsTab() {
 }
 
 type RoleUser = { id: string; display_name: string; display_no: number; roles: string[] };
+const ADMIN_PERMISSION_OPTIONS = [
+  ["send_frame", "إرسال الإطارات"],
+  ["send_entry", "إرسال الدخوليات"],
+  ["send_badge", "إرسال الشارات"],
+  ["send_profile_assets", "إرسال أصول الملف الشخصي"],
+  ["edit_user_id", "تعديل ID والهوية"],
+  ["ban_account", "حظر الحساب"],
+  ["ban_device", "حظر الجهاز"],
+  ["manage_wallet", "تعديل رصيد العملات"],
+  ["manage_vip", "تعديل VIP"],
+] as const;
 export function AdminRolesTab({ isSuper }: { isSuper: boolean }) {
   const [rows, setRows] = useState<RoleUser[]>([]);
   const [query, setQuery] = useState("");
   const [dashboardEnabled, setDashboardEnabled] = useState<string[]>([]);
+  const [permissions, setPermissions] = useState<Record<string, string[]>>({});
   async function load() {
     const { data, error } = await supabase.rpc("admin_list_users", { _q: query });
     if (error) toast.error(errMsg(error));
-    setRows(((data ?? []) as RoleUser[]).filter((user) => user.roles.length > 0));
+    const users = ((data ?? []) as RoleUser[]).filter((user) => user.roles.length > 0);
+    setRows(users);
     if (isSuper) {
-      const { data: accessRows, error: accessError } = await supabase
-        .from("admin_dashboard_access").select("user_id").eq("enabled", true);
+      const [{ data: accessRows, error: accessError }, { data: permissionRows, error: permissionError }] = await Promise.all([
+        supabase.from("admin_dashboard_access").select("user_id").eq("enabled", true),
+        supabase.from("admin_user_permissions").select("user_id,permission_key").eq("enabled", true),
+      ]);
       if (accessError) toast.error(errMsg(accessError));
+      if (permissionError) toast.error(errMsg(permissionError));
       setDashboardEnabled((accessRows ?? []).map((row) => row.user_id));
+      const grouped: Record<string, string[]> = {};
+      (permissionRows ?? []).forEach((row) => {
+        (grouped[row.user_id] ??= []).push(row.permission_key);
+      });
+      setPermissions(grouped);
     }
   }
   useEffect(() => { void load(); }, [isSuper]);
-  useAdminRealtime(["user_roles", "profiles"], load);
+  useAdminRealtime(["user_roles", "profiles", "admin_user_permissions", "admin_dashboard_access"], load);
   async function change(user: RoleUser, role: "admin" | "moderator", grant: boolean) {
     if (!isSuper) { toast.error("إدارة الصلاحيات متاحة للمشرف الأعلى فقط"); return; }
     const { error } = await supabase.rpc("admin_set_role", { _user: user.id, _role: role, _grant: grant });
@@ -196,21 +217,44 @@ export function AdminRolesTab({ isSuper }: { isSuper: boolean }) {
     toast.success(!enabled ? "تم إظهار زر لوحة التحكم لهذا الحساب" : "تم إخفاء زر لوحة التحكم لهذا الحساب");
     await load();
   }
+  async function togglePermission(user: RoleUser, permission: string) {
+    if (!isSuper) return;
+    const enabled = (permissions[user.id] ?? []).includes(permission);
+    const { error } = await supabase.rpc("admin_set_user_permission", {
+      _user: user.id, _permission: permission, _enabled: !enabled,
+    });
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success(!enabled ? "تم تفعيل الصلاحية لهذا الأدمن" : "تم إلغاء الصلاحية");
+    await load();
+  }
   return <div className="space-y-3">
     {!isSuper && <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">عرض الصلاحيات فقط. التعديل متاح للمشرف الأعلى.</p>}
     <div className="flex gap-2"><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث بالاسم أو رقم المستخدم" /><Button variant="outline" onClick={() => void load()}>بحث</Button></div>
     {rows.map((user) => {
       const canHaveDashboard = user.roles.includes("admin") || user.roles.includes("moderator");
       const dashboardIsEnabled = dashboardEnabled.includes(user.id);
-      return <div key={user.id} className="glass flex flex-wrap items-center justify-between gap-3 rounded-xl p-3 text-sm">
-        <div><b>{user.display_name}</b><div className="text-xs text-muted-foreground">ID {user.display_no} · {user.roles.join(", ")}</div></div>
-        <div className="flex flex-wrap gap-1">
-          {(["admin", "moderator"] as const).map((role) => {
-            const active = user.roles.includes(role);
-            return <Button key={role} size="sm" disabled={!isSuper} variant={active ? "destructive" : "outline"} onClick={() => void change(user, role, !active)}>{active ? "إزالة " : "منح "}{role}</Button>;
-          })}
-          {canHaveDashboard && <Button size="sm" disabled={!isSuper} variant={dashboardIsEnabled ? "default" : "outline"} onClick={() => void toggleDashboard(user)}>{dashboardIsEnabled ? "إخفاء لوحة التحكم" : "إظهار لوحة التحكم"}</Button>}
+      return <div key={user.id} className="glass space-y-3 rounded-xl p-3 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><b>{user.display_name}</b><div className="text-xs text-muted-foreground">ID {user.display_no} · {user.roles.join(", ")}</div></div>
+          <div className="flex flex-wrap gap-1">
+            {(["admin", "moderator"] as const).map((role) => {
+              const active = user.roles.includes(role);
+              return <Button key={role} size="sm" disabled={!isSuper} variant={active ? "destructive" : "outline"} onClick={() => void change(user, role, !active)}>{active ? "إزالة " : "منح "}{role}</Button>;
+            })}
+            {canHaveDashboard && <Button size="sm" disabled={!isSuper} variant={dashboardIsEnabled ? "default" : "outline"} onClick={() => void toggleDashboard(user)}>{dashboardIsEnabled ? "إخفاء لوحة التحكم" : "إظهار لوحة التحكم"}</Button>}
+          </div>
         </div>
+        {canHaveDashboard && <div className="rounded-lg border border-white/10 bg-background/30 p-3">
+          <b className="text-xs">الصلاحيات الممنوحة لهذا الحساب</b>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {ADMIN_PERMISSION_OPTIONS.map(([permission, label]) => {
+              const enabled = (permissions[user.id] ?? []).includes(permission);
+              return <Button key={permission} size="sm" disabled={!isSuper} variant={enabled ? "default" : "outline"} onClick={() => void togglePermission(user, permission)}>
+                {enabled ? "✓ " : "+ "}{label}
+              </Button>;
+            })}
+          </div>
+        </div>}
       </div>;
     })}
     {rows.length === 0 && <p className="glass rounded-xl p-5 text-center text-sm text-muted-foreground">لا توجد صلاحيات إضافية مسجلة</p>}
