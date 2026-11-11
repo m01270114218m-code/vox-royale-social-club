@@ -174,6 +174,15 @@ const ADMIN_PERMISSION_OPTIONS = [
   ["ban_device", "حظر الجهاز"],
   ["manage_wallet", "تعديل رصيد العملات"],
   ["manage_vip", "تعديل VIP"],
+  ["section_reports", "قسم البلاغات"], ["section_rooms", "قسم الغرف"],
+  ["section_seats", "قسم المقاعد"], ["section_posts", "قسم المنشورات"],
+  ["section_users", "قسم المستخدمين"], ["section_wallet", "قسم المحافظ"],
+  ["section_gifts", "قسم الهدايا"], ["section_vip", "قسم مستويات VIP"],
+  ["section_store", "قسم المتجر"], ["section_assets", "قسم الأصول"],
+  ["section_banners", "قسم البانرات"], ["section_notifications", "قسم الإشعارات"],
+  ["section_roles", "قسم صلاحيات الإدارة"], ["section_settings", "قسم الإعدادات"],
+  ["section_app_builder", "قسم تطوير التطبيق"], ["section_analytics", "قسم التحليلات"],
+  ["section_audit", "قسم سجل الإجراءات"],
 ] as const;
 export function AdminRolesTab({ isSuper }: { isSuper: boolean }) {
   const [rows, setRows] = useState<RoleUser[]>([]);
