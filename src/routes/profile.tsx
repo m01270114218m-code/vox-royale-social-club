@@ -209,7 +209,6 @@ function ProfilePage() {
               ["/friends", "الأصدقاء", icons3d.friends],
               ["/notifications", "الإشعارات", icons3d.bell],
               ["/help", "الدعم", icons3d.support],
-              ["/admin", "لوحة التحكم", icons3d.gear],
             ] as const).map(([to, label, icon], i) => (
               <Link key={i} to={to} className="card-3d glass flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border border-primary/20 p-3 text-xs font-bold shadow-lg">
                 <img src={icon} alt="" className="h-11 w-11 object-contain drop-shadow-lg" />{label}
