@@ -813,6 +813,7 @@ const ASSET_CATEGORIES: Record<string, string> = {
   room_frame: "إطارات الغرف",
   avatar: "الصور الشخصية",
   "3d": "مجسمات ثلاثية الأبعاد",
+  mic: "الميكات وتصميماتها",
 };
 const ASSET_BUCKET = "admin-assets";
 const MAX_ASSET_SIZE = 50 * 1024 * 1024;
@@ -848,6 +849,37 @@ function AssetsTab() {
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [voiceConfig, setVoiceConfig] = useState({ mic_asset_key: "", muted_asset_key: "", effect_asset_key: "", show_mic_effect: true, seat_gap_px: "20" });
+  const [voiceSaving, setVoiceSaving] = useState(false);
+
+  async function loadVoiceControls() {
+    const { data, error } = await supabase.from("admin_settings").select("value").eq("key", "voice_controls").maybeSingle();
+    if (error) { toast.error(errMsg(error)); return; }
+    const cfg = (data?.value ?? {}) as Record<string, unknown>;
+    setVoiceConfig({
+      mic_asset_key: String(cfg.mic_asset_key ?? ""),
+      muted_asset_key: String(cfg.muted_asset_key ?? ""),
+      effect_asset_key: String(cfg.effect_asset_key ?? ""),
+      show_mic_effect: cfg.show_mic_effect !== false,
+      seat_gap_px: String(Math.max(0, Math.min(80, Number(cfg.seat_gap_px ?? 20)))),
+    });
+  }
+
+  async function saveVoiceControls() {
+    const gap = Number(voiceConfig.seat_gap_px);
+    if (!Number.isFinite(gap) || gap < 0 || gap > 80) { toast.error("المسافة بين الميكات يجب أن تكون من 0 إلى 80 بكسل"); return; }
+    setVoiceSaving(true);
+    const { data: auth } = await supabase.auth.getUser();
+    const { error } = await supabase.from("admin_settings").upsert({
+      key: "voice_controls",
+      value: { ...voiceConfig, seat_gap_px: gap } as never,
+      updated_at: new Date().toISOString(),
+      updated_by: auth.user?.id ?? null,
+    });
+    setVoiceSaving(false);
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تم حفظ تصميم الميكات والمسافات");
+  }
 
   async function load() {
     setLoading(true);
@@ -873,8 +905,8 @@ function AssetsTab() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
-  useAdminRealtime(["admin_assets"], load);
+  useEffect(() => { void load(); void loadVoiceControls(); }, []);
+  useAdminRealtime(["admin_assets", "admin_settings"], () => { void load(); void loadVoiceControls(); });
 
   async function uploadAssets() {
     if (!files.length) {
@@ -1094,6 +1126,36 @@ function AssetsTab() {
         <Button className="w-full bg-gold" onClick={uploadAssets} disabled={uploading || files.length === 0}>
           {uploading ? "جارٍ رفع الأصول…" : `رفع وإضافة ${files.length || ""} أصل`}
         </Button>
+      </div>
+
+      <div className="glass space-y-3 rounded-2xl border border-primary/20 p-4">
+        <div>
+          <h3 className="font-bold">تصميم الميكات والتحكم في توزيعها</h3>
+          <p className="text-xs text-muted-foreground">ارفع أصولك بتصنيف «الميكات وتصميماتها» ثم اختر الشكل العادي والمكتوم وتأثير التحدث. الإعدادات تُحدّث الغرف مباشرة.</p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="space-y-1 text-xs"><span>شكل الميك الأساسي</span>
+            <select className="w-full rounded-md border border-input bg-input px-3 py-2" value={voiceConfig.mic_asset_key} onChange={(e) => setVoiceConfig(v => ({ ...v, mic_asset_key: e.target.value }))}>
+              <option value="">الشكل الافتراضي</option>
+              {rows.filter(a => a.category === "mic" && a.is_active).map(a => <option key={a.asset_key} value={a.asset_key}>{a.name} · {a.asset_key}</option>)}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs"><span>شكل الميك عند الكتم</span>
+            <select className="w-full rounded-md border border-input bg-input px-3 py-2" value={voiceConfig.muted_asset_key} onChange={(e) => setVoiceConfig(v => ({ ...v, muted_asset_key: e.target.value }))}>
+              <option value="">الشكل الافتراضي للمكتوم</option>
+              {rows.filter(a => a.category === "mic" && a.is_active).map(a => <option key={a.asset_key} value={a.asset_key}>{a.name} · {a.asset_key}</option>)}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs sm:col-span-2"><span>تأثير الميك أثناء التحدث</span>
+            <select className="w-full rounded-md border border-input bg-input px-3 py-2" value={voiceConfig.effect_asset_key} onChange={(e) => setVoiceConfig(v => ({ ...v, effect_asset_key: e.target.value }))}>
+              <option value="">بدون تأثير إضافي</option>
+              {rows.filter(a => a.category === "mic" && a.is_active).map(a => <option key={a.asset_key} value={a.asset_key}>{a.name} · {a.asset_key}</option>)}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs"><span>المسافة بين الميكات (بكسل)</span><Input type="number" min="0" max="80" value={voiceConfig.seat_gap_px} onChange={(e) => setVoiceConfig(v => ({ ...v, seat_gap_px: e.target.value }))} /></label>
+          <label className="flex items-center gap-2 self-end pb-2 text-xs"><input type="checkbox" checked={voiceConfig.show_mic_effect} onChange={(e) => setVoiceConfig(v => ({ ...v, show_mic_effect: e.target.checked }))} /> إظهار تأثير التحدث</label>
+        </div>
+        <Button className="w-full bg-gold" disabled={voiceSaving} onClick={() => void saveVoiceControls()}>{voiceSaving ? "جارٍ الحفظ…" : "حفظ إعدادات الميكات"}</Button>
       </div>
 
       <div className="glass space-y-3 rounded-2xl p-4">
