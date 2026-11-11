@@ -55,19 +55,25 @@ function AdminPage() {
   const externalAdminUrl = (import.meta.env.VITE_ADMIN_PANEL_URL as string | undefined) || "/control-center/";
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [isSuper, setIsSuper] = useState(false);
+  const [hasAdminRole, setHasAdminRole] = useState(false);
   const [stats, setStats] = useState<Record<string, number> | null>(null);
   const [tab, setTab] = useState<Tab>("reports");
 
   async function check() {
-    const [{ data: a }, { data: s }] = await Promise.all([
-      supabase.rpc("is_admin", { _uid: user!.id }),
-      supabase.rpc("has_role", { _user_id: user!.id, _role: "super_admin" }),
+    if (!user?.id) { setAllowed(false); setHasAdminRole(false); setIsSuper(false); return; }
+    const [{ data: access }, { data: adminRole }, { data: superRole }] = await Promise.all([
+      supabase.rpc("can_access_admin_dashboard"),
+      supabase.rpc("is_admin", { _uid: user.id }),
+      supabase.rpc("has_role", { _user_id: user.id, _role: "super_admin" }),
     ]);
-    setAllowed(!!a);
-    setIsSuper(!!s);
-    if (a) {
+    setAllowed(access === true);
+    setHasAdminRole(!!adminRole);
+    setIsSuper(!!superRole);
+    if (access === true) {
       const { data } = await supabase.rpc("admin_stats");
       setStats(data as Record<string, number>);
+    } else {
+      setStats(null);
     }
   }
   useEffect(() => { void check(); }, [user?.id]);
@@ -96,8 +102,8 @@ function AdminPage() {
       <div className="mx-auto max-w-md p-6 pt-20 text-center">
         <Shield className="mx-auto h-14 w-14 text-primary" />
         <h1 className="font-display text-gold mt-4 text-3xl">لوحة التحكم</h1>
-        <p className="mt-2 text-sm text-muted-foreground">ليست لديك صلاحية إدارة. إذا لم يكن هناك مشرف بعد يمكنك المطالبة بالصلاحية كأول مشرف.</p>
-        <Button className="mt-6 w-full bg-gold" onClick={claim}>المطالبة بصلاحية المشرف الأول</Button>
+        <p className="mt-2 text-sm text-muted-foreground">{hasAdminRole ? "صلاحية ظهور لوحة التحكم غير مفعّلة لهذا الحساب. اطلب من المشرف الأعلى تفعيلها لك." : "ليست لديك صلاحية إدارة. إذا لم يكن هناك مشرف بعد يمكنك المطالبة بالصلاحية كأول مشرف."}</p>
+        {!hasAdminRole && <Button className="mt-6 w-full bg-gold" onClick={claim}>المطالبة بصلاحية المشرف الأول</Button>}
         <Link to="/" className="mt-4 block text-sm text-muted-foreground">العودة للتطبيق</Link>
       </div>
     );
