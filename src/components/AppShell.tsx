@@ -182,14 +182,20 @@ function ShellInner({ children }: { children: ReactNode }) {
         supabase.rpc("my_admin_permissions"),
       ]);
       if (!active) return;
+      // Assigned section access takes precedence over full-dashboard access.
+      // This keeps delegated admins inside only the section granted to them.
+      if (!permissionsError) {
+        const section = ((permissions as string[] | null) ?? []).find((key) => key.startsWith("section_"));
+        if (section) {
+          setAdminEntry({ mode: "section", section });
+          return;
+        }
+      }
       if (!dashboardError && dashboard === true) {
         setAdminEntry({ mode: "dashboard" });
         return;
       }
-      if (!permissionsError) {
-        const section = ((permissions as string[] | null) ?? []).find((key) => key.startsWith("section_"));
-        setAdminEntry(section ? { mode: "section", section } : { mode: "section" });
-      }
+      setAdminEntry({ mode: "section" });
     };
     void refresh();
     const onVisible = () => { if (document.visibilityState === "visible") void refresh(); };
