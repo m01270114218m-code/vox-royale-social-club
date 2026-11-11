@@ -499,10 +499,11 @@ function RoomPage() {
     });
     roomLive.current = ch;
     const loadCatalog = async () => {
-      const [{ data: rows }, { data: lucky }, { data: cats }] = await Promise.all([
+      const [{ data: rows }, { data: lucky }, { data: cats }, { data: luckyBar }] = await Promise.all([
         supabase.from("gifts").select("id,name,emoji,price,tier,category_id,animation_style,animation_speed,display_duration_ms,asset_key,asset_url").eq("active", true).order("sort"),
         supabase.from("lucky_gifts").select("id,name,asset_key,price,win_chance,min_reward,max_reward").eq("active",true).order("sort_order"),
         supabase.from("gift_categories").select("id,name,display_mode,sort_order").eq("is_active",true).order("sort_order"),
+        supabase.from("lucky_gift_bar_config").select("enabled,position,duration_ms,width_px,gift_size_px,show_name").eq("id",true).maybeSingle(),
       ]);
       const resolved = await Promise.all((rows || []).map(async (g) => ({
         ...g,
@@ -517,6 +518,14 @@ function RoomPage() {
       setGifts(resolved as GiftT[]);
       setLuckyGifts(resolvedLucky as LuckyGiftT[]);
       setGiftCategoriesList((cats ?? []) as GiftCategoryT[]);
+      if (luckyBar) setLuckyBarConfig({
+        enabled: luckyBar.enabled !== false,
+        position: luckyBar.position ?? "top",
+        duration_ms: Number(luckyBar.duration_ms ?? 5200),
+        width_px: Number(luckyBar.width_px ?? 390),
+        gift_size_px: Number(luckyBar.gift_size_px ?? 56),
+        show_name: luckyBar.show_name !== false,
+      });
     };
     void loadCatalog();
     const loadVoiceControls = async () => {
@@ -790,7 +799,7 @@ function RoomPage() {
     if (luckyAsset) showGiftAnimation(luckyAsset,{style:luckySettings.animation_style,speed:luckySettings.playback_speed,playbackSpeed:luckySettings.playback_speed,duration:luckySettings.display_duration_ms,width:luckySettings.display_width,height:luckySettings.display_height,audioEnabled:luckySettings.audio_enabled});
     const bannerId = Date.now();
     setLuckyBanner({ id: bannerId, name: luckySel.name, message: data?.won ? `مبروك! مردود ${Number(data.reward).toLocaleString()} عملة` : `تم إرسال ${luckySel.name} ×${qty}`, assetUrl: luckyAsset });
-    window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), 5200);
+    window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), luckyBarConfig.duration_ms);
     await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: luckySel.id, eventId: crypto.randomUUID(), receiverId: giftTo, quantity: qty, lucky: true } });
     setRepeatGift({ kind: "lucky", gift: luckySel, receiverId: giftTo, qty });
     setGiftOpen(false);
@@ -1161,10 +1170,15 @@ function RoomPage() {
         </>
       )}
 
-      {luckyBanner && <div key={luckyBanner.id} className="pointer-events-none fixed left-1/2 top-20 z-[140] flex w-[min(92vw,390px)] -translate-x-1/2 items-center gap-3 rounded-2xl border border-amber-300/80 bg-gradient-to-r from-[#120d27] via-[#392052] to-[#7b4a12] p-3 text-white shadow-[0_12px_40px_rgba(0,0,0,.65)] ring-1 ring-amber-200/40 animate-in slide-in-from-top-4">
-        <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-amber-200/60 bg-black/35 shadow-inner">{luckyBanner.assetUrl ? <AdminAssetMedia src={luckyBanner.assetUrl} alt={luckyBanner.name} muted className="h-full w-full object-contain" /> : <Gift className="h-8 w-8 text-amber-200" />}</div>
-        <div className="min-w-0 flex-1"><div className="text-[10px] font-black tracking-widest text-amber-200">VOX ROYALE · LUCKY GIFT</div><div className="truncate text-sm font-black">{luckyBanner.name}</div><div className="text-xs text-amber-100">{luckyBanner.message}</div></div>
-        <span className="text-2xl">✨</span>
+      {luckyBanner && luckyBarConfig.enabled && <div
+        key={luckyBanner.id}
+        className={`pointer-events-none fixed left-1/2 z-[140] -translate-x-1/2 flex items-center justify-center rounded-2xl border border-amber-300/70 bg-gradient-to-r from-[#120d27] via-[#392052] to-[#7b4a12] p-3 text-white shadow-[0_12px_40px_rgba(0,0,0,.65)] ring-1 ring-amber-200/30 animate-in slide-in-from-top-4 ${luckyBarConfig.position === "bottom" ? "bottom-24" : luckyBarConfig.position === "center" ? "top-1/2 -translate-y-1/2" : "top-20"}`}
+        style={{ width: `min(92vw, ${luckyBarConfig.width_px}px)` }}
+      >
+        <div className="flex w-full items-center justify-center gap-3">
+          {luckyBanner.assetUrl && <AdminAssetMedia src={luckyBanner.assetUrl} alt={luckyBanner.name} muted className="shrink-0 object-contain" style={{ width: luckyBarConfig.gift_size_px, height: luckyBarConfig.gift_size_px }} />}
+          {luckyBarConfig.show_name && <div className="min-w-0 truncate text-center text-sm font-black">{luckyBanner.name}</div>}
+        </div>
       </div>}
       {repeatGift && !giftOpen && <button type="button" onClick={() => void sendAgain()} className="fixed bottom-24 left-4 z-[135] flex items-center gap-2 rounded-full border border-amber-300/80 bg-gradient-to-r from-[#221332] to-[#805018] px-4 py-3 text-sm font-black text-amber-50 shadow-[0_10px_30px_rgba(0,0,0,.55)] ring-1 ring-amber-100/30"><Gift className="h-5 w-5" />إرسال متتالي ×{repeatGift.qty}</button>}
       <Sheet open={giftOpen} onOpenChange={setGiftOpen}>
