@@ -76,7 +76,8 @@ function AdminPage() {
     ]);
     if (sectionError) toast.error(errMsg(sectionError));
     const permissions = (sectionData as string[] | null) ?? [];
-    const isSectionOnly = !superRole && access !== true && permissions.some((key) => key.startsWith("section_"));
+    // A delegated section always overrides full-dashboard visibility: the user gets only the assigned section.
+    const isSectionOnly = !superRole && permissions.some((key) => key.startsWith("section_"));
     setSectionPermissions(superRole ? ["*"] : permissions.filter((key) => key.startsWith("section_")));
     setSectionOnly(isSectionOnly);
     setAllowed(access === true || !!superRole || isSectionOnly);
