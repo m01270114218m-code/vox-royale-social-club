@@ -36,6 +36,19 @@ export const Route = createFileRoute("/room/$id")({
 
 const pendingRoomLeaves = new Map<string, ReturnType<typeof setTimeout>>();
 
+// A minimized room remains the same session across route changes and app restarts.
+// Check both persisted markers so a missing/corrupt JSON snapshot cannot replay entry.
+function isRestoringMinimizedRoom(roomId: string): boolean {
+  const markerId = localStorage.getItem("vox_minimized_room_id");
+  if (markerId === roomId) return true;
+  try {
+    const mini = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string } | null;
+    return mini?.id === roomId;
+  } catch {
+    return false;
+  }
+}
+
 type Profile = { id: string; display_name: string; display_no?: number; id_color?: string | null; avatar_url: string | null; level: number; vip_level: number; equipped_frame?: string | null; name_color?: string | null; name_effect?: string | null; name_effect_speed?: number | null; chat_bubble_color?: string | null; chat_bubble_asset_key?: string | null; sound_wave_asset_key?: string | null; profile_card_asset_key?: string | null };
 type Badge = { user_id: string; badge_name: string; badge_asset_key?: string | null; badge_color?: string | null; is_equipped?: boolean };
 type Seat = { seat_index: number; user_id: string | null; is_locked: boolean; is_muted: boolean };
@@ -356,30 +369,20 @@ function RoomPage() {
         toast.error("الغرفة غير موجودة");
         return nav({ to: "/" });
       }
-      try {
-        const mini = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string } | null;
-        restoringMiniRoom = mini?.id === id;
-      } catch {
-        restoringMiniRoom = false;
-      }
+      restoringMiniRoom = isRestoringMinimizedRoom(id);
       const j = await supabase.rpc("join_room", { _room: id });
       if (j.error) {
         toast.error(errMsg(j.error));
         return nav({ to: "/" });
       }
       if (!alive) return;
-      try {
-        const mini = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string } | null;
-        if (mini?.id === id) {
-          // Restore the existing root-level Agora session; never clear its active-room record.
-          localStorage.removeItem("vox_minimized_room");
-          localStorage.removeItem("vox_minimized_room_id");
-          setRoomMinimized(false);
-          window.dispatchEvent(new Event("vox-room-restored"));
-        }
-      } catch {
+      if (restoringMiniRoom || isRestoringMinimizedRoom(id)) {
+        // Consume the restore marker only after the existing membership was resumed.
+        // This also works after the Android app was closed and launched again.
         localStorage.removeItem("vox_minimized_room");
         localStorage.removeItem("vox_minimized_room_id");
+        setRoomMinimized(false);
+        window.dispatchEvent(new Event("vox-room-restored"));
       }
       setRoom(r as Room);
       joinCompleted = true;
@@ -541,8 +544,7 @@ function RoomPage() {
       supabase.removeChannel(voiceSettingsChannel);
       // Keep server membership and Agora alive when the user minimizes the room
       // and navigates to another screen. The floating mini-room restores it later.
-      let isMinimized = false;
-      try { const mini = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string } | null; isMinimized = mini?.id === id; } catch { /* invalid marker: leave normally */ }
+      const isMinimized = isRestoringMinimizedRoom(id);
       if (!isMinimized) {
         localStorage.removeItem("vox_active_room");
         localStorage.removeItem("vox_minimized_room_id");
