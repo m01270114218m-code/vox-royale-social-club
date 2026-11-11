@@ -330,9 +330,11 @@ function RoomPage() {
     let joinCompleted = false;
     let channelReady = false;
     let entryAnnounced = false;
+    let restoringMiniRoom = false;
     let ch: ReturnType<typeof supabase.channel>;
     const announceRoomEntry = async () => {
-      if (!joinCompleted || !channelReady || entryAnnounced || !ch) return;
+      // Restoring a minimized room is not a new room entry.
+      if (restoringMiniRoom || !joinCompleted || !channelReady || entryAnnounced || !ch) return;
       entryAnnounced = true;
       await ch.send({ type: "broadcast", event: "member_entered", payload: { roomId: id, userId: uid, entryId: crypto.randomUUID() } });
       // The joining user sees the same equipped entrance animation as everyone else.
@@ -347,6 +349,12 @@ function RoomPage() {
       if (error || !r) {
         toast.error("الغرفة غير موجودة");
         return nav({ to: "/" });
+      }
+      try {
+        const mini = JSON.parse(localStorage.getItem("vox_minimized_room") || "null") as { id?: string } | null;
+        restoringMiniRoom = mini?.id === id;
+      } catch {
+        restoringMiniRoom = false;
       }
       const j = await supabase.rpc("join_room", { _room: id });
       if (j.error) {
@@ -504,7 +512,7 @@ function RoomPage() {
     void loadCatalog();
     const loadVoiceControls = async () => {
       const { data } = await supabase.from("admin_settings").select("value").eq("key", "voice_controls").maybeSingle();
-      const cfg = (data?.value || {}) as { mic_style?: string; show_mic_effect?: boolean; mic_asset_key?: string; muted_asset_key?: string; effect_asset_key?: string };
+      const cfg = (data?.value || {}) as { mic_style?: string; show_mic_effect?: boolean; mic_asset_key?: string; muted_asset_key?: string; effect_asset_key?: string; seat_gap_px?: number };
       const getUrl = async (key?: string) => {
         if (!key) return undefined;
         const { data: asset } = await supabase.from("admin_assets").select("url,metadata").eq("asset_key", key).eq("is_active", true).maybeSingle();
@@ -514,7 +522,7 @@ function RoomPage() {
         return signed?.signedUrl;
       };
       const [mic_asset_url, muted_asset_url, effect_asset_url] = await Promise.all([getUrl(cfg.mic_asset_key), getUrl(cfg.muted_asset_key), getUrl(cfg.effect_asset_key)]);
-      setVoiceControls({ mic_style: cfg.mic_style, show_mic_effect: cfg.show_mic_effect, mic_asset_url, muted_asset_url, effect_asset_url });
+      setVoiceControls({ mic_style: cfg.mic_style, show_mic_effect: cfg.show_mic_effect, mic_asset_url, muted_asset_url, effect_asset_url, seat_gap_px: Math.max(0, Math.min(80, Number(cfg.seat_gap_px ?? 20))) });
     };
     void loadVoiceControls();
     return () => {
@@ -945,7 +953,7 @@ function RoomPage() {
         </div>
       )}
 
-      <div className={`grid ${cols} gap-y-5 px-4 py-4`}>
+      <div className={`grid ${cols} px-4 py-4`} style={{ columnGap: `${Math.max(0, Math.min(80, Number(voiceControls.seat_gap_px ?? 20)))}px`, rowGap: `${Math.max(8, Math.min(80, Number(voiceControls.seat_gap_px ?? 20)))}px` }}>
         {seats.map((s) => {
           const p = s.user_id ? profiles[s.user_id] : null;
           const host = s.user_id === room.owner_id;
@@ -975,7 +983,7 @@ function RoomPage() {
         <div ref={chatEnd} />
       </div>
 
-      <form onSubmit={send} className="glass m-3 flex items-center gap-2 rounded-full p-2">
+      <form onSubmit={send} className="room-chat-composer glass m-2 flex shrink-0 items-center gap-1.5 rounded-full p-1.5">
         {mySeat && (
           <Button type="button" variant="ghost" size="icon" onClick={async () => {
             if (!micPermissionGranted) {
@@ -999,8 +1007,8 @@ function RoomPage() {
           }} aria-label="المايك" title="المايك"><img src={mySeat.is_muted || !micPermissionGranted ? icons3d.micMuted : icons3d.mic} alt="" className="h-8 w-8 object-contain" /></Button>
         )}
         <Button type="button" variant="ghost" size="icon" onClick={() => openGifts()} aria-label="هدية" title="هدية"><img src={icons3d.giftbox} alt="" className="h-8 w-8 object-contain" /></Button>
-        <Input value={text} onChange={(e) => setText(e.target.value)} maxLength={500} placeholder="اكتب رسالة…" className="border-0 bg-transparent" />
-        <Button type="submit" size="icon" aria-label="إرسال" title="إرسال" className="rounded-full bg-gold"><img src={icons3d.send} alt="" className="h-7 w-7 object-contain" /></Button>
+        <Input value={text} onChange={(e) => setText(e.target.value)} maxLength={500} placeholder="اكتب رسالة…" className="h-9 min-h-0 border-0 bg-transparent px-2 text-sm" />
+        <Button type="submit" size="icon" aria-label="إرسال" title="إرسال" className="h-9 w-9 shrink-0 rounded-full bg-gold"><img src={icons3d.send} alt="" className="h-6 w-6 object-contain" /></Button>
       </form>
 
       <Sheet open={!!seatMenu} onOpenChange={(o) => !o && setSeatMenu(null)}>
