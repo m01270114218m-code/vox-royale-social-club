@@ -97,7 +97,7 @@ function AdminPage() {
     if (!error && data) setStats(data as Record<string, number>);
   }
   useAdminRealtime(
-    allowed ? ["profiles", "wallets", "wallet_transactions", "rooms", "room_members", "room_seats", "gifts", "gift_transactions", "vip_tiers", "banners", "notifications", "admin_assets", "reports", "user_roles", "admin_settings", "audit_log", "store_items", "posts"] : [],
+    allowed && !sectionOnly ? ["profiles", "wallets", "wallet_transactions", "rooms", "room_members", "room_seats", "gifts", "gift_transactions", "vip_tiers", "banners", "notifications", "admin_assets", "reports", "user_roles", "admin_settings", "audit_log", "store_items", "posts"] : [],
     refreshStats,
   );
 
