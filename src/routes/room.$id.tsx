@@ -4,7 +4,7 @@ import { AdminAssetMedia } from "@/components/AdminAssetMedia";
 import { IdentityBadges } from "@/components/IdentityBadges";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Gift, Settings, UserPlus, MessageCircle, DoorOpen, VolumeX, LogOut, Ban, Shield, ArrowDownToLine, Music2, Play, Pause, SkipBack, SkipForward, Volume2 } from "lucide-react";
+import { ArrowRight, Lock, Mic, MicOff, Send, Share2, Trash2, Users, Gift, Settings, UserPlus, MessageCircle, DoorOpen, VolumeX, LogOut, Ban, Shield, ArrowDownToLine, Music2, Play, Pause, SkipBack, SkipForward, Volume2, Minimize2 } from "lucide-react";
 import { RoomSettings } from "@/components/RoomSettings";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,7 +94,7 @@ function RoomPage() {
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; style: string; speed: number; duration: number; mode: "static" | "animated"; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number } | null>(null);
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; name: string; avatar: string; level: number; vip: number; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number; animationStyle: string; animationSpeed: number } | null>(null);
-  const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string }>({});
+  const [voiceControls, setVoiceControls] = useState<{ mic_style?: string; show_mic_effect?: boolean; mic_asset_url?: string; muted_asset_url?: string; effect_asset_url?: string; seat_gap_px?: number }>({});
   const [micPermissionGranted, setMicPermissionGranted] = useState(() => localStorage.getItem("vox_mic_permission_granted") === "1");
   const [musicFile, setMusicFileState] = useState<File | null>(null);
   const setMusicFile = useCallback((file: File | null) => {
@@ -525,10 +525,14 @@ function RoomPage() {
       setVoiceControls({ mic_style: cfg.mic_style, show_mic_effect: cfg.show_mic_effect, mic_asset_url, muted_asset_url, effect_asset_url, seat_gap_px: Math.max(0, Math.min(80, Number(cfg.seat_gap_px ?? 20))) });
     };
     void loadVoiceControls();
+    const voiceSettingsChannel = supabase.channel(`room-voice-settings-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "admin_settings", filter: "key=eq.voice_controls" }, () => { void loadVoiceControls(); })
+      .subscribe();
     return () => {
       alive = false;
       roomLive.current = null;
       supabase.removeChannel(ch);
+      supabase.removeChannel(voiceSettingsChannel);
       // Keep server membership and Agora alive when the user minimizes the room
       // and navigates to another screen. The floating mini-room restores it later.
       let isMinimized = false;
@@ -850,12 +854,12 @@ function RoomPage() {
   return (
     <>
 
-    <input id="room-music-file" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.flac" multiple className="hidden" onChange={(e) => {
+    <input id="room-music-file" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.weba,.flac,.aiff,.aif,.3gp,.amr,.mid,.midi" multiple className="hidden" onChange={(e) => {
       const files = Array.from(e.target.files ?? []);
       e.currentTarget.value = "";
       if (!files.length) return;
       if (!myMicEnabled || !micPermissionGranted) { toast.error("يجب أن تكون على الميك أولاً حتى يسمع الجميع الأغاني"); return; }
-      const playable = files.filter((file) => file.type.startsWith("audio/") || /\\.(mp3|m4a|aac|wav|ogg|flac)$/i.test(file.name));
+      const playable = files.filter((file) => file.type.startsWith("audio/") || /\.(mp3|m4a|aac|wav|ogg|oga|opus|weba|flac|aiff|aif|3gp|amr|mid|midi)$/i.test(file.name));
       if (!playable.length) { toast.error("لم يتم العثور على ملفات صوتية مدعومة"); return; }
       setMusicQueue(playable);
       setMusicQueueIndex(0);
@@ -866,7 +870,10 @@ function RoomPage() {
     {myMicEnabled && micPermissionGranted && <Button type="button" onClick={() => setMusicOpen(true)} className="fixed bottom-24 left-4 z-[95] h-14 w-14 rounded-full border border-gold/50 bg-gold text-black shadow-2xl" aria-label="مشغل الموسيقى" title="مشغل الموسيقى"><Music2 className="h-6 w-6" />{musicFile && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-green-500 ring-2 ring-background" />}</Button>}
     <Sheet open={musicOpen} onOpenChange={setMusicOpen}>
       <SheetContent side="bottom" dir="rtl" className="max-h-[88dvh] overflow-y-auto rounded-t-3xl border-gold/20">
-        <SheetHeader><SheetTitle className="flex items-center gap-2"><Music2 className="h-5 w-5 text-gold" /> مشغل موسيقى الغرفة</SheetTitle></SheetHeader>
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2"><Music2 className="h-5 w-5 text-gold" /> مشغل موسيقى الغرفة</SheetTitle>
+          <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setMusicOpen(false)}><Minimize2 className="ml-2 h-4 w-4" /> تصغير المشغل والعودة للغرفة</Button>
+        </SheetHeader>
         <div className="space-y-4 p-4">
           <div className="rounded-2xl border border-primary/20 bg-secondary/40 p-3">
             <div className="truncate text-sm font-bold">{musicFile?.name ?? "لم يتم اختيار أغنية بعد"}</div>
