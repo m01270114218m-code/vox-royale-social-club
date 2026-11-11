@@ -447,6 +447,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
             <Link to="/u/$id" params={{ id: u.id }} className="font-bold">{u.display_name} <span className="text-xs text-muted-foreground">ID {u.display_no}</span></Link>
             <span className="text-xs">Lv {u.level} · VIP {u.vip_level} · 🪙 {Number(u.coins).toLocaleString()} {u.roles.length > 0 && `· ${u.roles.join(", ")}`}</span>
           </div>
+          {can("edit_user_id") && (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <label className="text-xs text-muted-foreground">ID المميز<Input type="number" min="100000" value={edit.display_no} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, display_no: e.target.value } }))} /></label>
             <label className="text-xs text-muted-foreground">المستوى<Input type="number" min="1" max="999" value={edit.level} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, level: e.target.value } }))} /></label>
@@ -456,6 +457,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
             <Input type="number" min="500" max="5000" aria-label="سرعة تأثير الاسم" value={edit.name_effect_speed} onChange={(e) => setIdentity((s) => ({ ...s, name_effect_speed: e.target.value }))} />
             <Button className="self-end" size="sm" onClick={() => void saveIdentity(u)}>حفظ الهوية المميزة</Button>
           </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <Input className="w-28" type="number" placeholder="عملات ±" value={amt[u.id] ?? ""} onChange={(e) => setAmt({ ...amt, [u.id]: e.target.value })} />
             <Button size="sm" onClick={() => void run(supabase.rpc("admin_grant_coins", { _user: u.id, _amount: Number(amt[u.id] || 0) }), "تم تعديل الرصيد")}>تطبيق</Button>
