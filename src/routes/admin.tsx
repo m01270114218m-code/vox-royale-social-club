@@ -644,7 +644,7 @@ function GiftsTab() {
     toast.success("تم حفظ إعدادات شريط هدايا الحظ");
   }
   useEffect(() => { load(); }, []);
-  useAdminRealtime(["gifts", "gift_transactions", "gift_categories"], load);
+  useAdminRealtime(["gifts", "gift_transactions", "gift_categories", "lucky_gifts", "lucky_gift_bar_config"], load);
   async function saveGift() {
     if (!form.name.trim() || !form.emoji.trim() || !Number.isFinite(Number(form.price_coins)) || Number(form.price_coins) < 0) {
       toast.error("أدخل اسم الهدية ورمزها وسعراً صحيحاً");
