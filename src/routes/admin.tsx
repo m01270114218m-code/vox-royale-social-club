@@ -323,6 +323,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
   const [identity, setIdentity] = useState<Record<string, UserIdentityEdit>>({});
   const [userBans, setUserBans] = useState<Set<string>>(new Set());
   const [deviceBans, setDeviceBans] = useState<Set<string>>(new Set());
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [registeredDevices, setRegisteredDevices] = useState<Set<string>>(new Set());
   const [selectedItem, setSelectedItem] = useState<Record<string, string>>({});
   const [equipItem, setEquipItem] = useState<Record<string, boolean>>({});
@@ -335,6 +336,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
       { data: userBanRows, error: userBanError },
       { data: deviceBanRows, error: deviceBanError },
       { data: deviceRows, error: deviceError },
+      { data: myPermissions, error: permissionsError },
     ] = await Promise.all([
       supabase.rpc("admin_list_users", { _q: q }),
       supabase.from("store_items").select("id,name,kind,asset_key").order("name"),
@@ -342,6 +344,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
       supabase.from("user_bans").select("user_id,expires_at,revoked_at"),
       supabase.from("device_bans").select("user_id,expires_at,revoked_at"),
       supabase.from("device_accounts").select("user_id"),
+      supabase.rpc("my_admin_permissions"),
     ]);
     if (error) toast.error(errMsg(error));
     if (itemsError) toast.error(errMsg(itemsError));
@@ -349,6 +352,8 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
     if (userBanError) toast.error(errMsg(userBanError));
     if (deviceBanError) toast.error(errMsg(deviceBanError));
     if (deviceError) toast.error(errMsg(deviceError));
+    if (permissionsError) toast.error(errMsg(permissionsError));
+    setPermissions((myPermissions ?? []) as string[]);
     const isActiveBan = (row: { expires_at: string | null; revoked_at: string | null }) =>
       !row.revoked_at && (!row.expires_at || new Date(row.expires_at).getTime() > Date.now());
     setUserBans(new Set(((userBanRows ?? []) as { user_id: string; expires_at: string | null; revoked_at: string | null }[]).filter(isActiveBan).map((row) => row.user_id)));
@@ -374,7 +379,9 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
     toast.success(msg);
     await load();
   }
+  const can = (permission: string) => isSuper || permissions.includes(permission);
   async function saveIdentity(u: U) {
+    if (!can("edit_user_id")) { toast.error("لا تملك صلاحية تعديل ID"); return; }
     const value = identity[u.id] ?? { display_no: String(u.display_no), level: String(u.level), id_color: "#D4AF37", name_color: "#D4AF37", name_effect: "none", name_effect_speed: "1800" };
     const displayNo = Number(value.display_no), level = Number(value.level);
     if (!Number.isSafeInteger(displayNo) || displayNo < 100000 || !Number.isInteger(level) || level < 1 || level > 999) {
@@ -388,10 +395,13 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
   }
   async function sendDirectAsset(u: U) {
     const v = directAsset[u.id] ?? { ref: "", name: "", type: "frame" };
+    const permission = v.type === "frame" ? "send_frame" : v.type === "entry" ? "send_entry" : v.type === "badge" ? "send_badge" : "send_profile_assets";
+    if (!can(permission)) { toast.error("لا تملك صلاحية إرسال هذا النوع من الأصول"); return; }
     if (!v.ref.trim() || !v.name.trim()) { toast.error("أدخل رابط/مفتاح الأصل واسم الأصل"); return; }
     await run(supabase.rpc("send_asset_to_user", { _receiver: u.id, _asset_key: v.ref.trim(), _asset_type: v.type, _asset_name: v.name.trim() }), "تم إرسال الأصل للمستخدم وتفعيله حسب نوعه");
   }
   async function updateBan(u: U, kind: "account" | "device", banned: boolean) {
+    if (!can(kind === "account" ? "ban_account" : "ban_device")) { toast.error("لا تملك صلاحية الحظر المطلوبة"); return; }
     let reason = "";
     let hours: number | null = null;
     if (banned) {
@@ -417,6 +427,8 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
     const itemId = selectedItem[u.id];
     if (!itemId) { toast.error("اختر عنصراً من المتجر أولاً"); return; }
     const item = catalog.find((entry) => entry.id === itemId);
+    const permission = item?.kind === "frame" ? "send_frame" : item?.kind === "entry" ? "send_entry" : item?.kind === "badge" ? "send_badge" : "send_profile_assets";
+    if (!can(permission)) { toast.error("لا تملك صلاحية إرسال هذا العنصر"); return; }
     if (equipItem[u.id] && item?.kind !== "frame" && item?.kind !== "entry") {
       toast.error("يمكن تجهيز الإطار أو الدخولية فقط؛ الشارات تُضاف للمخزون");
       return;
