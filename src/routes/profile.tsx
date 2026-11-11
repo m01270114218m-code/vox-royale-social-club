@@ -151,7 +151,7 @@ function ProfilePage() {
       const postIds = (posts ?? []).map((r) => r.id);
       let likes = 0;
       if (postIds.length) {
-        const { count } = await supabase.from("post_likes").select("id", { count: "exact", head: true }).in("post_id", postIds);
+        const { count } = await supabase.from("post_likes").select("post_id", { count: "exact", head: true }).in("post_id", postIds);
         likes = count ?? 0;
       }
       if (!cancelled) setStats({ followers: followerIds.size, friends, posts: postIds.length, likes, visitors: visitAgg.count ?? 0 });
