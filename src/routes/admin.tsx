@@ -90,7 +90,23 @@ function AdminPage() {
       setStats(null);
     }
   }
-  useEffect(() => { void check(); }, [user?.id]);
+  useEffect(() => {
+    if (!user?.id) { void check(); return; }
+    void check();
+    const refresh = () => { if (document.visibilityState === "visible") void check(); };
+    const channel = supabase
+      .channel(`admin-access-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "admin_user_permissions", filter: `user_id=eq.${user.id}` }, () => { void check(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "admin_dashboard_access", filter: `user_id=eq.${user.id}` }, () => { void check(); })
+      .subscribe();
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   async function refreshStats() {
     if (!allowed) return;
@@ -137,11 +153,13 @@ function AdminPage() {
     app_builder: "section_app_builder", analytics: "section_analytics", audit: "section_audit",
   };
   const authorizedTabs = isSuper ? tabs : tabs.filter((item) => sectionPermissions.includes(sectionKey[item.id]));
-  const visibleTabs = sectionOnly
-    ? authorizedTabs.filter((item) => sectionKey[item.id] === requestedSection).slice(0, 1)
-    : authorizedTabs;
-  const effectiveTabs = sectionOnly && visibleTabs.length === 0 ? authorizedTabs.slice(0, 1) : visibleTabs;
-  const selectedTab = sectionOnly ? (effectiveTabs[0]?.id ?? tab) : tab;
+  // Delegated admins can switch between every section explicitly granted to them,
+  // but never see unassigned sections or full-dashboard statistics.
+  const effectiveTabs = authorizedTabs;
+  const requestedTab = tabs.find((item) => sectionKey[item.id] === requestedSection)?.id;
+  const selectedTab = sectionOnly
+    ? (effectiveTabs.some((item) => item.id === tab) ? tab : (requestedTab && effectiveTabs.some((item) => item.id === requestedTab) ? requestedTab : (effectiveTabs[0]?.id ?? tab)))
+    : tab;
   useEffect(() => {
     if (effectiveTabs.length > 0 && !effectiveTabs.some((item) => item.id === tab)) setTab(effectiveTabs[0].id);
   }, [effectiveTabs.map((item) => item.id).join("|"), tab]);
@@ -205,9 +223,9 @@ function AdminPage() {
           ))}
         </div>
       )}
-      {!sectionOnly && <div className="mt-4 flex gap-2 overflow-x-auto">
+      {effectiveTabs.length > 1 && <div className="mt-4 flex gap-2 overflow-x-auto">
         {effectiveTabs.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-1 whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab === t.id ? "bg-gold" : "glass"}`}>
+          <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-1 whitespace-nowrap rounded-full px-4 py-2 text-sm ${selectedTab === t.id ? "bg-gold" : "glass"}`}>
             <t.icon className="h-4 w-4" />{t.label}
           </button>
         ))}
