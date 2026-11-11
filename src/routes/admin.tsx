@@ -459,17 +459,16 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
           </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            <Input className="w-28" type="number" placeholder="عملات ±" value={amt[u.id] ?? ""} onChange={(e) => setAmt({ ...amt, [u.id]: e.target.value })} />
-            <Button size="sm" onClick={() => void run(supabase.rpc("admin_grant_coins", { _user: u.id, _amount: Number(amt[u.id] || 0) }), "تم تعديل الرصيد")}>تطبيق</Button>
-            <select aria-label="مستوى VIP" className="rounded-md border border-input bg-input px-2 py-1.5 text-xs" value={u.vip_level} onChange={(e) => void run(supabase.rpc("admin_set_vip", { _user: u.id, _vip: Number(e.target.value) }), "تم تعديل VIP")}>
+            {can("manage_wallet") && <><Input className="w-28" type="number" placeholder="عملات ±" value={amt[u.id] ?? ""} onChange={(e) => setAmt({ ...amt, [u.id]: e.target.value })} /><Button size="sm" onClick={() => void run(supabase.rpc("admin_grant_coins", { _user: u.id, _amount: Number(amt[u.id] || 0) }), "تم تعديل الرصيد")}>تطبيق الرصيد</Button></>}
+            {can("manage_vip") && <select aria-label="مستوى VIP" className="rounded-md border border-input bg-input px-2 py-1.5 text-xs" value={u.vip_level} onChange={(e) => void run(supabase.rpc("admin_set_vip", { _user: u.id, _vip: Number(e.target.value) }), "تم تعديل VIP")}>
               {Array.from({ length: 11 }, (_, i) => <option key={i} value={i}>VIP {i}</option>)}
-            </select>
+            </select>}
           </div>
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-2">
-            <Button size="sm" variant={userBans.has(u.id) ? "outline" : "destructive"} onClick={() => void updateBan(u, "account", !userBans.has(u.id))}>{userBans.has(u.id) ? "رفع حظر الحساب" : "حظر الحساب من التطبيق"}</Button>
-            <Button size="sm" variant={deviceBans.has(u.id) ? "outline" : "destructive"} disabled={!registeredDevices.has(u.id) && !deviceBans.has(u.id)} onClick={() => void updateBan(u, "device", !deviceBans.has(u.id))}>{deviceBans.has(u.id) ? "رفع حظر الجهاز" : "حظر الجهاز"}</Button>
+          {(can("ban_account") || can("ban_device")) && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-2">
+            {can("ban_account") && <Button size="sm" variant={userBans.has(u.id) ? "outline" : "destructive"} onClick={() => void updateBan(u, "account", !userBans.has(u.id))}>{userBans.has(u.id) ? "رفع حظر الحساب" : "حظر الحساب من التطبيق"}</Button>}
+            {can("ban_device") && <Button size="sm" variant={deviceBans.has(u.id) ? "outline" : "destructive"} disabled={!registeredDevices.has(u.id) && !deviceBans.has(u.id)} onClick={() => void updateBan(u, "device", !deviceBans.has(u.id))}>{deviceBans.has(u.id) ? "رفع حظر الجهاز" : "حظر الجهاز"}</Button>}
             <span className="text-[10px] text-muted-foreground">{registeredDevices.has(u.id) ? "الجهاز مسجل" : "لم يسجل الجهاز دخوله بعد"}</span>
-          </div>
+          </div>}
           <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
             <select aria-label="اختر عنصراً لإرساله" className="min-w-0 rounded-md border border-input bg-input px-2 py-2 text-xs" value={selectedItem[u.id] ?? ""} onChange={(e) => setSelectedItem((s) => ({ ...s, [u.id]: e.target.value }))}>
               <option value="">اختر إطاراً أو دخولية أو شارة</option>
