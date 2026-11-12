@@ -104,7 +104,8 @@ function RoomPage() {
     setMsgs((current) => current.some((item) => item.id === message.id) ? current : [...current.slice(-99), message]);
   }, []);
   const [luckyBanner, setLuckyBanner] = useState<{ id: number; name: string; message: string; assetUrl?: string | null } | null>(null);
-  const [luckyBarConfig, setLuckyBarConfig] = useState<{ enabled: boolean; position: "top" | "bottom" | "center"; duration_ms: number; width_px: number; gift_size_px: number; show_name: boolean }>({ enabled: true, position: "top", duration_ms: 5200, width_px: 390, gift_size_px: 56, show_name: true });
+  const [gift99Banner, setGift99Banner] = useState<{ id: number; senderName: string; receiverName: string; assetUrl?: string | null; giftName: string; quantity: number } | null>(null);
+  const [luckyBarConfig, setLuckyBarConfig] = useState<{ enabled: boolean; position: "top" | "bottom" | "center"; duration_ms: number; width_px: number; gift_size_px: number; show_name: boolean; asset_key?: string | null }>({ enabled: true, position: "top", duration_ms: 3000, width_px: 390, gift_size_px: 48, show_name: true, asset_key: null });
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; style: string; speed: number; duration: number; mode: "static" | "animated"; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number } | null>(null);
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; name: string; avatar: string; level: number; vip: number; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number; animationStyle: string; animationSpeed: number } | null>(null);
@@ -410,19 +411,32 @@ function RoomPage() {
         showRoomMessage(message);
       })
       .on("broadcast", { event: "gift_sent" }, async (payload) => {
-        const event = payload.payload as { roomId?: string; giftId?: string; eventId?: string; lucky?: boolean; quantity?: number; won?: boolean; reward?: number };
+        const event = payload.payload as { roomId?: string; giftId?: string; eventId?: string; lucky?: boolean; quantity?: number; won?: boolean; reward?: number; senderId?: string; receiverId?: string };
         if (event.roomId !== id || !event.giftId) return;
+        if (!event.lucky && Number(event.quantity || 0) >= 99) {
+          const [{ data: sender }, { data: receiver }, { data: normalGift }] = await Promise.all([
+            event.senderId ? supabase.from("profiles").select("display_name").eq("id", event.senderId).maybeSingle() : Promise.resolve({ data: null }),
+            event.receiverId ? supabase.from("profiles").select("display_name").eq("id", event.receiverId).maybeSingle() : Promise.resolve({ data: null }),
+            event.giftId ? supabase.from("gifts").select("name,asset_key,asset_url").eq("id", event.giftId).maybeSingle() : Promise.resolve({ data: null }),
+          ]);
+          const giftAsset = normalGift?.asset_key ? await getAdminAssetUrl(normalGift.asset_key) : (normalGift?.asset_url ? await getAdminAssetUrl(normalGift.asset_url) : null);
+          const bannerId = Date.now();
+          setGift99Banner({ id: bannerId, senderName: sender?.display_name || "مرسل", receiverName: receiver?.display_name || "مستلم", assetUrl: giftAsset, giftName: normalGift?.name || "هدية", quantity: Number(event.quantity || 99) });
+          window.setTimeout(() => setGift99Banner((current) => current?.id === bannerId ? null : current), 3000);
+          return;
+        }
         if (event.lucky) {
           const { data: lucky } = await supabase.from("lucky_gifts").select("name,asset_key").eq("id", event.giftId).maybeSingle();
-          const image = lucky?.asset_key ? await getAdminAssetUrl(lucky.asset_key) : null;
-          const settings = await getAssetPlaybackSettings(lucky?.asset_key);
+          const configuredImage = luckyBarConfig.asset_key ? await getAdminAssetUrl(luckyBarConfig.asset_key) : null;
+          const image = configuredImage || (lucky?.asset_key ? await getAdminAssetUrl(lucky.asset_key) : null);
+          const settings = await getAssetPlaybackSettings(luckyBarConfig.asset_key || lucky?.asset_key);
           if (image) showGiftAnimation(image, { style: settings.animation_style, speed: settings.playback_speed, playbackSpeed: settings.playback_speed, duration: settings.display_duration_ms, width: settings.display_width, height: settings.display_height, audioEnabled: settings.audio_enabled });
           const bannerId = Date.now();
           const message = event.won && Number(event.reward) > 0
             ? `مردود ${Number(event.reward).toLocaleString()} عملة`
             : `تم إرسال ${lucky?.name || "هدية الحظ"} ×${Number(event.quantity || 1)}`;
           setLuckyBanner({ id: bannerId, name: lucky?.name || "هدية الحظ", message, assetUrl: image });
-          window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), luckyBarConfig.duration_ms);
+          window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), 3000);
           return;
         }
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url,category_id,animation_style,animation_speed,display_duration_ms").eq("id", event.giftId).maybeSingle();
@@ -814,7 +828,7 @@ function RoomPage() {
     const bannerId = Date.now();
     setLuckyBanner({ id: bannerId, name: luckySel.name, message: data?.won ? `مبروك! مردود ${Number(data.reward).toLocaleString()} عملة` : `تم إرسال ${luckySel.name} ×${qty}`, assetUrl: luckyAsset });
     window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), luckyBarConfig.duration_ms);
-    await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: luckySel.id, eventId: crypto.randomUUID(), receiverId: giftTo, quantity: qty, lucky: true, won: !!data?.won, reward: Number(data?.reward ?? 0) } });
+    await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: luckySel.id, eventId: crypto.randomUUID(), senderId: uid, receiverId: giftTo, quantity: qty, lucky: true, won: !!data?.won, reward: Number(data?.reward ?? 0) } });
     setRepeatGift({ kind: "lucky", gift: luckySel, receiverId: giftTo, qty });
     setGiftOpen(false);
   }
@@ -845,7 +859,7 @@ function RoomPage() {
       const bannerId = Date.now();
       setLuckyBanner({ id: bannerId, name: gift.name, message: data?.won ? `مبروك! مردود ${Number(data.reward).toLocaleString()} عملة` : `تم إرسال ${gift.name} ×${amount}`, assetUrl: image });
       window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), luckyBarConfig.duration_ms);
-      await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: gift.id, eventId: crypto.randomUUID(), receiverId: target, quantity: amount, lucky: true, won: !!data?.won, reward: Number(data?.reward ?? 0) } });
+      await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: gift.id, eventId: crypto.randomUUID(), senderId: uid, receiverId: target, quantity: amount, lucky: true, won: !!data?.won, reward: Number(data?.reward ?? 0) } });
     }
   }
 
@@ -1184,6 +1198,19 @@ function RoomPage() {
         </>
       )}
 
+      {gift99Banner && <div
+        key={gift99Banner.id}
+        className="pointer-events-none fixed left-1/2 top-20 z-[141] -translate-x-1/2 rounded-full border border-white/20 bg-black/75 px-4 py-2 text-white shadow-[0_10px_35px_rgba(0,0,0,.55)] backdrop-blur-xl animate-in slide-in-from-top-4"
+        style={{ width: "min(94vw, 460px)" }}
+      >
+        <div className="flex items-center justify-center gap-3 text-xs font-bold">
+          <span className="max-w-[100px] truncate text-right">{gift99Banner.senderName}</span>
+          <span className="text-white/50">↔</span>
+          {gift99Banner.assetUrl && <AdminAssetMedia src={gift99Banner.assetUrl} alt={gift99Banner.giftName} muted className="shrink-0 object-contain drop-shadow-lg" style={{ width: 44, height: 44 }} />}
+          <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] text-amber-200">×{gift99Banner.quantity}</span>
+          <span className="max-w-[100px] truncate">{gift99Banner.receiverName}</span>
+        </div>
+      </div>}
       {luckyBanner && luckyBarConfig.enabled && <div
         key={luckyBanner.id}
         className={`pointer-events-none fixed left-1/2 z-[140] -translate-x-1/2 flex items-center justify-center rounded-full border border-amber-300/70 bg-gradient-to-r from-[#120d27] via-[#392052] to-[#7b4a12] px-3 py-2 text-white shadow-[0_10px_28px_rgba(0,0,0,.55)] ring-1 ring-amber-200/30 animate-in slide-in-from-top-4 ${luckyBarConfig.position === "bottom" ? "bottom-24" : luckyBarConfig.position === "center" ? "top-1/2 -translate-y-1/2" : "top-20"}`}
