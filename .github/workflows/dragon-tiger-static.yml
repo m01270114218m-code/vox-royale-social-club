@@ -1,0 +1,42 @@
+name: Dragon Tiger static publish
+
+on:
+  push:
+    branches:
+      - dragon-tiger-clean-deploy
+    paths:
+      - "dragon-tiger-site/**"
+      - ".github/workflows/dragon-tiger-static.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dragon-tiger-static-publish
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate standalone site
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dragon-tiger-site/index.html
+          grep -qi '<!doctype html>' dragon-tiger-site/index.html
+          grep -qi '</html>' dragon-tiger-site/index.html
+
+      - name: Publish static files to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: dragon-tiger-site
+          force_orphan: true
+          commit_message: "Publish Dragon Tiger standalone site"
