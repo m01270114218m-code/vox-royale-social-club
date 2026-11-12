@@ -1,0 +1,2 @@
+drop function if exists public.admin_save_store_item(uuid,text,text,text,text,bigint,integer);
+drop function if exists public.admin_upsert_lucky_gift_bar_config(boolean,text,integer,integer,boolean,text);
