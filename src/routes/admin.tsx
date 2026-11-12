@@ -648,13 +648,16 @@ function GiftsTab() {
     });
   }
   async function saveLuckyBar() {
+    const duration_ms = Math.min(15000, Math.max(1500, Number(luckyBar.duration_ms) || 5200));
+    const width_px = Math.min(700, Math.max(220, Number(luckyBar.width_px) || 390));
+    const gift_size_px = Math.min(140, Math.max(32, Number(luckyBar.gift_size_px) || 56));
     const payload = {
       id: true,
       enabled: luckyBar.enabled,
       position: luckyBar.position,
-      duration_ms: Number(luckyBar.duration_ms),
-      width_px: Number(luckyBar.width_px),
-      gift_size_px: Number(luckyBar.gift_size_px),
+      duration_ms,
+      width_px,
+      gift_size_px,
       show_name: luckyBar.show_name,
       updated_at: new Date().toISOString(),
     };
