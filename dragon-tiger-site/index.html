@@ -61,14 +61,14 @@ footer{text-align:center;color:#81788f;font-size:10px;padding:25px 0 0;line-heig
 (()=>{'use strict';
 const $=id=>document.getElementById(id);let balance=12500,stake=500,side='dragon',round=1284,result=null,played=0,wins=0,losses=0,history=['d','t','d','tie','t','d'];
 const chips=[100,250,500,1000,2500,5000];
-function fmt(n){return n.toLocaleString('en-US')}
+function fmt(n){return n.toLocaleString('en-US')}\nfunction drawCard(){const x=new Uint32Array(1);crypto.getRandomValues(x);return 1+(x[0]%13)}
 function renderChips(){$('chips').innerHTML='';chips.forEach(v=>{const b=document.createElement('button');b.className='chip'+(v===stake?' active':'');b.textContent=fmt(v);b.onclick=()=>{stake=v;renderChips()};$('chips').appendChild(b)})}
 function renderHistory(){$('history').innerHTML='';history.forEach(v=>{const d=document.createElement('span');d.className='dot '+(v==='d'?'d':v==='t'?'t':'tie');d.textContent=v==='d'?'ت':v==='t'?'ن':'=';
 d.title=v==='d'?'التنين':v==='t'?'النمر':'تعادل';$('history').appendChild(d)})}
 function setSide(s){if(result)return;side=s;$('dragon').classList.toggle('selected',s==='dragon');$('tiger').classList.toggle('selected',s==='tiger');$('status').textContent='تم اختيار '+(s==='dragon'?'التنين':'النمر')+'. حدد قيمة الجولة التجريبية.'}
 $('dragon').onclick=()=>setSide('dragon');$('tiger').onclick=()=>setSide('tiger');
 $('play').onclick=()=>{if(result){$('status').textContent='اضغط إعادة لبدء جولة جديدة.';return}if(stake>balance){$('status').textContent='رصيد المعاينة غير كافٍ. اختر قيمة أقل.';return}
-balance-=stake;const a=1+Math.floor(Math.random()*13),b=1+Math.floor(Math.random()*13);const outcome=a===b?'tie':a>b?'dragon':'tiger';result=outcome;played++;
+balance-=stake;const a=drawCard(),b=drawCard();const outcome=a===b?'tie':a>b?'dragon':'tiger';result=outcome;played++;
 $('dragonCard').textContent=['A','2','3','4','5','6','7','8','9','10','J','Q','K'][a-1];$('tigerCard').textContent=['A','2','3','4','5','6','7','8','9','10','J','Q','K'][b-1];$('dragonCard').classList.remove('hidden');$('tigerCard').classList.remove('hidden');
 $('result').textContent=outcome==='tie'?'تعادل':outcome==='dragon'?'فوز التنين':'فوز النمر';$('subresult').textContent='الورق: '+$('dragonCard').textContent+' مقابل '+$('tigerCard').textContent;
 if(outcome==='tie'){balance+=stake;$('status').textContent='تعادل — أُعيدت قيمة الجولة التجريبية.'}
@@ -76,7 +76,7 @@ else if(outcome===side){balance+=stake*2;wins++;$('status').textContent='فوز 
 else{losses++;$('status').textContent='لم يحالفك الحظ في هذه الجولة التجريبية.'}
 history.unshift(outcome==='tie'?'tie':outcome==='dragon'?'d':'t');history=history.slice(0,12);$('balance').textContent=fmt(balance);$('wins').textContent=wins;$('losses').textContent=losses;$('played').textContent=played;renderHistory();$('play').disabled=true;$('play').textContent='انتهت الجولة'};
 $('reset').onclick=()=>{if(result){round++;$('round').textContent='#'+round;result=null;$('dragonCard').textContent='✦';$('tigerCard').textContent='✦';$('dragonCard').classList.add('hidden');$('tigerCard').classList.add('hidden');$('result').textContent='اختر جانبك لبدء الجولة';$('subresult').textContent='التعادل يعيد قيمة الجولة في هذه المعاينة';$('play').disabled=false;$('play').textContent='ابدأ الجولة التجريبية';$('status').textContent='جولة جديدة جاهزة.'}else{$('status').textContent='اختر جانباً وقيمة ثم ابدأ الجولة.'}};
-function feed(){const rows=[['التنين','2,500','فوز'],['النمر','800','خسارة'],['التنين','1,200','فوز'],['النمر','500','قيد الجولة']];$('feed').innerHTML=rows.map(r=>'<div class="feedrow"><div><b>'+r[0]+'</b><small>مشارك مجهول · '+r[2]+'</small></div><span class="amount">✦ '+r[1]+'</span></div>').join('')}
+function feed(){$('feed').innerHTML='<div class="feedrow"><div><b>نشاط اللاعبين</b><small>سيظهر هنا النشاط المجهول بعد ربط اللعبة بخدمة الحسابات المباشرة</small></div><span class="amount">—</span></div>'}
 renderChips();renderHistory();feed();
 })();
 </script></body></html>
