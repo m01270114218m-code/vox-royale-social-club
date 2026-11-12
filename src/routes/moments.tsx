@@ -32,7 +32,7 @@ export const Route = createFileRoute("/moments")({
 
 type Post = {
   id: string; user_id: string; body: string; image_url: string | null; like_count: number; comment_count: number; created_at: string;
-  profiles: { display_name: string; avatar_url: string | null; country: string | null; level: number; vip_level: number } | null;
+  profiles: { display_name: string; avatar_url: string | null; country: string | null; level: number; vip_level: number; equipped_frame?: string | null } | null;
 };
 type Comment = { id: string; user_id: string; body: string; created_at: string; profiles: { display_name: string } | null };
 
@@ -53,7 +53,7 @@ function Moments() {
     const { data: f } = await supabase.from("follows").select("following_id").eq("follower_id", uid);
     const fset = new Set((f ?? []).map((x) => x.following_id));
     setFollowing(fset);
-    let q = supabase.from("posts").select("*, profiles!posts_user_id_fkey(display_name,avatar_url,country,level,vip_level)").order("created_at", { ascending: false }).limit(50);
+    let q = supabase.from("posts").select("*, profiles!posts_user_id_fkey(display_name,avatar_url,country,level,vip_level,equipped_frame)").order("created_at", { ascending: false }).limit(50);
     if (tab === "following") q = q.in("user_id", [...fset, uid]);
     const { data, error } = await q;
     if (error) { toast.error(error.message); return; }
@@ -144,7 +144,7 @@ function Moments() {
         {posts.map((p) => (
           <article key={p.id} className="glass rounded-3xl p-4">
             <div className="flex items-center gap-3">
-              <Link to="/u/$id" params={{ id: p.user_id }}><UserAvatar src={p.profiles?.avatar_url} name={p.profiles?.display_name} size={52} vip={p.profiles?.vip_level} /></Link>
+              <Link to="/u/$id" params={{ id: p.user_id }}><UserAvatar src={p.profiles?.avatar_url} name={p.profiles?.display_name} size={52} vip={p.profiles?.vip_level} frameKey={p.profiles?.equipped_frame} /></Link>
               <div className="min-w-0 flex-1">
                 <Link to="/u/$id" params={{ id: p.user_id }} className="block truncate font-bold">{p.profiles?.display_name}</Link>
                 <div className="flex gap-1 text-[10px]">
