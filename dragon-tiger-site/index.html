@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#090711"><meta name="description" content="SADA Dragon Tiger — تجربة لعبة فردية تفاعلية بعملات افتراضية تجريبية">
+<title>SADA • Dragon Tiger</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap');
+:root{--bg:#090711;--panel:#151225;--gold:#e9c477;--gold2:#9e7135;--muted:#a8a0b8;--red:#ef5b67;--blue:#72baff;--green:#7ce0b0}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -15%,#302044 0,#100d1c 38%,#090711 75%);color:#fff;font-family:Cairo,system-ui,sans-serif;min-height:100vh}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.14;background-image:linear-gradient(45deg,transparent 48%,#c7a15b 49%,transparent 50%);background-size:34px 34px;mask-image:linear-gradient(to bottom,#000,transparent 75%)}
+.shell{max-width:1160px;margin:auto;padding:18px 22px 48px;position:relative}
+header{display:flex;align-items:center;justify-content:space-between;gap:18px;border-bottom:1px solid #ffffff13;padding:6px 0 17px}
+.brand{display:flex;align-items:center;gap:10px}.crest{width:44px;height:44px;border:1px solid #d8b56d;border-radius:14px;display:grid;place-items:center;color:var(--gold);font-size:25px;background:linear-gradient(145deg,#49351e,#171020);box-shadow:0 6px 25px #d1a44a25}
+.brand b{font-size:18px;letter-spacing:.5px}.brand small{display:block;color:var(--gold);font-size:9px;letter-spacing:3px}
+.balance{border:1px solid #b18a4b66;border-radius:14px;padding:8px 14px;background:#211a2c;min-width:155px}.balance small{display:block;color:var(--muted);font-size:10px}.balance strong{color:var(--gold);font-size:17px}
+.pill{border:1px solid #ffffff20;background:#ffffff08;border-radius:99px;padding:7px 12px;color:#d8cce8;font-size:11px}
+.hero{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;padding:28px 0 20px}
+.kicker{color:var(--gold);letter-spacing:3px;font-size:11px;font-weight:800}.hero h1{font-size:clamp(36px,5vw,64px);line-height:1.13;margin:12px 0}.hero h1 span{background:linear-gradient(90deg,#fff1c7,#d6a84e);color:transparent;background-clip:text}.hero p{color:#bcb4c9;max-width:480px;line-height:2;font-size:14px}
+.heroart{height:230px;border:1px solid #b28a4b66;border-radius:26px;position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 60%,#513a65,#1c142c 50%,#0d0a16);box-shadow:inset 0 0 70px #000,0 22px 60px #0008}
+.heroart:before{content:"";position:absolute;width:240px;height:240px;border:1px solid #d9b36c55;border-radius:50%;left:calc(50% - 120px);top:20px;box-shadow:0 0 0 14px #d9b36c0a,0 0 50px #d9b36c22}
+.beast{position:absolute;top:20px;font-size:115px;filter:drop-shadow(0 12px 13px #000b);animation:float 4s ease-in-out infinite}.beast.left{left:8%;transform:rotate(-12deg)}.beast.right{right:8%;animation-delay:-2s;transform:scaleX(-1) rotate(-12deg)}.versus{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);font-size:22px;color:var(--gold);font-weight:900;text-shadow:0 0 25px #e8bf68}
+@keyframes float{50%{translate:0 -9px}}.heroart label{position:absolute;bottom:15px;left:0;right:0;text-align:center;color:#d9c59d;letter-spacing:4px;font-size:10px}
+.notice{display:flex;align-items:center;gap:10px;padding:12px 15px;border:1px solid #8c6d394d;border-radius:14px;background:#2b211b80;color:#e8d8b7;font-size:12px;margin:8px 0 18px}.notice b{color:#f2d59b}.notice .tag{margin-right:auto;color:#e7bd68;font-size:10px;letter-spacing:1px}
+.layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(270px,.8fr);gap:16px}
+.panel{background:linear-gradient(150deg,#1b172b,#100d1c);border:1px solid #ffffff16;border-radius:22px;padding:18px;box-shadow:0 18px 45px #0005}
+.panelhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.panelhead h2{font-size:16px;margin:0}.muted{color:var(--muted);font-size:11px}
+.table{border:1px solid #c5a05b5c;border-radius:20px;padding:20px 16px;background:radial-gradient(ellipse at center,#382449 0,#20172e 53%,#110e1c 100%);box-shadow:inset 0 0 40px #0009,0 8px 25px #0006;position:relative;overflow:hidden}
+.table:before{content:"";position:absolute;inset:9px;border:1px solid #d5b26a45;border-radius:15px;pointer-events:none}
+.sides{display:grid;grid-template-columns:1fr 1fr;gap:12px;position:relative}
+.side{border:1px solid #ffffff22;background:#0d0a17a8;border-radius:16px;padding:12px;text-align:center;cursor:pointer;color:#fff;transition:.2s;min-width:0}
+.side:hover{transform:translateY(-3px)}.side.selected{border-color:var(--gold);box-shadow:0 0 0 2px #d7b15b22,0 0 30px #d7b15b25}
+.side.dragon.selected{background:linear-gradient(160deg,#53202c,#170e1a)}.side.tiger.selected{background:linear-gradient(160deg,#253d5b,#11101e)}
+.side .symbol{font-size:53px;display:block;filter:drop-shadow(0 6px 8px #0009)}.side strong{display:block;font-size:16px}.side small{color:#c3b7cf;font-size:10px}
+.cardrow{display:flex;justify-content:center;gap:9px;margin-top:12px}.playingcard{width:49px;height:66px;border-radius:9px;background:linear-gradient(145deg,#fff,#d8d2df);color:#24172c;display:grid;place-items:center;font-size:24px;font-weight:900;box-shadow:0 5px 10px #0008;border:2px solid #fff}.playingcard.hidden{background:linear-gradient(145deg,#47325d,#171020);color:#e5c477;border:1px solid #c39b55}
+.centerresult{text-align:center;padding:15px 0 3px;position:relative}.centerresult strong{display:block;color:var(--gold);font-size:20px}.centerresult span{color:#b9afc8;font-size:10px}
+.controls{margin-top:17px}.controls h3{font-size:13px;margin:0 0 9px}.chips{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}.chip{border:1px solid #ffffff22;border-radius:10px;background:#ffffff08;color:#e5d9c5;padding:10px 3px;font:700 12px Cairo;cursor:pointer}.chip.active{border-color:var(--gold);background:#b98a3b26;color:#ffe2a1}
+.actionrow{display:flex;gap:9px;margin-top:13px}.primary,.secondary{border:0;border-radius:12px;padding:13px 16px;font:800 13px Cairo;cursor:pointer}.primary{flex:1;background:linear-gradient(110deg,#f3d58c,#b17c36);color:#25172a;box-shadow:0 8px 22px #d3a04c35}.primary:disabled{opacity:.45;cursor:not-allowed}.secondary{background:#ffffff10;color:#e5d7c1;border:1px solid #ffffff20}
+.status{margin-top:12px;border-radius:12px;padding:10px 12px;background:#ffffff08;color:#d9cce8;font-size:11px;min-height:42px;line-height:1.8}
+.sidepanel{display:grid;gap:16px;align-content:start}.feedrow{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #ffffff10;font-size:12px}.feedrow:last-child{border:0}.feedrow b{color:var(--gold)}.feedrow small{display:block;color:var(--muted);font-size:10px}.amount{color:var(--green);font-weight:800;direction:ltr}
+.history{display:flex;gap:7px;flex-wrap:wrap}.dot{width:31px;height:31px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;border:1px solid #ffffff30}.dot.d{background:#682b39}.dot.t{background:#24466a}.dot.tie{background:#76602e}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#ffffff08;border-radius:12px;padding:11px 7px;text-align:center}.stat b{display:block;color:var(--gold);font-size:16px}.stat small{color:var(--muted);font-size:9px}
+footer{text-align:center;color:#81788f;font-size:10px;padding:25px 0 0;line-height:2}
+@media(max-width:760px){.shell{padding:12px 13px 35px}.hero{grid-template-columns:1fr;gap:10px;padding-top:22px}.heroart{height:190px;grid-row:1}.heroCopy{grid-row:2}.layout{grid-template-columns:1fr}.sidepanel{grid-template-columns:1fr 1fr}.sidepanel .panel:first-child{grid-column:1/-1}.hero h1{font-size:43px}header nav{display:none}}
+@media(max-width:420px){.sidepanel{grid-template-columns:1fr}.chips{grid-template-columns:repeat(3,1fr)}.panel{padding:13px}.beast{font-size:93px}}
+</style>
+</head>
+<body><div class="shell">
+<header><div class="brand"><div class="crest">♛</div><div><b>SADA <span style="color:#e9c477">GAMES</span></b><small>ROYAL GAME LOUNGE</small></div></div><span class="pill">لعب فردي • تجربة مستقلة</span><div class="balance"><small>رصيد تجريبي</small><strong>✦ <span id="balance">12,500</span></strong></div></header>
+<section class="hero"><div class="heroCopy"><div class="kicker">THE ROYAL DUEL · 01</div><h1>معركة <span>التنين</span><br>والنمر</h1><p>ساحة لعب فردية بتصميم ملكي. اختر جانبك، حدد قيمة الجولة التجريبية، واكتشف النتيجة.</p><div class="pill" style="display:inline-block">✧ لا تحتاج إلى غرفة صوتية</div></div><div class="heroart"><div class="beast left">🐉</div><div class="beast right">🐅</div><div class="versus">VS</div><label>DRAGON&nbsp;&nbsp; VS &nbsp;&nbsp;TIGER</label></div></section>
+<div class="notice"><span>ⓘ</span><div><b>نسخة عرض تجريبية مستقلة</b> — العملات والنتائج محلية على هذا الجهاز فقط، ولا يوجد اتصال بحساب أو محفظة أو أموال حقيقية.</div><span class="tag">DEMO</span></div>
+<section class="layout"><div class="panel"><div class="panelhead"><h2>ساحة المواجهة</h2><span class="muted">الجولة <b id="round">#1284</b></span></div>
+<div class="table"><div class="sides"><button class="side dragon selected" id="dragon"><span class="symbol">🐉</span><strong>التنين</strong><small>DRAGON</small><div class="cardrow"><div class="playingcard hidden" id="dragonCard">✦</div></div></button><button class="side tiger" id="tiger"><span class="symbol">🐅</span><strong>النمر</strong><small>TIGER</small><div class="cardrow"><div class="playingcard hidden" id="tigerCard">✦</div></div></button></div><div class="centerresult"><strong id="result">اختر جانبك لبدء الجولة</strong><span id="subresult">التعادل يعيد قيمة الجولة في هذه المعاينة</span></div></div>
+<div class="controls"><h3>قيمة العملات التجريبية</h3><div class="chips" id="chips"></div><div class="actionrow"><button class="primary" id="play">ابدأ الجولة التجريبية</button><button class="secondary" id="reset">إعادة</button></div><div class="status" id="status" aria-live="polite">تم اختيار التنين. اختر قيمة الجولة ثم ابدأ.</div></div></div>
+<aside class="sidepanel"><div class="panel"><div class="panelhead"><h2>نشاط اللعب</h2><span class="muted">إخفاء الهوية</span></div><div id="feed"></div><small class="muted">أمثلة شكلية فقط — لا تمثل لاعبين متصلين.</small></div>
+<div class="panel"><div class="panelhead"><h2>آخر النتائج</h2><span class="muted">محلي</span></div><div class="history" id="history"></div></div>
+<div class="panel"><div class="panelhead"><h2>إحصائيات المعاينة</h2></div><div class="stats"><div class="stat"><b id="wins">0</b><small>فوز</small></div><div class="stat"><b id="losses">0</b><small>خسارة</small></div><div class="stat"><b id="played">0</b><small>جولة</small></div></div></div></aside></section>
+<footer>© SADA GAMES · واجهة تجريبية مستقلة<br>لا توجد رهانات مالية أو تحويلات أو سحب أو مكافآت ذات قيمة نقدية. النتائج مولدة محلياً لغرض تجربة الواجهة فقط.</footer>
+</div>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id);let balance=12500,stake=500,side='dragon',round=1284,result=null,played=0,wins=0,losses=0,history=['d','t','d','tie','t','d'];
+const chips=[100,250,500,1000,2500,5000];
+function fmt(n){return n.toLocaleString('en-US')}\nfunction drawCard(){const x=new Uint32Array(1);crypto.getRandomValues(x);return 1+(x[0]%13)}
+function renderChips(){$('chips').innerHTML='';chips.forEach(v=>{const b=document.createElement('button');b.className='chip'+(v===stake?' active':'');b.textContent=fmt(v);b.onclick=()=>{stake=v;renderChips()};$('chips').appendChild(b)})}
+function renderHistory(){$('history').innerHTML='';history.forEach(v=>{const d=document.createElement('span');d.className='dot '+(v==='d'?'d':v==='t'?'t':'tie');d.textContent=v==='d'?'ت':v==='t'?'ن':'=';
+d.title=v==='d'?'التنين':v==='t'?'النمر':'تعادل';$('history').appendChild(d)})}
+function setSide(s){if(result)return;side=s;$('dragon').classList.toggle('selected',s==='dragon');$('tiger').classList.toggle('selected',s==='tiger');$('status').textContent='تم اختيار '+(s==='dragon'?'التنين':'النمر')+'. حدد قيمة الجولة التجريبية.'}
+$('dragon').onclick=()=>setSide('dragon');$('tiger').onclick=()=>setSide('tiger');
+$('play').onclick=()=>{if(result){$('status').textContent='اضغط إعادة لبدء جولة جديدة.';return}if(stake>balance){$('status').textContent='رصيد المعاينة غير كافٍ. اختر قيمة أقل.';return}
+balance-=stake;const a=drawCard(),b=drawCard();const outcome=a===b?'tie':a>b?'dragon':'tiger';result=outcome;played++;
+$('dragonCard').textContent=['A','2','3','4','5','6','7','8','9','10','J','Q','K'][a-1];$('tigerCard').textContent=['A','2','3','4','5','6','7','8','9','10','J','Q','K'][b-1];$('dragonCard').classList.remove('hidden');$('tigerCard').classList.remove('hidden');
+$('result').textContent=outcome==='tie'?'تعادل':outcome==='dragon'?'فوز التنين':'فوز النمر';$('subresult').textContent='الورق: '+$('dragonCard').textContent+' مقابل '+$('tigerCard').textContent;
+if(outcome==='tie'){balance+=stake;$('status').textContent='تعادل — أُعيدت قيمة الجولة التجريبية.'}
+else if(outcome===side){balance+=stake*2;wins++;$('status').textContent='فوز تجريبي! تمت إضافة '+fmt(stake*2)+' إلى رصيد العرض.'}
+else{losses++;$('status').textContent='لم يحالفك الحظ في هذه الجولة التجريبية.'}
+history.unshift(outcome==='tie'?'tie':outcome==='dragon'?'d':'t');history=history.slice(0,12);$('balance').textContent=fmt(balance);$('wins').textContent=wins;$('losses').textContent=losses;$('played').textContent=played;renderHistory();$('play').disabled=true;$('play').textContent='انتهت الجولة'};
+$('reset').onclick=()=>{if(result){round++;$('round').textContent='#'+round;result=null;$('dragonCard').textContent='✦';$('tigerCard').textContent='✦';$('dragonCard').classList.add('hidden');$('tigerCard').classList.add('hidden');$('result').textContent='اختر جانبك لبدء الجولة';$('subresult').textContent='التعادل يعيد قيمة الجولة في هذه المعاينة';$('play').disabled=false;$('play').textContent='ابدأ الجولة التجريبية';$('status').textContent='جولة جديدة جاهزة.'}else{$('status').textContent='اختر جانباً وقيمة ثم ابدأ الجولة.'}};
+function feed(){$('feed').innerHTML='<div class="feedrow"><div><b>نشاط اللاعبين</b><small>سيظهر هنا النشاط المجهول بعد ربط اللعبة بخدمة الحسابات المباشرة</small></div><span class="amount">—</span></div>'}
+renderChips();renderHistory();feed();
+})();
+</script></body></html>
