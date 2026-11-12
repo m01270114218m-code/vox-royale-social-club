@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, Send, CheckCheck, Check } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,9 +13,9 @@ import { errMsg } from "@/lib/vox";
 export const Route = createFileRoute("/chat/$id")({
   head: () => ({
     meta: [
-      { title: "محادثة خاصة — VOX ROYALE" },
+      { title: "محادثة خاصة — صدى شات" },
       { name: "description", content: "محادثة خاصة مباشرة." },
-      { property: "og:title", content: "محادثة خاصة — VOX ROYALE" },
+      { property: "og:title", content: "محادثة خاصة — صدى شات" },
       { property: "og:description", content: "محادثة خاصة مباشرة." },
     ],
   }),
@@ -38,11 +38,12 @@ function Chat() {
   const [text, setText] = useState("");
   const end = useRef<HTMLDivElement>(null);
 
-  async function loadMsgs() {
-    const { data } = await supabase.from("messages").select("id,sender_id,body,created_at,read_at").eq("conversation_id", id).order("created_at", { ascending: false }).limit(100);
+  const loadMsgs = useCallback(async () => {
+    const { data, error } = await supabase.from("messages").select("id,sender_id,body,created_at,read_at").eq("conversation_id", id).order("created_at", { ascending: false }).limit(100);
+    if (error) { console.warn("[chat] refresh failed:", error.message); return; }
     setMsgs((data ?? []).reverse());
-    supabase.rpc("mark_conv_read", { _conv: id });
-  }
+    void supabase.rpc("mark_conv_read", { _conv: id });
+  }, [id]);
   useEffect(() => {
     (async () => {
       const { data: c } = await supabase.from("conversations").select("*").eq("id", id).maybeSingle();
@@ -53,17 +54,21 @@ function Chat() {
       const oid = c.user_a === uid ? c.user_b : c.user_a;
       const { data: p } = await supabase.from("profiles").select("id,display_name,avatar_url").eq("id", oid).single();
       setOther(p);
-      loadMsgs();
+      void loadMsgs();
     })();
-    const ch = supabase
-      .channel(`chat-${id}-${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: `conversation_id=eq.${id}` }, loadMsgs)
+    const ch = supabase.channel(`chat-${id}-${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: `conversation_id=eq.${id}` }, () => { void loadMsgs(); })
       .subscribe();
+    const poll = window.setInterval(() => { if (document.visibilityState === "visible") void loadMsgs(); }, 1500);
+    const onVisible = () => { if (document.visibilityState === "visible") void loadMsgs(); };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
+      window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
       supabase.removeChannel(ch);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, loadMsgs, nav, uid]);
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
   async function send(e: React.FormEvent) {
@@ -75,7 +80,9 @@ function Chat() {
     if (error) {
       toast.error(errMsg(error));
       setText(b);
+      return;
     }
+    void loadMsgs();
   }
 
   return (

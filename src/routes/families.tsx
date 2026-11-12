@@ -12,10 +12,10 @@ import { Input } from "@/components/ui/input";
 export const Route = createFileRoute("/families")({
   head: () => ({
     meta: [
-      { title: "العائلات — VOX ROYALE" },
+      { title: "العائلات — صدى شات" },
       { name: "description", content: "أنشئ عائلتك أو انضم إلى عائلة وتنافس على النقاط." },
-      { property: "og:title", content: "العائلات — VOX ROYALE" },
-      { property: "og:description", content: "عائلات VOX ROYALE وترتيبها." },
+      { property: "og:title", content: "العائلات — صدى شات" },
+      { property: "og:description", content: "عائلات صدى شات وترتيبها." },
     ],
   }),
   component: () => (

@@ -1,0 +1,40 @@
+name: VOX ROYALE web build
+
+on:
+  push:
+    branches: [admin-asset-center]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vox-royale-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout source without external actions
+        run: |
+          BRANCH="$GITHUB_REF_NAME"
+          git clone --depth 1 --branch "$BRANCH" "https://github.com/${GITHUB_REPOSITORY}.git" source
+          cd source
+          test -f package.json
+          test -f bun.lock
+
+      - name: Install locked dependencies and build
+        working-directory: source
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun --version
+          bun install
+          # The app shell uses Capacitor App + Browser for native OAuth deep links.
+          bun add @capacitor/core@latest @capacitor/app@latest @capacitor/browser@latest
+          export NITRO_PRESET=render-com
+          bun run build
+          test -s .output/server/index.mjs
+          test -s .output/public/control-center/index.html

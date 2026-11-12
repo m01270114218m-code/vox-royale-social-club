@@ -2,20 +2,20 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ImagePlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { uploadImage, useMedia } from "@/lib/media";
+import { deleteMedia, uploadImage, useMedia } from "@/lib/media";
 import { CATEGORIES, errMsg } from "@/lib/vox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { roomThemes, roomBackground } from "@/lib/assets3d";
 
-export type EditableRoom = { id: string; name: string; description: string | null; category: string; is_private?: boolean; cover_url?: string | null };
+export type EditableRoom = { id: string; name: string; description: string | null; category: string; is_private?: boolean; cover_url?: string | null; mic_mode?: "request" | "direct" };
 
 export function RoomSettings({ room, uid, open, onOpenChange, onSaved }: { room: EditableRoom; uid: string; open: boolean; onOpenChange: (o: boolean) => void; onSaved: (r: EditableRoom) => void }) {
   const [name, setName] = useState(room.name);
   const [desc, setDesc] = useState(room.description ?? "");
   const [cat, setCat] = useState(room.category);
-  const [priv, setPriv] = useState(!!room.is_private);
+  const [priv, setPriv] = useState(!!room.is_private); const [micMode, setMicMode] = useState<"request" | "direct">(room.mic_mode ?? "request");
   const [cover, setCover] = useState<string | null>(room.cover_url ?? null);
   const [busy, setBusy] = useState(false);
   const coverUrl = useMedia(cover);
@@ -24,7 +24,7 @@ export function RoomSettings({ room, uid, open, onOpenChange, onSaved }: { room:
     if (!f) return;
     try {
       setBusy(true);
-      setCover(await uploadImage(f, uid));
+      setCover(await uploadImage(f, uid, `room/${room.id}`));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "فشل الرفع");
     } finally {
@@ -33,14 +33,14 @@ export function RoomSettings({ room, uid, open, onOpenChange, onSaved }: { room:
   }
   async function save() {
     setBusy(true);
-    const { error } = await supabase.rpc("update_room", { _room: room.id, _name: name, _description: desc, _category: cat, _is_private: priv, _cover_url: cover ?? "" });
+    const { error } = await supabase.rpc("update_room", { _room: room.id, _name: name, _description: desc, _category: cat, _country: "EG", _is_private: priv, _cover_url: cover ?? "" });
     setBusy(false);
     if (error) {
       toast.error(errMsg(error));
       return;
     }
     toast.success("تم حفظ إعدادات الغرفة");
-    onSaved({ ...room, name: name.trim(), description: desc, category: cat, is_private: priv, cover_url: cover });
+    onSaved({ ...room, name: name.trim(), description: desc, category: cat, is_private: priv, cover_url: cover, mic_mode: micMode });
     onOpenChange(false);
   }
   return (
@@ -67,7 +67,7 @@ export function RoomSettings({ room, uid, open, onOpenChange, onSaved }: { room:
             غرفة خاصة (لا تظهر في القائمة)
             <input type="checkbox" checked={priv} onChange={(e) => setPriv(e.target.checked)} className="h-5 w-5 accent-[var(--primary)]" />
           </label>
-          <Button className="w-full" disabled={busy || name.trim().length < 2} onClick={save}>حفظ</Button>
+          <div className="flex gap-2"><Button variant="outline" disabled={busy || !cover} onClick={async () => { if (!cover) return; const previous = cover; setCover(null); try { await supabase.rpc("update_room", { _room: room.id, _name: name, _description: desc, _category: cat, _country: "EG", _is_private: priv, _cover_url: "" }); await deleteMedia(previous).catch(() => undefined); toast.success("تم حذف صورة الغرفة"); } catch (e) { setCover(previous); toast.error(errMsg(e)); } }}>حذف الصورة</Button><Button className="w-full" disabled={busy || name.trim().length < 2} onClick={save}>حفظ</Button></div>
         </div>
       </SheetContent>
     </Sheet>

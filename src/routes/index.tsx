@@ -6,36 +6,123 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
 import { MediaImage } from "@/components/UserAvatar";
+import { AdminAssetMedia } from "@/components/AdminAssetMedia";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CATEGORIES, COUNTRIES, SEAT_OPTIONS, catName, errMsg, flagOf } from "@/lib/vox";
+import { getAdminAssetUrl } from "@/lib/media";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "الغرف الصوتية — VOX ROYALE" },
+      { title: "الغرف الصوتية — صدي شات" },
       { name: "description", content: "اكتشف الغرف الصوتية الشائعة والجديدة حسب الدولة والتصنيف." },
-      { property: "og:title", content: "الغرف الصوتية — VOX ROYALE" },
+      { property: "og:title", content: "الغرف الصوتية — صدي شات" },
       { property: "og:description", content: "اكتشف الغرف الصوتية الشائعة والجديدة." },
     ],
   }),
   validateSearch: (s: Record<string, unknown>): { create?: number } => (s["create"] ? { create: 1 } : {}),
-  component: () => (
-    <AppShell>
-      <Home />
-    </AppShell>
-  ),
+  component: HomeRouteComponent,
 });
 
-type Room = { id: string; room_no: number; name: string; description: string | null; category: string; country: string; member_count: number; is_private: boolean; seat_count: number; created_at: string; cover_url?: string | null };
+type Room = { id: string; room_no: number; name: string; description: string | null; category: string; country: string; member_count: number; is_private: boolean; seat_count: number; created_at: string; cover_url?: string | null; room_frame_asset_key?: string | null; sort_order?: number };
+type RoomBanner = { id: string; title: string; image_url: string; resolved_image_url?: string | null; target_url?: string | null; sort_order: number; is_active: boolean; starts_at?: string | null; ends_at?: string | null };
 
-function Home() {
+function HomeRouteComponent() {
+  const search = Route.useSearch();
+  return <AppShell><HomeScreen createRequested={!!search.create} /></AppShell>;
+}
+
+export function HomeScreen({ createRequested = false }: { createRequested?: boolean }) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [tab, setTab] = useState<"hot" | "new">("hot");
-  const [country, setCountry] = useState<string | null>(null);
-  const [cat, setCat] = useState<string | null>(null);
-  const [q, setQ] = useState("");
+  const [userIdSearch, setUserIdSearch] = useState("");
+  const [appBranding, setAppBranding] = useState<{ app_name?: string; logo_path?: string } | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [introBanner, setIntroBanner] = useState<{ title?: string; image_path?: string; enabled?: boolean } | null>(null);
+  const [introBannerUrl, setIntroBannerUrl] = useState<string | null>(null);
+  const [showIntroBanner, setShowIntroBanner] = useState(false);
+  const [roomBanners, setRoomBanners] = useState<RoomBanner[]>([]);
+  const [bannerIndex, setBannerIndex] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    async function loadBranding() {
+      const { data, error } = await supabase.from("admin_settings").select("key,value").in("key", ["app_branding", "home_banner"]);
+      if (error || !alive) return;
+      const settings = Object.fromEntries((data ?? []).map((row) => [row.key, row.value as Record<string, unknown>]));
+      const brand = (settings.app_branding ?? {}) as { app_name?: string; logo_path?: string };
+      const banner = (settings.home_banner ?? {}) as { title?: string; image_path?: string; enabled?: boolean; duration_seconds?: number };
+      setAppBranding(brand);
+      setIntroBanner(banner);
+      const resolveStorageImage = async (value?: string | null) => {
+        if (!value) return null;
+        const resolved = await getAdminAssetUrl(value);
+        if (resolved) return resolved;
+        if (/^https?:\/\//i.test(value) || value.startsWith("media:")) return null;
+        const { data } = await supabase.storage.from("admin-assets").createSignedUrl(value.replace(/^\/+/, ""), 3600);
+        return data?.signedUrl ?? null;
+      };
+      if (brand.logo_path) {
+        const resolved = await resolveStorageImage(brand.logo_path);
+        if (alive) setLogoUrl(resolved);
+      }
+      if (banner.enabled !== false && banner.image_path && !sessionStorage.getItem("vox_intro_seen")) {
+        const resolved = await resolveStorageImage(banner.image_path);
+        if (alive && resolved) {
+          sessionStorage.setItem("vox_intro_seen", "1");
+          setIntroBannerUrl(resolved);
+          setShowIntroBanner(true);
+          timer = setTimeout(() => setShowIntroBanner(false), 5000);
+        }
+      }
+    }
+    void loadBranding();
+    return () => { alive = false; if (timer) clearTimeout(timer); };
+  }, []);
+
+
+  async function searchUserById() {
+    const value = Number(userIdSearch.trim());
+    if (!Number.isSafeInteger(value) || value < 1) { toast.error("أدخل ID مستخدم صحيح"); return; }
+    const { data, error } = await supabase.from("profiles").select("id,display_no").eq("display_no", value).maybeSingle();
+    if (error) { toast.error(errMsg(error)); return; }
+    if (!data) { toast.error("لم يتم العثور على مستخدم بهذا ID"); return; }
+    setUserIdSearch("");
+    window.location.href = `/u/${data.id}`;
+  }
+
+  async function loadBanners() {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("banners")
+      .select("id,title,image_url,target_url,sort_order,is_active,starts_at,ends_at")
+      .eq("is_active", true)
+      .order("sort_order")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) {
+      toast.error("تعذر تحميل البانرات: " + error.message);
+      return;
+    }
+    const active = ((data ?? []) as RoomBanner[]).filter((b) => (!b.starts_at || b.starts_at <= now) && (!b.ends_at || b.ends_at >= now));
+    const resolved = await Promise.all(active.map(async (banner) => {
+      const imageValue = (banner.image_url || "").trim();
+      const resolvedUrl = await getAdminAssetUrl(imageValue);
+      // Signed URLs can still be displayed while valid if refreshing them fails.
+      const isHttpUrl = imageValue.startsWith("https://") || imageValue.startsWith("http://");
+      const fallbackUrl = isHttpUrl ? imageValue : null;
+      const storagePath = imageValue.startsWith("media:") ? null : imageValue;
+      const storageUrl = !resolvedUrl && !fallbackUrl && storagePath
+        ? (await supabase.storage.from("admin-assets").createSignedUrl(storagePath.split("/").filter(Boolean).join("/"), 3600)).data?.signedUrl ?? null
+        : null;
+      return { ...banner, resolved_image_url: resolvedUrl || fallbackUrl || storageUrl };
+    }));
+    setRoomBanners(resolved);
+    setBannerIndex(0);
+  }
 
   async function load() {
     const { data, error } = await supabase.from("rooms").select("*").limit(100);
@@ -43,54 +130,74 @@ function Home() {
     else setRooms(data as Room[]);
   }
   useEffect(() => {
-    load();
+    void load();
+    void loadBanners();
+    const channel = supabase
+      .channel("home-room-list-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "rooms" }, () => { void load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "banners" }, () => { void loadBanners(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
+  useEffect(() => {
+    if (roomBanners.length < 2) return;
+    const timer = window.setInterval(() => setBannerIndex((i) => (i + 1) % roomBanners.length), 5000);
+    return () => window.clearInterval(timer);
+  }, [roomBanners.length]);
+
   const list = useMemo(() => {
-    let r = rooms.filter((x) => (!country || x.country === country) && (!cat || x.category === cat));
-    if (q.trim()) r = r.filter((x) => x.name.includes(q.trim()) || String(x.room_no) === q.trim());
-    return [...r].sort((a, b) => (tab === "hot" ? b.member_count - a.member_count : +new Date(b.created_at) - +new Date(a.created_at)));
-  }, [rooms, tab, country, cat, q]);
+    return [...rooms].sort((a, b) => { const ao=Number(a.sort_order ?? 0), bo=Number(b.sort_order ?? 0); if (ao !== bo) return ao-bo; return tab === "hot" ? b.member_count-a.member_count : +new Date(b.created_at)-+new Date(a.created_at); });
+  }, [rooms, tab]);
 
   return (
-    <div className="px-4 pt-6">
-      <header className="mb-4 flex items-center justify-between">
-        <h1 className="font-display text-gold text-3xl">VOX ROYALE</h1>
-        <div className="flex items-center gap-2">
-          <Link to="/notifications" aria-label="الإشعارات" className="glass rounded-full p-2"><img src={icons3d.bell} alt="" className="h-7 w-7 object-contain" /></Link>
-          <CreateRoom />
+    <div className="app-screen w-full px-3 pb-3 pt-2 sm:px-4">
+      {showIntroBanner && introBannerUrl && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4" role="dialog" aria-label="إعلان البداية">
+          <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-gold/40 shadow-2xl">
+            <img src={introBannerUrl} alt={introBanner?.title || "بنر البداية"} className="max-h-[78vh] w-full object-contain" />
+            {introBanner?.title && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-5 pt-12 text-center text-xl font-bold text-white">{introBanner.title}</div>}
+            <button onClick={() => setShowIntroBanner(false)} className="absolute right-3 top-3 rounded-full bg-black/70 px-4 py-2 text-sm text-white">تخطي</button>
+          </div>
         </div>
-      </header>
-      <div className="relative mb-4">
-        <img src={icons3d.search} alt="" className="absolute right-3 top-1.5 h-7 w-7 object-contain" />
-        <Input className="pr-10" placeholder="ابحث باسم الغرفة أو رقمها" value={q} onChange={(e) => setQ(e.target.value)} />
-      </div>
-      <div className="mb-3 flex gap-2">
+      )}
+      {roomBanners.length > 0 && (
+        <div className="room-list-banner mb-4 overflow-hidden rounded-3xl border border-primary/30 bg-black/30 shadow-xl">
+          {(() => {
+            const banner = roomBanners[bannerIndex];
+            if (!banner) return null;
+            const content = (
+              <div className="relative h-[132px] w-full sm:h-44">
+                <img src={banner.resolved_image_url || ""} alt={banner.title} className="absolute inset-0 h-full w-full object-cover" />
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent px-4 pb-3 pt-10">
+                  <div className="truncate text-sm font-bold text-white">{banner.title}</div>
+                </div>
+                {roomBanners.length > 1 && (
+                  <div className="absolute bottom-2 left-3 flex gap-1.5">
+                    {roomBanners.map((b, i) => <span key={b.id} className={`h-1.5 rounded-full ${i === bannerIndex ? "w-5 bg-gold" : "w-1.5 bg-white/60"}`} />)}
+                  </div>
+                )}
+              </div>
+            );
+            return banner.target_url ? <a href={banner.target_url} target="_blank" rel="noreferrer">{content}</a> : content;
+          })()}
+        </div>
+      )}
+      <div className="mb-3 flex gap-2"><Input className="flex-1" inputMode="numeric" dir="ltr" placeholder="ابحث عن مستخدم بالـ ID" value={userIdSearch} onChange={(e) => setUserIdSearch(e.target.value.replace(/\D/g, ""))} /><Button variant="outline" onClick={() => void searchUserById()}><Search className="h-4 w-4" /> مستخدم</Button></div>
+      <div className="mb-2 flex gap-2">
         {(["hot", "new"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1.5 text-sm font-bold ${tab === t ? "bg-gold" : "glass text-muted-foreground"}`}>
+          <button key={t} onClick={() => setTab(t)} className={tab === t ? "rounded-full px-4 py-1.5 text-sm font-bold bg-gold" : "rounded-full px-4 py-1.5 text-sm font-bold glass text-muted-foreground"}>
             {t === "hot" ? "🔥 الشائعة" : "✨ الجديدة"}
           </button>
-        ))}
-      </div>
-      <div className="mb-2 flex gap-2 overflow-x-auto pb-2">
-        <Chip active={!country} onClick={() => setCountry(null)}>🌍 الكل</Chip>
-        {COUNTRIES.map((c) => (
-          <Chip key={c.code} active={country === c.code} onClick={() => setCountry(c.code)}>{c.flag} {c.name}</Chip>
-        ))}
-      </div>
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
-        <Chip active={!cat} onClick={() => setCat(null)}>كل التصنيفات</Chip>
-        {CATEGORIES.map((c) => (
-          <Chip key={c.id} active={cat === c.id} onClick={() => setCat(c.id)}>{c.name}</Chip>
         ))}
       </div>
       {list.length === 0 ? (
         <div className="glass rounded-3xl p-10 text-center text-muted-foreground">لا توجد غرف بعد — أنشئ أول غرفة!</div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 justify-items-stretch gap-2 sm:gap-3">
           {list.map((r) => (
             <Link key={r.id} to="/room/$id" params={{ id: r.id }} className="card-3d glass group relative aspect-[3/4] overflow-hidden rounded-3xl p-3">
-              <MediaImage src={r.cover_url || roomBackground(r.category)} className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
+              <MediaImage src={r.cover_url || roomBackground(r.category)} className="absolute inset-0 h-full w-full object-cover" />{r.room_frame_asset_key && <RoomFrameOverlay assetKey={r.room_frame_asset_key} />}<div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
               <div className="relative flex h-full flex-col justify-between">
                 <span className="w-fit rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">{catName(r.category)}</span>
                 <div />
@@ -108,22 +215,33 @@ function Home() {
           ))}
         </div>
       )}
+      <div className="fixed bottom-24 left-4 z-30">
+        <CreateRoom createRequested={createRequested} />
+      </div>
     </div>
   );
 }
 
+function RoomFrameOverlay({ assetKey }: { assetKey: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => { void getAdminAssetUrl(assetKey).then(setSrc); }, [assetKey]);
+  return src ? <AdminAssetMedia src={src} className="pointer-events-none absolute inset-0 z-10 h-full w-full object-fill" /> : null;
+}
+
 function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} className={`shrink-0 rounded-full px-3 py-1 text-sm ${active ? "bg-secondary text-primary ring-1 ring-primary" : "glass text-muted-foreground"}`}>
+    <button onClick={onClick} className={`room-filter-chip shrink-0 rounded-full px-2.5 py-1 text-[13px] leading-5 ${active ? "bg-secondary text-primary ring-1 ring-primary" : "glass text-muted-foreground"}`}>
       {children}
     </button>
   );
 }
 
-function CreateRoom() {
+function CreateRoom({ createRequested = false }: { createRequested?: boolean }) {
   const nav = useNavigate();
-  const search = Route.useSearch();
-  const [open, setOpen] = useState(!!search.create);
+  const [open, setOpen] = useState(createRequested);
+  useEffect(() => {
+    if (createRequested) setOpen(true);
+  }, [createRequested]);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [category, setCategory] = useState("chat");
@@ -143,7 +261,10 @@ function CreateRoom() {
   }
   const sel = "w-full rounded-md border border-input bg-input px-3 py-2 text-sm";
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => {
+      setOpen(next);
+      if (!next && createRequested) void nav({ to: "/", search: {} });
+    }}>
       <DialogTrigger asChild>
         <Button size="sm" className="bg-gold rounded-full font-bold shadow-gold"><img src={icons3d.plus} alt="" className="h-6 w-6 object-contain" /> غرفة</Button>
       </DialogTrigger>

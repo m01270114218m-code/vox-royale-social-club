@@ -1,10 +1,12 @@
-import { IdentityBadges } from "@/components/IdentityBadges";
 import { icons3d } from "@/lib/assets3d";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { uploadImage } from "@/lib/media";
+import { deleteMedia, getAdminAssetUrl, uploadImage } from "@/lib/media";
 import { UserAvatar } from "@/components/UserAvatar";
+import { AdminAssetMedia } from "@/components/AdminAssetMedia";
+import { IdentityBadges } from "@/components/IdentityBadges";
+import { useAdminAsset } from "@/lib/media";
 import { useEffect, useState } from "react";
-import { Coins, Gem, LogOut, Pencil, Crown, Store, Users, Shield, LifeBuoy, Bell, Heart, Camera } from "lucide-react";
+import { Camera } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
@@ -17,9 +19,9 @@ import { COUNTRIES, errMsg, flagOf } from "@/lib/vox";
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "ملفي الشخصي — VOX ROYALE" },
-      { name: "description", content: "ملفك الشخصي ومستواك ومحفظتك في VOX ROYALE." },
-      { property: "og:title", content: "ملفي الشخصي — VOX ROYALE" },
+      { title: "ملفي الشخصي — صدى شات" },
+      { name: "description", content: "ملفك الشخصي ومستواك ومحفظتك في صدى شات." },
+      { property: "og:title", content: "ملفي الشخصي — صدى شات" },
       { property: "og:description", content: "ملفك الشخصي ومستواك ومحفظتك." },
     ],
   }),
@@ -30,49 +32,77 @@ export const Route = createFileRoute("/profile")({
   ),
 });
 
-type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number };
-
+type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; name_color?: string; name_effect?: string; name_effect_speed?: number; equipped_frame?: string | null; equipped_entry?: string | null; chat_bubble_color?: string | null; profile_card_asset_key?: string | null };
+type ProfileBadge = { user_id: string; badge_name: string; badge_asset_key?: string | null; badge_color?: string | null; is_equipped?: boolean };
 function ProfilePage() {
   const { user } = useAuth();
   const nav = useNavigate();
   const [p, setP] = useState<P | null>(null);
+  const [equippedBadges, setEquippedBadges] = useState<ProfileBadge[]>([]);
+  const profileCardUrl = useAdminAsset(p?.profile_card_asset_key);
   const [draft, setDraft] = useState<P | null>(null);
-  const [wallet, setWallet] = useState({ coins: 0, diamonds: 0 });
   const [editing, setEditing] = useState(false);
-  const [txs, setTxs] = useState<{ id: string; currency: string; amount: number; reason: string; created_at: string }[]>([]);
+  const [stats, setStats] = useState({ followers: 0, friends: 0, posts: 0, likes: 0, visitors: 0 });
   const [linkEmail, setLinkEmail] = useState("");
+  const [phoneToLink, setPhoneToLink] = useState("");
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
   const isGuest = !!user?.is_anonymous;
-  async function loadTx() {
-    const { data } = await supabase.from("wallet_transactions").select("id,currency,amount,reason,created_at").order("created_at", { ascending: false }).limit(20);
-    if (data) setTxs(data.map((d) => ({ ...d, amount: Number(d.amount) })));
-  }
   async function daily() {
     const { error } = await supabase.rpc("claim_daily_bonus");
     if (error) { toast.error(errMsg(error)); return; }
-    setWallet((w) => ({ ...w, coins: w.coins + 200 }));
-    toast.success("+200 عملة 🎉");
-    loadTx();
+    toast.success("+100 عملة 🎉");
   }
   async function link() {
-    const { error } = await supabase.auth.updateUser({ email: linkEmail });
+    const { error } = await supabase.auth.updateUser({ email: linkEmail.trim().toLowerCase() });
     if (error) { toast.error(error.message); return; }
     toast.success("أرسلنا رابط تأكيد إلى بريدك لربط الحساب");
   }
 
+  async function sendPhoneLinkCode() {
+    const value = phoneToLink.trim();
+    if (!/^\+[1-9]\d{7,14}$/.test(value)) { toast.error("اكتب الرقم بصيغة دولية مثل +2010xxxxxxxx"); return; }
+    const { error } = await supabase.auth.updateUser({ phone: value });
+    if (error) { toast.error(error.message); return; }
+    setPhoneOtpSent(true);
+    toast.success("تم طلب رمز SMS لربط الرقم بالحساب الحالي");
+  }
+
+  async function verifyPhoneLinkCode() {
+    if (!phoneOtp.trim()) return;
+    const { error } = await supabase.auth.verifyOtp({ phone: phoneToLink.trim(), token: phoneOtp.trim(), type: "phone_change" });
+    if (error) { toast.error(error.message); return; }
+    setPhoneOtpSent(false);
+    setPhoneOtp("");
+    toast.success("تم تأكيد وربط رقم الهاتف بحسابك");
+  }
+
   useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    const refreshBadges = async () => {
+      const { data, error } = await supabase.from("user_badges").select("user_id,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", user.id).eq("is_equipped", true);
+      if (alive && !error) setEquippedBadges((data ?? []) as ProfileBadge[]);
+    };
+    const channel = supabase.channel(`profile-live-${user.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` }, (payload) => {
+        if (!alive) return;
+        setP((current) => current ? ({ ...current, ...(payload.new as P) }) : (payload.new as P));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_badges", filter: `user_id=eq.${user.id}` }, () => { void refreshBadges(); })
+      .subscribe();
     (async () => {
-      const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
-      if (data) setP(data as P);
-      const { data: w } = await supabase.from("wallets").select("coins,diamonds").eq("user_id", user!.id).maybeSingle();
-      loadTx();
-      if (w) setWallet({ coins: Number(w.coins), diamonds: Number(w.diamonds) });
+      const [{ data }] = await Promise.all([supabase.from("profiles").select("*").eq("id", user!.id).single(), refreshBadges()]);
+      if (data && alive) setP(data as P);
     })();
+    return () => { alive = false; void supabase.removeChannel(channel); };
   }, [user]);
+
 
   async function changeAvatar(f?: File) {
     if (!f || !p) return;
     try {
-      const path = await uploadImage(f, p.id);
+      const path = await uploadImage(f, p.id, "profile");
       const { error } = await supabase.from("profiles").update({ avatar_url: path }).eq("id", p.id);
       if (error) throw error;
       setP({ ...p, avatar_url: path });
@@ -81,6 +111,19 @@ function ProfilePage() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "فشل الرفع");
     }
+  }
+
+  async function removeAvatar() {
+    if (!p?.avatar_url) return;
+    try {
+      const previous = p.avatar_url;
+      const { error } = await supabase.from("profiles").update({ avatar_url: null }).eq("id", p.id);
+      if (error) throw error;
+      setP({ ...p, avatar_url: null });
+      if (draft) setDraft({ ...draft, avatar_url: null });
+      await deleteMedia(previous).catch(() => undefined);
+      toast.success("تم حذف صورة الحساب");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "فشل حذف الصورة"); }
   }
 
   async function save() {
@@ -92,27 +135,54 @@ function ProfilePage() {
     toast.success("تم الحفظ");
   }
 
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const [{ data: follows }, { data: posts }, visitAgg] = await Promise.all([
+        supabase.from("follows").select("follower_id,following_id").or(`follower_id.eq.${user.id},following_id.eq.${user.id}`),
+        supabase.from("posts").select("id").eq("user_id", user.id),
+        supabase.from("profile_visits").select("visitor_id", { count: "exact", head: true }).eq("profile_id", user.id),
+      ]);
+      const rows = follows ?? [];
+      const followerIds = new Set(rows.filter((r) => r.following_id === user.id).map((r) => r.follower_id));
+      const followingIds = new Set(rows.filter((r) => r.follower_id === user.id).map((r) => r.following_id));
+      const friends = [...followerIds].filter((id) => followingIds.has(id)).length;
+      const postIds = (posts ?? []).map((r) => r.id);
+      let likes = 0;
+      if (postIds.length) {
+        const { count } = await supabase.from("post_likes").select("post_id", { count: "exact", head: true }).in("post_id", postIds);
+        likes = count ?? 0;
+      }
+      if (!cancelled) setStats({ followers: followerIds.size, friends, posts: postIds.length, likes, visitors: visitAgg.count ?? 0 });
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
   if (!p) return null;
   const shown = editing && draft ? draft : p;
   return (
     <div className="px-4 pt-6">
-      <div className="glass relative overflow-hidden rounded-3xl p-6 text-center">
-        <div className="absolute inset-x-0 top-0 h-24 bg-royal" />
-        <label className="relative mx-auto block w-fit cursor-pointer">
-          <UserAvatar src={shown.avatar_url} name={shown.display_name} size={112} ring vip={p.vip_level} />
-          <span className="absolute bottom-0 left-0 rounded-full bg-gold p-1.5"><Camera className="h-4 w-4" /></span>
-          <input type="file" accept="image/*" className="hidden" onChange={(e) => changeAvatar(e.target.files?.[0])} />
-        </label>
-        <h2 className="mt-3 text-2xl font-bold">{flagOf(shown.country)} {shown.display_name}</h2>
-        <div className="text-sm text-muted-foreground">ID: {p.display_no}</div>
-        <IdentityBadges level={p.level} vip={p.vip_level} /><p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
-        {editing && <div className="mt-2 text-xs text-primary">معاينة — لم يتم الحفظ بعد</div>}
-      </div>
+      <div className="relative overflow-hidden rounded-[30px] border border-amber-300/35 bg-gradient-to-br from-slate-950 via-slate-900 to-violet-950 p-6 text-center text-white shadow-[0_20px_60px_rgba(0,0,0,.4)] ring-1 ring-amber-200/10">{profileCardUrl && <AdminAssetMedia src={profileCardUrl} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="glass flex items-center gap-3 rounded-2xl p-4"><img src={icons3d.coin} alt="" className="h-12 w-12 object-contain" /><div><div className="text-xl font-bold">{wallet.coins}</div><div className="text-xs text-muted-foreground">عملات ذهبية</div></div></div>
-        <div className="glass flex items-center gap-3 rounded-2xl p-4"><img src={icons3d.diamond} alt="" className="h-12 w-12 object-contain" /><div><div className="text-xl font-bold">{wallet.diamonds}</div><div className="text-xs text-muted-foreground">ماسات</div></div></div>
-      </div>
+        <label className="relative mx-auto block w-fit cursor-pointer">
+          <UserAvatar src={shown.avatar_url} name={shown.display_name} size={112} ring vip={p.vip_level} frameKey={p.equipped_frame} />
+          <span className="absolute bottom-0 left-0 rounded-full bg-gold p-1.5"><Camera className="h-4 w-4" /></span>
+          {shown.avatar_url && <button type="button" onClick={(e) => { e.preventDefault(); void removeAvatar(); }} className="absolute right-0 bottom-0 rounded-full bg-destructive px-2 py-1 text-[10px] text-white">حذف</button>}
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => { void changeAvatar(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+        </label>
+        <h2 className={`mt-3 text-2xl font-bold ${shown.name_effect && shown.name_effect !== "none" ? `name-effect-${shown.name_effect}` : ""}`} style={{ color: shown.name_color || undefined, animationDuration: `${shown.name_effect_speed || 1800}ms` }}>{flagOf(shown.country)} {shown.display_name}</h2>
+        <div className="text-sm font-bold" style={{ color: shown.id_color || "#D4AF37" }}>ID: {p.display_no}</div>
+        <div className="mt-2 flex justify-center"><IdentityBadges level={shown.level} vip={shown.vip_level} badges={equippedBadges} /></div>
+        <p className="mt-2 text-sm">{shown.bio || "لا توجد نبذة"}</p>
+        {editing && <div className="mt-2 text-xs text-primary">معاينة — لم يتم الحفظ بعد</div>}
+        <div className="mt-4 grid grid-cols-5 gap-1 rounded-2xl border border-white/10 bg-black/25 p-3 text-center text-white backdrop-blur">
+          <div><div className="text-xl font-black tabular-nums">{stats.followers}</div><div className="text-[10px] text-white/65">المتابعون</div></div>
+          <div><div className="text-xl font-black tabular-nums">{stats.friends}</div><div className="text-[10px] text-white/65">الأصدقاء</div></div>
+          <div><div className="text-xl font-black tabular-nums">{stats.posts}</div><div className="text-[10px] text-white/65">المنشورات</div></div>
+          <div><div className="text-xl font-black tabular-nums">{stats.likes}</div><div className="text-[10px] text-white/65">الإعجابات</div></div>
+          <div><div className="text-xl font-black tabular-nums">{stats.visitors}</div><div className="text-[10px] text-white/65">الزوار</div></div>
+        </div>
+      </div></div>
 
       {editing && draft ? (
         <div className="glass mt-4 space-y-3 rounded-3xl p-4">
@@ -131,14 +201,16 @@ function ProfilePage() {
           <div className="grid grid-cols-4 gap-2">
             {([
               ["/store", "المتجر", icons3d.store],
-              ["/store", "VIP", icons3d.vip],
+              ["/bag", "حقيبتي", icons3d.chest],
+              ["/vip", "VIP", icons3d.vip],
+              ["/wallet", "المحفظة", icons3d.wallet],
+              ["/diamonds", "الألماس", icons3d.diamond],
               ["/families", "العائلة", icons3d.family],
               ["/friends", "الأصدقاء", icons3d.friends],
               ["/notifications", "الإشعارات", icons3d.bell],
               ["/help", "الدعم", icons3d.support],
-              ["/admin", "لوحة التحكم", icons3d.gear],
             ] as const).map(([to, label, icon], i) => (
-              <Link key={i} to={to} className="card-3d glass flex flex-col items-center gap-1 rounded-2xl p-3 text-xs">
+              <Link key={i} to={to} className="card-3d glass flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border border-primary/20 p-3 text-xs font-bold shadow-lg">
                 <img src={icon} alt="" className="h-11 w-11 object-contain drop-shadow-lg" />{label}
               </Link>
             ))}
@@ -151,28 +223,37 @@ function ProfilePage() {
               <div className="flex gap-2"><Input type="email" dir="ltr" value={linkEmail} onChange={(e) => setLinkEmail(e.target.value)} placeholder="email@example.com" /><Button onClick={link} variant="outline">ربط</Button></div>
             </div>
           )}
+          <div className="glass space-y-2 rounded-2xl p-3 text-sm">
+            <div className="font-bold text-primary">ربط رقم هاتف حقيقي بالحساب</div>
+            <p className="text-muted-foreground">يتم ربط الرقم بحساب المصادقة الحالي بعد تأكيد رمز SMS، دون إنشاء حساب جديد.</p>
+            {user?.phone && <p className="text-emerald-400">رقم موثّق: <span dir="ltr">{user.phone}</span></p>}
+            <div className="flex gap-2">
+              <Input type="tel" inputMode="tel" dir="ltr" value={phoneToLink} onChange={(e) => setPhoneToLink(e.target.value)} placeholder="+2010xxxxxxxx" />
+              <Button onClick={() => void sendPhoneLinkCode()} variant="outline">إرسال الرمز</Button>
+            </div>
+            {phoneOtpSent && <div className="flex gap-2">
+              <Input inputMode="numeric" dir="ltr" value={phoneOtp} onChange={(e) => setPhoneOtp(e.target.value)} placeholder="رمز SMS" maxLength={8} />
+              <Button onClick={() => void verifyPhoneLinkCode()} className="bg-gold">تأكيد</Button>
+            </div>}
+          </div>
           <Button variant="outline" onClick={async () => {
             if (isGuest) {
-              // Keep the guest session valid so "quick login" on this device restores the same account.
-              const { data: cur } = await supabase.auth.getSession();
-              if (cur.session) localStorage.setItem("vox_guest_refresh", cur.session.refresh_token);
-              await supabase.auth.signOut({ scope: "local" });
+              // Supabase revokes the anonymous refresh token on signOut.
+              // Pause the app session instead, so quick login reopens this exact account.
+              const { data: cur, error } = await supabase.auth.getSession();
+              if (error || !cur.session?.user?.is_anonymous) {
+                toast.error("تعذر حفظ جلسة الحساب السريع. حاول مرة أخرى.");
+                return;
+              }
+              localStorage.setItem("vox_guest_refresh", cur.session.refresh_token);
+              localStorage.setItem("vox_guest_account_created", "1");
+              localStorage.setItem("vox_guest_logged_out", "1");
+              window.dispatchEvent(new Event("vox-auth-visibility-change"));
             } else {
               await supabase.auth.signOut();
             }
             nav({ to: "/auth" });
           }}><img src={icons3d.logout} alt="" className="h-6 w-6 object-contain" /> تسجيل الخروج</Button>
-        </div>
-      )}
-      {!editing && (
-        <div className="glass mt-4 rounded-3xl p-4">
-          <h3 className="mb-2 font-bold">سجل المحفظة</h3>
-          {txs.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد معاملات بعد</p> : txs.map((t) => (
-            <div key={t.id} className="flex justify-between border-b border-border py-2 text-sm last:border-0">
-              <span>{({ gift_sent: "هدية مرسلة", gift_received: "هدية مستلمة", daily_bonus: "مكافأة يومية", vip_purchase: "شراء VIP" } as Record<string, string>)[t.reason] ?? t.reason}</span>
-              <span className={t.amount < 0 ? "text-destructive" : "text-primary"}>{t.amount > 0 ? "+" : ""}{t.amount} {t.currency === "coins" ? "🪙" : "💎"}</span>
-            </div>
-          ))}
         </div>
       )}
     </div>

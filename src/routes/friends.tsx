@@ -9,9 +9,9 @@ import { useAuth } from "@/hooks/useAuth";
 export const Route = createFileRoute("/friends")({
   head: () => ({
     meta: [
-      { title: "الأصدقاء — VOX ROYALE" },
+      { title: "الأصدقاء — صدى شات" },
       { name: "description", content: "أصدقاؤك ومتابعوك ومن تتابعهم وزوار ملفك." },
-      { property: "og:title", content: "الأصدقاء — VOX ROYALE" },
+      { property: "og:title", content: "الأصدقاء — صدى شات" },
       { property: "og:description", content: "أصدقاؤك ومتابعوك." },
     ],
   }),
