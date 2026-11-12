@@ -309,7 +309,8 @@ function RoomPage() {
         .eq("asset_key", equippedKey)
         .eq("kind", "entry")
         .maybeSingle();
-      if (!storeItem?.id || storeItem.asset_key !== equippedKey || (storeItem.expires_at && new Date(storeItem.expires_at).getTime() <= Date.now())) return;
+      const storeExpiry = (storeItem as unknown as { expires_at?: string | null } | null)?.expires_at;
+      if (!storeItem?.id || storeItem.asset_key !== equippedKey || (storeExpiry && new Date(storeExpiry).getTime() <= Date.now())) return;
       assetKey = storeItem.asset_key;
     }
 
