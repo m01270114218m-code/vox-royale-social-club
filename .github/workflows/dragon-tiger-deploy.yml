@@ -1,0 +1,37 @@
+name: Publish Dragon Tiger site
+
+on:
+  push:
+    branches:
+      - dragon-tiger-clean-deploy
+    paths:
+      - "dragon-tiger-site/**"
+      - ".github/workflows/dragon-tiger-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify game page
+        run: test -s dragon-tiger-site/index.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dragon-tiger-site
+
+      - name: Deploy site
+        id: deployment
+        uses: actions/deploy-pages@v4
