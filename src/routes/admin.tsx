@@ -626,7 +626,7 @@ function GiftsTab() {
   const [categories, setCategories] = useState<GiftCategory[]>([]);
   const [categoryName, setCategoryName] = useState("");
   const [categoryMode, setCategoryMode] = useState<"static" | "animated">("static");
-  const [luckyBar, setLuckyBar] = useState({ enabled: true, position: "top", duration_ms: "5200", width_px: "390", gift_size_px: "56", show_name: true });
+  const [luckyBar, setLuckyBar] = useState({ enabled: true, position: "top", duration_ms: "3000", width_px: "390", gift_size_px: "48", show_name: true, asset_key: "" });
   const [form, setForm] = useState({ name: "", emoji: "🎁", price_coins: "100", asset_url: "", category_id: "", animation_style: "zoom", animation_speed: "1", display_duration_ms: "2600" });
   async function load() {
     const [{ data, error }, { data: gifts, error: catalogError }, { data: lucky, error: luckyError }, { data: cats, error: categoryError }] = await Promise.all([
@@ -635,7 +635,7 @@ function GiftsTab() {
       supabase.from("lucky_gifts").select("id,name,asset_key,price,win_chance,min_reward,max_reward,active").order("sort_order").order("price"),
       supabase.from("gift_categories").select("id,name,display_mode,sort_order,is_active").order("sort_order"),
     ]);
-    const { data: barConfig, error: barError } = await supabase.from("lucky_gift_bar_config").select("enabled,position,duration_ms,width_px,gift_size_px,show_name").eq("id", true).maybeSingle();
+    const { data: barConfig, error: barError } = await supabase.from("lucky_gift_bar_config").select("*").eq("id", true).maybeSingle();
     if (barError) toast.error(errMsg(barError));
     if (error) toast.error(errMsg(error));
     if (catalogError) toast.error(errMsg(catalogError));
@@ -648,10 +648,11 @@ function GiftsTab() {
     if (barConfig) setLuckyBar({
       enabled: barConfig.enabled !== false,
       position: barConfig.position ?? "top",
-      duration_ms: String(barConfig.duration_ms ?? 5200),
+      duration_ms: "3000",
       width_px: String(barConfig.width_px ?? 390),
-      gift_size_px: String(barConfig.gift_size_px ?? 56),
+      gift_size_px: String(barConfig.gift_size_px ?? 48),
       show_name: barConfig.show_name !== false,
+      asset_key: String(barConfig.asset_key ?? ""),
     });
   }
   async function saveLuckyBar() {
