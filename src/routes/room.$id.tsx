@@ -219,6 +219,25 @@ function RoomPage() {
   }
   useEffect(() => {
     let active = true;
+    const loadLuckyBar = async () => {
+      const { data } = await supabase.from("lucky_gift_bar_config").select("*").eq("id", true).maybeSingle();
+      if (!active || !data) return;
+      setLuckyBarConfig({
+        enabled: data.enabled !== false,
+        position: data.position ?? "top",
+        duration_ms: 3000,
+        width_px: Number(data.width_px ?? 390),
+        gift_size_px: Number(data.gift_size_px ?? 48),
+        show_name: data.show_name !== false,
+        asset_key: data.asset_key ?? null,
+      });
+    };
+    void loadLuckyBar();
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
     const refreshGiftCatalog = async () => {
       const [{ data: rows }, { data: cats }] = await Promise.all([
         supabase.from("gifts").select("id,name,emoji,price,tier,category_id,animation_style,animation_speed,display_duration_ms,asset_key,asset_url").eq("active", true).order("sort"),
