@@ -43,6 +43,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
         if (error) throw error;
         if (allowed !== true) throw new Error("device_access_denied");
 
+        // Expired private/direct cosmetics are revoked from the equipped profile state
+        // before the app becomes usable. This keeps direct grants time-bounded.
+        const { error: expiryError } = await supabase.rpc("enforce_user_asset_expirations", { _user: user.id });
+        if (expiryError) console.warn("[Asset expiry] verification failed:", expiryError.message);
+
         // Anonymous quick accounts are already registered once during creation.
         if (!user.is_anonymous && localStorage.getItem(registrationKey) !== "1") {
           const { error: registerError } = await supabase.rpc("register_device", { _device: deviceId });
@@ -73,12 +78,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
           toast.error(linked ? "هذا الجهاز مرتبط بحساب آخر بالفعل" : "تم رفض صلاحية هذا الجهاز");
           if (active) setDeviceAllowed(false);
         } else {
-          // A temporary network/Auth API outage must not strand an already
-          // authenticated user behind a permanent spinner. Bans remain enforced
-          // whenever the server responds; retry the check on the next resume.
-          console.warn("[Device access] temporary verification failure:", message);
-          if (active) setDeviceAllowed(true);
-          toast.error("تعذر الاتصال بخدمة التحقق مؤقتًا؛ سنعيد المحاولة تلقائيًا عند عودة الاتصال");
+          // Access verification is fail-closed: if the server cannot confirm the
+          // account/device is allowed, do not open the application.
+          console.warn("[Device access] verification failed:", message);
+          if (active) setDeviceAllowed(false);
+          toast.error("تعذر التحقق من صلاحية الحساب والجهاز؛ لن يتم فتح التطبيق حتى ينجح التحقق");
         }
       } finally {
         checking = false;
