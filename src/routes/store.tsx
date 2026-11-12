@@ -58,7 +58,7 @@ function StorePage() {
     (async () => {
       const [{ data: p }, { data: si }, { data: ui }] = await Promise.all([
         supabase.from("profiles").select("equipped_frame, equipped_entry, chat_bubble_asset_key, sound_wave_asset_key, profile_card_asset_key").eq("id", user!.id).single(),
-        supabase.from("store_items").select("id, kind, name, description, price, asset_key, is_direct_grant, expires_at").eq("is_direct_grant", false).order("sort_order"),
+        supabase.from("store_items").select("*").eq("is_direct_grant", false).order("sort_order"),
         supabase.from("user_items").select("item_id").eq("user_id", user!.id),
       ]);
       setEquippedFrame(p?.equipped_frame ?? null);
