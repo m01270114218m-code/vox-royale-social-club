@@ -255,11 +255,12 @@ function RoomPage() {
     };
     const globalLuckyChannel = supabase.channel("vox-global-lucky-gifts")
       .on("broadcast", { event: "lucky_global" }, async ({ payload }) => {
-        const event = payload as { reward?: number; giftName?: string; assetUrl?: string | null; senderName?: string; receiverName?: string };
-        if (Number(event.reward ?? 0) < Number(luckyBarConfig.global_min_reward ?? 10000)) return;
+        const event = payload as { reward?: number; spentCoins?: number; rewardPercent?: number };
+        const reward = Number(event.reward ?? 0);
+        if (reward <= 0 || reward < Number(luckyBarConfig.global_min_reward ?? 10000)) return;
         const bannerId = Date.now();
-        setLuckyBanner({ id: bannerId, name: event.giftName || "هدية الحظ", message: `مردود ${Number(event.reward ?? 0).toLocaleString()} عملة · ${event.senderName || "مرسل"} ← ${event.receiverName || "مستلم"}`, assetUrl: event.assetUrl });
-        window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), 3000);
+        setLuckyRewardBanner({ id: bannerId, reward, percent: Number(event.rewardPercent ?? (event.spentCoins ? reward / event.spentCoins * 100 : 0)) });
+        window.setTimeout(() => setLuckyRewardBanner((current) => current?.id === bannerId ? null : current), 3000);
       })
       .subscribe();
 
@@ -903,7 +904,16 @@ function RoomPage() {
       const image = assetRef ? await getAdminAssetUrl(assetRef) : null;
       const settings = await getAssetPlaybackSettings(assetRef);
       if (image) showGiftAnimation(image, { style: gift.animation_style || settings.animation_style, speed: gift.animation_speed || settings.playback_speed, playbackSpeed: settings.playback_speed, duration: settings.display_duration_ms || gift.display_duration_ms, mode: giftCategoriesList.find((item) => item.id === gift.category_id)?.display_mode || "animated", width: settings.display_width, height: settings.display_height, audioEnabled: settings.audio_enabled });
-      await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: gift.id, eventId: crypto.randomUUID(), receiverId: target, quantity: amount } });
+      if (amount >= 99) {
+        const [{ data: sender }, { data: receiver }] = await Promise.all([
+          supabase.from("profiles").select("display_name").eq("id", uid).maybeSingle(),
+          supabase.from("profiles").select("display_name").eq("id", target).maybeSingle(),
+        ]);
+        const bannerId = Date.now();
+        setGift99Banner({ id: bannerId, senderName: sender?.display_name || "مرسل", receiverName: receiver?.display_name || "مستلم", assetUrl: image, giftName: gift.name, quantity: amount });
+        window.setTimeout(() => setGift99Banner((current) => current?.id === bannerId ? null : current), 3500);
+      }
+      await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: gift.id, eventId: crypto.randomUUID(), senderId: uid, receiverId: target, quantity: amount } });
     } else {
       const gift = repeatGift.gift;
       const { data, error } = await supabase.rpc("send_lucky_gift", { _gift: gift.id, _receiver: target, _room: id, _qty: amount });
@@ -912,10 +922,18 @@ function RoomPage() {
       const image = gift.asset_key ? await getAdminAssetUrl(gift.asset_key) : null;
       const settings = await getAssetPlaybackSettings(gift.asset_key);
       if (image) showGiftAnimation(image, { style: settings.animation_style, speed: settings.playback_speed, playbackSpeed: settings.playback_speed, duration: settings.display_duration_ms, width: settings.display_width, height: settings.display_height, audioEnabled: settings.audio_enabled });
-      const bannerId = Date.now();
-      setLuckyBanner({ id: bannerId, name: gift.name, message: data?.won ? `مبروك! مردود ${Number(data.reward).toLocaleString()} عملة` : `تم إرسال ${gift.name} ×${amount}`, assetUrl: image });
-      window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), luckyBarConfig.duration_ms);
-      await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: gift.id, eventId: crypto.randomUUID(), senderId: uid, receiverId: target, quantity: amount, lucky: true, won: !!data?.won, reward: Number(data?.reward ?? 0) } });
+      const reward = Number(data?.reward ?? 0);
+      const spentCoins = gift.price * amount;
+      const rewardPercent = spentCoins > 0 ? reward / spentCoins * 100 : 0;
+      if (data?.won && reward > 0) {
+        const bannerId = Date.now();
+        const delay = Math.max(500, Math.min(120000, Number(settings.display_duration_ms ?? 2600)));
+        window.setTimeout(() => {
+          setLuckyRewardBanner({ id: bannerId, reward, percent: rewardPercent });
+          window.setTimeout(() => setLuckyRewardBanner((current) => current?.id === bannerId ? null : current), 3000);
+        }, delay);
+      }
+      await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: gift.id, eventId: crypto.randomUUID(), senderId: uid, receiverId: target, quantity: amount, lucky: true, won: !!data?.won, reward, spentCoins, rewardPercent } });
     }
   }
 
