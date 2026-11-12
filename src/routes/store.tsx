@@ -68,18 +68,16 @@ function StorePage() {
       setEquippedFrame(p?.equipped_frame ?? null);
       setEquippedEntry(p?.equipped_entry ?? null);
       setEquippedBubble(p?.chat_bubble_asset_key ?? null); setEquippedWave(p?.sound_wave_asset_key ?? null); setEquippedCard(p?.profile_card_asset_key ?? null);
-      const now = Date.now();
       const activeItems = ((si ?? []) as unknown as StoreItem[]).filter((item) => !item.expires_at || new Date(item.expires_at).getTime() > now);
       const enrichedItems = await Promise.all(activeItems.map(async (item) => ({ ...item, asset_url: await getAdminAssetUrl(item.asset_key) })));
       setItems(enrichedItems);
-      setOwned(new Set((ui ?? []).map((r) => r.item_id)));
+      setOwned(new Set(activeOwned.map((r) => r.item_id)));
     })();
     return () => { void supabase.removeChannel(live); };
   }, [user]);
   async function buyItem(item: StoreItem) {
     const { data, error } = await supabase.rpc("buy_item", { _item_id: item.id });
     if (error) { toast.error(error.message.includes("insufficient") ? "رصيد العملات غير كافٍ" : error.message.includes("already") ? "تملكه بالفعل" : errMsg(error)); return; }
-    setCoins(Number(data));
     setOwned((s) => new Set(s).add(item.id));
     toast.success(`اشتريت ${item.name}! 🎉`);
   }
