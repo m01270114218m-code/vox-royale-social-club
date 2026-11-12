@@ -738,7 +738,7 @@ function GiftsTab() {
       ))}
       <section className="glass space-y-3 rounded-2xl p-4">
         <b>تخصيص شريط هدايا الحظ</b>
-        <p className="text-xs text-muted-foreground">يظهر فقط أصل الهدية واسمها بدون رموز أو نسبة حظ أو سعر أو نصوص إضافية.</p>
+        <p className="text-xs text-muted-foreground">شريط صغير واحترافي داخل الغرفة: صورة الهدية + اسمها + عدد المردود الفعلي عند الفوز. يمكنك التحكم في الموضع والمدة والحجم.</p>
         <div className="grid grid-cols-2 gap-2">
           <label className="text-xs text-muted-foreground">التفعيل<select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={luckyBar.enabled ? "on" : "off"} onChange={e=>setLuckyBar({...luckyBar,enabled:e.target.value==="on"})}><option value="on">مفعل</option><option value="off">مخفي</option></select></label>
           <label className="text-xs text-muted-foreground">الموضع<select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={luckyBar.position} onChange={e=>setLuckyBar({...luckyBar,position:e.target.value})}><option value="top">أعلى الشاشة</option><option value="center">منتصف الشاشة</option><option value="bottom">أسفل الشاشة</option></select></label>
