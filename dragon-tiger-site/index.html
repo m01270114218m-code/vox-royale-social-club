@@ -61,7 +61,8 @@ footer{text-align:center;color:#81788f;font-size:10px;padding:25px 0 0;line-heig
 (()=>{'use strict';
 const $=id=>document.getElementById(id);let balance=12500,stake=500,side='dragon',round=1284,result=null,played=0,wins=0,losses=0,history=['d','t','d','tie','t','d'];
 const chips=[100,250,500,1000,2500,5000];
-function fmt(n){return n.toLocaleString('en-US')}\nfunction drawCard(){const x=new Uint32Array(1);crypto.getRandomValues(x);return 1+(x[0]%13)}
+function fmt(n){return n.toLocaleString('en-US')}
+function drawCard(){const x=new Uint32Array(1);crypto.getRandomValues(x);return 1+(x[0]%13)}
 function renderChips(){$('chips').innerHTML='';chips.forEach(v=>{const b=document.createElement('button');b.className='chip'+(v===stake?' active':'');b.textContent=fmt(v);b.onclick=()=>{stake=v;renderChips()};$('chips').appendChild(b)})}
 function renderHistory(){$('history').innerHTML='';history.forEach(v=>{const d=document.createElement('span');d.className='dot '+(v==='d'?'d':v==='t'?'t':'tie');d.textContent=v==='d'?'ت':v==='t'?'ن':'=';
 d.title=v==='d'?'التنين':v==='t'?'النمر':'تعادل';$('history').appendChild(d)})}
