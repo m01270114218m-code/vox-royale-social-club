@@ -1,0 +1,44 @@
+name: Dragon Tiger publish without third-party actions
+
+on:
+  push:
+    branches:
+      - dragon-tiger-clean-deploy
+    paths:
+      - "dragon-tiger-site/**"
+      - ".github/workflows/dragon-tiger-no-actions.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Clone and validate source
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch dragon-tiger-clean-deploy "https://x-access-token:${GH_TOKEN}@github.com/m01270114218m-code/vox-royale-social-club.git" source
+          test -s source/dragon-tiger-site/index.html
+          grep -qi '<!doctype html>' source/dragon-tiger-site/index.html
+          grep -qi '</html>' source/dragon-tiger-site/index.html
+
+      - name: Publish gh-pages branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir output
+          cp -R source/dragon-tiger-site/. output/
+          cd output
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Publish Dragon Tiger standalone site"
+          git branch -M gh-pages
+          git push --force "https://x-access-token:${GH_TOKEN}@github.com/m01270114218m-code/vox-royale-social-club.git" gh-pages
