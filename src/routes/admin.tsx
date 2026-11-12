@@ -385,6 +385,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
   const [selectedItem, setSelectedItem] = useState<Record<string, string>>({});
   const [equipItem, setEquipItem] = useState<Record<string, boolean>>({});
   const [directAsset, setDirectAsset] = useState<Record<string, { ref: string; name: string; type: string; duration: string; unit: "hours" | "days" }>>({});
+  const [assetOptions, setAssetOptions] = useState<{ id: string; name: string; asset_key: string; category: string }[]>([]);
   async function load() {
     const [
       { data, error },
@@ -403,6 +404,9 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
       supabase.from("device_accounts").select("user_id"),
       supabase.rpc("my_admin_permissions"),
     ]);
+    const { data: availableAssets, error: assetsError } = await supabase.from("admin_assets").select("id,name,asset_key,category").eq("is_active", true).order("name");
+    if (assetsError) toast.error(errMsg(assetsError));
+    setAssetOptions((availableAssets ?? []) as { id: string; name: string; asset_key: string; category: string }[]);
     if (error) toast.error(errMsg(error));
     if (itemsError) toast.error(errMsg(itemsError));
     if (profilesError) toast.error(errMsg(profilesError));
@@ -551,9 +555,23 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
                   {can("send_badge") && <option value="badge">شارة</option>}
                   {can("send_profile_assets") && <><option value="bubble">فقاعة كتابة</option><option value="sound_wave">موجة صوت</option><option value="profile_card">بطاقة تعريف</option></>}
                 </select>
-                <Input dir="ltr" placeholder="asset_key أو مسار/رابط التخزين" value={directAsset[u.id]?.ref ?? ""} onChange={(e) => setDirectAsset(s=>({...s,[u.id]:{...(s[u.id] ?? {ref:"",name:"",type:"frame"}),ref:e.target.value}}))}/>
-                <Input placeholder="اسم الأصل" value={directAsset[u.id]?.name ?? ""} onChange={(e) => setDirectAsset(s=>({...s,[u.id]:{...(s[u.id] ?? {ref:"",name:"",type:"frame"}),name:e.target.value}}))}/>
-                <Button size="sm" onClick={()=>void sendDirectAsset(u)}>إرسال الأصل</Button>
+                <select aria-label="اختيار أصل من مكتبة التخزين" className="col-span-2 rounded-md border border-input bg-input px-2 py-2 text-xs" value={directAsset[u.id]?.ref ?? ""} onChange={(e) => {
+                  const asset = assetOptions.find((item) => item.asset_key === e.target.value);
+                  setDirectAsset((s) => ({ ...s, [u.id]: { ...(s[u.id] ?? { ref: "", name: "", type: "frame", duration: "0", unit: "hours" as const }), ref: asset?.asset_key ?? "", name: asset?.name ?? "" } }));
+                }}>
+                  <option value="">اختر الأصل من مكتبة Supabase Storage</option>
+                  {assetOptions.map((asset) => <option key={asset.id} value={asset.asset_key}>{asset.name} · {asset.category} · {asset.asset_key}</option>)}
+                </select>
+                <div className="col-span-2 grid grid-cols-[1fr_110px] gap-2">
+                  <Input type="number" min="0" max="87600" step="1" placeholder="مدة مخصصة (0 = دائم)" value={directAsset[u.id]?.duration ?? "0"} onChange={(e) => setDirectAsset((s) => ({ ...s, [u.id]: { ...(s[u.id] ?? { ref: "", name: "", type: "frame", duration: "0", unit: "hours" as const }), duration: e.target.value } }))} />
+                  <select aria-label="وحدة مدة الأصل" className="rounded-md border border-input bg-input px-2 py-2 text-xs" value={directAsset[u.id]?.unit ?? "hours"} onChange={(e) => setDirectAsset((s) => ({ ...s, [u.id]: { ...(s[u.id] ?? { ref: "", name: "", type: "frame", duration: "0", unit: "hours" as const }), unit: e.target.value as "hours" | "days" } }))}>
+                    <option value="hours">ساعات</option><option value="days">أيام</option>
+                  </select>
+                </div>
+                <div className="col-span-2 flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-muted-foreground">المدة تبدأ من لحظة الإرسال · 0 = بدون انتهاء</span>
+                  <Button size="sm" disabled={!directAsset[u.id]?.ref} onClick={() => void sendDirectAsset(u)}>إرسال الأصل</Button>
+                </div>
               </div>
             </div>
           </>}
