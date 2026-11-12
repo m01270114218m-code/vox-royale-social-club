@@ -296,20 +296,26 @@ function RoomPage() {
     const equippedKey = profile?.equipped_entry;
     if (!equippedKey) return;
 
-    const { data: storeItem } = await supabase.from("store_items")
-      .select("id,asset_key,kind")
-      .eq("asset_key", equippedKey)
-      .eq("kind", "entry")
-      .maybeSingle();
-    if (!storeItem?.id || storeItem.asset_key !== equippedKey) return;
+    const { data: directActive } = await supabase.rpc("get_active_direct_asset", {
+      _user: userId,
+      _asset_type: "entry",
+      _asset_key: equippedKey,
+    });
 
-    // equipped_entry is written by the equip_item RPC, which verifies ownership.
-    // Do not query another user's user_items here: its owner-only RLS would hide
-    // the item from other room participants and suppress their entrance effect.
+    let assetKey = equippedKey;
+    if (directActive !== true) {
+      const { data: storeItem } = await supabase.from("store_items")
+        .select("id,asset_key,kind,expires_at")
+        .eq("asset_key", equippedKey)
+        .eq("kind", "entry")
+        .maybeSingle();
+      if (!storeItem?.id || storeItem.asset_key !== equippedKey || (storeItem.expires_at && new Date(storeItem.expires_at).getTime() <= Date.now())) return;
+      assetKey = storeItem.asset_key;
+    }
 
-    const src = await getAdminAssetUrl(storeItem.asset_key);
+    const src = await getAdminAssetUrl(assetKey);
     if (!src) return;
-    const settings = await getAssetPlaybackSettings(storeItem.asset_key);
+    const settings = await getAssetPlaybackSettings(assetKey);
     const token = Date.now() + Math.floor(Math.random() * 1000);
     setEntryAnim({
       key: token,
@@ -403,13 +409,19 @@ function RoomPage() {
         showRoomMessage(message);
       })
       .on("broadcast", { event: "gift_sent" }, async (payload) => {
-        const event = payload.payload as { roomId?: string; giftId?: string; eventId?: string; lucky?: boolean; quantity?: number };
+        const event = payload.payload as { roomId?: string; giftId?: string; eventId?: string; lucky?: boolean; quantity?: number; won?: boolean; reward?: number };
         if (event.roomId !== id || !event.giftId) return;
         if (event.lucky) {
-          const { data: lucky } = await supabase.from("lucky_gifts").select("asset_key").eq("id", event.giftId).maybeSingle();
+          const { data: lucky } = await supabase.from("lucky_gifts").select("name,asset_key").eq("id", event.giftId).maybeSingle();
           const image = lucky?.asset_key ? await getAdminAssetUrl(lucky.asset_key) : null;
           const settings = await getAssetPlaybackSettings(lucky?.asset_key);
           if (image) showGiftAnimation(image, { style: settings.animation_style, speed: settings.playback_speed, playbackSpeed: settings.playback_speed, duration: settings.display_duration_ms, width: settings.display_width, height: settings.display_height, audioEnabled: settings.audio_enabled });
+          const bannerId = Date.now();
+          const message = event.won && Number(event.reward) > 0
+            ? `مردود ${Number(event.reward).toLocaleString()} عملة`
+            : `تم إرسال ${lucky?.name || "هدية الحظ"} ×${Number(event.quantity || 1)}`;
+          setLuckyBanner({ id: bannerId, name: lucky?.name || "هدية الحظ", message, assetUrl: image });
+          window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), luckyBarConfig.duration_ms);
           return;
         }
         const { data: g } = await supabase.from("gifts").select("name,emoji,asset_key,asset_url,category_id,animation_style,animation_speed,display_duration_ms").eq("id", event.giftId).maybeSingle();
@@ -801,7 +813,7 @@ function RoomPage() {
     const bannerId = Date.now();
     setLuckyBanner({ id: bannerId, name: luckySel.name, message: data?.won ? `مبروك! مردود ${Number(data.reward).toLocaleString()} عملة` : `تم إرسال ${luckySel.name} ×${qty}`, assetUrl: luckyAsset });
     window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), luckyBarConfig.duration_ms);
-    await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: luckySel.id, eventId: crypto.randomUUID(), receiverId: giftTo, quantity: qty, lucky: true } });
+    await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: luckySel.id, eventId: crypto.randomUUID(), receiverId: giftTo, quantity: qty, lucky: true, won: !!data?.won, reward: Number(data?.reward ?? 0) } });
     setRepeatGift({ kind: "lucky", gift: luckySel, receiverId: giftTo, qty });
     setGiftOpen(false);
   }
@@ -832,7 +844,7 @@ function RoomPage() {
       const bannerId = Date.now();
       setLuckyBanner({ id: bannerId, name: gift.name, message: data?.won ? `مبروك! مردود ${Number(data.reward).toLocaleString()} عملة` : `تم إرسال ${gift.name} ×${amount}`, assetUrl: image });
       window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), 5200);
-      await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: gift.id, eventId: crypto.randomUUID(), receiverId: target, quantity: amount, lucky: true } });
+      await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: gift.id, eventId: crypto.randomUUID(), receiverId: target, quantity: amount, lucky: true, won: !!data?.won, reward: Number(data?.reward ?? 0) } });
     }
   }
 
@@ -1173,12 +1185,13 @@ function RoomPage() {
 
       {luckyBanner && luckyBarConfig.enabled && <div
         key={luckyBanner.id}
-        className={`pointer-events-none fixed left-1/2 z-[140] -translate-x-1/2 flex items-center justify-center rounded-2xl border border-amber-300/70 bg-gradient-to-r from-[#120d27] via-[#392052] to-[#7b4a12] p-3 text-white shadow-[0_12px_40px_rgba(0,0,0,.65)] ring-1 ring-amber-200/30 animate-in slide-in-from-top-4 ${luckyBarConfig.position === "bottom" ? "bottom-24" : luckyBarConfig.position === "center" ? "top-1/2 -translate-y-1/2" : "top-20"}`}
+        className={`pointer-events-none fixed left-1/2 z-[140] -translate-x-1/2 flex items-center justify-center rounded-full border border-amber-300/70 bg-gradient-to-r from-[#120d27] via-[#392052] to-[#7b4a12] px-3 py-2 text-white shadow-[0_10px_28px_rgba(0,0,0,.55)] ring-1 ring-amber-200/30 animate-in slide-in-from-top-4 ${luckyBarConfig.position === "bottom" ? "bottom-24" : luckyBarConfig.position === "center" ? "top-1/2 -translate-y-1/2" : "top-20"}`}
         style={{ width: `min(92vw, ${luckyBarConfig.width_px}px)` }}
       >
-        <div className="flex w-full items-center justify-center gap-3">
-          {luckyBanner.assetUrl && <AdminAssetMedia src={luckyBanner.assetUrl} alt={luckyBanner.name} muted className="shrink-0 object-contain" style={{ width: luckyBarConfig.gift_size_px, height: luckyBarConfig.gift_size_px }} />}
-          {luckyBarConfig.show_name && <div className="min-w-0 truncate text-center text-sm font-black">{luckyBanner.name}</div>}
+        <div className="flex w-full items-center justify-center gap-2">
+          {luckyBanner.assetUrl && <AdminAssetMedia src={luckyBanner.assetUrl} alt={luckyBanner.name} muted className="shrink-0 object-contain drop-shadow-lg" style={{ width: Math.min(luckyBarConfig.gift_size_px, 42), height: Math.min(luckyBarConfig.gift_size_px, 42) }} />}
+          {luckyBarConfig.show_name && <div className="min-w-0 truncate text-xs font-bold opacity-90">{luckyBanner.name}</div>}
+          <span className="shrink-0 rounded-full border border-amber-200/50 bg-black/25 px-2.5 py-1 text-[11px] font-black text-amber-100">{luckyBanner.message}</span>
         </div>
       </div>}
       {repeatGift && !giftOpen && <button type="button" onClick={() => void sendAgain()} className="fixed bottom-24 left-4 z-[135] flex items-center gap-2 rounded-full border border-amber-300/80 bg-gradient-to-r from-[#221332] to-[#805018] px-4 py-3 text-sm font-black text-amber-50 shadow-[0_10px_30px_rgba(0,0,0,.55)] ring-1 ring-amber-100/30"><Gift className="h-5 w-5" />إرسال متتالي ×{repeatGift.qty}</button>}
