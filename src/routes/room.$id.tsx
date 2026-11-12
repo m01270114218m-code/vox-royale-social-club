@@ -105,7 +105,7 @@ function RoomPage() {
   }, []);
   const [luckyBanner, setLuckyBanner] = useState<{ id: number; name: string; message: string; assetUrl?: string | null } | null>(null);
   const [gift99Banner, setGift99Banner] = useState<{ id: number; senderName: string; receiverName: string; assetUrl?: string | null; giftName: string; quantity: number } | null>(null);
-  const [luckyBarConfig, setLuckyBarConfig] = useState<{ enabled: boolean; position: "top" | "bottom" | "center"; duration_ms: number; width_px: number; gift_size_px: number; show_name: boolean; asset_key?: string | null }>({ enabled: true, position: "top", duration_ms: 3000, width_px: 390, gift_size_px: 48, show_name: true, asset_key: null });
+  const [luckyBarConfig, setLuckyBarConfig] = useState<{ enabled: boolean; position: "top" | "bottom" | "center"; duration_ms: number; width_px: number; gift_size_px: number; show_name: boolean; asset_key?: string | null; global_min_reward?: number }>({ enabled: true, position: "top", duration_ms: 3000, width_px: 390, gift_size_px: 48, show_name: true, asset_key: null, global_min_reward: 10000 });
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; style: string; speed: number; duration: number; mode: "static" | "animated"; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number } | null>(null);
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; name: string; avatar: string; level: number; vip: number; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number; animationStyle: string; animationSpeed: number } | null>(null);
@@ -230,6 +230,7 @@ function RoomPage() {
         gift_size_px: Number(data.gift_size_px ?? 48),
         show_name: data.show_name !== false,
         asset_key: data.asset_key ?? null,
+        global_min_reward: Number(data.global_min_reward ?? 10000),
       });
     };
     void loadLuckyBar();
@@ -252,11 +253,21 @@ function RoomPage() {
         setGiftCategoriesList((cats ?? []) as GiftCategoryT[]);
       }
     };
+    const globalLuckyChannel = supabase.channel("vox-global-lucky-gifts")
+      .on("broadcast", { event: "lucky_global" }, async ({ payload }) => {
+        const event = payload as { reward?: number; giftName?: string; assetUrl?: string | null; senderName?: string; receiverName?: string };
+        if (Number(event.reward ?? 0) < Number(luckyBarConfig.global_min_reward ?? 10000)) return;
+        const bannerId = Date.now();
+        setLuckyBanner({ id: bannerId, name: event.giftName || "هدية الحظ", message: `مردود ${Number(event.reward ?? 0).toLocaleString()} عملة · ${event.senderName || "مرسل"} ← ${event.receiverName || "مستلم"}`, assetUrl: event.assetUrl });
+        window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), 3000);
+      })
+      .subscribe();
+
     const channel = supabase.channel(`room-gift-catalog-${id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "gifts" }, () => { void refreshGiftCatalog(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "gift_categories" }, () => { void refreshGiftCatalog(); })
       .subscribe();
-    return () => { active = false; void supabase.removeChannel(channel); };
+    return () => { active = false; void supabase.removeChannel(channel); void supabase.removeChannel(globalLuckyChannel); };
   }, [id]);
 
   useEffect(() => {
@@ -848,6 +859,14 @@ function RoomPage() {
     setLuckyBanner({ id: bannerId, name: luckySel.name, message: data?.won ? `مبروك! مردود ${Number(data.reward).toLocaleString()} عملة` : `تم إرسال ${luckySel.name} ×${qty}`, assetUrl: luckyAsset });
     window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), luckyBarConfig.duration_ms);
     await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: luckySel.id, eventId: crypto.randomUUID(), senderId: uid, receiverId: giftTo, quantity: qty, lucky: true, won: !!data?.won, reward: Number(data?.reward ?? 0) } });
+    if (Number(data?.reward ?? 0) >= Number(luckyBarConfig.global_min_reward ?? 10000)) {
+      const [{ data: sender }, { data: receiver }] = await Promise.all([
+        supabase.from("profiles").select("display_name").eq("id", uid).maybeSingle(),
+        giftTo ? supabase.from("profiles").select("display_name").eq("id", giftTo).maybeSingle() : Promise.resolve({ data: null }),
+      ]);
+      const globalAsset = luckyBarConfig.asset_key ? await getAdminAssetUrl(luckyBarConfig.asset_key) : (luckySel.asset_key ? await getAdminAssetUrl(luckySel.asset_key) : null);
+      await supabase.channel("vox-global-lucky-gifts").send({ type: "broadcast", event: "lucky_global", payload: { reward: Number(data?.reward ?? 0), giftName: luckySel.name, assetUrl: globalAsset, senderName: sender?.display_name, receiverName: receiver?.display_name } });
+    }
     setRepeatGift({ kind: "lucky", gift: luckySel, receiverId: giftTo, qty });
     setGiftOpen(false);
   }
