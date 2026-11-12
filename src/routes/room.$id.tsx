@@ -843,7 +843,7 @@ function RoomPage() {
       if (image) showGiftAnimation(image, { style: settings.animation_style, speed: settings.playback_speed, playbackSpeed: settings.playback_speed, duration: settings.display_duration_ms, width: settings.display_width, height: settings.display_height, audioEnabled: settings.audio_enabled });
       const bannerId = Date.now();
       setLuckyBanner({ id: bannerId, name: gift.name, message: data?.won ? `مبروك! مردود ${Number(data.reward).toLocaleString()} عملة` : `تم إرسال ${gift.name} ×${amount}`, assetUrl: image });
-      window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), 5200);
+      window.setTimeout(() => setLuckyBanner((current) => current?.id === bannerId ? null : current), luckyBarConfig.duration_ms);
       await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: gift.id, eventId: crypto.randomUUID(), receiverId: target, quantity: amount, lucky: true, won: !!data?.won, reward: Number(data?.reward ?? 0) } });
     }
   }
