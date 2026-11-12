@@ -27,7 +27,7 @@ export const Route = createFileRoute("/families")({
 
 type F = { id: string; name: string; emblem: string; description: string | null; member_count: number; points: number; owner_id: string };
 type M = { user_id: string; role: string; status: string; family_id: string };
-type P = { id: string; display_name: string; avatar_url: string | null };
+type P = { id: string; display_name: string; avatar_url: string | null; equipped_frame?: string | null };
 
 function Families() {
   const { user } = useAuth();
@@ -50,7 +50,7 @@ function Families() {
     if (m && m.status === "active") {
       const { data: ms } = await supabase.from("family_members").select("*").eq("family_id", m.family_id);
       const ids = (ms ?? []).map((x) => x.user_id);
-      const { data: ps } = ids.length ? await supabase.from("profiles").select("id,display_name,avatar_url").in("id", ids) : { data: [] };
+      const { data: ps } = ids.length ? await supabase.from("profiles").select("id,display_name,avatar_url,equipped_frame").in("id", ids) : { data: [] };
       setMembers((ms ?? []).map((x) => ({ ...(x as M), p: (ps as P[]).find((p) => p.id === x.user_id) })));
     } else setMembers([]);
   }
@@ -100,7 +100,7 @@ function Families() {
           <div className="mt-3 space-y-2">
             {members.map((m) => (
               <div key={m.user_id} className="flex items-center gap-2">
-                <UserAvatar src={m.p?.avatar_url} name={m.p?.display_name} size={36} />
+                <UserAvatar src={m.p?.avatar_url} name={m.p?.display_name} size={36} frameKey={m.p?.equipped_frame} />
                 <span className="flex-1 text-sm">{m.p?.display_name ?? "…"} {m.role === "owner" && <Crown className="inline h-4 w-4 text-primary" />}</span>
                 {m.status === "pending" && isLeader ? (
                   <>

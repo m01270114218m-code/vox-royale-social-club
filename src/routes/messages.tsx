@@ -24,7 +24,7 @@ export const Route = createFileRoute("/messages")({
 });
 
 type Conv = { id: string; user_a: string; user_b: string; last_message: string | null; last_at: string };
-type P = { id: string; display_name: string; avatar_url: string | null };
+type P = { id: string; display_name: string; avatar_url: string | null; vip_level: number; equipped_frame?: string | null };
 
 function Messages() {
   const { user } = useAuth();
@@ -41,7 +41,7 @@ function Messages() {
     setConvs(list);
     const others = list.map((c) => (c.user_a === uid ? c.user_b : c.user_a));
     if (others.length) {
-      const { data: ps } = await supabase.from("profiles").select("id,display_name,avatar_url").in("id", others);
+      const { data: ps } = await supabase.from("profiles").select("id,display_name,avatar_url,vip_level,equipped_frame").in("id", others);
       setPeople(Object.fromEntries((ps ?? []).map((p) => [p.id, p])));
       const { data: um } = await supabase.from("messages").select("conversation_id").in("conversation_id", list.map((c) => c.id)).neq("sender_id", uid).is("read_at", null);
       const counts: Record<string, number> = {};
@@ -101,7 +101,7 @@ function Messages() {
           const o = people[oid];
           return (
             <Link key={c.id} to="/chat/$id" params={{ id: c.id }} className="flex items-center gap-3 rounded-2xl p-2 hover:bg-secondary/40">
-              <UserAvatar src={o?.avatar_url} name={o?.display_name} size={52} />
+              <UserAvatar src={o?.avatar_url} name={o?.display_name} size={52} vip={o?.vip_level} frameKey={o?.equipped_frame} />
               <div className="min-w-0 flex-1">
                 <div className="flex justify-between"><span className="font-bold">{o?.display_name ?? "…"}</span><span className="text-xs text-muted-foreground">{new Date(c.last_at).toLocaleDateString("ar-EG")}</span></div>
                 <div className="truncate text-sm text-muted-foreground">{c.last_message ?? "ابدأ المحادثة"}</div>
