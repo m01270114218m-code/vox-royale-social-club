@@ -1296,7 +1296,7 @@ function RoomPage() {
           <span className="flex items-center gap-1 text-amber-200"><span className="inline-block animate-bounce text-lg">🪙</span><span className="inline-block animate-pulse">🪙</span></span>
           <span className="text-amber-100">مردود</span>
           <span className="tabular-nums text-white">{luckyRewardBanner.reward.toLocaleString()} عملة</span>
-          <span className="rounded-full border border-amber-200/50 bg-black/25 px-2.5 py-1 text-[11px] font-black text-emerald-300">{luckyRewardBanner.percent.toFixed(2).replace(/\\.?0+$/, "")}%</span>
+          <span className="rounded-full border border-amber-200/50 bg-black/25 px-2.5 py-1 text-[11px] font-black text-emerald-300">{new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(luckyRewardBanner.percent)}%</span>
         </div>
       </div>}
       {repeatGift && !giftOpen && <button type="button" onClick={() => void sendAgain()} className="fixed bottom-24 left-4 z-[135] flex items-center gap-2 rounded-full border border-amber-300/80 bg-gradient-to-r from-[#221332] to-[#805018] px-4 py-3 text-sm font-black text-amber-50 shadow-[0_10px_30px_rgba(0,0,0,.55)] ring-1 ring-amber-100/30"><Gift className="h-5 w-5" />إرسال متتالي ×{repeatGift.qty}</button>}
