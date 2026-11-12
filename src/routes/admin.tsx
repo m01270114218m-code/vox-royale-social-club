@@ -861,7 +861,7 @@ function StoreTab() {
           <Input type="number" placeholder="السعر بالعملات" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
           <Input placeholder="مفتاح الأصل (مثل frame-1)" value={form.asset_key} onChange={(e) => setForm({ ...form, asset_key: e.target.value })} dir="ltr" />
           <Input type="number" placeholder="الترتيب" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: e.target.value })} />
-          <Input type="number" min="0" placeholder="صلاحية النشر (0 = دائم)" value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} />
+          <Input type="number" min="0" placeholder="مدة الاستخدام بعد الشراء (0 = دائم)" value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} />
           <select className="rounded-md border border-input bg-input px-2 py-1.5 text-xs" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value as "hours" | "days" })}>
             <option value="hours">ساعات</option><option value="days">أيام</option>
           </select>
@@ -871,7 +871,7 @@ function StoreTab() {
       {rows.map((r) => (
         <div key={r.id} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
           <div><b>{r.name}</b> <span className="text-xs text-muted-foreground">({KINDS[r.kind] ?? r.kind})</span>
-            <div className="text-xs text-muted-foreground" dir="ltr">{r.asset_key}</div><div className="text-[10px] text-muted-foreground">{r.expires_at ? "ينتهي: " + fmt(r.expires_at) : "الصلاحية: دائمة"}{r.is_direct_grant ? " · خاص" : ""}</div>
+            <div className="text-xs text-muted-foreground" dir="ltr">{r.asset_key}</div><div className="text-[10px] text-muted-foreground">{r.duration_hours ? `مدة الاستخدام: ${r.duration_hours >= 24 && r.duration_hours % 24 === 0 ? `${r.duration_hours / 24} يوم` : `${r.duration_hours} ساعة`}` : "مدة الاستخدام: دائمة"}{r.expires_at ? " · ينتهي نشره: " + fmt(r.expires_at) : ""}{r.is_direct_grant ? " · خاص" : ""}</div>
           </div>
           <div className="flex items-center gap-2">
             <b>🪙 {r.price.toLocaleString()}</b>
