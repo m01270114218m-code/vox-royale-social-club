@@ -461,7 +461,7 @@ function RoomPage() {
           const image = lucky?.asset_key ? await getAdminAssetUrl(lucky.asset_key) : null;
           const settings = await getAssetPlaybackSettings(lucky?.asset_key);
           if (image) showGiftAnimation(image, { style: settings.animation_style, speed: settings.playback_speed, playbackSpeed: settings.playback_speed, duration: settings.display_duration_ms, width: settings.display_width, height: settings.display_height, audioEnabled: settings.audio_enabled });
-          if (event.won && Number(event.reward) > 0) {
+          if (event.won && Number(event.reward) > 0 && Number(event.reward) < Number(luckyBarConfig.global_min_reward ?? 10000)) {
             const reward = Number(event.reward);
             const spentCoins = Number(event.spentCoins ?? 0);
             const bannerId = Date.now();
@@ -879,11 +879,6 @@ function RoomPage() {
     }
     await roomLive.current?.send({ type: "broadcast", event: "gift_sent", payload: { roomId: id, giftId: luckySel.id, eventId: crypto.randomUUID(), senderId: uid, receiverId: giftTo, quantity: qty, lucky: true, won: !!data?.won, reward, spentCoins, rewardPercent } });
     if (Number(data?.reward ?? 0) >= Number(luckyBarConfig.global_min_reward ?? 10000)) {
-      const [{ data: sender }, { data: receiver }] = await Promise.all([
-        supabase.from("profiles").select("display_name").eq("id", uid).maybeSingle(),
-        giftTo ? supabase.from("profiles").select("display_name").eq("id", giftTo).maybeSingle() : Promise.resolve({ data: null }),
-      ]);
-      const globalAsset = luckyBarConfig.asset_key ? await getAdminAssetUrl(luckyBarConfig.asset_key) : (luckySel.asset_key ? await getAdminAssetUrl(luckySel.asset_key) : null);
       await supabase.channel("vox-global-lucky-gifts").send({ type: "broadcast", event: "lucky_global", payload: { reward, spentCoins, rewardPercent } });
     }
     setRepeatGift({ kind: "lucky", gift: luckySel, receiverId: giftTo, qty });
