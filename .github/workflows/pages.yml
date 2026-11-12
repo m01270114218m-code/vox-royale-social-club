@@ -3,7 +3,7 @@ name: Deploy standalone Dragon Tiger game
 on:
   push:
     branches:
-      - standalone-dragon-tiger-game
+      - dragon-tiger-clean-deploy
     paths:
       - "dragon-tiger-site/**"
       - ".github/workflows/pages.yml"
