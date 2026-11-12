@@ -626,7 +626,7 @@ function GiftsTab() {
   const [categories, setCategories] = useState<GiftCategory[]>([]);
   const [categoryName, setCategoryName] = useState("");
   const [categoryMode, setCategoryMode] = useState<"static" | "animated">("static");
-  const [luckyBar, setLuckyBar] = useState({ enabled: true, position: "top", duration_ms: "3000", width_px: "390", gift_size_px: "48", show_name: true, asset_key: "" });
+  const [luckyBar, setLuckyBar] = useState({ enabled: true, position: "top", duration_ms: "3000", width_px: "390", gift_size_px: "48", show_name: true, asset_key: "", global_min_reward: "10000" });
   const [form, setForm] = useState({ name: "", emoji: "🎁", price_coins: "100", asset_url: "", category_id: "", animation_style: "zoom", animation_speed: "1", display_duration_ms: "2600" });
   async function load() {
     const [{ data, error }, { data: gifts, error: catalogError }, { data: lucky, error: luckyError }, { data: cats, error: categoryError }] = await Promise.all([
@@ -653,6 +653,7 @@ function GiftsTab() {
       gift_size_px: String(barConfig.gift_size_px ?? 48),
       show_name: barConfig.show_name !== false,
       asset_key: String(barConfig.asset_key ?? ""),
+      global_min_reward: String(barConfig.global_min_reward ?? 10000),
     });
   }
   async function saveLuckyBar() {
