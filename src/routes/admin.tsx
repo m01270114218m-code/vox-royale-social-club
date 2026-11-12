@@ -384,7 +384,7 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
   const [registeredDevices, setRegisteredDevices] = useState<Set<string>>(new Set());
   const [selectedItem, setSelectedItem] = useState<Record<string, string>>({});
   const [equipItem, setEquipItem] = useState<Record<string, boolean>>({});
-  const [directAsset, setDirectAsset] = useState<Record<string, { ref: string; name: string; type: string }>>({});
+  const [directAsset, setDirectAsset] = useState<Record<string, { ref: string; name: string; type: string; duration: string; unit: "hours" | "days" }>>({});
   async function load() {
     const [
       { data, error },
@@ -451,11 +451,18 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
     await run(supabase.rpc("admin_set_profile_style" as never, { _user: u.id, _name_color: value.name_color, _name_effect: value.name_effect, _speed: Number(value.name_effect_speed) } as never), "تم حفظ لون الاسم وتأثيره");
   }
   async function sendDirectAsset(u: U) {
-    const v = directAsset[u.id] ?? { ref: "", name: "", type: "frame" };
+    const v = directAsset[u.id] ?? { ref: "", name: "", type: "frame", duration: "0", unit: "hours" as const };
     const permission = v.type === "frame" ? "send_frame" : v.type === "entry" ? "send_entry" : v.type === "badge" ? "send_badge" : "send_profile_assets";
     if (!can(permission)) { toast.error("لا تملك صلاحية إرسال هذا النوع من الأصول"); return; }
     if (!v.ref.trim() || !v.name.trim()) { toast.error("أدخل رابط/مفتاح الأصل واسم الأصل"); return; }
-    await run(supabase.rpc("send_asset_to_user", { _receiver: u.id, _asset_key: v.ref.trim(), _asset_type: v.type, _asset_name: v.name.trim() }), "تم إرسال الأصل للمستخدم وتفعيله حسب نوعه");
+    const amount = Number(v.duration);
+    if (!Number.isInteger(amount) || amount < 0) { toast.error("أدخل مدة صحيحة؛ 0 = بدون انتهاء"); return; }
+    const hours = amount === 0 ? 0 : v.unit === "days" ? amount * 24 : amount;
+    if (hours > 87600) { toast.error("المدة القصوى 87600 ساعة"); return; }
+    await run(
+      supabase.rpc("send_asset_to_user", { _receiver: u.id, _asset_key: v.ref.trim(), _asset_type: v.type, _asset_name: v.name.trim(), _hours: hours } as never),
+      amount === 0 ? "تم إرسال الأصل بدون انتهاء" : `تم إرسال الأصل لمدة ${amount} ${v.unit === "days" ? "يوم" : "ساعة"}`,
+    );
   }
   async function updateBan(u: U, kind: "account" | "device", banned: boolean) {
     if (!can(kind === "account" ? "ban_account" : "ban_device")) { toast.error("لا تملك صلاحية الحظر المطلوبة"); return; }
@@ -808,11 +815,11 @@ function VipTab() {
   );
 }
 
-type StoreRow = { id: string; kind: string; name: string; description: string | null; price: number; asset_key: string; sort_order: number };
+type StoreRow = { id: string; kind: string; name: string; description: string | null; price: number; asset_key: string; sort_order: number; expires_at?: string | null; is_direct_grant?: boolean };
 const KINDS: Record<string, string> = { frame: "إطار", entry: "دخولية", bubble: "فقاعة كتابة", sound_wave: "موجة صوت", profile_card: "بطاقة تعريف", name_effect: "تأثير اسم", theme: "خلفية", lucky_gift: "هدية حظ" };
 function StoreTab() {
   const [rows, setRows] = useState<StoreRow[]>([]);
-  const [form, setForm] = useState({ kind: "frame", name: "", description: "", price: "100", asset_key: "", sort_order: "0" });
+  const [form, setForm] = useState({ kind: "frame", name: "", description: "", price: "100", asset_key: "", sort_order: "0", duration: "0", unit: "hours" as "hours" | "days" });
   async function load() {
     const { data, error } = await supabase.from("store_items").select("*").order("kind").order("sort_order");
     if (error) { toast.error(errMsg(error)); return; }
@@ -824,10 +831,11 @@ function StoreTab() {
     const { error } = await supabase.rpc("admin_save_store_item", {
       _id: null as unknown as string, _kind: form.kind, _name: form.name, _description: form.description,
       _price: Number(form.price || 0), _asset_key: form.asset_key, _sort_order: Number(form.sort_order || 0),
-    });
+      _hours: (() => { const amount = Number(form.duration || 0); return amount === 0 ? 0 : form.unit === "days" ? amount * 24 : amount; })(),
+    } as never);
     if (error) { toast.error(errMsg(error)); return; }
-    toast.success("تمت الإضافة");
-    setForm({ kind: "frame", name: "", description: "", price: "100", asset_key: "", sort_order: "0" });
+    toast.success(form.duration === "0" ? "تم نشر العنصر بدون انتهاء" : "تم نشر العنصر بصلاحية محددة");
+    setForm({ kind: "frame", name: "", description: "", price: "100", asset_key: "", sort_order: "0", duration: "0", unit: "hours" });
     load();
   }
   async function del(id: string) {
@@ -851,13 +859,17 @@ function StoreTab() {
           <Input type="number" placeholder="السعر بالعملات" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
           <Input placeholder="مفتاح الأصل (مثل frame-1)" value={form.asset_key} onChange={(e) => setForm({ ...form, asset_key: e.target.value })} dir="ltr" />
           <Input type="number" placeholder="الترتيب" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: e.target.value })} />
+          <Input type="number" min="0" placeholder="صلاحية النشر (0 = دائم)" value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} />
+          <select className="rounded-md border border-input bg-input px-2 py-1.5 text-xs" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value as "hours" | "days" })}>
+            <option value="hours">ساعات</option><option value="days">أيام</option>
+          </select>
         </div>
         <Button size="sm" className="bg-gold" onClick={save} disabled={!form.name || !form.asset_key}>إضافة</Button>
       </div>
       {rows.map((r) => (
         <div key={r.id} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
           <div><b>{r.name}</b> <span className="text-xs text-muted-foreground">({KINDS[r.kind] ?? r.kind})</span>
-            <div className="text-xs text-muted-foreground" dir="ltr">{r.asset_key}</div>
+            <div className="text-xs text-muted-foreground" dir="ltr">{r.asset_key}</div><div className="text-[10px] text-muted-foreground">{r.expires_at ? "ينتهي: " + fmt(r.expires_at) : "الصلاحية: دائمة"}{r.is_direct_grant ? " · خاص" : ""}</div>
           </div>
           <div className="flex items-center gap-2">
             <b>🪙 {r.price.toLocaleString()}</b>
