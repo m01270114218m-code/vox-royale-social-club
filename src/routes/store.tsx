@@ -51,16 +51,20 @@ function StorePage() {
     if (!user) return;
     const live = supabase.channel(`store-live-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "user_items", filter: `user_id=eq.${user.id}` }, async () => {
-        const { data: ui } = await supabase.from("user_items").select("item_id").eq("user_id", user.id);
-        setOwned(new Set((ui ?? []).map((r) => r.item_id)));
+        const { data: ui } = await supabase.from("user_items").select("item_id,expires_at").eq("user_id", user.id);
+        const now = Date.now();
+        setOwned(new Set((ui ?? []).filter((r) => !r.expires_at || new Date(r.expires_at).getTime() > now).map((r) => r.item_id)));
       })
       .subscribe();
     (async () => {
       const [{ data: p }, { data: si }, { data: ui }] = await Promise.all([
         supabase.from("profiles").select("equipped_frame, equipped_entry, chat_bubble_asset_key, sound_wave_asset_key, profile_card_asset_key").eq("id", user!.id).single(),
         supabase.from("store_items").select("*").eq("is_direct_grant", false).order("sort_order"),
-        supabase.from("user_items").select("item_id").eq("user_id", user!.id),
+        supabase.from("user_items").select("item_id,expires_at").eq("user_id", user!.id),
       ]);
+      const now = Date.now();
+      const activeOwned = ((ui ?? []) as { item_id: string; expires_at?: string | null }[]).filter((r) => !r.expires_at || new Date(r.expires_at).getTime() > now);
+      setOwned(new Set(activeOwned.map((r) => r.item_id)));
       setEquippedFrame(p?.equipped_frame ?? null);
       setEquippedEntry(p?.equipped_entry ?? null);
       setEquippedBubble(p?.chat_bubble_asset_key ?? null); setEquippedWave(p?.sound_wave_asset_key ?? null); setEquippedCard(p?.profile_card_asset_key ?? null);
