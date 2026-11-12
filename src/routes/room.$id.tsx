@@ -305,7 +305,7 @@ function RoomPage() {
     let assetKey = equippedKey;
     if (directActive !== true) {
       const { data: storeItem } = await supabase.from("store_items")
-        .select("id,asset_key,kind,expires_at")
+         .select("*")
         .eq("asset_key", equippedKey)
         .eq("kind", "entry")
         .maybeSingle();
