@@ -104,6 +104,7 @@ function RoomPage() {
     setMsgs((current) => current.some((item) => item.id === message.id) ? current : [...current.slice(-99), message]);
   }, []);
   const [luckyBanner, setLuckyBanner] = useState<{ id: number; name: string; message: string; assetUrl?: string | null } | null>(null);
+  const [luckyBarConfig, setLuckyBarConfig] = useState<{ enabled: boolean; position: "top" | "bottom" | "center"; duration_ms: number; width_px: number; gift_size_px: number; show_name: boolean }>({ enabled: true, position: "top", duration_ms: 5200, width_px: 390, gift_size_px: 56, show_name: true });
   const [coins, setCoins] = useState(0);
   const [anim, setAnim] = useState<{ key: number; emoji: string; name: string; style: string; speed: number; duration: number; mode: "static" | "animated"; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number } | null>(null);
   const [entryAnim, setEntryAnim] = useState<{ key: number; src: string; name: string; avatar: string; level: number; vip: number; width?: number; height?: number; audioEnabled: boolean; playbackSpeed: number; animationStyle: string; animationSpeed: number } | null>(null);
