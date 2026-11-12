@@ -65,7 +65,7 @@ function StorePage() {
       setEquippedEntry(p?.equipped_entry ?? null);
       setEquippedBubble(p?.chat_bubble_asset_key ?? null); setEquippedWave(p?.sound_wave_asset_key ?? null); setEquippedCard(p?.profile_card_asset_key ?? null);
       const now = Date.now();
-      const activeItems = (si ?? []).filter((item) => !item.expires_at || new Date(item.expires_at).getTime() > now);
+      const activeItems = ((si ?? []) as unknown as StoreItem[]).filter((item) => !item.expires_at || new Date(item.expires_at).getTime() > now);
       const enrichedItems = await Promise.all(activeItems.map(async (item) => ({ ...item, asset_url: await getAdminAssetUrl(item.asset_key) })));
       setItems(enrichedItems);
       setOwned(new Set((ui ?? []).map((r) => r.item_id)));
