@@ -36,7 +36,7 @@ const PACKS = [
   { coins: 350000, price: "$49.99" },
 ];
 
-type StoreItem = { id: string; kind: string; name: string; description: string | null; price: number; asset_key: string; is_direct_grant?: boolean; asset_url?: string | null; expires_at?: string | null };
+type StoreItem = { id: string; kind: string; name: string; description: string | null; price: number; asset_key: string; is_direct_grant?: boolean; asset_url?: string | null; expires_at?: string | null; duration_hours?: number | null };
 
 function StorePage() {
   const { user } = useAuth();
