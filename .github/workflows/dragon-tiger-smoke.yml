@@ -1,0 +1,19 @@
+name: Dragon Tiger Actions smoke test
+
+on:
+  push:
+    branches:
+      - dragon-tiger-clean-deploy
+    paths:
+      - ".github/workflows/dragon-tiger-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Actions can create a job
+        run: echo "GitHub Actions job started successfully"
