@@ -33,7 +33,7 @@ function Chat() {
   const { user } = useAuth();
   const uid = user!.id;
   const nav = useNavigate();
-  const [other, setOther] = useState<{ id: string; display_name: string; avatar_url: string | null } | null>(null);
+  const [other, setOther] = useState<{ id: string; display_name: string; avatar_url: string | null; vip_level?: number; equipped_frame?: string | null } | null>(null);
   const [msgs, setMsgs] = useState<M[]>([]);
   const [text, setText] = useState("");
   const end = useRef<HTMLDivElement>(null);
@@ -52,7 +52,7 @@ function Chat() {
         return nav({ to: "/messages" });
       }
       const oid = c.user_a === uid ? c.user_b : c.user_a;
-      const { data: p } = await supabase.from("profiles").select("id,display_name,avatar_url").eq("id", oid).single();
+      const { data: p } = await supabase.from("profiles").select("id,display_name,avatar_url,vip_level,equipped_frame").eq("id", oid).single();
       setOther(p);
       void loadMsgs();
     })();
@@ -91,7 +91,7 @@ function Chat() {
         <button onClick={() => nav({ to: "/messages" })} aria-label="رجوع"><ArrowRight /></button>
         {other && (
           <Link to="/u/$id" params={{ id: other.id }} className="flex items-center gap-2">
-            <UserAvatar src={other.avatar_url} name={other.display_name} size={36} />
+            <UserAvatar src={other.avatar_url} name={other.display_name} size={36} vip={other.vip_level} frameKey={other.equipped_frame} />
             <span className="font-bold">{other.display_name}</span>
           </Link>
         )}
