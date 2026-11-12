@@ -568,7 +568,7 @@ function RoomPage() {
           <div className="space-y-2">
             {micRequests.map((r) => (
               <div key={r.id} className="flex items-center gap-2 rounded-xl bg-background/60 p-2">
-                <UserAvatar src={profiles[r.user_id]?.avatar_url} name={publicName(r.user_id, "مستخدم") } vip={profiles[r.user_id]?.vip_level} size={38} />
+                <UserAvatar src={profiles[r.user_id]?.avatar_url} name={publicName(r.user_id, "مستخدم") } vip={profiles[r.user_id]?.vip_level} size={38} frameKey={profiles[r.user_id]?.equipped_frame} />
                 <span className="min-w-0 flex-1 truncate">{publicName(r.user_id, "مستخدم") }</span>
                 <Button size="sm" onClick={() => void decideMicRequest(r.id, true)} className="bg-gold">موافقة</Button>
                 <Button size="sm" variant="outline" onClick={() => void decideMicRequest(r.id, false)}>رفض</Button>
