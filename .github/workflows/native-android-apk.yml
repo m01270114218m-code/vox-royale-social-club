@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - native-android-foundation
+      - vox-royale-native-yalla-chat
     paths:
       - "native-android/**"
       - ".github/workflows/native-android-apk.yml"
