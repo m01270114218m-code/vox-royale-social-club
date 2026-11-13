@@ -52,6 +52,10 @@ jobs:
           gradle --version
           sdkmanager --list_installed
 
+      - name: Run native unit tests
+        working-directory: native-android
+        run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
+
       - name: Compile native debug APK
         working-directory: native-android
         run: gradle :app:assembleDebug --no-daemon --stacktrace
