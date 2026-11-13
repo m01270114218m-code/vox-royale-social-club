@@ -29,7 +29,7 @@ private val TextMain = Color(0xFF202638)
 private val TextMuted = Color(0xFF8991A3)
 private val Line = Color(0xFFE9ECF2)
 
-private enum class Destination(val label: String) {
+internal enum class Destination(val label: String) {
     Chats("الرسائل"), Rooms("الغرف"), Discover("اكتشف"), Moments("اللحظات"), Me("أنا")
 }
 
