@@ -54,10 +54,16 @@ jobs:
 
       - name: Run native unit tests
         working-directory: native-android
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
 
       - name: Compile native debug APK
         working-directory: native-android
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: gradle :app:assembleDebug --no-daemon --stacktrace
 
       - name: Verify APK exists
