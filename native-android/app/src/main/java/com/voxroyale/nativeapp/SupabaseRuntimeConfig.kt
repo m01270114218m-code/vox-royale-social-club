@@ -1,13 +1,21 @@
 package com.voxroyale.nativeapp
 
 internal object SupabaseRuntimeConfig {
+    fun missingConfigurationItems(url: String, publishableKey: String): List<String> =
+        buildList {
+            if (!url.startsWith("https://")) add("SUPABASE_URL")
+            if (publishableKey.isBlank()) add("SUPABASE_PUBLISHABLE_KEY")
+        }
+
     val isConfigured: Boolean
-        get() = BuildConfig.SUPABASE_URL.startsWith("https://") &&
-            BuildConfig.SUPABASE_PUBLISHABLE_KEY.isNotBlank()
+        get() = missingConfigurationItems(
+            BuildConfig.SUPABASE_URL,
+            BuildConfig.SUPABASE_PUBLISHABLE_KEY
+        ).isEmpty()
 
     val missingItems: List<String>
-        get() = buildList {
-            if (!BuildConfig.SUPABASE_URL.startsWith("https://")) add("SUPABASE_URL")
-            if (BuildConfig.SUPABASE_PUBLISHABLE_KEY.isBlank()) add("SUPABASE_PUBLISHABLE_KEY")
-        }
+        get() = missingConfigurationItems(
+            BuildConfig.SUPABASE_URL,
+            BuildConfig.SUPABASE_PUBLISHABLE_KEY
+        )
 }
