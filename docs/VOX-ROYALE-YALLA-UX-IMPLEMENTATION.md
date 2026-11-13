@@ -1,10 +1,12 @@
-# VOX ROYALE — Yalla-inspired product UI implementation
+# VOX ROYALE — YallaChat-inspired Native Android implementation
 
 ## Approved direction
 - Product: VOX ROYALE (retain its own name, logo, copy, and original artwork).
-- Primary UX reference: Yalla — room discovery, room cards, voice-room composition, profile hierarchy, social navigation.
-- Secondary feature references: WePlay for multiplayer game discovery and lobbies; BIGO LIVE for gift presentation, live interactions, and PK-style event patterns; Hello Yo for topic discovery and friend/social entry points.
-- Asset direction: premium original 2D/3D asset library with remote catalog delivery and local caching. Do not copy competitor artwork, source code, trademarks, or proprietary screen assets.
+- Primary reference: **YallaChat: Voice & Video Calls** by Yalla Technology FZ-LLC, Android package `com.yallatech.yallachat` (Google Play: https://play.google.com/store/apps/details?id=com.yallatech.yallachat).
+- Target: pursue up to 99% perceived UI/UX similarity where lawful and technically measurable, screen by screen; this is a target, not a claim of achieved parity.
+- Core reference capabilities: secure messaging (text, stickers, photos, voice/video messages), 1:1 and group voice/video calls, persistent voice-chat rooms, interactive games, Moments sharing, and the listing's Athan/Qibla utilities.
+- Build target: standalone Kotlin + Jetpack Compose Android app. Do not use WebView or Capacitor as the native app runtime.
+- Asset direction: premium original 2D/3D asset library with remote catalog delivery and local caching. Recreate layout patterns and interactions with original VOX ROYALE artwork; do not copy competitor source code, trademarks, or proprietary assets.
 
 ## Existing architecture findings (admin-asset-center)
 - The repository is a React 19 + TanStack Start + Vite application, not a Flutter-native application.
