@@ -124,6 +124,7 @@ private fun DiscoverScreen(modifier: Modifier = Modifier, onRooms: () -> Unit) {
                 }
             }
         }
+        item { BackendConfigurationNotice() }
         item { SectionTitle("الوصول السريع") }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -273,6 +274,40 @@ private fun ProfileRow(icon: androidx.compose.ui.graphics.vector.ImageVector, ti
                 Text(subtitle, color = TextMuted, fontSize = 10.sp)
             }
             Icon(Icons.Default.ChevronRight, null, tint = TextMuted)
+        }
+    }
+}
+
+@Composable
+private fun BackendConfigurationNotice() {
+    val configured = SupabaseRuntimeConfig.isConfigured
+    Surface(
+        color = if (configured) Color(0xFFEAF7F0) else Color(0xFFFFF5E8),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+    ) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                if (configured) Icons.Default.SettingsSuggest else Icons.Default.CloudOff,
+                contentDescription = null,
+                tint = if (configured) Color(0xFF218653) else Color(0xFFB87520)
+            )
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(
+                    if (configured) "إعدادات Supabase متوفرة" else "يلزم إعداد اتصال Supabase",
+                    color = TextMain,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    if (configured) "تم العثور على عنوان المشروع ومفتاح النشر؛ لم يتم بعد تأكيد الاتصال بالخادم."
+                    else "أضف SUPABASE_URL وSUPABASE_PUBLISHABLE_KEY إلى إعدادات البناء لتفعيل خدمات الحساب.",
+                    color = TextMuted,
+                    fontSize = 10.sp,
+                    lineHeight = 15.sp
+                )
+            }
         }
     }
 }
