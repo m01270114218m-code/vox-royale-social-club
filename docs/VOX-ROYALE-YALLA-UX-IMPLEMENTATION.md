@@ -10,7 +10,9 @@
 
 ## Existing architecture findings (admin-asset-center)
 - The repository is a React 19 + TanStack Start + Vite application, not a Flutter-native application.
-- Android currently has Capacitor configuration and an Android Web shell. A full native Android rewrite is a separate migration and must not be represented as complete by a successful APK build.
+- The legacy client remains React 19 + TanStack Start + Vite with Capacitor configuration; it is retained as the behavior/backend reference.
+- A standalone Kotlin + Jetpack Compose module now exists at `native-android/`. Its current implementation is an early navigation/screen shell only; it is not feature-complete and has no production service integration yet.
+- A successful debug APK build alone does not establish production readiness or full native parity.
 - Existing product routes include home, room, profile, store, VIP, messages, moments, friends, notifications, and help.
 - Existing room, profile, store, VIP, Supabase, asset-media, and Agora integration code should be preserved and incrementally restyled rather than replaced wholesale.
 - Existing asset infrastructure includes `src/lib/assets3d.ts`, `src/lib/media.ts`, `src/components/AdminAssetMedia.tsx`, and rendered asset files under `src/assets/3d/rendered`.
@@ -60,16 +62,18 @@
 - User-targeted grants must remain private to the intended user; global catalog items may be visible to all eligible users after activation.
 
 ## Delivery sequence
-1. Baseline audit and build/test capture on this branch.
-2. Shared design tokens, navigation and reusable components.
-3. Home and discovery.
-4. Voice room and gift presentation.
-5. Profile, friends, messages and moments.
-6. Store, wallet, VIP and asset ownership.
-7. Games, events and leaderboards.
-8. Admin Asset Center and moderation screens.
-9. Accessibility, RTL, responsive and regression tests.
-10. Android architecture decision: retain Capacitor temporarily or plan a dedicated Flutter/native client migration. Do not claim a native app until core screens and runtime are actually native.
+1. Capture the YallaChat reference baseline screen-by-screen from the official listing and user-supplied in-app screenshots; record layout, navigation, states and interaction rules.
+2. Stabilize the standalone Kotlin + Jetpack Compose build and establish automated compile/UI-test gates.
+3. Implement account onboarding, phone verification, session persistence, permissions and account recovery.
+4. Implement the native messaging stack: inbox, 1:1 chat, group chat, attachments, stickers, voice/video messages, delivery/read state and push notifications.
+5. Implement native 1:1 and group voice/video calling with call lifecycle, audio routing, permissions and background handling.
+6. Implement persistent voice rooms, discovery, create/join flows, moderation and realtime presence.
+7. Implement Moments feed, media upload, reactions, comments, privacy and reporting.
+8. Implement Discover, games/lobbies and the supported mini-game integrations.
+9. Implement Athan/Qibla utilities only with explicit location permission and reliable calculation/source configuration.
+10. Connect every feature to the existing production Supabase services and appropriate native media/call infrastructure; preserve auth, authorization, privacy and data integrity.
+11. Implement profile, friends, wallet, VIP and cosmetic inventory only where supported by the VOX ROYALE product requirements and backend contracts.
+12. Perform screenshot comparison, RTL/accessibility, performance, network/offline, security and real-device regression testing before release.
 
 ## Acceptance criteria
 - Every screen uses the shared VOX ROYALE design system and real backend state.
