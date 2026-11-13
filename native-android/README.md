@@ -1,30 +1,37 @@
 # VOX ROYALE Native Android
 
-This directory is the start of a standalone Android application written in Kotlin and Jetpack Compose. It is not a WebView and does not load the React/Vite site.
+This directory contains the standalone Android application written in Kotlin and Jetpack Compose. It does not use a WebView, Capacitor runtime, or remote website entry point.
 
 ## Build
 
-From this directory, with JDK 17 and Android SDK platform 36 installed:
+Requirements: JDK 17, Android SDK platform 36, Android build-tools 36.0.0, and Gradle 8.13.
+
+Configure the public Supabase project values outside source control:
 
 ```sh
+export SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
+export SUPABASE_PUBLISHABLE_KEY="YOUR_SUPABASE_PUBLISHABLE_KEY"
+gradle :app:testDebugUnitTest
 gradle :app:assembleDebug
 ```
 
-The APK output is:
+You can alternatively pass `-PSUPABASE_URL=...` and `-PSUPABASE_PUBLISHABLE_KEY=...` to Gradle. For GitHub Actions, configure repository Actions secrets named `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. The workflow passes them to the build without printing their values. These are public client configuration values only; never put a service-role key or other privileged secret in the Android app.
+
+APK output:
 
 `app/build/outputs/apk/debug/app-debug.apk`
 
-A GitHub Actions workflow is provided at `.github/workflows/native-android-apk.yml`.
+## Current native implementation
 
-## Current implementation status
+- Native Kotlin + Jetpack Compose launcher and five-section bottom navigation: Messages, Rooms, Discover, Moments, and Profile.
+- Native Home/Discover, Rooms, Messages, Moments, and Profile screen shells.
+- Profile entry points for wallet, VIP, inventory, settings, and help.
+- Explicit backend-configuration notice. It distinguishes configured public keys from a verified live connection.
+- Unit tests for navigation labels and Supabase configuration validation.
+- No fabricated users, rooms, messages, balances, gifts, or inventory items.
 
-- Native Android launcher and Compose UI foundation.
-- Native bottom navigation for Home, Rooms, Games, Messages, and Profile.
-- Initial Home and Rooms layouts using VOX ROYALE styling.
-- No WebView, Capacitor runtime, or remote website entry point in this app module.
+## Production readiness status
 
-## Not yet production-connected
+This is an incremental native migration, not yet a production-complete social app. Supabase configuration is injected into BuildConfig, but native Supabase Auth, session persistence, database queries, Realtime subscriptions, storage uploads, and authorization-aware repositories still need implementation and device testing. Agora native calling/voice-room integration, wallet/gift transactions, push notifications, full moderation, and the remaining screen flows are also pending.
 
-The current screens intentionally show empty states instead of fabricated users, rooms, balances, gifts, or messages. Production work remains for Supabase Auth/data/realtime, Agora native voice rooms, wallet ledger and gift transactions, profile/inventory, notifications, and the complete screen set. Do not treat this foundation APK as a production release until those integrations and device tests pass.
-
-The existing React/Capacit​​or project remains untouched and is retained as the functional reference during the native migration.
+The existing React/Capacitor application and its Supabase migrations remain untouched as the current product/backend reference. A successful debug build alone must not be described as full YallaChat parity or production readiness.
