@@ -13,14 +13,10 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: vox-royale-native-apk-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   native-apk:
     name: Compile and package native Android APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - name: Checkout source
@@ -41,7 +37,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses || true
+        run: yes | sdkmanager --licenses >/dev/null 2>&1 || true
 
       - name: Install Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
