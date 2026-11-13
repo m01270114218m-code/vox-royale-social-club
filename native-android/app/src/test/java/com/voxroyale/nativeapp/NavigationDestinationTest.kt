@@ -21,3 +21,27 @@ class NavigationDestinationTest {
         assertTrue(labels.none { it.isBlank() })
     }
 }
+
+class SupabaseRuntimeConfigTest {
+    @Test
+    fun rejectsMissingOrInsecureSupabaseConfiguration() {
+        assertEquals(
+            listOf("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY"),
+            SupabaseRuntimeConfig.missingConfigurationItems("", "")
+        )
+        assertEquals(
+            listOf("SUPABASE_URL"),
+            SupabaseRuntimeConfig.missingConfigurationItems("http://example.test", "public-key")
+        )
+    }
+
+    @Test
+    fun acceptsHttpsUrlAndNonEmptyPublishableKey() {
+        assertTrue(
+            SupabaseRuntimeConfig.missingConfigurationItems(
+                "https://project.supabase.co",
+                "sb_publishable_test"
+            ).isEmpty()
+        )
+    }
+}
