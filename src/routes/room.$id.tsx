@@ -1027,7 +1027,7 @@ function RoomPage() {
           <HomeScreen />
         </AppShell>
       </>
-    ) : <div className="room-scene mx-auto flex h-dvh max-w-2xl flex-col">
+    ) : <div className="room-reference room-scene mx-auto flex h-dvh max-w-2xl flex-col">
       <MediaImage src={roomBackground(room.category)} className="room-scenery" />
       <header className="glass m-3 flex items-center gap-3 rounded-2xl p-3">
         <Button variant="ghost" size="icon" onClick={() => setExitPrompt(true)} aria-label="رجوع" title="رجوع"><img src={icons3d.back} alt="" className="h-7 w-7 rotate-180 object-contain" /></Button>
