@@ -161,7 +161,7 @@ function ProfilePage() {
   if (!p) return null;
   const shown = editing && draft ? draft : p;
   return (
-    <div className="px-4 pt-6">
+    <div dir="rtl" className="profile-reference px-4 pt-6 pb-8">
       <div className="relative overflow-hidden rounded-[30px] border border-amber-300/35 bg-gradient-to-br from-slate-950 via-slate-900 to-violet-950 p-6 text-center text-white shadow-[0_20px_60px_rgba(0,0,0,.4)] ring-1 ring-amber-200/10">{profileCardUrl && <AdminAssetMedia src={profileCardUrl} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25" />}<div className="relative">
 
         <label className="relative mx-auto block w-fit cursor-pointer">
