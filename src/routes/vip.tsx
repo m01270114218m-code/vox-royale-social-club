@@ -126,7 +126,7 @@ function VipPage() {
   const move = (dir: number) => setSelected((v) => Math.min(6, Math.max(1, v + dir)));
 
   return (
-    <div dir="rtl" className="min-h-full px-3 pt-3 pb-10" style={{ background: `radial-gradient(circle at 50% 4%, ${tier.glow}, transparent 34%), linear-gradient(180deg,#05080e 0%,#090b12 45%,#030407 100%)` }}>
+    <div dir="rtl" className="vip-reference min-h-full px-3 pt-3 pb-10" style={{ background: `radial-gradient(circle at 50% 4%, ${tier.glow}, transparent 34%), linear-gradient(180deg,#05080e 0%,#090b12 45%,#030407 100%)` }}>
       <div className="sticky top-0 z-20 mb-3 flex items-center justify-between rounded-2xl border border-white/10 bg-black/35 px-2 py-2 backdrop-blur-xl">
         <Link to="/profile" className="rounded-full border border-white/10 bg-white/5 p-2"><ArrowRight className="h-5 w-5" /></Link>
         <div className="text-center">
