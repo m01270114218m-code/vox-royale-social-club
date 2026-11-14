@@ -66,7 +66,7 @@ function WalletPage() {
     return [...map.entries()].sort((a,b) => b[1]-a[1]);
   }, [spending]);
 
-  return <div dir="rtl" className="min-h-full px-4 pt-5 pb-10">
+  return <div dir="rtl" className="wallet-reference min-h-full px-4 pt-5 pb-10">
     <div className="mb-4 flex items-center justify-between">
       <Link to="/profile" className="glass rounded-full p-2"><ArrowRight className="h-5 w-5" /></Link>
       <div className="text-center"><div className="text-[10px] font-bold tracking-[.28em] text-muted-foreground">صدى شات</div><h1 className="text-2xl font-black text-gold">المحفظة</h1></div><span className="w-9" />
