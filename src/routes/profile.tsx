@@ -216,7 +216,7 @@ function ProfilePage() {
             ))}
           </div>
           <Button variant="outline" onClick={() => { setDraft(p); setEditing(true); }}><img src={icons3d.gear} alt="" className="h-6 w-6 object-contain" /> تعديل الملف</Button>
-          <Button onClick={daily} className="bg-gold font-bold"><img src={icons3d.giftbox} alt="" className="h-7 w-7 object-contain" /> مكافأة يومية +200</Button>
+          <Button onClick={daily} className="bg-gold font-bold"><img src={icons3d.giftbox} alt="" className="h-7 w-7 object-contain" /> مكافأة يومية +100</Button>
           {isGuest && (
             <div className="glass space-y-2 rounded-2xl p-3 text-sm">
               <p className="text-primary">أنت تستخدم حساب الجهاز السريع. اربط بريدك حتى لا تفقد حسابك.</p>
