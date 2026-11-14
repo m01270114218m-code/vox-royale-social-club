@@ -64,6 +64,13 @@
       "when": 1794676195214,
       "tag": "0008_banners_assets_notices",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794676350280,
+      "tag": "0009_tighten_profile_family_ban_reads",
+      "breakpoints": true
     }
   ]
 }
