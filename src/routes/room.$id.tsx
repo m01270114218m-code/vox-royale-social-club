@@ -72,8 +72,8 @@ function RoomPage() {
   }, [profiles]);
 
   const loadSeats = useCallback(async () => {
-    const { data } = await supabase.from("room_seats").select("seat_number,user_id,is_locked,is_muted").eq("room_id", id).order("seat_number");
-    if (data) setSeats(data);
+    const { data } = await supabase.from("room_seats").select("seat_index,user_id,is_locked,is_muted").eq("room_id", id).order("seat_index");
+    if (data) setSeats(data.map(({ seat_index, ...r }) => ({ ...r, seat_number: seat_index })));
   }, [id]);
   const loadMembers = useCallback(async () => {
     const { data } = await supabase.from("room_members").select("user_id").eq("room_id", id);
@@ -109,7 +109,7 @@ function RoomPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "room_members", filter: `room_id=eq.${id}` }, () => loadMembers())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${id}` }, (p) => setMsgs((x) => [...x.slice(-99), p.new as Msg]))
       .subscribe();
-    supabase.from("gifts").select("id,name,emoji,price_coins").eq("is_active",true).then(({ data }) => data && setGifts(data.map((g) => ({ ...g, price: Number(g.price_coins), tier: "" }))));
+    supabase.from("gifts").select("id,name,emoji,price").eq("active",true).then(({ data }) => data && setGifts(data.map((g) => ({ ...g, price: Number(g.price), tier: "" }))));
     return () => {
       alive = false;
       supabase.removeChannel(ch);
@@ -150,7 +150,7 @@ function RoomPage() {
   }
 
   async function openGifts(target?: string) {
-    const { data } = await supabase.from("wallet_balances").select("coins").eq("user_id", uid).maybeSingle();
+    const { data } = await supabase.from("wallets").select("coins").eq("user_id", uid).maybeSingle();
     setCoins(Number(data?.coins ?? 0));
     const others = members.filter((m) => m !== uid);
     setGiftTo(target ?? seats.find((s) => s.user_id && s.user_id !== uid)?.user_id ?? others[0] ?? null);
@@ -160,7 +160,7 @@ function RoomPage() {
   }
   async function sendGift() {
     if (!giftSel || !giftTo) return;
-    const { error } = await supabase.rpc("send_gift", { target_user: giftTo, gift_id: giftSel.id });
+    const { error } = await supabase.rpc("send_gift", { _room: id, _receiver: giftTo, _gift: giftSel.id, _qty: 1 });
     if (error) {
       toast.error(errMsg(error));
       return;

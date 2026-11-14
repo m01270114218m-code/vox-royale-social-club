@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_assets: {
+        Row: {
+          asset_key: string
+          created_at: string
+          id: string
+          is_active: boolean
+          url: string | null
+        }
+        Insert: {
+          asset_key: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          url?: string | null
+        }
+        Update: {
+          asset_key?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          url?: string | null
+        }
+        Relationships: []
+      }
+      admin_banners: {
+        Row: {
+          action_url: string | null
+          body: string | null
+          created_at: string
+          ends_at: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          starts_at: string | null
+          title: string
+        }
+        Insert: {
+          action_url?: string | null
+          body?: string | null
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          starts_at?: string | null
+          title: string
+        }
+        Update: {
+          action_url?: string | null
+          body?: string | null
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          starts_at?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -991,6 +1051,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_notifications: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

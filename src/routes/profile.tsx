@@ -43,9 +43,9 @@ function ProfilePage() {
   const [linkEmail, setLinkEmail] = useState("");
   const isGuest = !!user?.is_anonymous;
   async function loadTx() {
-    const { data, error } = await supabase.from("wallet_transactions").select("id,currency,amount,title,kind,created_at").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(20);
+    const { data, error } = await supabase.from("wallet_transactions").select("id,currency,amount,reason,created_at").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(20);
     if (error) { toast.error(errMsg(error)); return; }
-    if (data) setTxs(data.map((d) => ({ ...d, amount: Number(d.amount) })));
+    if (data) setTxs(data.map((d) => ({ ...d, title: d.reason, kind: d.reason, amount: Number(d.amount) })));
   }
 
   async function link() {
@@ -58,7 +58,7 @@ function ProfilePage() {
     (async () => {
       const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
       if (data) setP(data as P);
-      const { data: w } = await supabase.from("wallet_balances").select("coins,diamonds").eq("user_id", user!.id).maybeSingle();
+      const { data: w } = await supabase.from("wallets").select("coins,diamonds").eq("user_id", user!.id).maybeSingle();
       loadTx();
       if (w) setWallet({ coins: Number(w.coins), diamonds: Number(w.diamonds) });
     })();

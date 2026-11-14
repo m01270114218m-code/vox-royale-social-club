@@ -50,6 +50,20 @@
       "when": 1793743235479,
       "tag": "0006_vip_store_admin_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794676143020,
+      "tag": "0007_signed_in_reads",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794676195214,
+      "tag": "0008_banners_assets_notices",
+      "breakpoints": true
     }
   ]
 }

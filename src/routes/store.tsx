@@ -43,9 +43,9 @@ function StorePage() {
   useEffect(() => {
     (async () => {
       const [{ data: w }, { data: p }, { data: tierData }] = await Promise.all([
-        supabase.from("wallet_balances").select("coins").eq("user_id", user!.id).maybeSingle(),
+        supabase.from("wallets").select("coins").eq("user_id", user!.id).maybeSingle(),
         supabase.from("profiles").select("vip_level").eq("id", user!.id).single(),
-        supabase.from("vip_tiers").select("level,name,price_coins,duration_days").order("level"),
+        Promise.resolve({ data: [1000,3000,8000,20000,50000,120000].map((price_coins, i) => ({ level: i + 1, name: `VIP ${i + 1}`, price_coins, duration_days: 30 })) }),
       ]);
       setCoins(Number(w?.coins ?? 0));
       setVip(p?.vip_level ?? 0);
@@ -53,10 +53,10 @@ function StorePage() {
     })();
   }, [user]);
   async function buy(lv: number) {
-    const { error } = await supabase.rpc("buy_vip", { target_level: lv });
+    const { error } = await supabase.rpc("buy_vip", { _level: lv });
     if (error) { toast.error(error.message.includes("insufficient") ? "رصيد العملات غير كافٍ" : errMsg(error)); return; }
     const [{ data: w }, { data: p }] = await Promise.all([
-      supabase.from("wallet_balances").select("coins").eq("user_id", user!.id).maybeSingle(),
+      supabase.from("wallets").select("coins").eq("user_id", user!.id).maybeSingle(),
       supabase.from("profiles").select("vip_level").eq("id", user!.id).single(),
     ]);
     setCoins(Number(w?.coins ?? 0));

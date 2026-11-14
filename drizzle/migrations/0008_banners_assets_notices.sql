@@ -1,0 +1,16 @@
+CREATE TABLE public.admin_banners (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), title text NOT NULL, body text, image_url text, action_url text, is_active boolean NOT NULL DEFAULT true, starts_at timestamptz, ends_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT ON public.admin_banners TO authenticated; GRANT ALL ON public.admin_banners TO service_role;
+ALTER TABLE public.admin_banners ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "banners read" ON public.admin_banners FOR SELECT TO authenticated USING (is_active OR public.is_admin(auth.uid()));
+CREATE POLICY "banners admin write" ON public.admin_banners FOR ALL TO authenticated USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
+GRANT INSERT, UPDATE, DELETE ON public.admin_banners TO authenticated;
+CREATE TABLE public.admin_assets (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), asset_key text NOT NULL UNIQUE, url text, is_active boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.admin_assets TO authenticated; GRANT ALL ON public.admin_assets TO service_role;
+ALTER TABLE public.admin_assets ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "assets read" ON public.admin_assets FOR SELECT TO authenticated USING (is_active OR public.is_admin(auth.uid()));
+CREATE POLICY "assets admin write" ON public.admin_assets FOR ALL TO authenticated USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
+CREATE TABLE public.user_notifications (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, title text NOT NULL, body text NOT NULL DEFAULT '', read_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, UPDATE ON public.user_notifications TO authenticated; GRANT ALL ON public.user_notifications TO service_role;
+ALTER TABLE public.user_notifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own notices read" ON public.user_notifications FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "own notices update" ON public.user_notifications FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
