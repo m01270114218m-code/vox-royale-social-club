@@ -151,7 +151,11 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
   }, [rooms, tab]);
 
   return (
-    <div className="app-screen w-full px-3 pb-3 pt-2 sm:px-4">
+    <div className="app-screen home-reference w-full px-3 pb-3 pt-2 sm:px-4">
+      <header className="home-reference-header mb-3 flex items-center justify-between px-1 pt-1">
+        <div className="flex items-center gap-2"><span className="home-brand-mark">V</span><div><div className="text-[10px] font-bold tracking-[.24em] text-violet-500">VOX ROYALE</div><div className="text-lg font-black leading-tight">اكتشف مجتمعك</div></div></div>
+        <div className="flex items-center gap-2"><Link to="/notifications" aria-label="الإشعارات" className="home-header-action"><Bell className="h-5 w-5" /></Link><Link to="/profile" aria-label="الملف الشخصي" className="home-header-action"><Users className="h-5 w-5" /></Link></div>
+      </header>
       {showIntroBanner && introBannerUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4" role="dialog" aria-label="إعلان البداية">
           <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-gold/40 shadow-2xl">
@@ -183,6 +187,11 @@ export function HomeScreen({ createRequested = false }: { createRequested?: bool
           })()}
         </div>
       )}
+      <div className="home-shortcuts mb-3 grid grid-cols-3 gap-2">
+        <Link to="/families" className="home-shortcut home-shortcut-family"><span>👑</span><b>العائلات</b></Link>
+        <Link to="/vip" className="home-shortcut home-shortcut-vip"><span>💎</span><b>VIP / SVIP</b></Link>
+        <Link to="/store" className="home-shortcut home-shortcut-store"><span>🎁</span><b>المتجر</b></Link>
+      </div>
       <div className="mb-3 flex gap-2"><Input className="flex-1" inputMode="numeric" dir="ltr" placeholder="ابحث عن مستخدم بالـ ID" value={userIdSearch} onChange={(e) => setUserIdSearch(e.target.value.replace(/\D/g, ""))} /><Button variant="outline" onClick={() => void searchUserById()}><Search className="h-4 w-4" /> مستخدم</Button></div>
       <div className="mb-2 flex gap-2">
         {(["hot", "new"] as const).map((t) => (
