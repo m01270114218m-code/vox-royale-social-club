@@ -520,3 +520,119 @@ body {
   .home-shortcut { min-height: 62px; }
   .home-reference-header { margin-bottom: .6rem; }
 }
+
+
+/* Premium screen system inspired by the supplied VOX ROYALE reference. */
+.profile-reference,
+.wallet-reference,
+.store-reference {
+  color: #f8f3ff;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(154, 91, 205, .18), transparent 30%),
+    linear-gradient(160deg, #171323 0%, #100e1b 52%, #191329 100%);
+  border: 1px solid rgba(221, 184, 245, .09);
+  border-radius: 28px 28px 0 0;
+}
+.profile-reference { max-width: 680px; margin-inline: auto; }
+.profile-reference .glass,
+.wallet-reference .glass,
+.store-reference .glass {
+  color: #f4edf9;
+  border-color: rgba(216, 181, 242, .16);
+  background: linear-gradient(145deg, rgba(48, 37, 65, .88), rgba(27, 23, 40, .94));
+  box-shadow: 0 12px 30px rgba(0,0,0,.22), inset 0 1px rgba(255,255,255,.04);
+}
+.profile-reference .card-3d,
+.wallet-reference .card-3d,
+.store-reference .card-3d {
+  border-color: rgba(224, 190, 248, .17);
+  background: linear-gradient(145deg, rgba(55, 42, 73, .92), rgba(27, 23, 40, .96));
+  box-shadow: 0 12px 28px rgba(0,0,0,.25), inset 0 1px rgba(255,255,255,.06);
+}
+.profile-reference .text-muted-foreground,
+.wallet-reference .text-muted-foreground,
+.store-reference .text-muted-foreground { color: #b9acc8; }
+.profile-reference input,
+.profile-reference textarea,
+.profile-reference select,
+.wallet-reference input,
+.store-reference input {
+  color: #fff;
+  border-color: rgba(226, 195, 245, .2);
+  background: rgba(13, 10, 22, .55);
+}
+.profile-reference input::placeholder,
+.profile-reference textarea::placeholder { color: #a99bb8; }
+.profile-reference > div:first-child {
+  border-color: rgba(224, 184, 109, .42);
+  box-shadow: 0 22px 58px rgba(0,0,0,.42), 0 0 32px rgba(183,129,66,.10);
+}
+.profile-reference .grid.grid-cols-5 > div {
+  min-width: 0;
+  border-inline-start: 1px solid rgba(255,255,255,.07);
+}
+.wallet-reference { max-width: 680px; margin-inline: auto; }
+.wallet-reference > .card-3d:first-of-type {
+  background: radial-gradient(circle at 10% 0%, rgba(244,190,91,.18), transparent 45%), linear-gradient(135deg,#382746,#171323 70%);
+}
+.wallet-reference section { border-radius: 24px; }
+.store-reference { padding-top: 1rem; }
+.store-reference section > h2 {
+  display: flex; align-items: center; gap: .5rem;
+  margin-bottom: .8rem; color: #f3d79b; font-size: .95rem;
+}
+.store-reference .card-3d { transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+.store-reference .card-3d:active { transform: scale(.985); }
+.vip-reference { max-width: 680px; margin-inline: auto; border-radius: 28px 28px 0 0; }
+.vip-reference section { backdrop-filter: blur(16px); }
+.vip-reference button { -webkit-tap-highlight-color: transparent; }
+.room-reference {
+  isolation: isolate;
+  background: #090914;
+  color: #fff;
+  --room-overlay: linear-gradient(180deg, rgba(8,7,20,.22) 0%, rgba(8,7,20,.38) 34%, rgba(8,7,20,.86) 100%);
+}
+.room-reference > header {
+  border: 1px solid rgba(228,196,255,.18);
+  background: linear-gradient(135deg, rgba(24,19,43,.88), rgba(12,12,28,.78));
+  box-shadow: 0 10px 30px rgba(0,0,0,.24);
+  backdrop-filter: blur(18px);
+}
+.room-reference > header button { color: #f8efff; }
+.room-reference > .grid {
+  position: relative;
+  margin: .25rem .8rem .8rem;
+  padding: 1.15rem .8rem;
+  border: 1px solid rgba(226,195,246,.12);
+  border-radius: 28px;
+  background: linear-gradient(145deg, rgba(21,17,40,.34), rgba(9,9,24,.22));
+  backdrop-filter: blur(8px);
+}
+.room-reference > .grid > button {
+  min-height: 106px;
+  border-radius: 20px;
+  background: radial-gradient(circle at 50% 38%, rgba(171,116,222,.14), transparent 68%);
+}
+.room-reference .room-chat-composer {
+  border: 1px solid rgba(222,189,245,.22);
+  background: rgba(20,16,34,.88);
+  box-shadow: 0 8px 28px rgba(0,0,0,.34);
+  backdrop-filter: blur(18px);
+}
+.room-reference .room-chat-composer input {
+  color: #fff;
+  border: 0;
+  background: transparent;
+}
+.room-reference .room-chat-composer input::placeholder { color: #b7a8c7; }
+.room-reference .room-chat-composer button {
+  border-radius: 999px;
+}
+@media (max-width: 420px) {
+  .profile-reference, .wallet-reference, .store-reference, .vip-reference { border-radius: 22px 22px 0 0; }
+  .profile-reference { padding-inline: .75rem; }
+  .wallet-reference { padding-inline: .75rem; }
+  .store-reference { padding-inline: .75rem; }
+  .room-reference > header { margin: .55rem; padding: .6rem; gap: .45rem; }
+  .room-reference > .grid { margin-inline: .55rem; padding: .8rem .45rem; }
+}
