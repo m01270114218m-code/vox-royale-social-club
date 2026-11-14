@@ -94,7 +94,7 @@ function StorePage() {
   return (
     <>
       <PageHeader title="المتجر" back />
-      <div className="space-y-5 px-4">
+      <div dir="rtl" className="store-reference space-y-5 px-4 pb-8">
         <section>
           <h2 className="mb-2 font-bold">إطارات الصورة</h2>
           <div className="grid grid-cols-2 gap-3">
