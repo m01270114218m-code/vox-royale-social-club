@@ -62,7 +62,12 @@ function Families() {
     }
   }
   useEffect(() => {
-    load();
+    void load();
+    const channel = supabase.channel(`families-list-live-${uid}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "families" }, () => { void load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "family_members" }, () => { void load(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
