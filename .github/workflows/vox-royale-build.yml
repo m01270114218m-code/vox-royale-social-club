@@ -32,6 +32,7 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           bun --version
           bun install
+          bun run test
           # The app shell uses Capacitor App + Browser for native OAuth deep links.
           bun add @capacitor/core@latest @capacitor/app@latest @capacitor/browser@latest
           export NITRO_PRESET=render-com
