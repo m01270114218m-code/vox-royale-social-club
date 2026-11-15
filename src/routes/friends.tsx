@@ -77,8 +77,13 @@ function Friends() {
         if (active) setLoading(false);
       }
     }
+    const channel = supabase.channel(`friends-list-live-${uid}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "follows", filter: `following_id=eq.${uid}` }, () => { void load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "follows", filter: `follower_id=eq.${uid}` }, () => { void load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "profile_visits", filter: `profile_id=eq.${uid}` }, () => { void load(); })
+      .subscribe();
     void load();
-    return () => { active = false; };
+    return () => { active = false; void supabase.removeChannel(channel); };
   }, [tab, uid]);
 
   const filteredList = list.filter((profile) => profile.display_name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
