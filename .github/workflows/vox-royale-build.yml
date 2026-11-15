@@ -34,8 +34,9 @@ jobs:
           bun install
           # The app shell uses Capacitor App + Browser for native OAuth deep links.
           bun add @capacitor/core@latest @capacitor/app@latest @capacitor/browser@latest
-          bun run test
           export NITRO_PRESET=render-com
           bun run build
+          # Build generates the TanStack file-route tree used by the route smoke tests.
+          bun run test
           test -s .output/server/index.mjs
           test -s .output/public/control-center/index.html
