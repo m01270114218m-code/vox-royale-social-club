@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Crown, Users, Plus, Check, X, LogOut } from "lucide-react";
+import { Crown, Users, Plus, Check, X, LogOut, Search, Trophy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -39,20 +39,27 @@ function Families() {
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [emblem, setEmblem] = useState("👑");
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
 
   async function load() {
-    const [{ data: fs }, { data: m }] = await Promise.all([
-      supabase.from("families").select("*").order("points", { ascending: false }).limit(50),
-      supabase.from("family_members").select("*").eq("user_id", uid).maybeSingle(),
-    ]);
-    setList((fs as F[]) ?? []);
-    setMine((m as M) ?? null);
-    if (m && m.status === "active") {
-      const { data: ms } = await supabase.from("family_members").select("*").eq("family_id", m.family_id);
-      const ids = (ms ?? []).map((x) => x.user_id);
-      const { data: ps } = ids.length ? await supabase.from("profiles").select("id,display_name,avatar_url").in("id", ids) : { data: [] };
-      setMembers((ms ?? []).map((x) => ({ ...(x as M), p: (ps as P[]).find((p) => p.id === x.user_id) })));
-    } else setMembers([]);
+    setLoading(true);
+    try {
+      const [{ data: fs }, { data: m }] = await Promise.all([
+        supabase.from("families").select("*").order("points", { ascending: false }).limit(50),
+        supabase.from("family_members").select("*").eq("user_id", uid).maybeSingle(),
+      ]);
+      setList((fs as F[]) ?? []);
+      setMine((m as M) ?? null);
+      if (m && m.status === "active") {
+        const { data: ms } = await supabase.from("family_members").select("*").eq("family_id", m.family_id);
+        const ids = (ms ?? []).map((x) => x.user_id);
+        const { data: ps } = ids.length ? await supabase.from("profiles").select("id,display_name,avatar_url").in("id", ids) : { data: [] };
+        setMembers((ms ?? []).map((x) => ({ ...(x as M), p: (ps as P[]).find((p) => p.id === x.user_id) })));
+      } else setMembers([]);
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => {
     load();
@@ -69,11 +76,19 @@ function Families() {
   }
 
   const myFam = mine && list.find((f) => f.id === mine.family_id);
+  const filteredList = list.filter((family) => {
+    const term = query.trim().toLocaleLowerCase();
+    return !term || family.name.toLocaleLowerCase().includes(term) || (family.description ?? "").toLocaleLowerCase().includes(term);
+  });
   const isLeader = myFam && (myFam.owner_id === uid || mine?.role === "owner" || mine?.role === "admin");
 
   return (
-    <div>
+    <div className="social-list-reference family-list-reference" dir="rtl">
       <PageHeader title="العائلات" back right={!mine && <Button size="sm" onClick={() => setShow(!show)}><Plus className="h-4 w-4" /> إنشاء</Button>} />
+      <div className="social-list-toolbar mx-4 mb-4">
+        <div><div className="social-list-kicker">VOX ROYALE · COMMUNITY</div><div className="social-list-title">عائلات تجمعنا</div><p className="text-xs text-muted-foreground">اكتشف العائلات وتابع ترتيبها ونقاطها</p></div>
+        <div className="social-list-search"><Search className="h-4 w-4" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث عن عائلة..." aria-label="ابحث عن عائلة" /></div>
+      </div>
       {show && !mine && (
         <div className="glass card-3d mx-4 mb-4 space-y-2 rounded-3xl p-4">
           <div className="flex gap-2">
@@ -86,7 +101,7 @@ function Families() {
       )}
 
       {myFam && (
-        <div className="glass card-3d mx-4 mb-4 rounded-3xl p-4">
+        <div className="social-feature-card glass card-3d mx-4 mb-4 rounded-3xl p-4">
           <div className="flex items-center gap-3">
             <div className="bg-gold flex h-16 w-16 items-center justify-center rounded-2xl text-3xl shadow-gold">{myFam.emblem}</div>
             <div className="flex-1">
@@ -114,12 +129,13 @@ function Families() {
         </div>
       )}
 
-      <h2 className="px-4 pb-2 text-sm font-bold text-muted-foreground">ترتيب العائلات</h2>
-      {list.length === 0 && <p className="px-4 py-6 text-center text-sm text-muted-foreground">لا توجد عائلات بعد. كن أول من ينشئ عائلة.</p>}
+      <div className="mb-3 flex items-center justify-between px-4"><h2 className="text-sm font-black text-amber-100">ترتيب العائلات</h2><span className="text-[11px] text-muted-foreground">{filteredList.length} عائلة</span></div>
+      {loading ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">جارٍ تحميل العائلات...</p> : filteredList.length === 0 ? <p className="social-empty mx-4 py-8 text-center text-sm text-muted-foreground">{query.trim() ? "لا توجد نتائج مطابقة للبحث" : "لا توجد عائلات بعد. كن أول من ينشئ عائلة."}</p> : null}
       <div className="space-y-2 px-4">
-        {list.map((f, i) => (
-          <div key={f.id} className="glass card-3d flex items-center gap-3 rounded-2xl p-3">
-            <span className="font-display w-6 text-center text-lg text-primary">{i + 1}</span>
+        {filteredList.map((f) => (
+          <div key={f.id} className="social-family-row glass card-3d flex items-center gap-3 rounded-2xl p-3">
+            <span className="social-family-rank"><Trophy className="h-3.5 w-3.5" />{list.findIndex((item) => item.id === f.id) + 1}</span>
+
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary text-2xl">{f.emblem}</div>
             <div className="min-w-0 flex-1">
               <div className="truncate font-bold">{f.name}</div>
