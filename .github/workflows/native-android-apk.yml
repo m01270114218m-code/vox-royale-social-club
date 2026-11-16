@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - native-android-foundation
+      - native-android-supabase-build
     paths:
       - "native-android/**"
       - ".github/workflows/native-android-apk.yml"
@@ -53,6 +54,9 @@ jobs:
 
       - name: Compile native debug APK
         working-directory: native-android
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: gradle :app:assembleDebug --no-daemon --stacktrace
 
       - name: Verify APK exists
