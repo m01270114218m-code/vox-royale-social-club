@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - native-android-build
+    paths:
+      - "native-android/**"
+      - ".github/workflows/native-android-apk.yml"
   workflow_dispatch:
 
 permissions:
@@ -20,32 +23,41 @@ jobs:
           cd source
           git rev-parse HEAD
 
-      - name: Verify runner tools
+      - name: Install Java 17
         run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-17-jdk unzip curl
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME/bin" >> "$GITHUB_PATH"
           java -version
-          command -v sdkmanager || true
-          command -v gradle || true
-          command -v gh || true
 
-      - name: Install Android SDK packages
-        working-directory: source
+      - name: Install Android command-line tools
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+          export ANDROID_SDK_ROOT="$RUNNER_TEMP/android-sdk"
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          curl -fsSL -o "$RUNNER_TEMP/cmdline-tools.zip" "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+          unzip -q "$RUNNER_TEMP/cmdline-tools.zip" -d "$RUNNER_TEMP/android-cmdline"
+          rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          mv "$RUNNER_TEMP/android-cmdline/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Install Gradle 8.13
-        working-directory: source
         run: |
-          curl -fsSL -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.13-bin.zip
-          rm -rf /tmp/gradle-8.13
-          unzip -q /tmp/gradle.zip -d /tmp
-          echo "/tmp/gradle-8.13/bin" >> "$GITHUB_PATH"
-          /tmp/gradle-8.13/bin/gradle --version
+          curl -fsSL -o "$RUNNER_TEMP/gradle.zip" https://services.gradle.org/distributions/gradle-8.13-bin.zip
+          rm -rf "$RUNNER_TEMP/gradle-8.13"
+          unzip -q "$RUNNER_TEMP/gradle.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gradle-8.13/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/gradle-8.13/bin/gradle" --version
 
       - name: Build native APK
         working-directory: source/native-android
         run: |
-          /tmp/gradle-8.13/bin/gradle :app:assembleDebug --no-daemon --stacktrace
+          "$RUNNER_TEMP/gradle-8.13/bin/gradle" :app:assembleDebug --no-daemon --stacktrace
 
       - name: Verify APK
         working-directory: source
@@ -59,4 +71,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="native-build-${GITHUB_SHA::12}"
-          gh release create "$TAG" native-android/app/build/outputs/apk/debug/app-debug.apk#vox-royale-native-debug.apk --title "VOX ROYALE Native APK $GITHUB_SHA" --notes "Automated native Android debug APK build from native-android-build." --target "$GITHUB_SHA"
+          gh release create "$TAG" native-android/app/build/outputs/apk/debug/app-debug.apk#vox-royale-native-debug.apk --title "VOX ROYALE Native APK ${GITHUB_SHA::12}" --notes "Automated native Android debug APK build from native-android-build." --target "$GITHUB_SHA"
