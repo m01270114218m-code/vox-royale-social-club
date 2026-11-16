@@ -13,14 +13,10 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: vox-royale-native-apk-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   native-apk:
     name: Compile and package native Android APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 45
     steps:
       - name: Checkout source
@@ -32,7 +28,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install Gradle 8.13
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.13"
