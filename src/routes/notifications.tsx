@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/notifications")({
   head: () => ({
     meta: [
-      { title: "الإشعارات — VOX ROYALE" },
+      { title: "الإشعارات — صدى شات" },
       { name: "description", content: "إشعارات الإعجابات والمتابعات والهدايا والعائلة." },
-      { property: "og:title", content: "الإشعارات — VOX ROYALE" },
+      { property: "og:title", content: "الإشعارات — صدى شات" },
       { property: "og:description", content: "كل إشعاراتك في مكان واحد." },
     ],
   }),
@@ -41,7 +41,7 @@ function Notifs() {
     <div>
       <PageHeader title="الإشعارات" back right={items.length > 0 && <Button size="sm" variant="outline" onClick={clear}>مسح الكل</Button>} />
       <div className="space-y-2 px-4">
-        <div className="glass rounded-2xl p-3 text-sm">📢 <b>رسالة النظام</b> — شكراً لاختيارك VOX ROYALE! يُمنع المحتوى المسيء أو غير اللائق، وأي مخالفة تعرّض الحساب للحظر.</div>
+        <div className="glass rounded-2xl p-3 text-sm">📢 <b>رسالة النظام</b> — شكراً لاختيارك صدى شات! يُمنع المحتوى المسيء أو غير اللائق، وأي مخالفة تعرّض الحساب للحظر.</div>
         {items.length === 0 && <p className="py-8 text-center text-muted-foreground">لا توجد إشعارات</p>}
         {items.map((n) => (
           <div key={n.id} className={`glass flex gap-3 rounded-2xl p-3 ${n.is_read ? "" : "ring-1 ring-primary"}`}>

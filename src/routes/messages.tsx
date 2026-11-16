@@ -10,9 +10,9 @@ import { Input } from "@/components/ui/input";
 export const Route = createFileRoute("/messages")({
   head: () => ({
     meta: [
-      { title: "الدردشات — VOX ROYALE" },
+      { title: "الدردشات — صدى شات" },
       { name: "description", content: "رسائلك الخاصة وإشعاراتك وأصدقاؤك." },
-      { property: "og:title", content: "الدردشات — VOX ROYALE" },
+      { property: "og:title", content: "الدردشات — صدى شات" },
       { property: "og:description", content: "رسائلك الخاصة وإشعاراتك." },
     ],
   }),

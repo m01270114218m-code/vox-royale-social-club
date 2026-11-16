@@ -1,20 +1,26 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText } from "lucide-react";
+import { Shield, Flag, DoorOpen, FileText, Users, Trash2, Wallet, Gift, Store, Bell, ScrollText, Image as ImageIcon, Box, Upload, Search, Power, RefreshCw, File as FileIcon, Armchair, PanelsTopLeft, Settings, BarChart3, ShieldCheck, ExternalLink } from "lucide-react";
+import { AdminRolesTab, AnalyticsTab, AppBuilderTab, BannersTab, NotificationsTab, SeatsTab, SettingsTab } from "@/components/admin/AdminExtendedTabs";
+import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 import { supabase } from "@/integrations/supabase/client";
 import { RequireAuth } from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { errMsg } from "@/lib/vox";
+import { getAdminAssetUrl } from "@/lib/media";
 
 export const Route = createFileRoute("/admin")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    section: typeof search.section === "string" ? search.section : undefined,
+  }),
   head: () => ({
     meta: [
-      { title: "لوحة التحكم — VOX ROYALE" },
-      { name: "description", content: "لوحة إدارة VOX ROYALE للبلاغات والغرف والمنشورات والمستخدمين." },
-      { property: "og:title", content: "لوحة التحكم — VOX ROYALE" },
+      { title: "لوحة التحكم — صدى شات" },
+      { name: "description", content: "لوحة إدارة صدى شات للبلاغات والغرف والمنشورات والمستخدمين." },
+      { property: "og:title", content: "لوحة التحكم — صدى شات" },
       { property: "og:description", content: "إدارة البلاغات والغرف والمنشورات والمستخدمين." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -23,34 +29,94 @@ export const Route = createFileRoute("/admin")({
   }),
   component: () => (
     <RequireAuth>
-      <AdminPage />
+      <FullAdminPanel />
     </RequireAuth>
   ),
 });
 
-type Tab = "reports" | "rooms" | "posts" | "users" | "wallet" | "gifts" | "store" | "broadcast" | "audit";
+
+/** Full administration UI embedded in the Android/web app.
+ * The static control center is bundled at public/control-center/index.html
+ * and shares the same origin + Supabase auth storage as the app.
+ */
+function FullAdminPanel() {
+  // Render the real admin React panel directly inside the app.
+  // This avoids relying on a second static page and a CDN-loaded Supabase client
+  // inside an iframe, while keeping the same admin data/RPCs and web-style UI.
+  return (
+    <main className="min-h-[100dvh] bg-background">
+      <AdminPage />
+    </main>
+  );
+}
+
+type Tab = "reports" | "rooms" | "seats" | "posts" | "users" | "wallet" | "gifts" | "vip" | "store" | "assets" | "banners" | "notifications" | "roles" | "settings" | "app_builder" | "analytics" | "audit";
 const fmt = (d: string) => new Date(d).toLocaleString("ar-EG");
 
 function AdminPage() {
   const { user } = useAuth();
+  const { section: requestedSection } = Route.useSearch();
+  const externalAdminUrl = (import.meta.env.VITE_ADMIN_PANEL_URL as string | undefined) || "/control-center/";
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [isSuper, setIsSuper] = useState(false);
+  const [hasAdminRole, setHasAdminRole] = useState(false);
+  const [sectionPermissions, setSectionPermissions] = useState<string[]>([]);
+  const [sectionOnly, setSectionOnly] = useState(false);
   const [stats, setStats] = useState<Record<string, number> | null>(null);
   const [tab, setTab] = useState<Tab>("reports");
 
   async function check() {
-    const [{ data: a }, { data: s }] = await Promise.all([
-      supabase.rpc("is_admin", { _uid: user!.id }),
-      supabase.rpc("has_role", { _user_id: user!.id, _role: "super_admin" }),
+    if (!user?.id) { setAllowed(false); setHasAdminRole(false); setIsSuper(false); return; }
+    const [{ data: access }, { data: adminRole }, { data: moderatorRole }, { data: superRole }, { data: sectionData, error: sectionError }] = await Promise.all([
+      supabase.rpc("can_access_admin_dashboard"),
+      supabase.rpc("is_admin", { _uid: user.id }),
+      supabase.rpc("has_role", { _user_id: user.id, _role: "moderator" }),
+      supabase.rpc("has_role", { _user_id: user.id, _role: "super_admin" }),
+      supabase.rpc("my_admin_permissions"),
     ]);
-    setAllowed(!!a);
-    setIsSuper(!!s);
-    if (a) {
+    if (sectionError) toast.error(errMsg(sectionError));
+    const permissions = (sectionData as string[] | null) ?? [];
+    // A delegated section always overrides full-dashboard visibility: the user gets only the assigned section.
+    const isSectionOnly = !superRole && permissions.some((key) => key.startsWith("section_"));
+    setSectionPermissions(superRole ? ["*"] : permissions.filter((key) => key.startsWith("section_")));
+    setSectionOnly(isSectionOnly);
+    setAllowed(access === true || !!superRole || isSectionOnly);
+    setHasAdminRole(!!adminRole || !!moderatorRole || !!superRole);
+    setIsSuper(!!superRole);
+    if ((access === true || !!superRole) && !isSectionOnly) {
       const { data } = await supabase.rpc("admin_stats");
       setStats(data as Record<string, number>);
+    } else {
+      setStats(null);
     }
   }
-  useEffect(() => { check(); }, [user]);
+  useEffect(() => {
+    if (!user?.id) { void check(); return; }
+    void check();
+    const refresh = () => { if (document.visibilityState === "visible") void check(); };
+    const channel = supabase
+      .channel(`admin-access-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "admin_user_permissions", filter: `user_id=eq.${user.id}` }, () => { void check(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "admin_dashboard_access", filter: `user_id=eq.${user.id}` }, () => { void check(); })
+      .subscribe();
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  async function refreshStats() {
+    if (!allowed) return;
+    const { data, error } = await supabase.rpc("admin_stats");
+    if (!error && data) setStats(data as Record<string, number>);
+  }
+  useAdminRealtime(
+    allowed && !sectionOnly ? ["profiles", "wallets", "wallet_transactions", "rooms", "room_members", "room_seats", "gifts", "gift_transactions", "vip_tiers", "banners", "notifications", "admin_assets", "reports", "user_roles", "admin_settings", "audit_log", "store_items", "posts"] : [],
+    refreshStats,
+  );
 
   async function claim() {
     const { data, error } = await supabase.rpc("claim_first_admin");
@@ -60,38 +126,94 @@ function AdminPage() {
     check();
   }
 
+  const tabs: { id: Tab; label: string; icon: typeof Flag }[] = [
+    { id: "reports", label: "البلاغات", icon: Flag },
+    { id: "rooms", label: "الغرف", icon: DoorOpen },
+    { id: "seats", label: "المقاعد", icon: Armchair },
+    { id: "posts", label: "المنشورات", icon: FileText },
+    { id: "users", label: "المستخدمون", icon: Users },
+    { id: "wallet", label: "المحافظ", icon: Wallet },
+    { id: "gifts", label: "الهدايا", icon: Gift },
+    { id: "vip", label: "مستويات VIP", icon: Shield },
+    { id: "store", label: "المتجر", icon: Store },
+    { id: "assets", label: "الأصول ثلاثية الأبعاد", icon: ImageIcon },
+    { id: "banners", label: "البانرات", icon: PanelsTopLeft },
+    { id: "notifications", label: "الإشعارات", icon: Bell },
+    { id: "roles", label: "صلاحيات الإدارة", icon: ShieldCheck },
+    { id: "settings", label: "الإعدادات", icon: Settings },
+    { id: "app_builder", label: "تطوير التطبيق", icon: PanelsTopLeft },
+    { id: "analytics", label: "التحليلات", icon: BarChart3 },
+    { id: "audit", label: "سجل الإجراءات", icon: ScrollText },
+  ];
+  const sectionKey: Record<Tab, string> = {
+    reports: "section_reports", rooms: "section_rooms", seats: "section_seats", posts: "section_posts",
+    users: "section_users", wallet: "section_wallet", gifts: "section_gifts", vip: "section_vip",
+    store: "section_store", assets: "section_assets", banners: "section_banners",
+    notifications: "section_notifications", roles: "section_roles", settings: "section_settings",
+    app_builder: "section_app_builder", analytics: "section_analytics", audit: "section_audit",
+  };
+  const authorizedTabs = isSuper ? tabs : tabs.filter((item) => sectionPermissions.includes(sectionKey[item.id]));
+  // Delegated admins can switch between every section explicitly granted to them,
+  // but never see unassigned sections or full-dashboard statistics.
+  const effectiveTabs = authorizedTabs;
+  const requestedTab = tabs.find((item) => sectionKey[item.id] === requestedSection)?.id;
+  const selectedTab = sectionOnly
+    ? (effectiveTabs.some((item) => item.id === tab) ? tab : (requestedTab && effectiveTabs.some((item) => item.id === requestedTab) ? requestedTab : (effectiveTabs[0]?.id ?? tab)))
+    : tab;
+  useEffect(() => {
+    if (effectiveTabs.length > 0 && !effectiveTabs.some((item) => item.id === tab)) setTab(effectiveTabs[0].id);
+  }, [effectiveTabs.map((item) => item.id).join("|"), tab]);
+
   if (allowed === null) return <div className="p-10 text-center text-muted-foreground">جارٍ التحقق…</div>;
   if (!allowed)
     return (
       <div className="mx-auto max-w-md p-6 pt-20 text-center">
         <Shield className="mx-auto h-14 w-14 text-primary" />
         <h1 className="font-display text-gold mt-4 text-3xl">لوحة التحكم</h1>
-        <p className="mt-2 text-sm text-muted-foreground">ليست لديك صلاحية إدارة. إذا لم يكن هناك مشرف بعد يمكنك المطالبة بالصلاحية كأول مشرف.</p>
-        <Button className="mt-6 w-full bg-gold" onClick={claim}>المطالبة بصلاحية المشرف الأول</Button>
+        <p className="mt-2 text-sm text-muted-foreground">{hasAdminRole ? "صلاحية ظهور لوحة التحكم غير مفعّلة لهذا الحساب. اطلب من المشرف الأعلى تفعيلها لك." : "ليست لديك صلاحية إدارة. إذا لم يكن هناك مشرف بعد يمكنك المطالبة بالصلاحية كأول مشرف."}</p>
+        {!hasAdminRole && <Button className="mt-6 w-full bg-gold" onClick={claim}>المطالبة بصلاحية المشرف الأول</Button>}
         <Link to="/" className="mt-4 block text-sm text-muted-foreground">العودة للتطبيق</Link>
       </div>
     );
 
-  const tabs: { id: Tab; label: string; icon: typeof Flag }[] = [
-    { id: "reports", label: "البلاغات", icon: Flag },
-    { id: "rooms", label: "الغرف", icon: DoorOpen },
-    { id: "posts", label: "المنشورات", icon: FileText },
-    { id: "users", label: "المستخدمون", icon: Users },
-    { id: "wallet", label: "المحافظ", icon: Wallet },
-    { id: "gifts", label: "الهدايا", icon: Gift },
-    { id: "store", label: "المتجر", icon: Store },
-    { id: "broadcast", label: "إشعار عام", icon: Bell },
-    { id: "audit", label: "سجل الإجراءات", icon: ScrollText },
-  ];
-  const statLabels: Record<string, string> = { users: "المستخدمون", rooms: "الغرف", posts: "المنشورات", families: "العائلات", open_reports: "بلاغات مفتوحة", gifts: "الهدايا", coins: "إجمالي العملات" };
+  if (sectionOnly && effectiveTabs.length === 0)
+    return (
+      <div className="mx-auto max-w-md p-6 pt-20 text-center">
+        <Shield className="mx-auto h-14 w-14 text-primary" />
+        <h1 className="font-display text-gold mt-4 text-3xl">لا توجد صلاحية قسم فعالة</h1>
+        <Link to="/" className="mt-4 block text-sm text-muted-foreground">العودة للتطبيق</Link>
+      </div>
+    );
+
+  // Keep dashboard cards aligned with the keys returned by public.admin_stats().
+  const statLabels: Record<string, string> = {
+    users: "المستخدمون",
+    rooms: "الغرف",
+    seats: "المقاعد",
+    vip_users: "مستخدمو VIP",
+    wallet_coins: "إجمالي العملات",
+    wallet_diamonds: "إجمالي الماسات",
+    gifts: "الهدايا",
+    reports_open: "البلاغات المفتوحة",
+    assets: "الأصول",
+    banners: "الإعلانات",
+    notifications: "الإشعارات",
+  };
 
   return (
     <div className="mx-auto max-w-6xl p-4">
-      <header className="flex items-center justify-between py-3">
-        <h1 className="font-display text-gold text-3xl">لوحة التحكم</h1>
-        <Link to="/" className="text-sm text-muted-foreground">← التطبيق</Link>
+      <header className="flex flex-wrap items-center justify-between gap-3 py-3">
+        <h1 className="font-display text-gold text-3xl">{sectionOnly ? "إدارة القسم" : "لوحة التحكم"}</h1>
+        <div className="flex items-center gap-2">
+          {!sectionOnly && externalAdminUrl && (
+            <a href={externalAdminUrl} target="_blank" rel="noreferrer">
+              <Button size="sm" variant="outline"><ExternalLink className="mr-1 h-4 w-4" /> اللوحة الخارجية</Button>
+            </a>
+          )}
+          <Link to="/" className="text-sm text-muted-foreground">← التطبيق</Link>
+        </div>
       </header>
-      {stats && (
+      {!sectionOnly && stats && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
           {Object.entries(statLabels).map(([k, l]) => (
             <div key={k} className="card-3d glass rounded-2xl p-3">
@@ -101,23 +223,31 @@ function AdminPage() {
           ))}
         </div>
       )}
-      <div className="mt-4 flex gap-2 overflow-x-auto">
-        {tabs.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-1 whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab === t.id ? "bg-gold" : "glass"}`}>
+      {effectiveTabs.length > 1 && <div className="mt-4 flex gap-2 overflow-x-auto">
+        {effectiveTabs.map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-1 whitespace-nowrap rounded-full px-4 py-2 text-sm ${selectedTab === t.id ? "bg-gold" : "glass"}`}>
             <t.icon className="h-4 w-4" />{t.label}
           </button>
         ))}
-      </div>
+      </div>}
       <div className="mt-4">
-        {tab === "reports" && <Reports />}
-        {tab === "rooms" && <Rooms />}
-        {tab === "posts" && <Posts />}
-        {tab === "users" && <UsersTab isSuper={isSuper} />}
-        {tab === "wallet" && <WalletTab />}
-        {tab === "gifts" && <GiftsTab />}
-        {tab === "store" && <StoreTab />}
-        {tab === "broadcast" && <BroadcastTab />}
-        {tab === "audit" && <AuditTab />}
+        {selectedTab === "reports" && (isSuper || sectionPermissions.includes("section_reports")) && <Reports />}
+        {selectedTab === "rooms" && (isSuper || sectionPermissions.includes("section_rooms")) && <Rooms />}
+        {selectedTab === "seats" && (isSuper || sectionPermissions.includes("section_seats")) && <SeatsTab />}
+        {selectedTab === "posts" && (isSuper || sectionPermissions.includes("section_posts")) && <Posts />}
+        {selectedTab === "users" && (isSuper || sectionPermissions.includes("section_users")) && <UsersTab isSuper={isSuper} />}
+        {selectedTab === "wallet" && (isSuper || sectionPermissions.includes("section_wallet")) && <WalletTab />}
+        {selectedTab === "gifts" && (isSuper || sectionPermissions.includes("section_gifts")) && <GiftsTab />}
+        {selectedTab === "vip" && (isSuper || sectionPermissions.includes("section_vip")) && <VipTab />}
+        {selectedTab === "store" && (isSuper || sectionPermissions.includes("section_store")) && <StoreTab />}
+        {selectedTab === "assets" && (isSuper || sectionPermissions.includes("section_assets")) && <AssetsTab />}
+        {selectedTab === "banners" && (isSuper || sectionPermissions.includes("section_banners")) && <BannersTab />}
+        {selectedTab === "notifications" && (isSuper || sectionPermissions.includes("section_notifications")) && <NotificationsTab />}
+        {selectedTab === "roles" && (isSuper || sectionPermissions.includes("section_roles")) && <AdminRolesTab isSuper={isSuper} />}
+        {selectedTab === "settings" && (isSuper || sectionPermissions.includes("section_settings")) && <SettingsTab />}
+        {selectedTab === "app_builder" && (isSuper || sectionPermissions.includes("section_app_builder")) && <AppBuilderTab />}
+        {selectedTab === "analytics" && (isSuper || sectionPermissions.includes("section_analytics")) && <AnalyticsTab />}
+        {selectedTab === "audit" && (isSuper || sectionPermissions.includes("section_audit")) && <AuditTab />}
       </div>
     </div>
   );
@@ -136,6 +266,7 @@ function Reports() {
     setRows((data as Report[]) ?? []);
   }
   useEffect(() => { load(); }, [status]);
+  useAdminRealtime(["reports"], load);
   async function act(id: string, s: string) {
     const { error } = await supabase.rpc("admin_resolve_report", { _report: id, _status: s, _reply: reply[id] ?? "" });
     if (error) { toast.error(errMsg(error)); return; }
@@ -172,15 +303,18 @@ function Reports() {
 }
 
 function Rooms() {
-  const [rows, setRows] = useState<{ id: string; room_no: number; name: string; member_count: number; created_at: string; is_private: boolean }[]>([]);
+  const [rows, setRows] = useState<{ id: string; room_no: number; name: string; member_count: number; created_at: string; is_private: boolean; room_frame_asset_key?: string|null; sort_order?: number }[]>([]);
   const [q, setQ] = useState("");
+  const [frameRef, setFrameRef] = useState<Record<string,string>>({});
+  const [roomOrder, setRoomOrder] = useState<Record<string,string>>({});
   async function load() {
-    let query = supabase.from("rooms").select("id,room_no,name,member_count,created_at,is_private").order("created_at", { ascending: false }).limit(100);
+    let query = supabase.from("rooms").select("id,room_no,name,member_count,created_at,is_private,room_frame_asset_key,sort_order").order("created_at", { ascending: false }).limit(100);
     if (q) query = /^\d+$/.test(q) ? query.eq("room_no", Number(q)) : query.ilike("name", `%${q}%`);
     const { data } = await query;
     setRows(data ?? []);
   }
   useEffect(() => { load(); }, []);
+  useAdminRealtime(["rooms", "room_members"], load);
   async function del(id: string) {
     if (!confirm("حذف الغرفة نهائياً؟")) return;
     const { error } = await supabase.rpc("admin_delete_room", { _room: id });
@@ -192,12 +326,12 @@ function Rooms() {
     <div className="space-y-2">
       <div className="flex gap-2"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="بحث بالاسم أو الرقم" /><Button onClick={load}>بحث</Button></div>
       {rows.map((r) => (
-        <div key={r.id} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
+        <div key={r.id} className="glass space-y-2 rounded-2xl p-3 text-sm">
           <Link to="/room/$id" params={{ id: r.id }} className="min-w-0">
             <div className="truncate font-bold">{r.name} {r.is_private && "🔒"}</div>
             <div className="text-xs text-muted-foreground">#{r.room_no} · {r.member_count} عضو · {fmt(r.created_at)}</div>
           </Link>
-          <Button size="icon" variant="destructive" onClick={() => del(r.id)} aria-label="حذف"><Trash2 className="h-4 w-4" /></Button>
+          <div className="flex flex-wrap items-center gap-2"><Input className="w-20" type="number" min="0" placeholder="ترتيب" value={roomOrder[r.id] ?? String(r.sort_order ?? 0)} onChange={(e)=>setRoomOrder(s=>({...s,[r.id]:e.target.value}))}/><Button size="sm" variant="outline" onClick={async()=>{const {error}=await supabase.from("rooms").update({sort_order:Number(roomOrder[r.id] ?? r.sort_order ?? 0)}).eq("id",r.id);if(error)toast.error(errMsg(error));else {toast.success("تم حفظ ترتيب الغرفة");load();}}}>حفظ الترتيب</Button><Input className="min-w-0 flex-1" dir="ltr" placeholder="asset_key / مسار إطار الغرفة" value={frameRef[r.id] ?? r.room_frame_asset_key ?? ""} onChange={(e)=>setFrameRef(s=>({...s,[r.id]:e.target.value}))}/><Button size="sm" variant="outline" onClick={async()=>{const {error}=await supabase.rpc("set_room_frame",{_room:r.id,_asset_key:(frameRef[r.id] ?? "").trim() || null}); if(error) toast.error(errMsg(error)); else {toast.success("تم تخصيص إطار الغرفة"); load();}}}>تخصيص الإطار</Button><Button size="sm" variant="destructive" onClick={() => void del(r.id)} aria-label={`حذف ${r.name}`}><Trash2 className="ml-1 h-4 w-4" />حذف</Button></div>
         </div>
       ))}
     </div>
@@ -207,10 +341,11 @@ function Rooms() {
 function Posts() {
   const [rows, setRows] = useState<{ id: string; body: string; like_count: number; created_at: string; profiles: { display_name: string } | null }[]>([]);
   async function load() {
-    const { data } = await supabase.from("posts").select("id,body,like_count,created_at,profiles(display_name)").order("created_at", { ascending: false }).limit(100);
+    const { data } = await supabase.from("posts").select("id,body,like_count,created_at,profiles!posts_user_id_fkey(display_name)").order("created_at", { ascending: false }).limit(100);
     setRows((data as never) ?? []);
   }
   useEffect(() => { load(); }, []);
+  useAdminRealtime(["posts"], load);
   async function del(id: string) {
     if (!confirm("حذف المنشور؟")) return;
     const { error } = await supabase.rpc("admin_delete_post", { _post: id });
@@ -235,44 +370,217 @@ function Posts() {
 }
 
 type U = { id: string; display_name: string; display_no: number; level: number; vip_level: number; coins: number; roles: string[]; created_at: string };
+type AdminStoreItem = { id: string; name: string; kind: string; asset_key: string };
+type UserIdentityEdit = { display_no: string; level: string; id_color: string; name_color: string; name_effect: string; name_effect_speed: string };
 function UsersTab({ isSuper }: { isSuper: boolean }) {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<U[]>([]);
   const [amt, setAmt] = useState<Record<string, string>>({});
+  const [catalog, setCatalog] = useState<AdminStoreItem[]>([]);
+  const [identity, setIdentity] = useState<Record<string, UserIdentityEdit>>({});
+  const [userBans, setUserBans] = useState<Set<string>>(new Set());
+  const [deviceBans, setDeviceBans] = useState<Set<string>>(new Set());
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const [registeredDevices, setRegisteredDevices] = useState<Set<string>>(new Set());
+  const [selectedItem, setSelectedItem] = useState<Record<string, string>>({});
+  const [equipItem, setEquipItem] = useState<Record<string, boolean>>({});
+  const [directAsset, setDirectAsset] = useState<Record<string, { ref: string; name: string; type: string; duration: string; unit: "hours" | "days" }>>({});
+  const [assetOptions, setAssetOptions] = useState<{ id: string; name: string; asset_key: string; category: string }[]>([]);
   async function load() {
-    const { data, error } = await supabase.rpc("admin_list_users", { _q: q });
+    const [
+      { data, error },
+      { data: items, error: itemsError },
+      { data: profiles, error: profilesError },
+      { data: userBanRows, error: userBanError },
+      { data: deviceBanRows, error: deviceBanError },
+      { data: deviceRows, error: deviceError },
+      { data: myPermissions, error: permissionsError },
+    ] = await Promise.all([
+      supabase.rpc("admin_list_users", { _q: q }),
+      supabase.from("store_items").select("id,name,kind,asset_key").order("name"),
+      supabase.from("profiles").select("id,id_color"),
+      supabase.from("user_bans").select("user_id,expires_at,revoked_at"),
+      supabase.from("device_bans").select("user_id,expires_at,revoked_at"),
+      supabase.from("device_accounts").select("user_id"),
+      supabase.rpc("my_admin_permissions"),
+    ]);
+    const { data: availableAssets, error: assetsError } = await supabase.from("admin_assets").select("id,name,asset_key,category").eq("is_active", true).order("name");
+    if (assetsError) toast.error(errMsg(assetsError));
+    setAssetOptions((availableAssets ?? []) as { id: string; name: string; asset_key: string; category: string }[]);
     if (error) toast.error(errMsg(error));
-    setRows((data as U[]) ?? []);
+    if (itemsError) toast.error(errMsg(itemsError));
+    if (profilesError) toast.error(errMsg(profilesError));
+    if (userBanError) toast.error(errMsg(userBanError));
+    if (deviceBanError) toast.error(errMsg(deviceBanError));
+    if (deviceError) toast.error(errMsg(deviceError));
+    if (permissionsError) toast.error(errMsg(permissionsError));
+    setPermissions((myPermissions ?? []) as string[]);
+    const isActiveBan = (row: { expires_at: string | null; revoked_at: string | null }) =>
+      !row.revoked_at && (!row.expires_at || new Date(row.expires_at).getTime() > Date.now());
+    setUserBans(new Set(((userBanRows ?? []) as { user_id: string; expires_at: string | null; revoked_at: string | null }[]).filter(isActiveBan).map((row) => row.user_id)));
+    setDeviceBans(new Set(((deviceBanRows ?? []) as { user_id: string | null; expires_at: string | null; revoked_at: string | null }[]).filter(isActiveBan).map((row) => row.user_id).filter((id): id is string => !!id)));
+    setRegisteredDevices(new Set(((deviceRows ?? []) as { user_id: string }[]).map((row) => row.user_id)));
+    const users = (data as U[]) ?? [];
+    setRows(users);
+    setCatalog((items as AdminStoreItem[]) ?? []);
+    const colors = Object.fromEntries(((profiles ?? []) as { id: string; id_color: string | null }[]).map((p) => [p.id, p.id_color || "#D4AF37"]));
+    setIdentity((current) => {
+      const next = { ...current };
+      users.forEach((u) => {
+        next[u.id] ??= { display_no: String(u.display_no), level: String(u.level), id_color: colors[u.id] || "#D4AF37", name_color: colors[u.id] || "#D4AF37", name_effect: "none", name_effect_speed: "1800" };
+      });
+      return next;
+    });
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
+  useAdminRealtime(["profiles", "wallets", "user_roles", "store_items", "user_items", "user_bans", "device_bans", "device_accounts"], load);
   async function run(p: PromiseLike<{ error: unknown }>, msg: string) {
     const { error } = await p;
     if (error) { toast.error(errMsg(error as never)); return; }
     toast.success(msg);
-    load();
+    await load();
+  }
+  const can = (permission: string) => isSuper || permissions.includes(permission);
+  async function saveIdentity(u: U) {
+    if (!can("edit_user_id")) { toast.error("لا تملك صلاحية تعديل ID"); return; }
+    const value = identity[u.id] ?? { display_no: String(u.display_no), level: String(u.level), id_color: "#D4AF37", name_color: "#D4AF37", name_effect: "none", name_effect_speed: "1800" };
+    const displayNo = Number(value.display_no), level = Number(value.level);
+    if (!Number.isSafeInteger(displayNo) || displayNo < 100000 || !Number.isInteger(level) || level < 1 || level > 999) {
+      toast.error("تحقق من رقم ID والمستوى");
+      return;
+    }
+    await run(supabase.rpc("admin_update_user_identity" as never, {
+      _user: u.id, _display_no: displayNo, _level: level, _id_color: value.id_color,
+    } as never), "تم حفظ ID المميز ولونه والمستوى");
+    await run(supabase.rpc("admin_set_profile_style" as never, { _user: u.id, _name_color: value.name_color, _name_effect: value.name_effect, _speed: Number(value.name_effect_speed) } as never), "تم حفظ لون الاسم وتأثيره");
+  }
+  async function sendDirectAsset(u: U) {
+    const v = directAsset[u.id] ?? { ref: "", name: "", type: "frame", duration: "0", unit: "hours" as const };
+    const permission = v.type === "frame" ? "send_frame" : v.type === "entry" ? "send_entry" : v.type === "badge" ? "send_badge" : "send_profile_assets";
+    if (!can(permission)) { toast.error("لا تملك صلاحية إرسال هذا النوع من الأصول"); return; }
+    if (!v.ref.trim() || !v.name.trim()) { toast.error("أدخل رابط/مفتاح الأصل واسم الأصل"); return; }
+    const amount = Number(v.duration);
+    if (!Number.isInteger(amount) || amount < 0) { toast.error("أدخل مدة صحيحة؛ 0 = بدون انتهاء"); return; }
+    const hours = amount === 0 ? 0 : v.unit === "days" ? amount * 24 : amount;
+    if (hours > 87600) { toast.error("المدة القصوى 87600 ساعة"); return; }
+    await run(
+      supabase.rpc("send_asset_to_user", { _receiver: u.id, _asset_key: v.ref.trim(), _asset_type: v.type, _asset_name: v.name.trim(), _hours: hours } as never),
+      amount === 0 ? "تم إرسال الأصل بدون انتهاء" : `تم إرسال الأصل لمدة ${amount} ${v.unit === "days" ? "يوم" : "ساعة"}`,
+    );
+  }
+  async function updateBan(u: U, kind: "account" | "device", banned: boolean) {
+    if (!can(kind === "account" ? "ban_account" : "ban_device")) { toast.error("لا تملك صلاحية الحظر المطلوبة"); return; }
+    let reason = "";
+    let hours: number | null = null;
+    if (banned) {
+      const enteredReason = window.prompt(kind === "account" ? "سبب حظر الحساب" : "سبب حظر الجهاز", "مخالفة قواعد التطبيق");
+      if (enteredReason === null) return;
+      reason = enteredReason.trim();
+      const enteredHours = window.prompt("مدة الحظر بالساعات (اكتب 0 للحظر الدائم)", "24");
+      if (enteredHours === null) return;
+      const parsedHours = Number(enteredHours);
+      if (!Number.isInteger(parsedHours) || parsedHours < 0 || parsedHours > 87600) {
+        toast.error("مدة الحظر يجب أن تكون 0 أو عدد ساعات حتى 87600");
+        return;
+      }
+      hours = parsedHours === 0 ? null : parsedHours;
+    }
+    const rpc = kind === "account" ? "admin_set_user_ban" : "admin_set_device_ban";
+    const { error } = await supabase.rpc(rpc, { _user: u.id, _banned: banned, _reason: reason, _hours: hours });
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success(kind === "account" ? (banned ? "تم حظر الحساب من التطبيق" : "تم رفع حظر الحساب") : (banned ? "تم حظر الجهاز" : "تم رفع حظر الجهاز"));
+    await load();
+  }
+  async function grantItem(u: U) {
+    const itemId = selectedItem[u.id];
+    if (!itemId) { toast.error("اختر عنصراً من المتجر أولاً"); return; }
+    const item = catalog.find((entry) => entry.id === itemId);
+    const permission = item?.kind === "frame" ? "send_frame" : item?.kind === "entry" ? "send_entry" : item?.kind === "badge" ? "send_badge" : "send_profile_assets";
+    if (!can(permission)) { toast.error("لا تملك صلاحية إرسال هذا العنصر"); return; }
+    if (equipItem[u.id] && item?.kind !== "frame" && item?.kind !== "entry") {
+      toast.error("يمكن تجهيز الإطار أو الدخولية فقط؛ الشارات تُضاف للمخزون");
+      return;
+    }
+    await run(supabase.rpc("admin_grant_store_item" as never, {
+      _user: u.id, _item: itemId, _equip: !!equipItem[u.id],
+    } as never), "تم إرسال العنصر إلى مخزون المستخدم");
   }
   return (
-    <div className="space-y-2">
-      <div className="flex gap-2"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="بحث بالاسم أو ID" /><Button onClick={load}>بحث</Button></div>
-      {rows.map((u) => (
-        <div key={u.id} className="glass space-y-2 rounded-2xl p-3 text-sm">
+    <div className="space-y-3">
+      <div className="flex gap-2"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="بحث بالاسم أو ID" /><Button onClick={() => void load()}>بحث</Button></div>
+      {rows.map((u) => {
+        const edit = identity[u.id] ?? { display_no: String(u.display_no), level: String(u.level), id_color: "#D4AF37", name_color: "#D4AF37", name_effect: "none", name_effect_speed: "1800" };
+        return <div key={u.id} className="glass space-y-3 rounded-2xl p-3 text-sm">
           <div className="flex flex-wrap justify-between gap-2">
             <Link to="/u/$id" params={{ id: u.id }} className="font-bold">{u.display_name} <span className="text-xs text-muted-foreground">ID {u.display_no}</span></Link>
             <span className="text-xs">Lv {u.level} · VIP {u.vip_level} · 🪙 {Number(u.coins).toLocaleString()} {u.roles.length > 0 && `· ${u.roles.join(", ")}`}</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input className="w-28" type="number" placeholder="عملات ±" value={amt[u.id] ?? ""} onChange={(e) => setAmt({ ...amt, [u.id]: e.target.value })} />
-            <Button size="sm" onClick={() => run(supabase.rpc("admin_grant_coins", { _user: u.id, _amount: Number(amt[u.id] || 0) }), "تم تعديل الرصيد")}>تطبيق</Button>
-            <select className="rounded-md border border-input bg-input px-2 py-1.5 text-xs" value={u.vip_level} onChange={(e) => run(supabase.rpc("admin_set_vip", { _user: u.id, _vip: Number(e.target.value) }), "تم تعديل VIP")}>
-              {Array.from({ length: 11 }, (_, i) => <option key={i} value={i}>VIP {i}</option>)}
-            </select>
-            {isSuper && (["admin", "moderator"] as const).map((r) => {
-              const has = u.roles.includes(r);
-              return <Button key={r} size="sm" variant={has ? "destructive" : "outline"} onClick={() => run(supabase.rpc("admin_set_role", { _user: u.id, _role: r, _grant: !has }), "تم تحديث الصلاحية")}>{has ? `إزالة ${r}` : `منح ${r}`}</Button>;
-            })}
+          {can("edit_user_id") && (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <label className="text-xs text-muted-foreground">ID المميز<Input type="number" min="100000" value={edit.display_no} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, display_no: e.target.value } }))} /></label>
+            <label className="text-xs text-muted-foreground">المستوى<Input type="number" min="1" max="999" value={edit.level} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, level: e.target.value } }))} /></label>
+            <label className="text-xs text-muted-foreground">لون ID<input aria-label="لون ID المميز" type="color" value={edit.id_color} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, id_color: e.target.value } }))} className="h-10 w-full rounded-md border border-input bg-input p-1" /></label>
+            <label className="text-xs text-muted-foreground">لون الاسم<input aria-label="لون الاسم" type="color" value={edit.name_color} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, name_color: e.target.value } }))} className="h-10 w-full rounded-md border border-input bg-input p-1" /></label>
+            <select aria-label="تأثير الاسم" value={edit.name_effect} onChange={(e) => setIdentity((s) => ({ ...s, [u.id]: { ...edit, name_effect: e.target.value } }))} className="rounded-md border border-input bg-input px-2 py-2 text-xs"><option value="none">اسم ثابت</option><option value="shimmer">لمعة متحركة</option><option value="pulse">نبض</option><option value="rainbow">ألوان متحركة</option></select>
+            <Input type="number" min="500" max="5000" aria-label="سرعة تأثير الاسم" value={edit.name_effect_speed} onChange={(e) => setIdentity((s) => ({ ...s, name_effect_speed: e.target.value }))} />
+            <Button className="self-end" size="sm" onClick={() => void saveIdentity(u)}>حفظ الهوية المميزة</Button>
           </div>
-        </div>
-      ))}
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {can("manage_wallet") && <><Input className="w-28" type="number" placeholder="عملات ±" value={amt[u.id] ?? ""} onChange={(e) => setAmt({ ...amt, [u.id]: e.target.value })} /><Button size="sm" onClick={() => void run(supabase.rpc("admin_grant_coins", { _user: u.id, _amount: Number(amt[u.id] || 0) }), "تم تعديل الرصيد")}>تطبيق الرصيد</Button></>}
+            {can("manage_vip") && <select aria-label="مستوى VIP" className="rounded-md border border-input bg-input px-2 py-1.5 text-xs" value={u.vip_level} onChange={(e) => void run(supabase.rpc("admin_set_vip", { _user: u.id, _vip: Number(e.target.value) }), "تم تعديل VIP")}>
+              {Array.from({ length: 11 }, (_, i) => <option key={i} value={i}>VIP {i}</option>)}
+            </select>}
+          </div>
+          {(can("ban_account") || can("ban_device")) && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-2">
+            {can("ban_account") && <Button size="sm" variant={userBans.has(u.id) ? "outline" : "destructive"} onClick={() => void updateBan(u, "account", !userBans.has(u.id))}>{userBans.has(u.id) ? "رفع حظر الحساب" : "حظر الحساب من التطبيق"}</Button>}
+            {can("ban_device") && <Button size="sm" variant={deviceBans.has(u.id) ? "outline" : "destructive"} disabled={!registeredDevices.has(u.id) && !deviceBans.has(u.id)} onClick={() => void updateBan(u, "device", !deviceBans.has(u.id))}>{deviceBans.has(u.id) ? "رفع حظر الجهاز" : "حظر الجهاز"}</Button>}
+            <span className="text-[10px] text-muted-foreground">{registeredDevices.has(u.id) ? "الجهاز مسجل" : "لم يسجل الجهاز دخوله بعد"}</span>
+          </div>}
+          {(can("send_frame") || can("send_entry") || can("send_badge") || can("send_profile_assets")) && <>
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+              <select aria-label="اختر عنصراً لإرساله" className="min-w-0 rounded-md border border-input bg-input px-2 py-2 text-xs" value={selectedItem[u.id] ?? ""} onChange={(e) => setSelectedItem((s) => ({ ...s, [u.id]: e.target.value }))}>
+                <option value="">اختر عنصراً لإرساله</option>
+                {catalog.filter((item) => can(item.kind === "frame" ? "send_frame" : item.kind === "entry" ? "send_entry" : item.kind === "badge" ? "send_badge" : "send_profile_assets")).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.kind}</option>)}
+              </select>
+              <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!equipItem[u.id]} onChange={(e) => setEquipItem((s) => ({ ...s, [u.id]: e.target.checked }))} /> تجهيز فوراً (إطار/دخولية)</label>
+              <Button size="sm" disabled={!selectedItem[u.id]} onClick={() => void grantItem(u)}>إرسال للمستخدم</Button>
+            </div>
+            <div className="rounded-xl border border-primary/15 bg-background/40 p-2">
+              <div className="mb-2 text-xs font-bold text-primary">إرسال أصل مباشر من تخزين Supabase — بدون إدخاله في المتجر</div>
+              <div className="grid grid-cols-2 gap-2">
+                <select className="rounded-md border border-input bg-input px-2 py-2 text-xs" value={(directAsset[u.id]?.type ?? (can("send_frame") ? "frame" : can("send_entry") ? "entry" : can("send_badge") ? "badge" : "bubble"))} onChange={(e) => setDirectAsset(s => ({...s,[u.id]: {...(s[u.id] ?? {ref:"",name:"",type:"frame"}),type:e.target.value}}))}>
+                  {can("send_frame") && <option value="frame">إطار</option>}
+                  {can("send_entry") && <option value="entry">دخولية</option>}
+                  {can("send_badge") && <option value="badge">شارة</option>}
+                  {can("send_profile_assets") && <><option value="bubble">فقاعة كتابة</option><option value="sound_wave">موجة صوت</option><option value="profile_card">بطاقة تعريف</option></>}
+                </select>
+                <select aria-label="اختيار أصل من مكتبة التخزين" className="col-span-2 rounded-md border border-input bg-input px-2 py-2 text-xs" value={directAsset[u.id]?.ref ?? ""} onChange={(e) => {
+                  const asset = assetOptions.find((item) => item.asset_key === e.target.value);
+                  setDirectAsset((s) => ({ ...s, [u.id]: { ...(s[u.id] ?? { ref: "", name: "", type: "frame", duration: "0", unit: "hours" as const }), ref: asset?.asset_key ?? "", name: asset?.name ?? "" } }));
+                }}>
+                  <option value="">اختر الأصل من مكتبة Supabase Storage</option>
+                  {assetOptions.map((asset) => <option key={asset.id} value={asset.asset_key}>{asset.name} · {asset.category} · {asset.asset_key}</option>)}
+                </select>
+                <div className="col-span-2 grid grid-cols-[1fr_110px] gap-2">
+                  <Input type="number" min="0" max="87600" step="1" placeholder="مدة مخصصة (0 = دائم)" value={directAsset[u.id]?.duration ?? "0"} onChange={(e) => setDirectAsset((s) => ({ ...s, [u.id]: { ...(s[u.id] ?? { ref: "", name: "", type: "frame", duration: "0", unit: "hours" as const }), duration: e.target.value } }))} />
+                  <select aria-label="وحدة مدة الأصل" className="rounded-md border border-input bg-input px-2 py-2 text-xs" value={directAsset[u.id]?.unit ?? "hours"} onChange={(e) => setDirectAsset((s) => ({ ...s, [u.id]: { ...(s[u.id] ?? { ref: "", name: "", type: "frame", duration: "0", unit: "hours" as const }), unit: e.target.value as "hours" | "days" } }))}>
+                    <option value="hours">ساعات</option><option value="days">أيام</option>
+                  </select>
+                </div>
+                <div className="col-span-2 flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-muted-foreground">المدة تبدأ من لحظة الإرسال · 0 = بدون انتهاء</span>
+                  <Button size="sm" disabled={!directAsset[u.id]?.ref} onClick={() => void sendDirectAsset(u)}>إرسال الأصل</Button>
+                </div>
+              </div>
+            </div>
+          </>}
+          {isSuper && <div className="flex flex-wrap gap-1">{(["admin", "moderator"] as const).map((r) => {
+            const has = u.roles.includes(r);
+            return <Button key={r} size="sm" variant={has ? "destructive" : "outline"} onClick={() => void run(supabase.rpc("admin_set_role", { _user: u.id, _role: r, _grant: !has }), "تم تحديث الصلاحية")}>{has ? `إزالة ${r}` : `منح ${r}`}</Button>;
+          })}</div>}
+        </div>;
+      })}
     </div>
   );
 }
@@ -280,47 +588,193 @@ function UsersTab({ isSuper }: { isSuper: boolean }) {
 type WalletTx = { user_id: string; display_name: string | null; amount: number; kind: string; note: string; created_at: string };
 function WalletTab() {
   const [rows, setRows] = useState<WalletTx[]>([]);
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase.rpc("admin_list_wallet_tx", { _limit: 200 });
-      if (error) toast.error(errMsg(error));
-      setRows((data as WalletTx[]) ?? []);
-    })();
-  }, []);
+  const [topups, setTopups] = useState<{ id: string; user_id: string; coins: number; payment_method: string; reference: string | null; status: string; admin_note: string | null; created_at: string }[]>([]);
+  async function load() {
+    const [{ data, error }, { data: requests, error: reqError }] = await Promise.all([
+      supabase.rpc("admin_list_wallet_tx", { _limit: 200 }),
+      supabase.from("wallet_topup_requests").select("id,user_id,coins,payment_method,reference,status,admin_note,created_at").order("created_at", { ascending: false }).limit(100),
+    ]);
+    if (error) toast.error(errMsg(error));
+    if (reqError) toast.error(errMsg(reqError));
+    setRows((data as WalletTx[]) ?? []);
+    setTopups((requests ?? []) as typeof topups);
+  }
+  useEffect(() => { void load(); }, []);
+  useAdminRealtime(["wallet_transactions", "wallets", "wallet_topup_requests"], load);
+  async function decide(id: string, status: "approved" | "rejected") {
+    const note = prompt(status === "approved" ? "ملاحظة الشحن (اختياري)" : "سبب الرفض (اختياري)") ?? "";
+    const { error } = await supabase.rpc("admin_decide_wallet_topup", { _request: id, _status: status, _note: note });
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success(status === "approved" ? "تم اعتماد الشحن وإضافة العملات" : "تم رفض طلب الشحن");
+    load();
+  }
   return (
-    <div className="space-y-2">
-      {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد معاملات</p>}
-      {rows.map((t, i) => (
-        <div key={i} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
-          <div>
-            <b>{t.display_name ?? "مستخدم"}</b>
-            <div className="text-xs text-muted-foreground">{t.kind} · {t.note} · {fmt(t.created_at)}</div>
+    <div className="space-y-4">
+      <section className="glass rounded-2xl p-4">
+        <h3 className="mb-3 font-bold">طلبات شحن المحفظة</h3>
+        {topups.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد طلبات شحن</p> : topups.map((r) => (
+          <div key={r.id} className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-background/50 p-3 text-sm">
+            <div><b>{Number(r.coins).toLocaleString()} 🪙</b><div className="text-xs text-muted-foreground" dir="ltr">{r.user_id} · {r.payment_method} · {r.reference || "بدون مرجع"} · {fmt(r.created_at)}</div></div>
+            <div className="flex items-center gap-2"><span className="text-xs">{r.status}</span>{r.status === "pending" && <><Button size="sm" className="bg-gold" onClick={() => void decide(r.id, "approved")}>اعتماد</Button><Button size="sm" variant="destructive" onClick={() => void decide(r.id, "rejected")}>رفض</Button></>}</div>
           </div>
-          <b className={t.amount >= 0 ? "text-green-400" : "text-red-400"}>{t.amount >= 0 ? "+" : ""}{Number(t.amount).toLocaleString()} 🪙</b>
-        </div>
-      ))}
+        ))}
+      </section>
+      <section className="space-y-2">
+        <h3 className="font-bold">سجل معاملات المحافظ</h3>
+        {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد معاملات</p>}
+        {rows.map((t, i) => (
+          <div key={i} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
+            <div><b>{t.display_name ?? "مستخدم"}</b><div className="text-xs text-muted-foreground">{t.kind} · {t.note} · {fmt(t.created_at)}</div></div>
+            <b className={t.amount >= 0 ? "text-green-400" : "text-red-400"}>{t.amount >= 0 ? "+" : ""}{Number(t.amount).toLocaleString()} 🪙</b>
+          </div>
+        ))}
+      </section>
     </div>
   );
 }
 
 type GiftTx = { sender_name: string | null; receiver_name: string | null; gift_name: string; cost: number; created_at: string };
+type GiftCategory = { id: string; name: string; display_mode: "static" | "animated"; sort_order: number; is_active: boolean };
+type GiftCatalog = { id: string; name: string; emoji: string; price: number; active: boolean; asset_url?: string | null; category_id?: string | null; animation_style?: string; animation_speed?: number; display_duration_ms?: number };
 function GiftsTab() {
   const [rows, setRows] = useState<GiftTx[]>([]);
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase.rpc("admin_list_gift_tx", { _limit: 200 });
-      if (error) toast.error(errMsg(error));
-      setRows((data as GiftTx[]) ?? []);
-    })();
-  }, []);
+  const [luckyRows, setLuckyRows] = useState<{id:string;name:string;asset_key:string|null;price:number;win_chance:number;min_reward:number;max_reward:number;active:boolean}[]>([]);
+  const [luckyForm, setLuckyForm] = useState({name:"",asset_key:"",price:"1000",win_chance:"10",min_reward:"0",max_reward:"5000"});
+  const [catalog, setCatalog] = useState<GiftCatalog[]>([]);
+  const [categories, setCategories] = useState<GiftCategory[]>([]);
+  const [categoryName, setCategoryName] = useState("");
+  const [categoryMode, setCategoryMode] = useState<"static" | "animated">("static");
+  const [luckyBar, setLuckyBar] = useState({ enabled: true, position: "top", duration_ms: "3000", width_px: "390", gift_size_px: "48", show_name: true, asset_key: "", global_min_reward: "10000" });
+  const [form, setForm] = useState({ name: "", emoji: "🎁", price_coins: "100", asset_url: "", category_id: "", animation_style: "zoom", animation_speed: "1", display_duration_ms: "2600" });
+  async function load() {
+    const [{ data, error }, { data: gifts, error: catalogError }, { data: lucky, error: luckyError }, { data: cats, error: categoryError }] = await Promise.all([
+      supabase.rpc("admin_list_gift_tx", { _limit: 200 }),
+      supabase.from("gifts").select("id,name,emoji,price,active,asset_url,category_id,animation_style,animation_speed,display_duration_ms").order("sort"),
+      supabase.from("lucky_gifts").select("id,name,asset_key,price,win_chance,min_reward,max_reward,active").order("sort_order").order("price"),
+      supabase.from("gift_categories").select("id,name,display_mode,sort_order,is_active").order("sort_order"),
+    ]);
+    const { data: barConfig, error: barError } = await supabase.from("lucky_gift_bar_config").select("*").eq("id", true).maybeSingle();
+    if (barError) toast.error(errMsg(barError));
+    if (error) toast.error(errMsg(error));
+    if (catalogError) toast.error(errMsg(catalogError));
+    if (luckyError) toast.error(errMsg(luckyError));
+    if (categoryError) toast.error(errMsg(categoryError));
+    setRows((data as GiftTx[]) ?? []);
+    setCatalog((gifts as GiftCatalog[]) ?? []);
+    setLuckyRows((lucky as typeof luckyRows) ?? []);
+    setCategories((cats as GiftCategory[]) ?? []);
+    if (barConfig) setLuckyBar({
+      enabled: barConfig.enabled !== false,
+      position: barConfig.position ?? "top",
+      duration_ms: "3000",
+      width_px: String(barConfig.width_px ?? 390),
+      gift_size_px: String(barConfig.gift_size_px ?? 48),
+      show_name: barConfig.show_name !== false,
+      asset_key: String(barConfig.asset_key ?? ""),
+      global_min_reward: String(barConfig.global_min_reward ?? 10000),
+    });
+  }
+  async function saveLuckyBar() {
+    const duration_ms = Math.min(15000, Math.max(1500, Number(luckyBar.duration_ms) || 5200));
+    const width_px = Math.min(700, Math.max(220, Number(luckyBar.width_px) || 390));
+    const gift_size_px = Math.min(140, Math.max(32, Number(luckyBar.gift_size_px) || 56));
+    const payload = {
+      id: true,
+      enabled: luckyBar.enabled,
+      position: luckyBar.position,
+      duration_ms,
+      width_px,
+      gift_size_px,
+      show_name: luckyBar.show_name,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("lucky_gift_bar_config").upsert(payload);
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تم حفظ إعدادات شريط هدايا الحظ");
+  }
+  useEffect(() => { load(); }, []);
+  useAdminRealtime(["gifts", "gift_transactions", "gift_categories", "lucky_gifts", "lucky_gift_bar_config"], load);
+  async function saveGift() {
+    if (!form.name.trim() || !form.emoji.trim() || !Number.isFinite(Number(form.price_coins)) || Number(form.price_coins) < 0) {
+      toast.error("أدخل اسم الهدية ورمزها وسعراً صحيحاً");
+      return;
+    }
+    // gifts.id is UUID. Let PostgreSQL generate it; never send labels like gift-<timestamp>.
+    const { error } = await supabase.from("gifts").insert({
+      name: form.name.trim(),
+      emoji: form.emoji.trim(),
+      price: Number(form.price_coins),
+      active: true,
+      asset_url: form.asset_url.trim() || null,
+      category_id: form.category_id || null,
+      animation_style: form.animation_style,
+      animation_speed: Number(form.animation_speed),
+      display_duration_ms: Number(form.display_duration_ms),
+    });
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تم حفظ الهدية في الكتالوج");
+    setForm({ name: "", emoji: "🎁", price_coins: "100", asset_url: "", category_id: "", animation_style: "zoom", animation_speed: "1", display_duration_ms: "2600" });
+    load();
+  }
+  async function toggleGift(g: GiftCatalog) {
+    const { error } = await supabase.from("gifts").update({ active: !g.active }).eq("id", g.id);
+    if (error) { toast.error(errMsg(error)); return; }
+    load();
+  }
+  async function deleteGift(g: GiftCatalog) {
+    if (!confirm("حذف الهدية من الكتالوج؟")) return;
+    const { error } = await supabase.from("gifts").delete().eq("id", g.id);
+    if (error) { toast.error(errMsg(error)); return; }
+    load();
+  }
   return (
-    <div className="space-y-2">
-      {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد هدايا</p>}
+    <div className="space-y-4">
+      <div className="glass space-y-3 rounded-2xl p-4">
+        <b>إدارة كتالوج الهدايا</b>
+        <div className="grid grid-cols-2 gap-2">
+          <Input placeholder="اسم الهدية" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Input placeholder="الرمز أو الإيموجي" value={form.emoji} onChange={(e) => setForm({ ...form, emoji: e.target.value })} />
+          <Input type="number" min="0" placeholder="السعر بالعملات" value={form.price_coins} onChange={(e) => setForm({ ...form, price_coins: e.target.value })} />
+          <select className="rounded-md border border-input bg-input px-3 py-2 text-sm" value={form.category_id} onChange={e=>setForm({...form,category_id:e.target.value})}><option value="">بدون قسم</option>{categories.filter(c=>c.is_active).map(c=><option key={c.id} value={c.id}>{c.name} · {c.display_mode==="static"?"ثابتة":"متحركة"}</option>)}</select>
+          <Input placeholder="رابط أو مسار أصل الهدية" value={form.asset_url} onChange={(e) => setForm({ ...form, asset_url: e.target.value })} dir="ltr" className="col-span-2" />
+          <label className="text-xs text-muted-foreground">شكل الحركة<select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={form.animation_style} onChange={e=>setForm({...form,animation_style:e.target.value})}><option value="zoom">تكبير سينمائي</option><option value="slide">انزلاق</option><option value="float">طفو</option><option value="pulse">نبض</option></select></label>
+          <label className="text-xs text-muted-foreground">سرعة الحركة<select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={form.animation_speed} onChange={e=>setForm({...form,animation_speed:e.target.value})}><option value="0.5">بطيئة جدًا</option><option value="0.75">بطيئة</option><option value="1">طبيعية</option><option value="1.5">سريعة</option><option value="2">سريعة جدًا</option></select></label>
+          <Input className="col-span-2" type="number" min="500" max="20000" step="500" placeholder="مدة العرض بالمللي ثانية" value={form.display_duration_ms} onChange={e=>setForm({...form,display_duration_ms:e.target.value})}/>
+        </div>
+        <Button className="bg-gold" onClick={saveGift}>حفظ الهدية</Button>
+      </div>
+      <section className="glass space-y-3 rounded-2xl p-4">
+        <b>أقسام شريط الهدايا داخل الغرفة</b>
+        <p className="text-xs text-muted-foreground">أنشئ تبويبًا يظهر أعلى قائمة الهدايا، ثم اختر نمط عرضه وحدد القسم عند إضافة كل هدية.</p>
+        <div className="grid grid-cols-2 gap-2"><Input placeholder="اسم القسم الجديد" value={categoryName} onChange={e=>setCategoryName(e.target.value)}/><select className="rounded-md border border-input bg-input px-3 py-2 text-sm" value={categoryMode} onChange={e=>setCategoryMode(e.target.value as "static"|"animated")}><option value="static">عرض ثابت</option><option value="animated">عرض متحرك</option></select></div>
+        <Button onClick={async()=>{if(!categoryName.trim()){toast.error("اكتب اسم القسم");return;}const {error}=await supabase.from("gift_categories").insert({name:categoryName.trim(),display_mode:categoryMode,sort_order:categories.length});if(error)toast.error(errMsg(error));else{toast.success("تم إنشاء قسم الهدايا");setCategoryName("");load();}}}>إنشاء قسم جديد</Button>
+        <div className="space-y-2">{categories.map(c=><div key={c.id} className="flex items-center gap-2 rounded-xl border border-border p-2"><b className="flex-1">{c.name}</b><select className="rounded-md border border-input bg-input p-2 text-xs" value={c.display_mode} onChange={async e=>{const {error}=await supabase.from("gift_categories").update({display_mode:e.target.value}).eq("id",c.id);if(error)toast.error(errMsg(error));else load();}}><option value="static">ثابتة</option><option value="animated">متحركة</option></select><Button size="sm" variant="outline" onClick={async()=>{const {error}=await supabase.from("gift_categories").update({is_active:!c.is_active}).eq("id",c.id);if(error)toast.error(errMsg(error));else load();}}>{c.is_active?"إخفاء":"إظهار"}</Button></div>)}</div>
+      </section>
+      {catalog.map((g) => (
+        <div key={g.id} className="glass flex items-center justify-between gap-2 rounded-xl p-3 text-sm">
+          <div className="flex items-center gap-2"><img src={g.asset_url || ""} alt="" className="h-10 w-10 rounded-lg object-contain" /><div><b>{g.emoji} {g.name}</b><div className="text-xs text-muted-foreground">{categories.find(c=>c.id===g.category_id)?.name ?? "بدون قسم"} · {Number(g.price).toLocaleString()} عملة · {g.display_duration_ms ?? 2600}ms</div></div></div>
+          <div className="flex flex-wrap items-center gap-1"><select aria-label="قسم الهدية" className="max-w-28 rounded-md border border-input bg-input p-1 text-xs" value={g.category_id ?? ""} onChange={async e=>{const {error}=await supabase.from("gifts").update({category_id:e.target.value||null}).eq("id",g.id);if(error)toast.error(errMsg(error));else load();}}><option value="">بدون قسم</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select aria-label="حركة الهدية" className="rounded-md border border-input bg-input p-1 text-xs" value={g.animation_style||"zoom"} onChange={async e=>{const {error}=await supabase.from("gifts").update({animation_style:e.target.value}).eq("id",g.id);if(error)toast.error(errMsg(error));else load();}}><option value="zoom">تكبير</option><option value="slide">انزلاق</option><option value="float">طفو</option><option value="pulse">نبض</option></select><select aria-label="سرعة الهدية" className="rounded-md border border-input bg-input p-1 text-xs" value={String(g.animation_speed??1)} onChange={async e=>{const {error}=await supabase.from("gifts").update({animation_speed:Number(e.target.value)}).eq("id",g.id);if(error)toast.error(errMsg(error));else load();}}><option value="0.5">بطيئة</option><option value="0.75">أقل</option><option value="1">طبيعية</option><option value="1.5">سريعة</option><option value="2">سريعة جدًا</option></select><Input aria-label="مدة العرض بالمللي ثانية" className="w-24" type="number" min="500" max="20000" step="500" value={String(g.display_duration_ms??2600)} onChange={e=>setCatalog(prev=>prev.map(x=>x.id===g.id?{...x,display_duration_ms:Number(e.target.value)}:x))} onBlur={async e=>{const n=Math.max(500,Math.min(20000,Number(e.target.value)||2600));const {error}=await supabase.from("gifts").update({display_duration_ms:n}).eq("id",g.id);if(error)toast.error(errMsg(error));else load();}}/><Button size="sm" variant="outline" onClick={() => toggleGift(g)}>{g.active ? "إيقاف" : "تفعيل"}</Button><Button size="sm" variant="destructive" onClick={() => deleteGift(g)}>حذف</Button></div>
+        </div>
+      ))}
+      <section className="glass space-y-3 rounded-2xl p-4">
+        <b>تخصيص شريط هدايا الحظ</b>
+        <p className="text-xs text-muted-foreground">شريط صغير واحترافي داخل الغرفة: صورة الهدية + اسمها + عدد المردود الفعلي عند الفوز. يمكنك التحكم في الموضع والمدة والحجم.</p>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-xs text-muted-foreground">التفعيل<select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={luckyBar.enabled ? "on" : "off"} onChange={e=>setLuckyBar({...luckyBar,enabled:e.target.value==="on"})}><option value="on">مفعل</option><option value="off">مخفي</option></select></label>
+          <label className="text-xs text-muted-foreground">الموضع<select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={luckyBar.position} onChange={e=>setLuckyBar({...luckyBar,position:e.target.value})}><option value="top">أعلى الشاشة</option><option value="center">منتصف الشاشة</option><option value="bottom">أسفل الشاشة</option></select></label>
+          <Input type="number" min="1500" max="15000" step="100" placeholder="مدة العرض ms" value={luckyBar.duration_ms} onChange={e=>setLuckyBar({...luckyBar,duration_ms:e.target.value})}/>
+          <Input type="number" min="220" max="700" placeholder="عرض الشريط px" value={luckyBar.width_px} onChange={e=>setLuckyBar({...luckyBar,width_px:e.target.value})}/>
+          <Input type="number" min="32" max="140" placeholder="حجم الهدية px" value={luckyBar.gift_size_px} onChange={e=>setLuckyBar({...luckyBar,gift_size_px:e.target.value})}/>
+          <label className="flex items-center gap-2 rounded-md border border-input bg-input px-3 py-2 text-sm"><input type="checkbox" checked={luckyBar.show_name} onChange={e=>setLuckyBar({...luckyBar,show_name:e.target.checked})}/> عرض اسم الهدية</label>
+        </div>
+        <Button className="bg-gold" onClick={() => void saveLuckyBar()}>حفظ تخصيص الشريط</Button>
+      </section>
+      <section className="glass space-y-3 rounded-2xl p-4"><b>هدايا الحظ — تحكم كامل في نسبة الفوز والمردود</b><div className="grid grid-cols-2 gap-2"><Input placeholder="اسم الهدية" value={luckyForm.name} onChange={e=>setLuckyForm({...luckyForm,name:e.target.value})}/><Input dir="ltr" placeholder="asset_key" value={luckyForm.asset_key} onChange={e=>setLuckyForm({...luckyForm,asset_key:e.target.value})}/><Input type="number" placeholder="السعر" value={luckyForm.price} onChange={e=>setLuckyForm({...luckyForm,price:e.target.value})}/><Input type="number" min="0" max="100" step="0.01" placeholder="نسبة الحظ %" value={luckyForm.win_chance} onChange={e=>setLuckyForm({...luckyForm,win_chance:e.target.value})}/><Input type="number" min="0" placeholder="أقل مردود" value={luckyForm.min_reward} onChange={e=>setLuckyForm({...luckyForm,min_reward:e.target.value})}/><Input type="number" min="0" placeholder="أعلى مردود" value={luckyForm.max_reward} onChange={e=>setLuckyForm({...luckyForm,max_reward:e.target.value})}/></div><Button className="bg-gold" onClick={async()=>{const {error}=await supabase.from("lucky_gifts").insert({name:luckyForm.name.trim(),asset_key:luckyForm.asset_key.trim()||null,price:Number(luckyForm.price),win_chance:Number(luckyForm.win_chance),min_reward:Number(luckyForm.min_reward),max_reward:Number(luckyForm.max_reward),active:true}); if(error) toast.error(errMsg(error)); else {toast.success("تم حفظ هدية الحظ");setLuckyForm({name:"",asset_key:"",price:"1000",win_chance:"10",min_reward:"0",max_reward:"5000"});load();}}}>إضافة هدية حظ</Button>{luckyRows.map(g=><div key={g.id} className="rounded-xl border border-gold/20 p-3 text-sm"><div className="flex items-center justify-between gap-2"><b>{g.name}</b><span className="text-gold">{g.win_chance}%</span></div><div className="mt-1 text-xs text-muted-foreground">السعر {Number(g.price).toLocaleString()} · المردود {Number(g.min_reward).toLocaleString()}–{Number(g.max_reward).toLocaleString()}</div><div className="mt-2 flex gap-2"><Button size="sm" variant="outline" onClick={async()=>{const {error}=await supabase.from("lucky_gifts").update({active:!g.active}).eq("id",g.id);if(error)toast.error(errMsg(error));else load();}}>{g.active?"إيقاف":"تفعيل"}</Button><Button size="sm" variant="destructive" onClick={async()=>{if(!confirm("حذف هدية الحظ؟"))return;const {error}=await supabase.from("lucky_gifts").delete().eq("id",g.id);if(error)toast.error(errMsg(error));else load();}}>حذف</Button></div></div>)}</section>
+      <div className="border-t border-border pt-3"><b>سجل إرسال الهدايا</b></div>
+      {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد معاملات</p>}
       {rows.map((g, i) => (
         <div key={i} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
-          <div><b>{g.sender_name ?? "—"}</b> أرسل <b className="text-primary">{g.gift_name}</b> إلى <b>{g.receiver_name ?? "—"}</b>
-            <div className="text-xs text-muted-foreground">{fmt(g.created_at)}</div>
-          </div>
+          <div><b>{g.sender_name ?? "—"}</b> أرسل <b className="text-primary">{g.gift_name}</b> إلى <b>{g.receiver_name ?? "—"}</b><div className="text-xs text-muted-foreground">{fmt(g.created_at)}</div></div>
           <b>🪙 {Number(g.cost).toLocaleString()}</b>
         </div>
       ))}
@@ -328,31 +782,89 @@ function GiftsTab() {
   );
 }
 
-type StoreRow = { id: string; kind: string; name: string; description: string | null; price: number; asset_key: string; sort_order: number };
-const KINDS: Record<string, string> = { frame: "إطار", entry: "دخولية", name_effect: "تأثير اسم", theme: "خلفية" };
+type VipTier = { level: number; name: string; price_coins: number; duration_days: number };
+function VipTab() {
+  const [rows, setRows] = useState<VipTier[]>([]);
+  const [form, setForm] = useState({ level: "1", name: "", price_coins: "1000", duration_days: "30" });
+  const [perkRows, setPerkRows] = useState<{code:string;name:string;description:string;min_level:number;icon:string;sort_order:number}[]>([]);
+  const [perkForm, setPerkForm] = useState({code:"",name:"",description:"",min_level:"1",icon:"sparkles",sort_order:"10"});
+  async function load() {
+    const [{ data, error }, { data: perks, error: perkError }] = await Promise.all([supabase.from("vip_tiers").select("level,name,price_coins,duration_days").order("level"),supabase.from("vip_perks").select("code,name,description,min_level,icon,sort_order").order("sort_order")]);
+    if (error) toast.error(errMsg(error));
+    if (perkError) toast.error(errMsg(perkError));
+    setRows((data as VipTier[]) ?? []); setPerkRows((perks as typeof perkRows) ?? []);
+  }
+  useEffect(() => { load(); }, []);
+  useAdminRealtime(["vip_tiers", "profiles"], load);
+  async function save() {
+    const level = Number(form.level), price = Number(form.price_coins), days = Number(form.duration_days);
+    if (!Number.isInteger(level) || level < 1 || level > 10 || !form.name.trim() || price < 0 || days < 1) {
+      toast.error("تحقق من المستوى والاسم والسعر والمدة"); return;
+    }
+    const { error } = await supabase.from("vip_tiers").upsert({ level, name: form.name.trim(), price_coins: price, duration_days: days });
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تم حفظ مستوى VIP");
+    load();
+  }
+  async function remove(level: number) {
+    if (!confirm("حذف مستوى VIP؟")) return;
+    const { error } = await supabase.from("vip_tiers").delete().eq("level", level);
+    if (error) { toast.error(errMsg(error)); return; }
+    load();
+  }
+  return (
+    <div className="space-y-3">
+      <div className="glass space-y-2 rounded-2xl p-4">
+        <b>إضافة أو تعديل مستوى VIP</b>
+        <div className="grid grid-cols-2 gap-2">
+          <Input type="number" min="1" max="10" placeholder="المستوى" value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} />
+          <Input placeholder="اسم المستوى" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Input type="number" min="0" placeholder="السعر بالعملات" value={form.price_coins} onChange={(e) => setForm({ ...form, price_coins: e.target.value })} />
+          <Input type="number" min="1" placeholder="المدة بالأيام" value={form.duration_days} onChange={(e) => setForm({ ...form, duration_days: e.target.value })} />
+        </div>
+        <Button className="bg-gold" onClick={save}>حفظ المستوى</Button>
+      </div>
+      <section className="glass space-y-3 rounded-2xl p-4"><b>صلاحيات ومميزات VIP الفعلية — من الأقل للأعلى</b><div className="grid grid-cols-2 gap-2"><Input placeholder="code" dir="ltr" value={perkForm.code} onChange={e=>setPerkForm({...perkForm,code:e.target.value})}/><Input placeholder="اسم الميزة" value={perkForm.name} onChange={e=>setPerkForm({...perkForm,name:e.target.value})}/><Input placeholder="الوصف" value={perkForm.description} onChange={e=>setPerkForm({...perkForm,description:e.target.value})}/><Input type="number" min="1" max="10" placeholder="أقل VIP" value={perkForm.min_level} onChange={e=>setPerkForm({...perkForm,min_level:e.target.value})}/><Input placeholder="الأيقونة" value={perkForm.icon} onChange={e=>setPerkForm({...perkForm,icon:e.target.value})}/><Input type="number" placeholder="الترتيب" value={perkForm.sort_order} onChange={e=>setPerkForm({...perkForm,sort_order:e.target.value})}/></div><Button className="bg-gold" onClick={async()=>{if(!perkForm.code||!perkForm.name){toast.error("أدخل كود واسم الميزة");return;}const {error}=await supabase.from("vip_perks").upsert({code:perkForm.code.trim(),name:perkForm.name.trim(),description:perkForm.description.trim(),min_level:Number(perkForm.min_level),icon:perkForm.icon.trim()||"sparkles",sort_order:Number(perkForm.sort_order)});if(error)toast.error(errMsg(error));else{toast.success("تم حفظ ميزة VIP");setPerkForm({code:"",name:"",description:"",min_level:"1",icon:"sparkles",sort_order:"10"});load();}}}>حفظ ميزة VIP</Button>{perkRows.map(p=><div key={p.code} className="flex items-center justify-between gap-2 rounded-xl border border-primary/10 p-2 text-sm"><div><b>{p.name}</b><div className="text-xs text-muted-foreground">VIP {p.min_level}+ · {p.description}</div></div><Button size="sm" variant="destructive" onClick={async()=>{const {error}=await supabase.from("vip_perks").delete().eq("code",p.code);if(error)toast.error(errMsg(error));else load();}}>حذف</Button></div>)}</section>
+      {rows.map((v) => (
+        <div key={v.level} className="glass flex items-center justify-between gap-2 rounded-xl p-3 text-sm">
+          <div><b>VIP {v.level} · {v.name}</b><div className="text-xs text-muted-foreground">🪙 {v.price_coins.toLocaleString()} · {v.duration_days} يوم</div></div>
+          <Button size="sm" variant="destructive" onClick={() => remove(v.level)}>حذف</Button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+type StoreRow = { id: string; kind: string; name: string; description: string | null; price: number; asset_key: string; sort_order: number; expires_at?: string | null; is_direct_grant?: boolean };
+const KINDS: Record<string, string> = { frame: "إطار", entry: "دخولية", bubble: "فقاعة كتابة", sound_wave: "موجة صوت", profile_card: "بطاقة تعريف", name_effect: "تأثير اسم", theme: "خلفية", lucky_gift: "هدية حظ" };
 function StoreTab() {
   const [rows, setRows] = useState<StoreRow[]>([]);
-  const [form, setForm] = useState({ kind: "frame", name: "", description: "", price: "100", asset_key: "", sort_order: "0" });
+  const [form, setForm] = useState({ kind: "frame", name: "", description: "", price: "100", asset_key: "", sort_order: "0", duration: "0", unit: "hours" as "hours" | "days" });
   async function load() {
-    const { data } = await supabase.from("store_items").select("*").order("kind").order("sort_order");
+    const { data, error } = await supabase.from("store_items").select("*").order("kind").order("sort_order");
+    if (error) { toast.error(errMsg(error)); return; }
     setRows((data as StoreRow[]) ?? []);
   }
   useEffect(() => { load(); }, []);
+  useAdminRealtime(["store_items"], load);
   async function save() {
     const { error } = await supabase.rpc("admin_save_store_item", {
       _id: null as unknown as string, _kind: form.kind, _name: form.name, _description: form.description,
       _price: Number(form.price || 0), _asset_key: form.asset_key, _sort_order: Number(form.sort_order || 0),
-    });
+      _hours: (() => { const amount = Number(form.duration || 0); return amount === 0 ? 0 : form.unit === "days" ? amount * 24 : amount; })(),
+    } as never);
     if (error) { toast.error(errMsg(error)); return; }
-    toast.success("تمت الإضافة");
-    setForm({ kind: "frame", name: "", description: "", price: "100", asset_key: "", sort_order: "0" });
+    toast.success(form.duration === "0" ? "تم نشر العنصر بدون انتهاء" : "تم نشر العنصر بصلاحية محددة");
+    setForm({ kind: "frame", name: "", description: "", price: "100", asset_key: "", sort_order: "0", duration: "0", unit: "hours" });
     load();
   }
   async function del(id: string) {
     if (!confirm("حذف العنصر من المتجر؟")) return;
-    const { error } = await supabase.rpc("admin_delete_store_item", { _id: id });
+    const { data, error } = await supabase.rpc("admin_delete_store_item", { _id: id });
     if (error) { toast.error(errMsg(error)); return; }
-    load();
+    if (data !== true) { toast.error("لم يتم العثور على العنصر أو لم يتم حذفه"); await load(); return; }
+    toast.success("تم حذف العنصر من المتجر");
+    await load();
   }
   return (
     <div className="space-y-3">
@@ -367,13 +879,17 @@ function StoreTab() {
           <Input type="number" placeholder="السعر بالعملات" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
           <Input placeholder="مفتاح الأصل (مثل frame-1)" value={form.asset_key} onChange={(e) => setForm({ ...form, asset_key: e.target.value })} dir="ltr" />
           <Input type="number" placeholder="الترتيب" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: e.target.value })} />
+          <Input type="number" min="0" placeholder="مدة الاستخدام بعد الشراء (0 = دائم)" value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} />
+          <select className="rounded-md border border-input bg-input px-2 py-1.5 text-xs" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value as "hours" | "days" })}>
+            <option value="hours">ساعات</option><option value="days">أيام</option>
+          </select>
         </div>
         <Button size="sm" className="bg-gold" onClick={save} disabled={!form.name || !form.asset_key}>إضافة</Button>
       </div>
       {rows.map((r) => (
         <div key={r.id} className="glass flex items-center justify-between gap-2 rounded-2xl p-3 text-sm">
           <div><b>{r.name}</b> <span className="text-xs text-muted-foreground">({KINDS[r.kind] ?? r.kind})</span>
-            <div className="text-xs text-muted-foreground" dir="ltr">{r.asset_key}</div>
+            <div className="text-xs text-muted-foreground" dir="ltr">{r.asset_key}</div><div className="text-[10px] text-muted-foreground">{r.duration_hours ? `مدة الاستخدام: ${r.duration_hours >= 24 && r.duration_hours % 24 === 0 ? `${r.duration_hours / 24} يوم` : `${r.duration_hours} ساعة`}` : "مدة الاستخدام: دائمة"}{r.expires_at ? " · ينتهي نشره: " + fmt(r.expires_at) : ""}{r.is_direct_grant ? " · خاص" : ""}</div>
           </div>
           <div className="flex items-center gap-2">
             <b>🪙 {r.price.toLocaleString()}</b>
@@ -417,6 +933,7 @@ function AuditTab() {
       setRows((data as AuditRow[]) ?? []);
     })();
   }, []);
+  useAdminRealtime(["audit_log"], () => { void supabase.rpc("admin_list_audit", { _limit: 200 }).then(({ data, error }) => { if (error) toast.error(errMsg(error)); setRows((data as AuditRow[]) ?? []); }); });
   return (
     <div className="space-y-2">
       {rows.length === 0 && <p className="glass rounded-2xl p-6 text-center text-muted-foreground">لا توجد إجراءات مسجلة بعد</p>}
@@ -429,6 +946,488 @@ function AuditTab() {
           <div className="text-xs text-muted-foreground">{a.target_type} <span dir="ltr">{a.target_id}</span> {a.details}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+
+type AdminAsset = {
+  id: string;
+  asset_key: string;
+  name: string;
+  category: string;
+  url: string | null;
+  metadata: { storage_path?: string; content_type?: string; size?: number; display_width?: number; display_height?: number; playback_speed?: number; animation_style?: string; display_duration_ms?: number; audio_enabled?: boolean; original_name?: string } | null;
+  is_active: boolean;
+  created_at: string;
+};
+const ASSET_CATEGORIES: Record<string, string> = {
+  general: "عام",
+  ui: "عناصر الواجهة",
+  room: "الغرف والخلفيات",
+  gift: "الهدايا",
+  frame: "إطارات الصور",
+  entry: "الدخوليات",
+  vip: "شارات VIP",
+  badge: "الشارات المميزة",
+  level: "المستويات",
+  banner: "البانرات",
+  bubble: "فقاعات الكتابة",
+  sound_wave: "موجات الصوت",
+  profile_card: "بطاقات التعريف",
+  lucky_gift: "هدايا الحظ",
+  room_frame: "إطارات الغرف",
+  avatar: "الصور الشخصية",
+  "3d": "مجسمات ثلاثية الأبعاد",
+  mic: "الميكات وتصميماتها",
+};
+const ASSET_BUCKET = "admin-assets";
+const MAX_ASSET_SIZE = 50 * 1024 * 1024;
+
+function AssetsTab() {
+  const [rows, setRows] = useState<AdminAsset[]>([]);
+  const [storeItems, setStoreItems] = useState<{ id: string; name: string; kind: string; price: number; asset_key: string }[]>([]);
+  const [editingAsset, setEditingAsset] = useState<AdminAsset | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState("general");
+  const [editDisplayWidth, setEditDisplayWidth] = useState("240");
+  const [editDisplayHeight, setEditDisplayHeight] = useState("240");
+  const [editPlaybackSpeed, setEditPlaybackSpeed] = useState("1");
+  const [editAnimationStyle, setEditAnimationStyle] = useState("zoom");
+  const [editDisplayDuration, setEditDisplayDuration] = useState("2600");
+  const [editAudioEnabled, setEditAudioEnabled] = useState(true);
+  const [grantUserId, setGrantUserId] = useState("");
+  const [grantUserNo, setGrantUserNo] = useState("");
+  const [grantItemId, setGrantItemId] = useState("");
+  const grantEquip = true;
+  const [grantBusy, setGrantBusy] = useState(false);
+  const [category, setCategory] = useState("general");
+  const [name, setName] = useState("");
+  const [displayWidth, setDisplayWidth] = useState("240");
+  const [displayHeight, setDisplayHeight] = useState("240");
+  const [playbackSpeed, setPlaybackSpeed] = useState("1");
+  const [animationStyle, setAnimationStyle] = useState("zoom");
+  const [displayDuration, setDisplayDuration] = useState("2600");
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [files, setFiles] = useState<File[]>([]);
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [voiceConfig, setVoiceConfig] = useState({ mic_asset_key: "", muted_asset_key: "", locked_asset_key: "", effect_asset_key: "", show_mic_effect: true, seat_gap_px: "20", avatar_size_px: "72", mic_icon_size_px: "28" });
+  const [voiceSaving, setVoiceSaving] = useState(false);
+
+  async function loadVoiceControls() {
+    const { data, error } = await supabase.from("admin_settings").select("value").eq("key", "voice_controls").maybeSingle();
+    if (error) { toast.error(errMsg(error)); return; }
+    const cfg = (data?.value ?? {}) as Record<string, unknown>;
+    setVoiceConfig({
+      mic_asset_key: String(cfg.mic_asset_key ?? ""),
+      muted_asset_key: String(cfg.muted_asset_key ?? ""),
+      locked_asset_key: String(cfg.locked_asset_key ?? ""),
+      effect_asset_key: String(cfg.effect_asset_key ?? ""),
+      show_mic_effect: cfg.show_mic_effect !== false,
+      seat_gap_px: String(Math.max(0, Math.min(80, Number(cfg.seat_gap_px ?? 20)))),
+      avatar_size_px: String(Math.max(40, Math.min(120, Number(cfg.avatar_size_px ?? 72)))),
+      mic_icon_size_px: String(Math.max(16, Math.min(48, Number(cfg.mic_icon_size_px ?? 28)))),
+    });
+  }
+
+  async function saveVoiceControls() {
+    const gap = Number(voiceConfig.seat_gap_px);
+    const avatarSize = Number(voiceConfig.avatar_size_px);
+    const micIconSize = Number(voiceConfig.mic_icon_size_px);
+    if (!Number.isFinite(gap) || gap < 0 || gap > 80) { toast.error("المسافة بين الميكات يجب أن تكون من 0 إلى 80 بكسل"); return; }
+    if (!Number.isInteger(avatarSize) || avatarSize < 40 || avatarSize > 120) { toast.error("حجم صورة المستخدم يجب أن يكون من 40 إلى 120 بكسل"); return; }
+    if (!Number.isInteger(micIconSize) || micIconSize < 16 || micIconSize > 48) { toast.error("حجم علامة الميك يجب أن يكون من 16 إلى 48 بكسل"); return; }
+    setVoiceSaving(true);
+    const { data: auth } = await supabase.auth.getUser();
+    const { error } = await supabase.from("admin_settings").upsert({
+      key: "voice_controls",
+      value: { ...voiceConfig, seat_gap_px: gap, avatar_size_px: avatarSize, mic_icon_size_px: micIconSize } as never,
+      updated_at: new Date().toISOString(),
+      updated_by: auth.user?.id ?? null,
+    });
+    setVoiceSaving(false);
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تم حفظ تصميم الميكات والمسافات");
+  }
+
+  async function load() {
+    setLoading(true);
+    const [{ data, error }, { data: linkedItems, error: linkedItemsError }] = await Promise.all([
+      supabase.from("admin_assets").select("*").order("created_at", { ascending: false }).range(0, 9999),
+      supabase.from("store_items").select("id,name,kind,price,asset_key").order("name"),
+    ]);
+    if (linkedItemsError) toast.error(`تعذر تحميل روابط المتجر: ${errMsg(linkedItemsError)}`);
+    setStoreItems((linkedItems ?? []) as { id: string; name: string; kind: string; price: number; asset_key: string }[]);
+    if (error) {
+      toast.error(errMsg(error));
+      setLoading(false);
+      return;
+    }
+    const assets = (data ?? []) as unknown as AdminAsset[];
+    setRows(assets);
+    const resolved: Record<string, string> = {};
+    await Promise.all(assets.map(async (asset) => {
+      const url = await getAdminAssetUrl(asset.asset_key);
+      if (url) resolved[asset.id] = url;
+    }));
+    setPreviews(resolved);
+    setLoading(false);
+  }
+
+  useEffect(() => { void load(); void loadVoiceControls(); }, []);
+  useAdminRealtime(["admin_assets", "admin_settings"], () => { void load(); void loadVoiceControls(); });
+
+  async function uploadAssets() {
+    if (!files.length) {
+      toast.error("اختر ملفاً واحداً على الأقل");
+      return;
+    }
+    const hasVideo = files.some((file) => file.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file.name));
+    const needsDisplaySize = ["gift", "frame", "entry"].includes(category) || hasVideo;
+    const width = Number(displayWidth), height = Number(displayHeight);
+    const speed = Number(playbackSpeed), duration = Number(displayDuration);
+    if (needsDisplaySize && (!Number.isInteger(width) || width < 24 || width > 2048 || !Number.isInteger(height) || height < 24 || height > 2048)) {
+      toast.error("حدد عرض وطول الأصل بين 24 و2048 بكسل");
+      return;
+    }
+    if (!Number.isFinite(speed) || speed < 0.25 || speed > 3 || !Number.isInteger(duration) || duration < 500 || duration > 120000) {
+      toast.error("تحقق من سرعة التشغيل ومدة العرض");
+      return;
+    }
+    const invalid = files.find((file) => file.size > MAX_ASSET_SIZE);
+    if (invalid) {
+      toast.error(`حجم ${invalid.name} أكبر من الحد المسموح (50 ميجابايت)`);
+      return;
+    }
+    setUploading(true);
+    let uploaded = 0;
+    for (const file of files) {
+      const cleanName = file.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(-100) || "asset";
+      const path = `${category}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${cleanName}`;
+      const { error: storageError } = await supabase.storage.from(ASSET_BUCKET).upload(path, file, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+      if (storageError) {
+        toast.error(`فشل رفع ${file.name}: ${storageError.message}`);
+        continue;
+      }
+      const assetKey = `${category}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const { error: rowError } = await supabase.from("admin_assets").insert({
+        asset_key: assetKey,
+        name: name.trim() || file.name.replace(/\.[^.]+$/, ""),
+        category,
+        url: path,
+        metadata: {
+          storage_path: path,
+          content_type: file.type || "application/octet-stream",
+          size: file.size,
+          original_name: file.name,
+          display_width: needsDisplaySize ? width : undefined,
+          display_height: needsDisplaySize ? height : undefined,
+          playback_speed: speed,
+          animation_style: animationStyle,
+          display_duration_ms: duration,
+          audio_enabled: audioEnabled,
+        },
+        is_active: true,
+      });
+      if (rowError) {
+        await supabase.storage.from(ASSET_BUCKET).remove([path]);
+        toast.error(`تم رفع الملف لكن تعذرت إضافته للمكتبة: ${rowError.message}`);
+        continue;
+      }
+      uploaded += 1;
+    }
+    setUploading(false);
+    setFiles([]);
+    setName("");
+    setDisplayWidth("240");
+    setDisplayHeight("240");
+    setPlaybackSpeed("1");
+    setAnimationStyle("zoom");
+    setDisplayDuration("2600");
+    setAudioEnabled(true);
+    const picker = document.getElementById("admin-asset-files") as HTMLInputElement | null;
+    if (picker) picker.value = "";
+    if (uploaded) toast.success(`تم رفع وإضافة ${uploaded} أصل بنجاح`);
+    await load();
+  }
+
+  async function toggleAsset(asset: AdminAsset) {
+    const { error } = await supabase.from("admin_assets").update({ is_active: !asset.is_active, updated_at: new Date().toISOString() }).eq("id", asset.id);
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success(asset.is_active ? "تم إيقاف الأصل عن الظهور في التطبيق" : "تم تفعيل الأصل");
+    await load();
+  }
+
+  async function grantBadgeToUser() {
+    const userNo = Number(grantUserNo.trim());
+    if (!Number.isSafeInteger(userNo) || userNo < 1) {
+      toast.error("أدخل ID المستخدم الصحيح");
+      return;
+    }
+    const asset = rows.find((a) => a.id === grantItemId);
+    if (!asset || asset.category !== "badge") {
+      toast.error("اختر شارة من مكتبة الأصول أولاً");
+      return;
+    }
+    setGrantBusy(true);
+    try {
+      const { data: users, error: userError } = await supabase.rpc("admin_list_users", { _q: grantUserNo.trim() });
+      if (userError) throw userError;
+      const user = ((users ?? []) as { id: string; display_no: number }[]).find((u) => Number(u.display_no) === userNo);
+      if (!user) throw new Error("لم يتم العثور على مستخدم بهذا ID");
+      setGrantUserId(user.id);
+
+      const { error: grantError } = await supabase.rpc("admin_grant_badge_asset", {
+        _user: user.id,
+        _asset_id: asset.id,
+        _equip: grantEquip,
+      });
+      if (grantError) throw grantError;
+      toast.success(`تم إرسال الشارة «${asset.name}» إلى ID ${userNo}${grantEquip ? " وتجهيزها" : ""}`);
+      setGrantUserId(user.id);
+    } catch (error) {
+      toast.error(errMsg(error as never));
+    } finally {
+      setGrantBusy(false);
+    }
+  }
+
+  function beginEditAsset(asset: AdminAsset) {
+    const metadata = asset.metadata ?? {};
+    setEditingAsset(asset);
+    setEditName(asset.name);
+    setEditCategory(asset.category);
+    setEditDisplayWidth(String(metadata.display_width ?? 240));
+    setEditDisplayHeight(String(metadata.display_height ?? 240));
+    setEditPlaybackSpeed(String(metadata.playback_speed ?? 1));
+    setEditAnimationStyle(String(metadata.animation_style ?? "zoom"));
+    setEditDisplayDuration(String(metadata.display_duration_ms ?? 2600));
+    setEditAudioEnabled(metadata.audio_enabled !== false);
+  }
+
+  async function saveAssetEdit() {
+    if (!editingAsset || !editName.trim()) { toast.error("اكتب اسم الأصل"); return; }
+    const metadata = editingAsset.metadata ?? {};
+    const displayWidthValue = Number(editDisplayWidth), displayHeightValue = Number(editDisplayHeight);
+    const playbackSpeedValue = Number(editPlaybackSpeed), durationValue = Number(editDisplayDuration);
+    if (!Number.isInteger(displayWidthValue) || displayWidthValue < 24 || displayWidthValue > 2048 || !Number.isInteger(displayHeightValue) || displayHeightValue < 24 || displayHeightValue > 2048 || !Number.isFinite(playbackSpeedValue) || playbackSpeedValue < 0.25 || playbackSpeedValue > 3 || !Number.isInteger(durationValue) || durationValue < 500 || durationValue > 120000) {
+      toast.error("تحقق من أبعاد الأصل وسرعته ومدته");
+      return;
+    }
+    const { error } = await supabase.from("admin_assets").update({
+      name: editName.trim(),
+      category: editCategory,
+      metadata: { ...metadata, display_width: displayWidthValue, display_height: displayHeightValue, playback_speed: playbackSpeedValue, animation_style: editAnimationStyle, display_duration_ms: durationValue, audio_enabled: editAudioEnabled },
+      updated_at: new Date().toISOString(),
+    }).eq("id", editingAsset.id);
+    if (error) { toast.error(errMsg(error)); return; }
+    toast.success("تم تعديل بيانات الأصل"); setEditingAsset(null); await load();
+  }
+
+  async function deleteAsset(asset: AdminAsset) {
+    const linked = storeItems.filter((item) => item.asset_key === asset.asset_key);
+    const warning = linked.length ? `\
+سيتم حذف ${linked.length} عنصر متجر مرتبط بهذا الأصل أيضاً.` : "";
+    if (!confirm(`حذف الأصل «${asset.name}» نهائياً؟${warning}`)) return;
+    for (const item of linked) {
+      const { error } = await supabase.rpc("admin_delete_store_item", { _id: item.id });
+      if (error) { toast.error(`تعذر حذف عنصر المتجر «${item.name}»: ${errMsg(error)}`); return; }
+    }
+    const { error: rowError } = await supabase.from("admin_assets").delete().eq("id", asset.id);
+    if (rowError) { toast.error(errMsg(rowError)); return; }
+    const path = asset.metadata?.storage_path ?? asset.url;
+    if (path) {
+      const { error: storageError } = await supabase.storage.from(ASSET_BUCKET).remove([path]);
+      if (storageError) { toast.warning(`تم حذف سجل الأصل والمتجر، لكن تعذر حذف ملف التخزين: ${storageError.message}`); await load(); return; }
+    }
+    toast.success("تم حذف الأصل والملف وكل عناصر المتجر المرتبطة به"); await load();
+  }
+
+  const visible = rows.filter((asset) =>
+    (filter === "all" || asset.category === filter) &&
+    (asset.name.toLowerCase().includes(search.toLowerCase()) || asset.asset_key.toLowerCase().includes(search.toLowerCase()))
+  );
+  const isImage = (asset: AdminAsset) => (asset.metadata?.content_type ?? "").startsWith("image/");
+  const isVideo = (asset: AdminAsset) => (asset.metadata?.content_type ?? "").toLowerCase().startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(asset.metadata?.original_name ?? asset.url ?? "");
+  const isModel = (asset: AdminAsset) => /model\/gltf|octet-stream/i.test(asset.metadata?.content_type ?? "") || /\.(glb|gltf)$/i.test(asset.name);
+
+  return (
+    <div className="space-y-4">
+      <div className="glass space-y-3 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h2 className="font-bold">مكتبة أصول التطبيق</h2>
+            <p className="text-xs text-muted-foreground">ارفع الصور أو MP4 أو مجسمات GLB/GLTF واربطها مباشرة بمحتوى التطبيق.</p>
+          </div>
+          <span className="rounded-full bg-secondary px-3 py-1 text-xs">{rows.length} أصل</span>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="space-y-1 text-xs">
+            <span className="text-muted-foreground">تصنيف الأصل</span>
+            <select className="w-full rounded-md border border-input bg-input px-3 py-2" value={category} onChange={(e) => setCategory(e.target.value)}>
+              {Object.entries(ASSET_CATEGORIES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs">
+            <span className="text-muted-foreground">اسم الأصل (اختياري)</span>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="مثال: تاج VIP ذهبي" />
+          </label>
+        </div>
+        {(["gift", "frame", "entry"].includes(category) || files.some((file) => file.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file.name))) && <div className="grid grid-cols-2 gap-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
+          <label className="text-xs"><span className="text-muted-foreground">عرض الأصل على الشاشة (px)</span><Input type="number" min="24" max="2048" value={displayWidth} onChange={(e) => setDisplayWidth(e.target.value)} /></label>
+          <label className="text-xs"><span className="text-muted-foreground">طول الأصل على الشاشة (px)</span><Input type="number" min="24" max="2048" value={displayHeight} onChange={(e) => setDisplayHeight(e.target.value)} /></label>
+          <label className="text-xs"><span className="text-muted-foreground">سرعة تشغيل الفيديو</span><select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={playbackSpeed} onChange={(e) => setPlaybackSpeed(e.target.value)}><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1">1× طبيعي</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option></select></label>
+          <label className="text-xs"><span className="text-muted-foreground">حركة الظهور</span><select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={animationStyle} onChange={(e) => setAnimationStyle(e.target.value)}><option value="zoom">تكبير</option><option value="slide">انزلاق</option><option value="float">طفو</option><option value="pulse">نبض</option><option value="none">بدون حركة</option></select></label>
+          <label className="col-span-2 text-xs"><span className="text-muted-foreground">مدة عرض الصور الثابتة (مللي ثانية) — الفيديو يستمر حتى نهايته</span><Input type="number" min="500" max="120000" step="500" value={displayDuration} onChange={(e) => setDisplayDuration(e.target.value)} /></label>
+          <label className="col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={audioEnabled} onChange={(e) => setAudioEnabled(e.target.checked)} /> تشغيل صوت الفيديو الأصلي</label>
+          <div className="col-span-2 text-[10px] text-muted-foreground">تُحفظ الإعدادات مع الأصل في Supabase، ويُعرض الفيديو بكامل مدته دون ضغطه أو قصّه.</div>
+        </div>}
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-secondary/40 p-5 text-center">
+          <Upload className="h-7 w-7 text-primary" />
+          <span className="text-sm font-semibold">اختر صوراً أو ملفات ثلاثية الأبعاد</span>
+          <span className="text-xs text-muted-foreground">PNG · JPG · WEBP · GIF · MP4 · SVG · GLB · GLTF — حتى 50 MB للملف</span>
+          <input id="admin-asset-files" className="max-w-full text-xs" type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,video/mp4,.mp4,.glb,.gltf,model/gltf-binary,model/gltf+json,application/octet-stream" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
+        </label>
+        {files.length > 0 && <p className="text-xs text-muted-foreground">{files.length} ملف محدد · {files.map((f) => f.name).join("، ")}</p>}
+        <Button className="w-full bg-gold" onClick={uploadAssets} disabled={uploading || files.length === 0}>
+          {uploading ? "جارٍ رفع الأصول…" : `رفع وإضافة ${files.length || ""} أصل`}
+        </Button>
+      </div>
+
+      <div className="glass space-y-3 rounded-2xl border border-primary/20 p-4">
+        <div>
+          <h3 className="font-bold">تصميم الميكات والتحكم في توزيعها</h3>
+          <p className="text-xs text-muted-foreground">ارفع أصولك بتصنيف «الميكات وتصميماتها» ثم اختر الشكل العادي والمكتوم وتأثير التحدث. الإعدادات تُحدّث الغرف مباشرة.</p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="space-y-1 text-xs"><span>شكل الميك الأساسي</span>
+            <select className="w-full rounded-md border border-input bg-input px-3 py-2" value={voiceConfig.mic_asset_key} onChange={(e) => setVoiceConfig(v => ({ ...v, mic_asset_key: e.target.value }))}>
+              <option value="">الشكل الافتراضي</option>
+              {rows.filter(a => a.category === "mic" && a.is_active).map(a => <option key={a.asset_key} value={a.asset_key}>{a.name} · {a.asset_key}</option>)}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs"><span>شكل الميك عند الكتم</span>
+            <select className="w-full rounded-md border border-input bg-input px-3 py-2" value={voiceConfig.muted_asset_key} onChange={(e) => setVoiceConfig(v => ({ ...v, muted_asset_key: e.target.value }))}>
+              <option value="">الشكل الافتراضي للمكتوم</option>
+              {rows.filter(a => a.category === "mic" && a.is_active).map(a => <option key={a.asset_key} value={a.asset_key}>{a.name} · {a.asset_key}</option>)}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs"><span>شكل الميك المقفول</span>
+            <select className="w-full rounded-md border border-input bg-input px-3 py-2" value={voiceConfig.locked_asset_key} onChange={(e) => setVoiceConfig(v => ({ ...v, locked_asset_key: e.target.value }))}>
+              <option value="">الشكل الافتراضي للمقعد المقفول</option>
+              {rows.filter(a => a.category === "mic" && a.is_active).map(a => <option key={a.asset_key} value={a.asset_key}>{a.name} · {a.asset_key}</option>)}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs sm:col-span-2"><span>تأثير الميك أثناء التحدث</span>
+            <select className="w-full rounded-md border border-input bg-input px-3 py-2" value={voiceConfig.effect_asset_key} onChange={(e) => setVoiceConfig(v => ({ ...v, effect_asset_key: e.target.value }))}>
+              <option value="">بدون تأثير إضافي</option>
+              {rows.filter(a => a.category === "mic" && a.is_active).map(a => <option key={a.asset_key} value={a.asset_key}>{a.name} · {a.asset_key}</option>)}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs"><span>المسافة بين الميكات (بكسل)</span><Input type="number" min="0" max="80" value={voiceConfig.seat_gap_px} onChange={(e) => setVoiceConfig(v => ({ ...v, seat_gap_px: e.target.value }))} /></label>
+          <label className="space-y-1 text-xs"><span>حجم صورة المستخدم مع الإطار (40–120 px)</span><Input type="number" min="40" max="120" value={voiceConfig.avatar_size_px} onChange={(e) => setVoiceConfig(v => ({ ...v, avatar_size_px: e.target.value }))} /></label>
+          <label className="space-y-1 text-xs"><span>حجم علامة الميك (16–48 px)</span><Input type="number" min="16" max="48" value={voiceConfig.mic_icon_size_px} onChange={(e) => setVoiceConfig(v => ({ ...v, mic_icon_size_px: e.target.value }))} /></label>
+          <label className="flex items-center gap-2 self-end pb-2 text-xs"><input type="checkbox" checked={voiceConfig.show_mic_effect} onChange={(e) => setVoiceConfig(v => ({ ...v, show_mic_effect: e.target.checked }))} /> إظهار تأثير التحدث</label>
+        </div>
+        <Button className="w-full bg-gold" disabled={voiceSaving} onClick={() => void saveVoiceControls()}>{voiceSaving ? "جارٍ الحفظ…" : "حفظ إعدادات الميكات"}</Button>
+      </div>
+
+      <div className="glass space-y-3 rounded-2xl p-4">
+        <div>
+          <h3 className="font-bold">إرسال شارة لمستخدم</h3>
+          <p className="text-xs text-muted-foreground">اختر شارة من مكتبة الأصول وأرسلها مباشرة إلى المستخدم بالـ ID. ستظهر تحت الـ ID في الملف العام بعد الاستلام.</p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <Input value={grantUserNo} onChange={(e) => setGrantUserNo(e.target.value.replace(/\D/g, ""))} placeholder="ID المستخدم" inputMode="numeric" dir="ltr" />
+          <select className="rounded-md border border-input bg-input px-3 py-2 text-xs" value={grantItemId} onChange={(e) => setGrantItemId(e.target.value)}>
+            <option value="">اختر شارة</option>
+            {rows.filter((a) => a.category === "badge" && a.is_active).map((a) => <option key={a.id} value={a.id}>{a.name} · {a.asset_key}</option>)}
+          </select>
+          <Button className="bg-gold" onClick={() => void grantBadgeToUser()} disabled={grantBusy || !grantUserNo || !grantItemId}>
+            {grantBusy ? "جارٍ الإرسال…" : "إرسال الشارة"}
+          </Button>
+        </div>
+        <p className="text-xs text-emerald-500">سيتم تجهيز الشارة تلقائياً وإظهارها أسفل ID المستخدم فور الإرسال.</p>
+        {grantUserId && <div className="text-[11px] text-muted-foreground" dir="ltr">user_id: {grantUserId}</div>}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <div className="min-w-40 flex-1"><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث باسم الأصل أو مفتاحه" /></div>
+        <select className="rounded-md border border-input bg-input px-3 text-xs" value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <option value="all">كل التصنيفات</option>
+          {Object.entries(ASSET_CATEGORIES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select>
+        <Button size="icon" variant="outline" onClick={load} disabled={loading} aria-label="تحديث"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
+      </div>
+
+      {editingAsset && (
+        <div className="glass space-y-3 rounded-2xl border border-primary/30 p-4">
+          <div className="flex items-center justify-between gap-2"><b>تعديل الأصل: {editingAsset.name}</b><Button size="sm" variant="ghost" onClick={() => setEditingAsset(null)}>إلغاء</Button></div>
+          <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="اسم الأصل" />
+          <select className="w-full rounded-md border border-input bg-input px-3 py-2 text-sm" value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
+            {Object.entries(ASSET_CATEGORIES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          </select>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs">العرض px<Input type="number" min="24" max="2048" value={editDisplayWidth} onChange={(e) => setEditDisplayWidth(e.target.value)} /></label>
+            <label className="text-xs">الارتفاع px<Input type="number" min="24" max="2048" value={editDisplayHeight} onChange={(e) => setEditDisplayHeight(e.target.value)} /></label>
+            <label className="text-xs">سرعة الفيديو<select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={editPlaybackSpeed} onChange={(e) => setEditPlaybackSpeed(e.target.value)}><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option></select></label>
+            <label className="text-xs">حركة الظهور<select className="mt-1 w-full rounded-md border border-input bg-input p-2" value={editAnimationStyle} onChange={(e) => setEditAnimationStyle(e.target.value)}><option value="zoom">تكبير</option><option value="slide">انزلاق</option><option value="float">طفو</option><option value="pulse">نبض</option><option value="none">بدون</option></select></label>
+            <label className="col-span-2 text-xs">مدة الصور الثابتة (ms)<Input type="number" min="500" max="120000" value={editDisplayDuration} onChange={(e) => setEditDisplayDuration(e.target.value)} /></label>
+            <label className="col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={editAudioEnabled} onChange={(e) => setEditAudioEnabled(e.target.checked)} /> صوت الفيديو الأصلي</label>
+          </div>
+          <Button className="w-full bg-gold" onClick={() => void saveAssetEdit()}>حفظ التعديلات</Button>
+        </div>
+      )}
+      {visible.length === 0 && <p className="glass rounded-2xl p-8 text-center text-sm text-muted-foreground">{loading ? "جارٍ تحميل المكتبة…" : "لا توجد أصول مطابقة. ارفع أول أصل من النموذج أعلاه."}</p>}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {visible.map((asset) => (
+          <div key={asset.id} className="glass min-w-0 overflow-hidden rounded-2xl">
+            <div className="flex aspect-square items-center justify-center bg-secondary/60 p-2">
+              {previews[asset.id] && isImage(asset) ? (
+                <img src={previews[asset.id]} alt={asset.name} className="h-full w-full object-contain" />
+              ) : previews[asset.id] && isVideo(asset) ? (
+                <video src={previews[asset.id]} controls playsInline preload="metadata" onLoadedMetadata={(e) => { e.currentTarget.playbackRate = Number(asset.metadata?.playback_speed ?? 1); }} className="h-full w-full object-contain" />
+              ) : isModel(asset) ? (
+                <div className="text-center"><Box className="mx-auto h-12 w-12 text-primary" /><span className="mt-2 block text-xs">مجسم ثلاثي الأبعاد</span></div>
+              ) : (
+                <div className="text-center"><FileIcon className="mx-auto h-10 w-10 text-muted-foreground" /><span className="mt-2 block text-xs">ملف أصل</span></div>
+              )}
+            </div>
+            <div className="space-y-2 p-3">
+              <div className="truncate text-sm font-semibold" title={asset.name}>{asset.name}</div>
+              <div className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                <span>{ASSET_CATEGORIES[asset.category] ?? asset.category}</span>
+                <span>{asset.metadata?.size ? `${(asset.metadata.size / 1024 / 1024).toFixed(1)} MB` : ""}</span>
+              </div>
+              {storeItems.filter((item) => item.asset_key === asset.asset_key).length > 0 ? (
+                <div className="space-y-1 rounded-lg bg-primary/5 p-2">
+                  <div className="text-[10px] font-semibold text-primary">المتجر المرتبط</div>
+                  {storeItems.filter((item) => item.asset_key === asset.asset_key).map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-1 text-[10px]"><span className="truncate">{item.name} · {KINDS[item.kind] ?? item.kind}</span><span className="shrink-0">🪙 {Number(item.price).toLocaleString()}</span></div>
+                  ))}
+                </div>
+              ) : <div className="text-[10px] text-muted-foreground">المتجر: غير مرتبط بأي عنصر</div>}
+              <div className="flex items-center justify-between gap-1">
+                <span className={`rounded-full px-2 py-1 text-[10px] ${asset.is_active ? "bg-green-500/15 text-green-500" : "bg-muted text-muted-foreground"}`}>{asset.is_active ? "نشط" : "متوقف"}</span>
+                <div className="flex gap-1">
+                  {previews[asset.id] && <a href={previews[asset.id]} target="_blank" rel="noreferrer" className="rounded-md p-1.5 hover:bg-secondary" title="فتح الملف"><Search className="h-4 w-4" /></a>}
+                  <button onClick={() => beginEditAsset(asset)} className="rounded-md p-1.5 hover:bg-secondary" title="تعديل الأصل"><Settings className="h-4 w-4" /></button>
+                  <button onClick={() => toggleAsset(asset)} className="rounded-md p-1.5 hover:bg-secondary" title={asset.is_active ? "إيقاف" : "تفعيل"}><Power className="h-4 w-4" /></button>
+                  <button onClick={() => void deleteAsset(asset)} className="rounded-md p-1.5 text-destructive hover:bg-secondary" title="حذف الأصل"><Trash2 className="h-4 w-4" /></button>
+                </div>
+              </div>
+              <div className="truncate text-[10px] text-muted-foreground" dir="ltr">{asset.asset_key}</div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

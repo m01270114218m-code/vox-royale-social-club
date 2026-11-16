@@ -8,9 +8,9 @@ import { Input } from "@/components/ui/input";
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
-      { title: "كلمة مرور جديدة — VOX ROYALE" },
+      { title: "كلمة مرور جديدة — صدى شات" },
       { name: "description", content: "عيّن كلمة مرور جديدة لحسابك." },
-      { property: "og:title", content: "كلمة مرور جديدة — VOX ROYALE" },
+      { property: "og:title", content: "كلمة مرور جديدة — صدى شات" },
       { property: "og:description", content: "عيّن كلمة مرور جديدة لحسابك." },
     ],
   }),
