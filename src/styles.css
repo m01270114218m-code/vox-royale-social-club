@@ -502,3 +502,5 @@ linear-gradient(145deg,oklch(.23 .16 305),oklch(.09 .04 290) 65%,oklch(.16 .08 3
 .login-glow-a{width:240px;height:240px;right:-100px;top:-80px;background:radial-gradient(circle,oklch(.9 .12 90/.34),transparent 70%)}
 .login-glow-b{width:280px;height:280px;left:-150px;bottom:-120px;background:radial-gradient(circle,oklch(.65 .25 315/.3),transparent 70%)}
 @media (max-width:520px){.login-screen{padding:0}.login-panel{min-height:100dvh;border-radius:0;border-inline:0}.login-brand{padding-top:10px}}
+
+.login-loading{min-height:100dvh;display:grid;place-items:center;background:var(--gradient-royal);color:var(--foreground);font-family:var(--font-sans);font-weight:700}
