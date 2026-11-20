@@ -1,7 +1,7 @@
 import { icons3d, roomBackground } from "@/lib/assets3d";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, Users, Lock, Bell } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Search, Users, Lock, Bell, Smartphone, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
@@ -23,8 +23,104 @@ export const Route = createFileRoute("/")({
     ],
   }),
   validateSearch: (s: Record<string, unknown>): { create?: number } => (s["create"] ? { create: 1 } : {}),
-  component: HomeRouteComponent,
+  component: LoginGate,
 });
+
+
+function LoginGate() {
+  const [authenticated, setAuthenticated] = useState(false);
+  useEffect(() => {
+    if (window.localStorage.getItem("vox_royale_authenticated") === "1") setAuthenticated(true);
+  }, []);
+  if (authenticated) return <HomeRouteComponent />;
+  return <LoginScreen onSuccess={() => {
+    window.localStorage.setItem("vox_royale_authenticated", "1");
+    setAuthenticated(true);
+  }} />;
+}
+
+function GoogleLogo() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20">
+      <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z" />
+      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z" />
+      <path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z" />
+      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z" />
+    </svg>
+  );
+}
+
+function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
+  const [step, setStep] = useState<"home" | "phone" | "otp">("home");
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState(["", "", "", "", "", ""]);
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
+  const primary = "login-primary";
+  const field = "login-field";
+
+  return (
+    <main className="login-screen" dir="rtl">
+      <div className="login-glow login-glow-a" />
+      <div className="login-glow login-glow-b" />
+      <div className="login-panel">
+        <div className="login-brand">
+          <div className="login-logo">صدى</div>
+          <p>غرف صوتية بلا حدود</p>
+        </div>
+
+        <div key={step} className="login-actions">
+          {step === "home" && (
+            <>
+              <button onClick={onSuccess} className={primary}>
+                <GoogleLogo /> تسجيل الدخول بـ Google
+              </button>
+              <div className="login-divider"><span /> أو <span /></div>
+              <button onClick={() => setStep("phone")} aria-label="الدخول برقم الهاتف" className="login-phone-button">
+                <Smartphone className="h-7 w-7" />
+              </button>
+              <p className="login-hint">يمكنك الدخول برقم الهاتف عبر كود التحقق</p>
+            </>
+          )}
+
+          {step === "phone" && (
+            <div className="login-card">
+              <button onClick={() => setStep("home")} className="login-back"><ArrowRight className="h-4 w-4" /> رجوع</button>
+              <h2>الدخول برقم الهاتف</h2>
+              <div dir="ltr" className="flex gap-2">
+                <select className={field + " px-3"}>
+                  <option>🇪🇬 +20</option><option>🇸🇦 +966</option><option>🇦🇪 +971</option><option>🇰🇼 +965</option>
+                </select>
+                <input inputMode="tel" value={phone} placeholder="10 1234 5678" onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} className={field + " min-w-0 flex-1 px-4"} />
+              </div>
+              <button disabled={phone.length < 8} onClick={() => setStep("otp")} className={primary}>إرسال الكود</button>
+            </div>
+          )}
+
+          {step === "otp" && (
+            <div className="login-card">
+              <button onClick={() => setStep("phone")} className="login-back"><ArrowRight className="h-4 w-4" /> تعديل الرقم</button>
+              <h2>كود التحقق</h2>
+              <p>أدخل الكود المرسل إلى <bdi dir="ltr">+20 {phone}</bdi></p>
+              <div dir="ltr" className="flex justify-between gap-2">
+                {code.map((v, i) => (
+                  <input key={i} ref={(el) => { refs.current[i] = el; }} value={v} maxLength={1} inputMode="numeric"
+                    aria-label={"الرقم " + (i + 1)}
+                    onChange={(e) => { const d=e.target.value.replace(/\D/g,""); const n=[...code]; n[i]=d; setCode(n); if(d && i<5) refs.current[i+1]?.focus(); }}
+                    onKeyDown={(e) => { if(e.key==="Backspace" && !code[i] && i>0) refs.current[i-1]?.focus(); }}
+                    className={field + " h-12 w-12 text-center text-xl font-bold"} />
+                ))}
+              </div>
+              <button disabled={code.join("").length < 6} onClick={onSuccess} className={primary}>تأكيد والدخول</button>
+              <p className="text-center text-sm">لم يصلك الكود؟ <button className="font-bold underline">إعادة الإرسال</button></p>
+            </div>
+          )}
+
+          <p className="login-terms">بتسجيل الدخول توافق على <a>اتفاقية المستخدم</a> و<a>سياسة الخصوصية</a></p>
+        </div>
+      </div>
+    </main>
+  );
+}
 
 type Room = { id: string; room_no: number; name: string; description: string | null; category: string; country: string; member_count: number; is_private: boolean; seat_count: number; created_at: string; cover_url?: string | null; room_frame_asset_key?: string | null; sort_order?: number };
 type RoomBanner = { id: string; title: string; image_url: string; resolved_image_url?: string | null; target_url?: string | null; sort_order: number; is_active: boolean; starts_at?: string | null; ends_at?: string | null };
