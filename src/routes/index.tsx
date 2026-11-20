@@ -107,16 +107,16 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
             <h2>الدخول برقم الهاتف</h2>
             <div dir="ltr" className="flex gap-2">
               <select value={countryCode} onChange={(e) => setCountryCode(e.target.value)} className={field + " px-3"}><option value="+20">🇪🇬 +20</option><option value="+966">🇸🇦 +966</option><option value="+971">🇦🇪 +971</option><option value="+965">🇰🇼 +965</option></select>
-              <input inputMode="tel" value={phone} placeholder="10 1234 5678" onChange={(e) => setPhone(e.target.value.replace(/D/g, ""))} className={field + " min-w-0 flex-1 px-4"} />
+              <input inputMode="tel" value={phone} placeholder="10 1234 5678" onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} className={field + " min-w-0 flex-1 px-4"} />
             </div>
             <button disabled={busy || phone.length < 8} onClick={() => void sendOtp()} className={primary}>{busy ? "جارٍ الإرسال…" : "إرسال الكود"}</button>
           </div>}
           {step === "otp" && <div className="login-card">
             <button onClick={() => setStep("phone")} className="login-back"><ArrowRight className="h-4 w-4" /> تعديل الرقم</button>
-            <h2>كود التحقق</h2><p>أدخل الكود المرسل إلى <bdi dir="ltr">${countryCode} ${phone}</bdi></p>
+            <h2>كود التحقق</h2><p>أدخل الكود المرسل إلى <bdi dir="ltr">{countryCode} {phone}</bdi></p>
             <div dir="ltr" className="flex justify-between gap-2">
               {code.map((v, i) => <input key={i} ref={(el) => { refs.current[i] = el; }} value={v} maxLength={1} inputMode="numeric" aria-label={"الرقم " + (i + 1)}
-                onChange={(e) => { const d=e.target.value.replace(/D/g,""); const n=[...code]; n[i]=d; setCode(n); if(d && i<5) refs.current[i+1]?.focus(); }}
+                onChange={(e) => { const d=e.target.value.replace(/\D/g,""); const n=[...code]; n[i]=d; setCode(n); if(d && i<5) refs.current[i+1]?.focus(); }}
                 onKeyDown={(e) => { if(e.key==="Backspace" && !code[i] && i>0) refs.current[i-1]?.focus(); }}
                 className={field + " h-12 w-12 text-center text-xl font-bold"} />)}
             </div>
