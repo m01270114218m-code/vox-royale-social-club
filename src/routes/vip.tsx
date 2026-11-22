@@ -85,6 +85,19 @@ function VipPage() {
   useEffect(() => {
     if (!user) return;
     let alive = true;
+    const refreshPerks = async () => {
+      const { data } = await supabase.from("vip_perks").select("code,name,description,min_level,icon,sort_order").order("sort_order");
+      if (alive && data?.length) setPerks(data as Perk[]);
+    };
+    const channel = supabase.channel(`vip-live-${user.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` }, (payload) => {
+        const nextLevel = Math.min(6, Math.max(0, Number((payload.new as { vip_level?: number }).vip_level ?? 0)));
+        if (!alive) return;
+        setLevel(nextLevel);
+        setSelected(Math.min(6, Math.max(1, nextLevel || 1)));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "vip_perks" }, () => { void refreshPerks(); })
+      .subscribe();
     (async () => {
       const [{ data: profile }, { data: dbPerks }] = await Promise.all([
         supabase.from("profiles").select("vip_level").eq("id", user.id).single(),
@@ -97,7 +110,7 @@ function VipPage() {
       if (dbPerks?.length) setPerks(dbPerks as Perk[]);
       setLoading(false);
     })();
-    return () => { alive = false; };
+    return () => { alive = false; void supabase.removeChannel(channel); };
   }, [user]);
 
   const tier = VIP[selected - 1];
