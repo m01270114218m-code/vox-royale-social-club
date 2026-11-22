@@ -80,6 +80,15 @@ function WalletPage() {
       </div>
     </div>
 
+    <div className="mt-4 grid grid-cols-2 gap-2">
+      <Link to="/store" className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-gold/30 bg-gradient-to-r from-amber-500/20 to-violet-500/20 px-3 text-center text-xs font-black text-gold shadow-lg">
+        <CreditCard className="h-4 w-4" /> طلب شحن العملات
+      </Link>
+      <Link to="/diamonds" className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-primary/25 bg-primary/10 px-3 text-center text-xs font-black text-primary">
+        <Sparkles className="h-4 w-4" /> تحويل الألماس
+      </Link>
+    </div>
+
     <div className="mt-4 grid grid-cols-2 gap-3">
       <div className="glass rounded-2xl border border-primary/15 p-4"><ShoppingCart className="mb-2 h-6 w-6 text-primary" /><div className="text-xs text-muted-foreground">إجمالي الإنفاق الفعلي</div><div className="mt-1 text-2xl font-black">{spent.toLocaleString()}</div><div className="text-[10px] text-muted-foreground">من العمليات المسجلة فقط</div></div>
       <div className="glass rounded-2xl border border-gold/15 p-4"><CreditCard className="mb-2 h-6 w-6 text-gold" /><div className="text-xs text-muted-foreground">الإضافات والشحن</div><div className="mt-1 text-2xl font-black">{topups.toLocaleString()}</div><div className="text-[10px] text-muted-foreground">إيداعات العملات المسجلة</div></div>
@@ -94,7 +103,7 @@ function WalletPage() {
 
     <section className="glass mt-4 rounded-3xl p-4">
       <div className="mb-3 flex items-center gap-2 font-bold"><History className="h-5 w-5 text-gold" /> سجل المحفظة الحقيقي</div>
-      {txs.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد سجلات بعد.</p> : txs.map((t) => <div key={t.id} className="flex items-center justify-between gap-3 border-b border-border/50 py-3 last:border-0">
+      {loading ? <p className="text-sm text-muted-foreground" role="status">جارٍ تحميل سجل المحفظة…</p> : txs.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد سجلات بعد.</p> : txs.map((t) => <div key={t.id} className="flex items-center justify-between gap-3 border-b border-border/50 py-3 last:border-0">
         <div className="min-w-0"><div className="truncate font-semibold">{labelOf(t)}</div><div className="text-[11px] text-muted-foreground">{new Date(t.created_at).toLocaleString("ar-EG")}</div></div>
         <div className={t.amount < 0 ? "shrink-0 font-bold text-destructive" : "shrink-0 font-bold text-primary"}>{t.amount > 0 ? "+" : ""}{t.amount.toLocaleString()} {t.currency === "coins" ? "🪙" : "💎"}</div>
       </div>)}
