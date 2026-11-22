@@ -1,0 +1,22 @@
+name: VOX ROYALE Actions Diagnostic
+
+on:
+  push:
+    branches:
+      - admin-asset-center
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Verify GitHub Actions job startup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Confirm runner starts
+        run: |
+          echo "GitHub Actions runner started successfully."
+          echo "Branch: ${GITHUB_REF}"
+          echo "Commit: ${GITHUB_SHA}"

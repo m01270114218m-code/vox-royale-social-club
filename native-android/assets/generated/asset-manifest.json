@@ -1,0 +1,43 @@
+{
+  "product": "VOX ROYALE",
+  "pack": "original-premium-seed-01",
+  "status": "starter-pack-not-production-complete",
+  "assets": [
+    {
+      "id": "vox_coin",
+      "file": "svg/vox_coin.svg",
+      "format": "SVG",
+      "usage": "wallet currency icon"
+    },
+    {
+      "id": "vox_gift_crown",
+      "file": "svg/vox_gift_crown.svg",
+      "format": "SVG",
+      "usage": "virtual gift catalog"
+    },
+    {
+      "id": "vox_gift_rose",
+      "file": "svg/vox_gift_rose.svg",
+      "format": "SVG",
+      "usage": "virtual gift catalog"
+    },
+    {
+      "id": "vox_gold_avatar_frame",
+      "file": "svg/vox_gold_avatar_frame.svg",
+      "format": "SVG",
+      "usage": "profile and room avatar overlay"
+    },
+    {
+      "id": "vox_room_background",
+      "file": "svg/vox_room_background.svg",
+      "format": "SVG",
+      "usage": "voice room stage background"
+    },
+    {
+      "id": "vox_vip_badge",
+      "file": "svg/vox_vip_badge.svg",
+      "format": "SVG",
+      "usage": "VIP membership badge"
+    }
+  ]
+}

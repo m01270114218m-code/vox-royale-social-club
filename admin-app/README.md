@@ -1,10 +1,22 @@
-# تطبيق لوحة التحكم (VOX Admin) — تطبيق أندرويد منفصل
+# VOX Admin — تطبيق أندرويد مستقل للوحة التحكم
 
-تطبيق مستقل يفتح لوحة التحكم مباشرة ويتصل بنفس قاعدة البيانات الحقيقية.
-الصلاحيات تُتحقق على الخادم: فقط المشرفون يستطيعون الإدارة.
+هذا التطبيق يغلّف صفحة `admin-panel` نفسها، وهي لوحة إدارة حقيقية متصلة بمشروع Supabase الحالي. لا يحتاج إلى قاعدة بيانات منفصلة.
 
-1. من داخل مجلد `admin-app`: `npm init -y && npm i @capacitor/core @capacitor/cli @capacitor/android`
-2. `npx cap add android && npx cap sync android`
-3. `npx cap open android` ثم Build → Build APK.
+## البناء
 
-بعد النشر غيّر `server.url` إلى `https://رابطك/admin`.
+من مجلد `admin-app`:
+
+```bash
+npm init -y
+npm install @capacitor/core @capacitor/cli @capacitor/android
+npx cap add android
+npx cap sync android
+npx cap open android
+```
+
+ثم من Android Studio اختر **Build APK**.
+
+- صفحة الإدارة المضمّنة: `../admin-panel/index.html`
+- مشروع Supabase: `gxkdptwkyhwbxyaspagd`
+- يستخدم التطبيق مفتاح Publishable العام فقط؛ لا تضع مفتاح `service_role` في أي تطبيق أو صفحة ويب.
+- تسجيل الدخول وصلاحيات المشرف والتحقق من كل عملية تتم عبر Supabase Auth وRPC وRLS.

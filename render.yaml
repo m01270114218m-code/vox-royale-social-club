@@ -1,0 +1,23 @@
+services:
+  - type: web
+    runtime: node
+    name: vox-royale-social-club
+    branch: admin-asset-center
+    buildCommand: curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH" && bun install --frozen-lockfile && bun run build
+    startCommand: node .output/server/index.mjs
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NITRO_PRESET
+        value: render-com
+      - key: HOST
+        value: 0.0.0.0
+      - key: SUPABASE_URL
+        value: https://gxkdptwkyhwbxyaspagd.supabase.co
+      - key: VITE_SUPABASE_URL
+        value: https://gxkdptwkyhwbxyaspagd.supabase.co
+      - key: SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_tLtMpyWHcotmyTpaToTNYQ_M2sWXk1r
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_tLtMpyWHcotmyTpaToTNYQ_M2sWXk1r

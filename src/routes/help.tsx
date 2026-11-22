@@ -10,10 +10,10 @@ import { Input } from "@/components/ui/input";
 export const Route = createFileRoute("/help")({
   head: () => ({
     meta: [
-      { title: "مركز الدعم — VOX ROYALE" },
+      { title: "مركز الدعم — صدى شات" },
       { name: "description", content: "أرسل تذكرة دعم وتابع بلاغاتك وردود الإدارة." },
-      { property: "og:title", content: "مركز الدعم — VOX ROYALE" },
-      { property: "og:description", content: "الدعم والبلاغات في VOX ROYALE." },
+      { property: "og:title", content: "مركز الدعم — صدى شات" },
+      { property: "og:description", content: "الدعم والبلاغات في صدى شات." },
     ],
   }),
   component: () => (
