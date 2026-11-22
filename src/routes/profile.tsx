@@ -35,9 +35,12 @@ export const Route = createFileRoute("/profile")({
 type P = { id: string; display_no: number; display_name: string; avatar_url: string | null; bio: string | null; country: string | null; level: number; xp: number; vip_level: number; id_color?: string; name_color?: string; name_effect?: string; name_effect_speed?: number; equipped_frame?: string | null; equipped_entry?: string | null; chat_bubble_color?: string | null; profile_card_asset_key?: string | null };
 type ProfileBadge = { user_id: string; badge_name: string; badge_asset_key?: string | null; badge_color?: string | null; is_equipped?: boolean };
 function ProfilePage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const nav = useNavigate();
   const [p, setP] = useState<P | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileRetry, setProfileRetry] = useState(0);
   const [equippedBadges, setEquippedBadges] = useState<ProfileBadge[]>([]);
   const profileCardUrl = useAdminAsset(p?.profile_card_asset_key);
   const [draft, setDraft] = useState<P | null>(null);
@@ -78,8 +81,16 @@ function ProfilePage() {
   }
 
   useEffect(() => {
-    if (!user) return;
+    if (authLoading) return;
+    if (!user) {
+      setP(null);
+      setProfileLoading(false);
+      setProfileError("سجّل الدخول لعرض ملفك الشخصي");
+      return;
+    }
     let alive = true;
+    setProfileLoading(true);
+    setProfileError(null);
     const refreshBadges = async () => {
       const { data, error } = await supabase.from("user_badges").select("user_id,badge_name,badge_asset_key,badge_color,is_equipped").eq("user_id", user.id).eq("is_equipped", true);
       if (alive && !error) setEquippedBadges((data ?? []) as ProfileBadge[]);
@@ -91,12 +102,24 @@ function ProfilePage() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "user_badges", filter: `user_id=eq.${user.id}` }, () => { void refreshBadges(); })
       .subscribe();
-    (async () => {
-      const [{ data }] = await Promise.all([supabase.from("profiles").select("*").eq("id", user!.id).single(), refreshBadges()]);
-      if (data && alive) setP(data as P);
-    })();
+    const loadProfile = async () => {
+      const [{ data, error }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", user.id).single(),
+        refreshBadges(),
+      ]);
+      if (!alive) return;
+      if (error || !data) {
+        setP(null);
+        setProfileError(error?.message || "لم يتم العثور على بيانات الحساب");
+      } else {
+        setP(data as P);
+        setProfileError(null);
+      }
+      setProfileLoading(false);
+    };
+    void loadProfile();
     return () => { alive = false; void supabase.removeChannel(channel); };
-  }, [user]);
+  }, [user, authLoading, profileRetry]);
 
 
   async function changeAvatar(f?: File) {
@@ -158,7 +181,20 @@ function ProfilePage() {
     })();
     return () => { cancelled = true; };
   }, [user]);
-  if (!p) return null;
+  if (profileLoading) {
+    return <div dir="rtl" className="profile-reference mx-auto min-h-[55vh] max-w-[680px] px-4 pt-6 pb-8">
+      <div className="glass rounded-3xl p-8 text-center text-sm text-muted-foreground" role="status">جارٍ تحميل ملفك الشخصي…</div>
+    </div>;
+  }
+  if (profileError || !p) {
+    return <div dir="rtl" className="profile-reference mx-auto min-h-[55vh] max-w-[680px] px-4 pt-6 pb-8">
+      <div className="glass space-y-3 rounded-3xl p-6 text-center">
+        <h2 className="text-lg font-black text-gold">تعذر عرض الملف الشخصي</h2>
+        <p className="text-sm text-muted-foreground">{profileError || "بيانات الحساب غير متاحة حالياً"}</p>
+        {user ? <Button onClick={() => setProfileRetry((value) => value + 1)}>إعادة المحاولة</Button> : <Button onClick={() => void nav({ to: "/auth" })}>تسجيل الدخول</Button>}
+      </div>
+    </div>;
+  }
   const shown = editing && draft ? draft : p;
   return (
     <div dir="rtl" className="profile-reference px-4 pt-6 pb-8">
