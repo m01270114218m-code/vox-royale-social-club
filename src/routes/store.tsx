@@ -49,31 +49,45 @@ function StorePage() {
   const [equippedCard, setEquippedCard] = useState<string | null>(null);
   useEffect(() => {
     if (!user) return;
-    const live = supabase.channel(`store-live-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "user_items", filter: `user_id=eq.${user.id}` }, async () => {
-        const { data: ui } = await supabase.from("user_items").select("item_id,expires_at").eq("user_id", user.id);
-        const now = Date.now();
-        setOwned(new Set((ui ?? []).filter((r) => !r.expires_at || new Date(r.expires_at).getTime() > now).map((r) => r.item_id)));
-      })
-      .subscribe();
-    (async () => {
-      const [{ data: p }, { data: si }, { data: ui }] = await Promise.all([
-        supabase.from("profiles").select("equipped_frame, equipped_entry, chat_bubble_asset_key, sound_wave_asset_key, profile_card_asset_key").eq("id", user!.id).single(),
-        supabase.from("store_items").select("*").eq("is_direct_grant", false).order("sort_order"),
-        supabase.from("user_items").select("item_id,expires_at").eq("user_id", user!.id),
-      ]);
+    let active = true;
+    const refreshOwned = async () => {
+      const { data } = await supabase.from("user_items").select("item_id,expires_at").eq("user_id", user.id);
+      if (!active) return;
       const now = Date.now();
-      const activeOwned = ((ui ?? []) as { item_id: string; expires_at?: string | null }[]).filter((r) => !r.expires_at || new Date(r.expires_at).getTime() > now);
-      setOwned(new Set(activeOwned.map((r) => r.item_id)));
-      setEquippedFrame(p?.equipped_frame ?? null);
-      setEquippedEntry(p?.equipped_entry ?? null);
-      setEquippedBubble(p?.chat_bubble_asset_key ?? null); setEquippedWave(p?.sound_wave_asset_key ?? null); setEquippedCard(p?.profile_card_asset_key ?? null);
-      const activeItems = ((si ?? []) as unknown as StoreItem[]).filter((item) => !item.expires_at || new Date(item.expires_at).getTime() > now);
-      const enrichedItems = await Promise.all(activeItems.map(async (item) => ({ ...item, asset_url: await getAdminAssetUrl(item.asset_key) })));
-      setItems(enrichedItems);
-      setOwned(new Set(activeOwned.map((r) => r.item_id)));
-    })();
-    return () => { void supabase.removeChannel(live); };
+      setOwned(new Set((data ?? [])
+        .filter((row) => !row.expires_at || new Date(row.expires_at).getTime() > now)
+        .map((row) => row.item_id)));
+    };
+    const refreshProfile = async () => {
+      const { data } = await supabase.from("profiles")
+        .select("equipped_frame, equipped_entry, chat_bubble_asset_key, sound_wave_asset_key, profile_card_asset_key")
+        .eq("id", user.id).single();
+      if (!active || !data) return;
+      setEquippedFrame(data.equipped_frame ?? null);
+      setEquippedEntry(data.equipped_entry ?? null);
+      setEquippedBubble(data.chat_bubble_asset_key ?? null);
+      setEquippedWave(data.sound_wave_asset_key ?? null);
+      setEquippedCard(data.profile_card_asset_key ?? null);
+    };
+    const refreshCatalog = async () => {
+      const { data } = await supabase.from("store_items").select("*")
+        .eq("is_direct_grant", false).order("sort_order");
+      const now = Date.now();
+      const activeItems = ((data ?? []) as unknown as StoreItem[])
+        .filter((item) => !item.expires_at || new Date(item.expires_at).getTime() > now);
+      const enrichedItems = await Promise.all(activeItems.map(async (item) => ({
+        ...item,
+        asset_url: await getAdminAssetUrl(item.asset_key),
+      })));
+      if (active) setItems(enrichedItems);
+    };
+    const live = supabase.channel(`store-live-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_items", filter: `user_id=eq.${user.id}` }, () => { void refreshOwned(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "store_items" }, () => { void refreshCatalog(); })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` }, () => { void refreshProfile(); })
+      .subscribe();
+    void Promise.all([refreshOwned(), refreshProfile(), refreshCatalog()]);
+    return () => { active = false; void supabase.removeChannel(live); };
   }, [user]);
   async function buyItem(item: StoreItem) {
     const { data, error } = await supabase.rpc("buy_item", { _item_id: item.id });
