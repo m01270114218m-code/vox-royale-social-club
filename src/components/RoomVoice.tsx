@@ -181,11 +181,16 @@ export function RoomVoice({ roomId, uid, members, micEnabled, musicFile = null, 
         clientRef.current = client;
         client.on("user-published", onUserPublished);
         client.on("user-unpublished", onUserUnpublished);
-        const rtcToUser = new Map(membersRef.current.map((memberId) => [numericRtcUid(memberId), memberId]));
-        rtcToUser.set(numericRtcUid(uid), uid);
         client.enableAudioVolumeIndicator();
         client.on("volume-indicator", (speakers) => {
-          const active = speakers.filter((speaker) => speaker.level >= 18).map((speaker) => rtcToUser.get(Number(speaker.uid))).filter((userId): userId is string => !!userId);
+          // Rebuild the RTC UID lookup from the latest membership snapshot.
+          // A map created once at join time misses speakers who enter later.
+          const rtcToUser = new Map(membersRef.current.map((memberId) => [numericRtcUid(memberId), memberId]));
+          rtcToUser.set(numericRtcUid(uid), uid);
+          const active = speakers
+            .filter((speaker) => speaker.level >= 18)
+            .map((speaker) => rtcToUser.get(Number(speaker.uid)))
+            .filter((userId): userId is string => !!userId);
           onSpeakingUsersRef.current?.([...new Set(active)]);
         });
         client.on("token-privilege-will-expire", () => {
