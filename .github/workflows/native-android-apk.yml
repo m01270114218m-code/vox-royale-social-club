@@ -19,7 +19,7 @@ concurrency:
 jobs:
   native-apk:
     name: Compile and package native Android APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - name: Checkout source
@@ -53,7 +53,7 @@ jobs:
 
       - name: Compile native debug APK
         working-directory: native-android
-        run: gradle :app:assembleDebug --no-daemon --stacktrace
+        run: gradle :app:assembleDebug --no-daemon --stacktrace --console=plain
 
       - name: Verify APK exists
         run: |
