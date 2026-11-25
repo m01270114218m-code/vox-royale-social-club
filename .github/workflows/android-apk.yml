@@ -89,6 +89,12 @@ jobs:
           test -s "$APK"
           ls -lh "$APK"
           echo "=== Android APK signing certificate (register this SHA-1 in Google Cloud Android OAuth client) ==="
-          keytool -printcert -jarfile "$APK" | grep -E "Owner:|Issuer:|SHA1:|SHA-256:" || true
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n 1)"
+          if [ -n "$APKSIGNER" ]; then
+            "$APKSIGNER" verify --print-certs "$APK" | grep -E "Signer #|SHA-1|SHA-256"
+          else
+            echo "::warning::apksigner was not found; could not print the APK SHA-1."
+          fi
           TAG="sada-chat-apk-${GITHUB_SHA::7}"
           gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --title "Sada Chat APK ${GITHUB_SHA::7}" --notes "Capacitor Android wrapper built from branch $GITHUB_REF_NAME at commit $GITHUB_SHA."
