@@ -262,7 +262,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     showEmoji("me", img);
   };
 
-  const cloudGifts: ShopGift[] = cloudState.catalog.filter((c) => c.kind === "gift" && c.enabled && c.url).map((c) => { const m = (c.metadata ?? {}) as Record<string, unknown>; const type = String(m["type"] ?? "static"); return { id: c.id, img: c.url, n: c.name, p: c.price, mime: c.mime ?? "", lucky: type === "lucky", animated: type === "animated", full: m["full"] === true }; });
+  const cloudGifts: ShopGift[] = cloudState.catalog.filter((c) => c.kind === "gift" && c.enabled && c.url).map((c) => { const m = (c.metadata ?? {}) as Record<string, unknown>; const type = String(m["type"] ?? "static"); const audioKey = typeof m["audio_asset_key"] === "string" ? m["audio_asset_key"] : ""; const soundUrl = cloudState.assets.find(a => a.asset_key === audioKey)?.url; return { id: c.id, img: c.url, n: c.name, p: c.price, mime: c.mime ?? "", lucky: type === "lucky", animated: type === "animated", full: m["full"] === true, ...(soundUrl ? { soundUrl } : {}) }; });
   const list = cloudGifts.filter((g) => (gTab === "lucky" ? g.lucky : gTab === "animated" ? g.animated : !g.lucky && !g.animated));
   const sendGift = async (g: ShopGift & {id?:string}) => {
     const cost = g.p * qty;
@@ -766,13 +766,17 @@ function EditRoom({ name, notice, cover, bg, hasCustomCover, hasCustomBg, onSave
 
 function EntryShow({ u, onSkip }: { u: User; onSkip: () => void }) {
   const v = u.entry ? entries[u.entry] : null;
-  const {catalog}=useCloudState();
+  const {catalog, assets}=useCloudState();
   const cloud=u.entry?.startsWith('cloud-')?catalog.find(c=>`cloud-${c.id}`===u.entry):undefined;
+  const meta=(cloud?.metadata ?? {}) as Record<string, unknown>;
+  const audioKey=typeof meta["audio_asset_key"] === "string" ? meta["audio_asset_key"] : "";
+  const sound=assets.find(a=>a.asset_key===audioKey)?.url;
+  useEffect(() => { if (!sound) return; const audio = new Audio(sound); audio.volume = 0.9; void audio.play().catch(() => undefined); return () => { audio.pause(); audio.currentTime = 0; }; }, [sound]);
   return (
-    <div className="entry-full pointer-events-none absolute inset-0 z-40 overflow-hidden" role="dialog" aria-label="تأثير الدخول">
-      <Button size="sm" variant="secondary" onClick={onSkip} className="pointer-events-auto absolute end-3 top-3 z-10 h-7 rounded-full px-3 text-[11px] font-bold opacity-90">تخطي ›</Button>
-      {v && <div className={`${cloud?.url ? "" : "entry-ride"} absolute inset-x-0 top-[14%] h-[58%]`}><Media src={cloud?.url||v.img} mime={cloud?.mime} alt="" className="h-full w-full drop-shadow-2xl" loop={false}/></div>}
-      <div className={`entry-ribbon ${u.vip >= 5 ? "entry-ribbon-gold" : ""} absolute start-0 top-[70%] flex items-center gap-2 rounded-e-full py-1 pe-4 ps-1.5 text-[12px]`}>
+    <div className="entry-full pointer-events-none fixed inset-0 z-[100] h-[100dvh] w-screen overflow-hidden bg-black/80" role="dialog" aria-label="تأثير الدخول">
+      <Button size="sm" variant="secondary" onClick={onSkip} className="pointer-events-auto absolute end-3 top-[max(env(safe-area-inset-top),12px)] z-10 h-8 rounded-full px-3 text-[11px] font-bold opacity-95">إخفاء ✕</Button>
+      {v && <div className={`${cloud?.url ? "" : "entry-ride"} absolute inset-0 grid place-items-center`}><Media src={cloud?.url||v.img} mime={cloud?.mime} alt="" className="h-full w-full object-contain drop-shadow-2xl" loop={false}/></div>}
+      <div className={`entry-ribbon ${u.vip >= 5 ? "entry-ribbon-gold" : ""} absolute start-0 bottom-[max(env(safe-area-inset-bottom),8%)] flex items-center gap-2 rounded-e-full py-1 pe-4 ps-1.5 text-[12px]`}>
         <Avatar img={u.avatar} frame={u.frame} size={30} />
         <div className="min-w-0 leading-tight">
           <div className="flex items-center gap-1"><UserName className="max-w-[120px] truncate font-black" uid={u.uid} name={u.name}/><VipChip vip={u.vip} /></div>
