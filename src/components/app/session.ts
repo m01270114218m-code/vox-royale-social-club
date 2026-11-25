@@ -14,6 +14,9 @@ const AKEY = "frost-auth-v1";
 let auth: Auth = null;
 let authLoaded = false;
 const aSubs = new Set<() => void>();
+// Serialize logout before the next Google exchange so a delayed SIGNED_OUT
+// cannot immediately erase a newly selected Google account session.
+let pendingSignOut: Promise<void> = Promise.resolve();
 function readAuth(): Auth | undefined {
   return authLoaded ? auth : undefined;
 }
@@ -31,6 +34,9 @@ export async function signIn(a: NonNullable<Auth>) {
       }
 
       if (nativePlatform) {
+        // Finish a previous logout before exchanging the next selected account.
+        await pendingSignOut;
+
         // Native Android account picker -> Google ID token -> Supabase Auth.
         const webClientId = String(import.meta.env["VITE_GOOGLE_WEB_CLIENT_ID"] ?? "").trim();
         if (!webClientId) throw new Error("Missing VITE_GOOGLE_WEB_CLIENT_ID");
@@ -68,16 +74,23 @@ export async function signIn(a: NonNullable<Auth>) {
   try { localStorage.setItem(AKEY, JSON.stringify(a)); } catch { /* ignore */ }
   aSubs.forEach((s) => s());
 }
-export function signOut() {
-  // Supabase clears its persisted refresh-token session; the same Google identity
-  // can sign in again and resolves to the same auth.users.id.
-  void supabase.auth.signOut().then(({ error }) => {
-    if (error) console.error("[Auth] Supabase sign-out failed", error);
-  });
+export function signOut(): Promise<void> {
+  // Clear this app session only (not the user's other devices). Keep the promise
+  // so a fast re-login cannot race a still-running SIGNED_OUT event.
   auth = null;
   authLoaded = true;
   try { localStorage.removeItem(AKEY); } catch { /* ignore */ }
   aSubs.forEach((s) => s());
+
+  pendingSignOut = supabase.auth.signOut({ scope: "local" }).then(({ error }) => {
+    if (error) {
+      console.error("[Auth] Supabase sign-out failed", error);
+      throw error;
+    }
+  }).catch((error) => {
+    console.error("[Auth] Supabase sign-out failed", error);
+  });
+  return pendingSignOut;
 }
 /** `undefined` while rendering on the server / before hydration. */
 export function useAuth(): Auth | undefined {
