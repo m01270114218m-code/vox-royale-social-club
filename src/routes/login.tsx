@@ -1,12 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { App } from "@capacitor/app";
-import { Browser } from "@capacitor/browser";
-import { Capacitor } from "@capacitor/core";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Mail, Smartphone } from "lucide-react";
-import { useAuth } from "@/components/app/session";
+import { signIn, useAuth } from "@/components/app/session";
 import { toast } from "@/components/app/toast";
 import { loginMedia, ui } from "@/components/app/data";
 export const Route = createFileRoute("/login")({
@@ -21,46 +18,11 @@ function Login() {
  const [phone,setPhone]=useState(""); const [code,setCode]=useState(""); const [sent,setSent]=useState(false);
  useEffect(()=>{if(auth?.userId)void nav({to:"/",replace:true});},[auth,nav]);
  const run=async(fn:()=>Promise<void>)=>{setBusy(true);try{await fn();}catch(e){toast(e instanceof Error?e.message:"تعذّر تسجيل الدخول");}finally{setBusy(false);}};
- const completeNativeOAuth=async(rawUrl:string)=>{
-  const callbackPrefix="com.sadachat.app://login-callback";
-  if(!rawUrl.startsWith(callbackPrefix))return;
-  await Browser.close();
-  const callback=new URL(rawUrl);
-  const code=callback.searchParams.get("code");
-  if(code){
-   const {error}=await supabase.auth.exchangeCodeForSession(code);
-   if(error)throw error;
-  }else{
-   const params=new URLSearchParams(callback.hash.replace(/^#/,""));
-   const access_token=params.get("access_token");
-   const refresh_token=params.get("refresh_token");
-   if(!access_token||!refresh_token)throw new Error("تعذّر استلام جلسة Google من Supabase");
-   const {error}=await supabase.auth.setSession({access_token,refresh_token});
-   if(error)throw error;
-  }
-  await nav({to:"/",replace:true});
- };
- useEffect(()=>{
-  if(!Capacitor.isNativePlatform())return;
-  let active=true;
-  let listener:{remove:()=>Promise<void>}|undefined;
-  void App.addListener("appUrlOpen",({url})=>{
-   if(active)void completeNativeOAuth(url).catch(e=>toast(e instanceof Error?e.message:"تعذّر إكمال تسجيل Google"));
-  }).then(h=>{listener=h;if(!active)void h.remove();});
-  void App.getLaunchUrl().then(result=>{
-   if(active&&result?.url)void completeNativeOAuth(result.url).catch(e=>toast(e instanceof Error?e.message:"تعذّر إكمال تسجيل Google"));
-  });
-  return ()=>{active=false;void listener?.remove();};
- },[nav]);
  const social=(provider:"google")=>run(async()=>{
-  const native=Capacitor.isNativePlatform();
-  const redirectTo=native?"com.sadachat.app://login-callback":window.location.origin+"/";
-  const {data,error}=await supabase.auth.signInWithOAuth({provider,options:{redirectTo,skipBrowserRedirect:native,queryParams:{prompt:"select_account"}}});
-  if(error)throw error;
-  if(native){
-   if(!data.url)throw new Error("لم يتم إنشاء رابط تسجيل Google");
-   await Browser.open({url:data.url});
-  }
+  if(provider!=="google")return;
+  // Android: Credential Manager + Google ID token + Supabase.
+  // Never start browser OAuth here, which causes localhost/?code=... .
+  await signIn({method:"google",at:new Date().toISOString()});
  });
  const emailSubmit=()=>run(async()=>{
   if(signup){const {data,error}=await supabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin}}); if(error)throw error; if(!data.session)toast("تم إنشاء الحساب، افتح بريدك لتأكيده");}
