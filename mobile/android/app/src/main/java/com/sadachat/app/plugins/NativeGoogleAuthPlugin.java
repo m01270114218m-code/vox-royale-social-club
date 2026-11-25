@@ -1,24 +1,45 @@
 package com.sadachat.app.plugins;
 
 import android.app.Activity;
-import android.content.Intent;
+import android.os.Bundle;
+import android.util.Base64;
 
-import androidx.activity.result.ActivityResult;
+import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
+import androidx.credentials.Credential;
+import androidx.credentials.CredentialManager;
+import androidx.credentials.CredentialManagerCallback;
+import androidx.credentials.CustomCredential;
+import androidx.credentials.GetCredentialRequest;
+import androidx.credentials.GetCredentialResponse;
+import androidx.credentials.exceptions.GetCredentialCancellationException;
+import androidx.credentials.exceptions.GetCredentialException;
+import androidx.credentials.exceptions.NoCredentialException;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
-import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import com.google.android.gms.auth.api.signin.GoogleSignIn;
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
-import com.google.android.gms.common.api.ApiException;
-import com.google.android.gms.tasks.Task;
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException;
+
+import java.security.SecureRandom;
 
 @CapacitorPlugin(name = "NativeGoogleAuth")
 public class NativeGoogleAuthPlugin extends Plugin {
+    private CredentialManager credentialManager;
+
+    @Override
+    public void load() {
+        super.load();
+        Activity activity = getActivity();
+        if (activity != null) {
+            credentialManager = CredentialManager.create(activity);
+        }
+    }
+
     @PluginMethod
     public void signIn(PluginCall call) {
         String webClientId = call.getString("webClientId", "").trim();
@@ -33,43 +54,124 @@ public class NativeGoogleAuthPlugin extends Plugin {
             return;
         }
 
-        GoogleSignInOptions options = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestEmail()
-                .requestIdToken(webClientId)
+        if (credentialManager == null) {
+            credentialManager = CredentialManager.create(activity);
+        }
+
+        // Always request all Google accounts and disable automatic selection so
+        // the user gets the account chooser on every login attempt.
+        GetGoogleIdOption googleIdOption = new GetGoogleIdOption.Builder()
+                .setFilterByAuthorizedAccounts(false)
+                .setAutoSelectEnabled(false)
+                .setServerClientId(webClientId)
+                .setNonce(generateSecureRandomNonce())
                 .build();
-        GoogleSignIn.getClient(activity, options).signOut()
-                .addOnCompleteListener(activity, ignored -> {
-                    try {
-                        Intent chooser = GoogleSignIn.getClient(activity, options).getSignInIntent();
-                        startActivityForResult(call, chooser, "googleSignInResult");
-                    } catch (Exception error) {
-                        call.reject("Could not open Google account chooser: " + error.getMessage(), error);
+
+        GetCredentialRequest request = new GetCredentialRequest.Builder()
+                .addCredentialOption(googleIdOption)
+                .build();
+
+        credentialManager.getCredentialAsync(
+                activity,
+                request,
+                null,
+                ContextCompat.getMainExecutor(activity),
+                new CredentialManagerCallback<GetCredentialResponse, GetCredentialException>() {
+                    @Override
+                    public void onResult(GetCredentialResponse response) {
+                        try {
+                            Credential credential = response.getCredential();
+
+                            if (!(credential instanceof CustomCredential)) {
+                                call.reject("Google returned an unsupported credential type.");
+                                return;
+                            }
+
+                            CustomCredential customCredential = (CustomCredential) credential;
+                            if (!GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                                    .equals(customCredential.getType())) {
+                                call.reject("Google returned an unsupported credential type.");
+                                return;
+                            }
+
+                            GoogleIdTokenCredential googleCredential =
+                                    GoogleIdTokenCredential.createFrom(customCredential.getData());
+
+                            String idToken = googleCredential.getIdToken();
+                            if (idToken == null || idToken.isEmpty()) {
+                                call.reject("Google did not return an ID token. Check the Web OAuth Client ID and Android SHA-1.");
+                                return;
+                            }
+
+                            JSObject result = new JSObject();
+                            result.put("idToken", idToken);
+                            call.resolve(result);
+                        } catch (GoogleIdTokenParsingException error) {
+                            call.reject("Google returned an invalid ID token.", error);
+                        } catch (Exception error) {
+                            call.reject("Google sign-in could not be completed: " + safeMessage(error), error);
+                        }
                     }
-                });
+
+                    @Override
+                    public void onError(@NonNull GetCredentialException error) {
+                        if (error instanceof GetCredentialCancellationException) {
+                            call.reject("Google account selection was cancelled.");
+                        } else if (error instanceof NoCredentialException) {
+                            call.reject("No Google account is available on this device. Add a Google account and try again.");
+                        } else {
+                            call.reject("Google account chooser failed: " + safeMessage(error), error);
+                        }
+                    }
+                }
+        );
     }
 
-    @ActivityCallback
-    private void googleSignInResult(PluginCall call, ActivityResult result) {
-        if (call == null) return;
-        if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) {
-            call.reject("Google account selection was cancelled or could not be opened");
+    @PluginMethod
+    public void clearCredentialState(PluginCall call) {
+        Activity activity = getActivity();
+        if (activity == null) {
+            call.resolve();
             return;
         }
-        try {
-            Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(result.getData());
-            GoogleSignInAccount account = task.getResult(ApiException.class);
-            String idToken = account.getIdToken();
-            if (idToken == null || idToken.isEmpty()) {
-                call.reject("Google did not return an ID token. Check the Web OAuth client ID and Android SHA-1.");
-                return;
-            }
-            JSObject response = new JSObject();
-            response.put("idToken", idToken);
-            call.resolve(response);
-        } catch (ApiException error) {
-            call.reject("Google sign-in failed (" + error.getStatusCode() + "): " + error.getMessage(), error);
-        } catch (Exception error) {
-            call.reject("Google sign-in could not be completed: " + error.getMessage(), error);
+
+        if (credentialManager == null) {
+            credentialManager = CredentialManager.create(activity);
         }
+
+        credentialManager.clearCredentialStateAsync(
+                new androidx.credentials.ClearCredentialStateRequest(),
+                null,
+                ContextCompat.getMainExecutor(activity),
+                new androidx.credentials.CredentialManagerCallback<Void, androidx.credentials.exceptions.ClearCredentialException>() {
+                    @Override
+                    public void onResult(Void result) {
+                        call.resolve();
+                    }
+
+                    @Override
+                    public void onError(@NonNull androidx.credentials.exceptions.ClearCredentialException error) {
+                        // Clearing provider state is best-effort; Supabase local logout
+                        // still completes even if a provider refuses the clear request.
+                        call.resolve();
+                    }
+                }
+        );
+    }
+
+    private static String generateSecureRandomNonce() {
+        byte[] bytes = new byte[32];
+        new SecureRandom().nextBytes(bytes);
+        return Base64.encodeToString(
+                bytes,
+                Base64.NO_WRAP | Base64.URL_SAFE | Base64.NO_PADDING
+        );
+    }
+
+    private static String safeMessage(Throwable error) {
+        String message = error == null ? null : error.getMessage();
+        return message == null || message.trim().isEmpty()
+                ? error.getClass().getSimpleName()
+                : message;
     }
 }
