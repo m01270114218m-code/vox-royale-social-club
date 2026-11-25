@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - empty
+      - login-page-lovable-copy
   workflow_dispatch:
 
 permissions:
