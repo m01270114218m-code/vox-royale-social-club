@@ -53,7 +53,7 @@ export async function fetchCloud() {
   const items: ItemRow[]=((inventoryRes.data ?? []) as Array<Record<string,unknown>>).map(i=>({id:String(i.id),user_id:String(i.user_id),catalog_id:String(i.item_id),equipped:Boolean(((i.metadata??{}) as Record<string,unknown>).equipped),expires_at:i.expires_at?String(i.expires_at):null})).filter(i=>stillValid(i.expires_at,Date.now()));
   const members=(membersRes.data ?? []) as Array<Record<string,unknown>>;
   const roomList: Room[]=((roomsRes.data ?? []) as Array<Record<string,unknown>>).map(r=>{const ownerId=String(r.owner_id);const owner=people.find(p=>p.id===ownerId);return {id:String(r.id),name:String(r.title??""),flag:"",vip:owner?.vip??0,online:members.filter(m=>String(m.room_id)===String(r.id)).length,img:String(r.cover_url??owner?.avatar??roomCover),host:owner?.avatar||avatarAt(0),hostId:ownerId,badges:[],tag:String(r.room_type??"غرفة"),notice:String(r.description??""),cloud:true,ownerId};});
-  const profile=id?people.find(p=>p.id===id)??null:null;roomList.find(r=>r.ownerId===id)??null;
+  const profile=id?people.find(p=>p.id===id)??null:null;
   installCatalog(catalog as never); installRooms(roomList);
   const ledger=((ledgerRes.data ?? []) as Array<Record<string,unknown>>).map(x=>({ ...x, sender_id:null, recipient_id:id, kind:String(x.transaction_type??"transaction"), amount:Number(x.amount??0) })); const myRoom=roomList.find(r=>r.ownerId===id)??null; return {profile,roles:ownRoles,catalog,assets,profiles:people,allRoles:roles,settings:settingsRes.data??[],agencies:agenciesRes.data??[],hosts:[],items,notifications:notificationsRes.data??[],ledger,rooms:(roomsRes.data??[]) as any[],audit:(auditRes.data??[]) as any[],roomList,myRoom,recharges:[] as any[]};
 }
