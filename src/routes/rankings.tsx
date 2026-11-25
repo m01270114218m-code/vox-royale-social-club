@@ -3,6 +3,7 @@ import { AudioLines, Trophy } from "lucide-react";
 import { Coin, IceHeader, SubHeader } from "@/components/app/AppShell";
 import { liveRooms, rooms, users, type Room, type User } from "@/components/app/data";
 import { meAsUser, useProfile } from "@/components/app/profile";
+import { useCloud } from "@/components/app/cloud";
 import { Avatar, LevelChip, VipChip } from "@/components/app/ui";
 
 export type RankTab = "wealth" | "room" | "charm";
@@ -36,11 +37,25 @@ function Rankings() {
   const nav = Route.useNavigate();
   const profile = useProfile();
   const me = meAsUser(profile);
-  const allUsers: User[] = [me, ...users];
+  const { data } = useCloud();
+  const realUsers: User[] = (data?.profiles ?? []).filter(row => row.id !== data?.profile?.id).map(row => {
+    const owned = (data?.items ?? []).filter(item => item.user_id === row.id && item.equipped);
+    const worn = (kind: string) => data?.catalog.find(item => item.kind === kind && owned.some(ownedItem => ownedItem.catalog_id === item.id));
+    const frame = worn("frame"), entry = worn("entry"), bubble = worn("bubble");
+    return {
+      id: row.id, uid: String(row.uid), name: row.name, avatar: row.avatar_url || row.avatar || me.avatar,
+      frame: frame ? ("cloud-" + frame.id) as User["frame"] : null,
+      entry: entry ? ("cloud-" + entry.id) as User["entry"] : null,
+      bubble: bubble ? ("cloud-" + bubble.id) as User["bubble"] : "none",
+      sid: row.special_id, level: row.level || 1, vip: row.vip || 0, gender: "m", flag: "", bio: row.bio || "",
+      fans: 0, following: 0, charm: row.gift_value || 0, wealth: row.coins || 0, gifts: [],
+    };
+  });
+  const allUsers: User[] = [me, ...realUsers];
 
   const byWealth = [...allUsers].sort((a, b) => b.wealth - a.wealth);
   const byCharm = [...allUsers].sort((a, b) => b.charm - a.charm);
-  const byRoom: Room[] = [...liveRooms(), ...rooms]
+  const byRoom: Room[] = [...liveRooms()]
     .map((r) => {
       const ov = profile.roomMedia[r.id];
       return { ...r, name: ov?.name || r.name, img: ov?.cover || r.img };
