@@ -417,10 +417,10 @@ function Agencies({ d, action, uid, setUid }: P) {
 function Rooms({ d, busy, save }: P) {
   const all = d.roomList;
   const frames = d.catalog.filter(c => c.kind === 'room_frame' || c.kind === 'frame');
-  return <Block title={`الغرف (${all.length})`}>{all.map(r => { const control = d.rooms.find(c => c.room_id === r.id); return <div key={r.id} className="space-y-2 border-b border-border/60 py-2.5 last:border-0">
+  return <Block title={`الغرف (${all.length})`}>{all.map(r => { const roomDbId = r.dbId; const control = d.rooms.find(c => c.room_id === roomDbId); return <div key={r.id} className="space-y-2 border-b border-border/60 py-2.5 last:border-0">
     <div className="flex items-center gap-2.5"><img src={r.img} alt="" className="h-11 w-11 rounded-xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-[13px] font-black text-navy">{r.name}</p><p className="text-start text-[10.5px] text-muted-foreground" dir="ltr">ID {r.id}</p></div>
-      <Button variant={control?.banned ? 'outline' : 'destructive'} disabled={busy} size="sm" className="h-8 text-[11px]" onClick={() => void save(() => supabase.from('room_controls').upsert({ room_id: r.id, banned: !control?.banned, frame_id: control?.frame_id ?? null }))}>{control?.banned ? 'فك الحظر' : 'حظر'}</Button></div>
-    <select aria-label={`إطار ${r.name}`} disabled={busy} className={fieldClass} value={control?.frame_id ?? ''} onChange={e => void save(() => supabase.from('room_controls').upsert({ room_id: r.id, frame_id: e.target.value || null, banned: control?.banned ?? false }))}><option value="">بدون إطار</option>{frames.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+      <Button variant={control?.banned ? 'outline' : 'destructive'} disabled={busy} size="sm" className="h-8 text-[11px]" onClick={() => void save(() => supabase.from('room_controls').upsert({ room_id: roomDbId, banned: !control?.banned, frame_id: control?.frame_id ?? null }))}>{control?.banned ? 'فك الحظر' : 'حظر'}</Button></div>
+    <select aria-label={`إطار ${r.name}`} disabled={busy} className={fieldClass} value={control?.frame_id ?? ''} onChange={e => void save(() => supabase.from('room_controls').upsert({ room_id: roomDbId, frame_id: e.target.value || null, banned: control?.banned ?? false }))}><option value="">بدون إطار</option>{frames.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
   </div>; })}</Block>;
 }
 
