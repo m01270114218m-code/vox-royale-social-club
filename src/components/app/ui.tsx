@@ -14,7 +14,7 @@ export function Avatar({ img, frame, size, className = "", ring = "" }: { img: s
   return (
     <span className={`relative inline-grid shrink-0 place-items-center ${className}`} style={{ width: size, height: size }}>
       <img src={img || avatarAt(0)} alt="" className={`h-full w-full rounded-full object-cover ${ring}`} onError={(e) => { if (e.currentTarget.dataset.fallback !== "1") { e.currentTarget.dataset.fallback = "1"; e.currentTarget.src = avatarAt(0); } }} />
-      {frameImage && <img src={frameImage} alt="" className="pointer-events-none absolute max-w-none" style={{ width: fs, height: fs, left: (size - fs) / 2, top: (size - fs) / 2 }} onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+      {frameImage && <img src={frameImage} alt="" className="pointer-events-none absolute max-w-none" style={{ width: fs, height: fs, left: (size - fs) / 2, top: (size - fs) / 2 }} onError={(e) => { const el=e.currentTarget; if(el.dataset.fallback!=="1"){el.dataset.fallback="1";el.src=frames.ice.img;}else{el.style.display="none";} }} />}
     </span>
   );
 }
@@ -94,7 +94,7 @@ export function SpecialId({ uid, sid, className = "" }: { uid: string; sid: stri
 
 export function RoleBadge({ role, className = "h-4 w-4" }: { role: Role; className?: string }) {
   if (role === "member") return null;
-  return <img src={roleImg[role]} alt={role === "owner" ? "مالك" : "مشرف"} className={className} />;
+  return <img src={roleImg[role]} alt={role === "owner" ? "مالك" : "مشرف"} className={className} onError={(e)=>{const el=e.currentTarget;if(el.dataset.fallback!=="1"){el.dataset.fallback="1";el.src=icons.badge;}else{el.style.visibility="hidden";}}} />;
 }
 
 /** Level badge — each level range gets its own tier style. */
@@ -104,7 +104,7 @@ export function LevelChip({ level }: { level: number }) {
   const lv=Math.min(100,Math.max(1,level));
   const tier=Math.min(5,Math.floor((lv-1)/20));
   return <span className={`rank-pill lv-t${tier} inline-flex h-[18px] shrink-0 items-center ps-[22px] pe-1.5`} dir="ltr" title={`المستوى ${level}`}>
-    <img src={custom?.url || icons.level} alt="" className="rank-pill-icon"/>
+    <img src={custom?.url || icons.level} alt="" className="rank-pill-icon" onError={(e)=>{const el=e.currentTarget;if(el.dataset.fallback!=="1"){el.dataset.fallback="1";el.src=icons.level;}}}/>
     <b className="text-[10px] font-black leading-none">Lv.{lv}</b>
   </span>;
 }
@@ -115,7 +115,7 @@ export function VipChip({ vip }: { vip: number }) {
   const custom=catalog.find(c=>c.kind==='vip'&&c.rank===vip&&c.enabled);
   const n=Math.min(12,Math.max(1,vip));
   const tier=n<=3?0:n<=6?1:n<=9?2:3;
-  return <span title={`VIP ${vip}`} aria-label={`VIP ${vip}`} dir="ltr" className={`rank-pill vip-t${tier} inline-flex h-[18px] shrink-0 items-center ps-[22px] pe-1.5`}><img src={custom?.url || icons.badge} alt="" className="rank-pill-icon"/><b className="text-[9.5px] font-black italic leading-none">VIP{n}</b></span>;
+  return <span title={`VIP ${vip}`} aria-label={`VIP ${vip}`} dir="ltr" className={`rank-pill vip-t${tier} inline-flex h-[18px] shrink-0 items-center ps-[22px] pe-1.5`}><img src={custom?.url || icons.badge} alt="" className="rank-pill-icon" onError={(e)=>{const el=e.currentTarget;if(el.dataset.fallback!=="1"){el.dataset.fallback="1";el.src=icons.badge;}}}/><b className="text-[9.5px] font-black italic leading-none">VIP{n}</b></span>;
 }
 /** Badges the user owns (bought or sent by the administration), shown in one tidy row under the ID. */
 export function UserBadges({userId,align='center',size=26}:{userId:string;align?:'center'|'start';size?:number}) {
