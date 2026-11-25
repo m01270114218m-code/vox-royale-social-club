@@ -40,7 +40,7 @@ export async function signIn(a: NonNullable<Auth>) {
       return;
     } catch (error) {
       console.error("[Auth] Native Google sign-in failed", error);
-      return;
+      throw error;
     }
   }
 
