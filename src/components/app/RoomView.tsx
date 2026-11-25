@@ -60,6 +60,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const [seats, setSeats] = useState<SeatS[]>(() => Array.from({ length: 8 }, (_, i) => ({ uid: i === 0 && hostHere ? room.hostId : null, locked: false, muted: false })));
   const [hearts, setHearts] = useState<number[]>([0, 0, 0, 0, 0, 0, 0, 0]);
   const [micOn, setMicOn] = useState(false);
+  const [membershipReady, setMembershipReady] = useState(false);
   const [follow, setFollow] = useState(false);
   const [tab, setTab] = useState(0);
   const [sheet, setSheet] = useState<Sheets>(null);
@@ -123,9 +124,50 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     return () => clearTimeout(t0);
   }, []);
 
+  // A single database membership row prevents the same account from appearing twice.
+  const roomDbId = room.dbId ?? cloud?.roomList.find((r) => r.id === id)?.dbId;
+  useEffect(() => {
+    if (!live || !roomDbId) {
+      setMembershipReady(!live);
+      return;
+    }
+    let cancelled = false;
+    let acquired = false;
+    let heartbeat: ReturnType<typeof setInterval> | undefined;
+    const join = async () => {
+      const { error } = await supabase.rpc('join_room', { p_room_id: roomDbId });
+      if (error) {
+        if (!cancelled) {
+          toast(error.message || 'هذا الحساب موجود بالفعل في الغرفة');
+          setActiveRoom(null);
+          void nav({ to: '/', replace: true });
+        }
+        return;
+      }
+      acquired = true;
+      if (cancelled) {
+        void supabase.rpc('leave_room', { p_room_id: roomDbId });
+        return;
+      }
+      setMembershipReady(true);
+      heartbeat = setInterval(() => {
+        void supabase.rpc('heartbeat_room', { p_room_id: roomDbId }).then(({ error: beatError }) => {
+          if (beatError) console.warn('[room] heartbeat failed:', beatError.message);
+        });
+      }, 20000);
+    };
+    void join();
+    return () => {
+      cancelled = true;
+      if (heartbeat) clearInterval(heartbeat);
+      setMembershipReady(false);
+      if (acquired) void supabase.rpc('leave_room', { p_room_id: roomDbId });
+    };
+  }, [id, roomDbId, live, nav]);
+
   // mic activity time for the host center
-  const micLive = micOn && mySeat >= 0 && !seats[mySeat]?.muted;
-  useAgoraRoom(id, micLive);
+  const micLive = membershipReady && micOn && mySeat >= 0 && !seats[mySeat]?.muted;
+  useAgoraRoom(id, micLive, membershipReady);
   useEffect(() => {
     if (!micLive) return;
     void cloudAction('activity',{kind:'mic'}).catch(()=>{});
@@ -223,7 +265,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const onlineCount = room.online + present.length;
   const leave = () => { if (router.history.canGoBack()) router.history.back(); else void nav({ to: "/", replace: true }); };
   const minimize = () => { setExitMenu(false); leave(); };
-  const close = () => { setExitMenu(false); setActiveRoom(null); leave(); };
+  const close = async () => { setExitMenu(false); setMicOn(false); if (live && roomDbId) await supabase.rpc("leave_room", { p_room_id: roomDbId }); setActiveRoom(null); leave(); };
 
   const tools = [
     {n:'الأغاني',i:Music2,ok:true,f:()=>setSheet({kind:'music'})},
