@@ -21,7 +21,7 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException;
 
@@ -58,17 +58,17 @@ public class NativeGoogleAuthPlugin extends Plugin {
             credentialManager = CredentialManager.create(activity);
         }
 
-        // Always request all Google accounts and disable automatic selection so
-        // the user gets the account chooser on every login attempt.
-        GetGoogleIdOption googleIdOption = new GetGoogleIdOption.Builder()
-                .setFilterByAuthorizedAccounts(false)
-                .setAutoSelectEnabled(false)
-                .setServerClientId(webClientId)
-                .setNonce(generateSecureRandomNonce())
-                .build();
+        // This is the explicit "Sign in with Google" button flow.
+        // Google recommends GetSignInWithGoogleOption for a persistent sign-in
+        // button because it can present the account chooser even when an
+        // existing account needs re-authentication.
+        GetSignInWithGoogleOption googleOption =
+                new GetSignInWithGoogleOption.Builder(webClientId)
+                        .setNonce(generateSecureRandomNonce())
+                        .build();
 
         GetCredentialRequest request = new GetCredentialRequest.Builder()
-                .addCredentialOption(googleIdOption)
+                .addCredentialOption(googleOption)
                 .build();
 
         credentialManager.getCredentialAsync(
@@ -120,7 +120,7 @@ public class NativeGoogleAuthPlugin extends Plugin {
                         } else if (error instanceof NoCredentialException) {
                             call.reject("No Google account is available on this device. Add a Google account and try again.");
                         } else {
-                            call.reject("Google account chooser failed: " + safeMessage(error), error);
+                            call.reject("Google sign-in failed: " + safeMessage(error), error);
                         }
                     }
                 }
