@@ -97,25 +97,25 @@ export function RoleBadge({ role, className = "h-4 w-4" }: { role: Role; classNa
   return <img src={roleImg[role]} alt={role === "owner" ? "مالك" : "مشرف"} className={className} onError={(e)=>{const el=e.currentTarget;if(el.dataset.fallback!=="1"){el.dataset.fallback="1";el.src=icons.badge;}else{el.style.visibility="hidden";}}} />;
 }
 
-/** Level badge — each level range gets its own tier style. */
+/** Level badge — restore the original individual artwork for every level number. */
 export function LevelChip({ level }: { level: number }) {
   const {catalog} = useCloudState();
-  const custom=catalog.find(c=>c.kind==='level'&&c.rank===level&&c.enabled);
   const lv=Math.min(100,Math.max(1,level));
+  const custom=catalog.find(c=>c.kind==='level'&&c.rank===lv&&c.enabled);
   const tier=Math.min(5,Math.floor((lv-1)/20));
-  return <span className={`rank-pill lv-t${tier} inline-flex h-[18px] shrink-0 items-center ps-[22px] pe-1.5`} dir="ltr" title={`المستوى ${level}`}>
-    <img src={custom?.url || icons.level} alt="" className="rank-pill-icon" onError={(e)=>{const el=e.currentTarget;if(el.dataset.fallback!=="1"){el.dataset.fallback="1";el.src=icons.level;}}}/>
+  return <span className={`rank-pill lv-t${tier} inline-flex h-[18px] shrink-0 items-center ps-[22px] pe-1.5`} dir="ltr" title={`المستوى ${lv}`}>
+    <img src={custom?.url || rankArt.level[lv-1]} alt="" className="rank-pill-icon"/>
     <b className="text-[10px] font-black leading-none">Lv.{lv}</b>
   </span>;
 }
-/** VIP badge — glossy pill whose color climbs with the VIP rank. */
+/** VIP badge — restore the original numbered VIP artwork and color tiers. */
 export function VipChip({ vip }: { vip: number }) {
   const {catalog} = useCloudState();
   if (!vip) return null;
-  const custom=catalog.find(c=>c.kind==='vip'&&c.rank===vip&&c.enabled);
   const n=Math.min(12,Math.max(1,vip));
+  const custom=catalog.find(c=>c.kind==='vip'&&c.rank===n&&c.enabled);
   const tier=n<=3?0:n<=6?1:n<=9?2:3;
-  return <span title={`VIP ${vip}`} aria-label={`VIP ${vip}`} dir="ltr" className={`rank-pill vip-t${tier} inline-flex h-[18px] shrink-0 items-center ps-[22px] pe-1.5`}><img src={custom?.url || icons.badge} alt="" className="rank-pill-icon" onError={(e)=>{const el=e.currentTarget;if(el.dataset.fallback!=="1"){el.dataset.fallback="1";el.src=icons.badge;}}}/><b className="text-[9.5px] font-black italic leading-none">VIP{n}</b></span>;
+  return <span title={`VIP ${n}`} aria-label={`VIP ${n}`} dir="ltr" className={`rank-pill vip-t${tier} inline-flex h-[18px] shrink-0 items-center ps-[22px] pe-1.5`}><img src={custom?.url || rankArt.vip[n-1]} alt="" className="rank-pill-icon"/><b className="text-[9.5px] font-black italic leading-none">VIP{n}</b></span>;
 }
 /** Badges the user owns (bought or sent by the administration), shown in one tidy row under the ID. */
 export function UserBadges({userId,align='center',size=26}:{userId:string;align?:'center'|'start';size?:number}) {
