@@ -17,3 +17,5 @@ VITE_SUPABASE_PROJECT_ID=pkqcxcfuelubonlkjgoq
 ```
 
 لا يتم وضع مفتاح الخدمة السري داخل التطبيق أو أي كود عميل.
+
+<!-- android-build-trigger -->
