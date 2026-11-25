@@ -287,6 +287,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     catch (e) { toast(e instanceof Error ? e.message : 'تعذّر الإرسال'); return; }
     const si = seats.findIndex((s) => s.uid === giftTo);
     if (si >= 0) setHearts((h) => h.map((v, i) => (i === si ? v + cost : v)));
+    if (g.soundUrl) { const audio = new Audio(g.soundUrl); audio.volume = 0.9; void audio.play().catch(() => undefined); }
     push({ kind: "gift", uid: "me", t: `أرسل ${g.n} ×${qty} إلى ${user(giftTo).name}`, gift: g.img });
     setSheet(null);
     const root = roomRef.current?.getBoundingClientRect();
