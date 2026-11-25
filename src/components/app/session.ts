@@ -11,7 +11,7 @@ const NativeGoogleAuth = registerPlugin<NativeGoogleAuthPlugin>("NativeGoogleAut
 import { supabase } from '@/integrations/supabase/client';
 
 /* ---------- Supabase-backed authentication ---------- */
-export type Auth = { method: "google" | "facebook" | "phone" | "lovable"; phone?: string; at: string; userId?: string } | null;
+export type Auth = { method: "google" | "facebook" | "phone" | "email" | "lovable"; phone?: string; at: string; userId?: string } | null;
 const AKEY = "frost-auth-v1";
 let auth: Auth = null;
 let authLoaded = false;
@@ -148,7 +148,7 @@ export function AuthBridge() {
 
     const publishSession = (userId: string | undefined) => {
       authLoaded = true;
-      auth = userId ? { method: "google", at: new Date().toISOString(), userId } : null;
+      auth = userId ? { method: "email", at: new Date().toISOString(), userId } : null;
       aSubs.forEach((s) => s());
 
       // Supabase's on_auth_user_created trigger creates the profile and wallet
