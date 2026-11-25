@@ -128,7 +128,7 @@ function Assets({ d, busy, save, refresh }: P) {
     setWorking(false); setFilter(target);
     toast(ok === files.length ? `تم رفع ${ok} ملف إلى ${sectionName(target)}` : `تم رفع ${ok} من ${files.length}`);
   };
-  const shown = d.assets.filter(a => (filter === 'all' || a.section === filter) && (type === 'all' || assetType(a.mime) === type));
+  const shown = d.assets.filter(a => (filter === 'all' || a.section === filter) && (type === 'all' || assetType(a.mime ?? '') === type));
   const count = (k: string) => d.assets.filter(a => k === 'all' || a.section === k).length;
   return <>
     <Block title="رفع ملفات جديدة">
@@ -144,9 +144,9 @@ function Assets({ d, busy, save, refresh }: P) {
     <Pills value={filter} onChange={setFilter} options={[{ k: 'all', n: `الكل (${count('all')})` }, ...ASSET_SECTIONS.filter(s => count(s.k) > 0).map(s => ({ k: s.k, n: `${s.n} (${count(s.k)})` }))]} />
     <Pills value={type} onChange={setType} options={[{ k: 'all', n: 'كل الأنواع' }, { k: 'image', n: 'صور' }, { k: 'gif', n: 'GIF' }, { k: 'svga', n: 'SVGA' }, { k: 'video', n: 'فيديو' }, { k: 'audio', n: 'صوت' }]} />
     <div className="grid grid-cols-2 gap-2">{shown.map(a => { const used = d.catalog.some(c => c.asset_id === a.id); return <div key={a.id} className="surface min-w-0 space-y-1.5 p-2">
-      <div className="grid h-28 place-items-center overflow-hidden rounded-xl bg-muted"><Media src={a.url} mime={a.mime} alt={a.name} controls={assetType(a.mime) === 'audio'} className="max-h-28 w-full" /></div>
+      <div className="grid h-28 place-items-center overflow-hidden rounded-xl bg-muted"><Media src={a.url} mime={a.mime} alt={a.name} controls={assetType(a.mime ?? '') === 'audio'} className="max-h-28 w-full" /></div>
       <p className="truncate text-[11.5px] font-bold text-navy">{a.name}</p>
-      <div className="flex items-center gap-1 text-[9.5px]"><span className="rounded-full bg-primary/10 px-1.5 font-bold uppercase text-primary" dir="ltr">{assetType(a.mime)}</span>{used && <span className="rounded-full bg-gold/25 px-1.5 font-bold text-navy">مستخدم</span>}</div>
+      <div className="flex items-center gap-1 text-[9.5px]"><span className="rounded-full bg-primary/10 px-1.5 font-bold uppercase text-primary" dir="ltr">{assetType(a.mime ?? '')}</span>{used && <span className="rounded-full bg-gold/25 px-1.5 font-bold text-navy">مستخدم</span>}</div>
       <div className="flex items-center gap-1"><select aria-label={`قسم ${a.name}`} disabled={busy} className={`${fieldClass} h-8 min-w-0 flex-1 px-1.5 text-[11px]`} value={a.section} onChange={e => void save(() => supabase.from('app_assets').update({ section: e.target.value }).eq('id', a.id), 'تم نقل الأصل')}>{ASSET_SECTIONS.map(s => <option key={s.k} value={s.k}>{s.n}</option>)}</select>
         <Button variant="ghost" size="icon" aria-label={`حذف ${a.name}`} title={used ? 'مستخدم في عنصر منشور' : 'حذف'} className="h-8 w-8 shrink-0 text-destructive" disabled={busy || used || a.path.startsWith('bundled/')} onClick={() => { if (window.confirm('حذف هذا الأصل نهائيًا؟')) void save(async () => { const result = await supabase.from('app_assets').delete().eq('id', a.id); if (!result.error) await supabase.storage.from('app-assets').remove([a.path]); return result; }, 'تم الحذف'); }}><Trash2 className="h-4 w-4" /></Button></div>
     </div>; })}</div>
