@@ -107,7 +107,7 @@ export function LevelChip({ level }: { level: number }) {
   return <span className={`rank-pill lv-t${tier} rank-pill-number inline-flex h-[20px] shrink-0 items-center ps-[23px] pe-1.5`} dir="ltr" title={`المستوى ${lv}`} style={{'--rank-hue':hue} as React.CSSProperties}>
     <span className="rank-emblem rank-emblem-level" aria-hidden="true">{lv}</span>
     {custom?.url && <img src={custom.url} alt="" className="rank-pill-icon" onError={e=>{e.currentTarget.style.display='none';}}/>}
-    <b className="text-[9px] font-black leading-none tracking-wide">LEVEL</b>
+    <b className="text-[9px] font-black leading-none tracking-wide">LV</b>
   </span>;
 }
 /** Numbered VIP medal: every VIP rank receives its own jewel hue and the original glossy pill treatment. */
