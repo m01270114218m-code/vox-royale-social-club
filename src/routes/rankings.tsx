@@ -47,7 +47,7 @@ function Rankings() {
       frame: frame ? ("cloud-" + frame.id) as User["frame"] : null,
       entry: entry ? ("cloud-" + entry.id) as User["entry"] : null,
       bubble: bubble ? ("cloud-" + bubble.id) as User["bubble"] : "none",
-      sid: row.special_id, level: row.level || 1, vip: row.vip || 0, gender: "m", flag: "", bio: row.bio || "",
+      sid: row.special_id, level: row.level || 1, vip: row.vip || 0, gender: "m" as const, flag: "", bio: row.bio || "",
       fans: 0, following: 0, charm: row.gift_value || 0, wealth: row.coins || 0, gifts: [],
     };
   });
