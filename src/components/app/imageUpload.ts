@@ -1,4 +1,4 @@
-/** Resize an uploaded image file to a compact data URL suitable for localStorage. */
+/** Resize an uploaded image file before sending it to Supabase Storage. */
 import { supabase } from "@/integrations/supabase/client";
 
 export function readImageFile(file: File, maxDim = 512, quality = 0.82): Promise<string> {
