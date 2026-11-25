@@ -15,7 +15,6 @@ import { AndroidToaster } from "@/components/app/toast";
 import { AuthBridge } from '@/components/app/session';
 import { CloudBridge } from '@/components/app/cloud';
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
   return (
@@ -43,7 +42,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    console.error(error);
   }, [error]);
 
   return (
