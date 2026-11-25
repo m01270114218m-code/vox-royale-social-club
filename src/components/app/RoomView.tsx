@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCloud, useCloudActions, cloudAction } from './cloud';
 import { ChatText } from './ChatText';
 import { RoomMusic } from './RoomMusic';
+import { useAgoraRoom } from './voice';
 
 type Msg = { id: number; kind: "chat" | "sys" | "gift" | "notice" | "lucky"; uid?: string; t: string; gift?: string };
 type SeatS = { uid: string | null; locked: boolean; muted: boolean };
@@ -120,6 +121,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
 
   // mic activity time for the host center
   const micLive = micOn && mySeat >= 0 && !seats[mySeat]?.muted;
+  useAgoraRoom(id, micLive);
   useEffect(() => {
     if (!micLive) return;
     void cloudAction('activity',{kind:'mic'}).catch(()=>{});
