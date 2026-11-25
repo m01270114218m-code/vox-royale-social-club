@@ -10,18 +10,17 @@ cd "$ROOT"
 npm install --no-audit --no-fund
 CAPACITOR=1 VITE_LOGIN_VIDEO=/media/ice_palace_login.mp4 npx vite build
 
-WEB_DIR="$ROOT/dist/client"
-if [ ! -s "$WEB_DIR/_shell.html" ]; then
-  echo "::error::Expected SPA shell was not generated at dist/client/_shell.html"
-  echo "Generated client files:"
-  find "$WEB_DIR" -maxdepth 2 -type f | head -80 || true
+WEB_DIR="$ROOT/.output/public"
+if [ ! -s "$WEB_DIR/index.html" ]; then
+  echo "::error::Expected static app entry was not generated at .output/public/index.html"
+  echo "Generated public files:"
+  find "$ROOT/.output" -maxdepth 3 -type f | head -100 || true
   exit 1
 fi
 
 rm -rf "$MOBILE/www"
 mkdir -p "$MOBILE/www"
 cp -a "$WEB_DIR/." "$MOBILE/www/"
-cp "$MOBILE/www/_shell.html" "$MOBILE/www/index.html"
 rm -f "$MOBILE/www/_headers"
 
 mkdir -p "$MOBILE/www/media"
