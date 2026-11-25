@@ -163,6 +163,7 @@ export function AuthBridge() {
       }).catch((error) => console.warn("[auth] launch URL unavailable", error));
       void App.addListener("appUrlOpen", ({ url }) => handleOAuthCallback(url)).then((listener) => {
         urlListener = listener;
+        return undefined;
       });
     }
 
