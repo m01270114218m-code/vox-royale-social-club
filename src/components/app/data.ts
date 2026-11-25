@@ -75,7 +75,7 @@ export const ui = { coin: uCoin, gem: uGem, seat: uSeat, castle: uCastle, mail: 
 export const icons = { wallet: iWallet, host: iHost, task: iTask, rewards: iRewards, shop: iShop, level: iLevel, badge: iBadge, id: iId, recharge: iRecharge, hostAgent: iHostAgent, bd: iBd };
 export const rankArt = { vip: vipArtwork, level: levelsArtwork };
 
-export type Room = { id: string; name: string; flag: string; vip: number; online: number; img: string; host: string; hostId: string; badges: string[]; tag: string; notice: string; cloud?: boolean; ownerId?: string };
+export type Room = { id: string; dbId?: string; name: string; flag: string; vip: number; online: number; img: string; host: string; hostId: string; badges: string[]; tag: string; notice: string; cloud?: boolean; ownerId?: string };
 
 const notice = "أهلاً بكم في الغرفة. الاحترام أولاً، وممنوع الإساءة أو الإعلانات.";
 export const rooms: Room[] = [];
