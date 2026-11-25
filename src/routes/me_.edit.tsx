@@ -4,7 +4,7 @@ import { Camera } from "lucide-react";
 import { toast } from "@/components/app/toast";
 import { SubHeader } from "@/components/app/AppShell";
 import { avatars } from "@/components/app/data";
-import { readImageFile } from "@/components/app/imageUpload";
+import { readImageFile, uploadImageDataUrl } from "@/components/app/imageUpload";
 import { MY_UID, setProfile, useProfile } from "@/components/app/profile";
 import { Avatar, SpecialId } from "@/components/app/ui";
 import { useCloudActions } from '@/components/app/cloud';
@@ -34,8 +34,14 @@ function EditProfile() {
   };
   const save = async () => {
     if (!f.name.trim()) { toast("اكتب اسمك أولاً"); return; }
-    if(!await act('profile',{name:f.name.trim(),bio:f.bio.trim(),avatar:f.customAvatar||avatars[f.avatar]||''}))return;
-    setProfile({ name: f.name.trim(), bio: f.bio.trim(), gender: f.gender, flag: f.flag, avatar: f.avatar, customAvatar: f.customAvatar });
+    try {
+      const avatar = f.customAvatar ? await uploadImageDataUrl(f.customAvatar, "profile") : avatars[f.avatar] || "";
+      if(!await act('profile',{name:f.name.trim(),bio:f.bio.trim(),avatar}))return;
+      setProfile({ name: f.name.trim(), bio: f.bio.trim(), gender: f.gender, flag: f.flag, avatar: f.avatar, customAvatar: f.customAvatar ? avatar : null });
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "تعذّر رفع الصورة");
+      return;
+    }
     toast("تم حفظ الملف الشخصي");
     void nav({ to: "/me" });
   };
