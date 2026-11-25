@@ -32,9 +32,45 @@ export function AuthBridge() {
       auth = userId ? { method: 'google', at: new Date().toISOString(), userId } : null;
       aSubs.forEach(s=>s());
     };
-    void supabase.auth.getSession().then(({data})=>update(data.session?.user.id));
+
+    // Google may return to the web origin with a hash session (especially in
+    // local/preview builds). Consume it here so the app never gets stuck on
+    // http://localhost:3000/#access_token=... .
+    const consumeOAuthCallback = async () => {
+      if (typeof window === 'undefined') return;
+
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const accessToken = hash.get('access_token');
+      const refreshToken = hash.get('refresh_token');
+      const code = new URLSearchParams(window.location.search).get('code');
+
+      if (accessToken && refreshToken) {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (error) throw error;
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+
+    void consumeOAuthCallback()
+      .catch(error => console.error('[Auth] OAuth callback failed', error))
+      .finally(() => {
+        void supabase.auth.getSession().then(({data})=>update(data.session?.user.id));
+      });
+
     const {data} = supabase.auth.onAuthStateChange((event,session)=>{
-      if(event==='SIGNED_IN'||event==='SIGNED_OUT'||event==='USER_UPDATED') update(session?.user.id);
+      if(event==='SIGNED_IN'||event==='SIGNED_OUT'||event==='USER_UPDATED'||event==='INITIAL_SESSION') {
+        update(session?.user.id);
+      }
     });
     return ()=>data.subscription.unsubscribe();
   },[]);
