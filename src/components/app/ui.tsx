@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
-import { frames, roleImg, icons, sidTone, type FrameKey } from "./data";
+import { frames, roleImg, icons, images, avatarAt, sidTone, type FrameKey } from "./data";
 import { useCloudState } from './cloud-state';
 import type { Role } from "./permissions";
 import { pushBack } from './back';
@@ -13,8 +13,8 @@ export function Avatar({ img, frame, size, className = "", ring = "" }: { img: s
   const fs = Math.round(size * 1.42);
   return (
     <span className={`relative inline-grid shrink-0 place-items-center ${className}`} style={{ width: size, height: size }}>
-      <img src={img} alt="" className={`h-full w-full rounded-full object-cover ${ring}`} />
-      {frameImage && <img src={frameImage} alt="" className="pointer-events-none absolute max-w-none" style={{ width: fs, height: fs, left: (size - fs) / 2, top: (size - fs) / 2 }} />}
+      <img src={img || avatarAt(0)} alt="" className={`h-full w-full rounded-full object-cover ${ring}`} onError={(e) => { if (e.currentTarget.dataset.fallback !== "1") { e.currentTarget.dataset.fallback = "1"; e.currentTarget.src = avatarAt(0); } }} />
+      {frameImage && <img src={frameImage} alt="" className="pointer-events-none absolute max-w-none" style={{ width: fs, height: fs, left: (size - fs) / 2, top: (size - fs) / 2 }} onError={(e) => { e.currentTarget.style.display = "none"; }} />}
     </span>
   );
 }
@@ -58,7 +58,7 @@ export function Media({src,mime,alt='',className='',controls=false,loop=true,onE
   if(k==='video')return <video src={src} className={`object-contain ${className}`} autoPlay muted={!controls} loop={loop} playsInline controls={controls} onEnded={onEnded}/>;
   if(k==='audio')return controls?<audio src={src} controls className={`w-full ${className}`} onEnded={onEnded}/>:<span className={`grid place-items-center rounded-xl bg-primary/10 text-primary ${className}`}><svg viewBox="0 0 24 24" className="h-1/2 w-1/2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>;
   if(k==='file')return <span className={`grid place-items-center rounded-xl bg-muted text-[10px] font-bold text-muted-foreground ${className}`} dir="ltr">{(src.split('?')[0]?.split('.').at(-1)??'file').toUpperCase()}</span>;
-  return <img src={src} alt={alt} className={`object-contain ${className}`}/>;
+  return <img src={src} alt={alt} className={`object-contain ${className}`} onError={(e) => { if (e.currentTarget.dataset.fallback !== "1") { e.currentTarget.dataset.fallback = "1"; e.currentTarget.src = images.mascot; } }} />;
 }
 
 /** Color the admin set for a user's ID / name. */
