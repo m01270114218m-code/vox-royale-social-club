@@ -8,6 +8,9 @@ APK="$MOBILE/android/app/build/outputs/apk/debug/app-debug.apk"
 
 cd "$ROOT"
 npm install --no-audit --no-fund
+# Run the project's automated tests and strict TypeScript checks before packaging.
+npm test
+npx tsc --noEmit
 CAPACITOR=1 VITE_LOGIN_VIDEO=/media/ice_palace_login.mp4 npx vite build
 
 WEB_DIR="$ROOT/.output/public"
