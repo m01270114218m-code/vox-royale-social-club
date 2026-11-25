@@ -22,13 +22,11 @@ function Login() {
    // User cancellation is a normal action, not an error toast.
    if (/cancelled|canceled|إلغاء|ألغى/i.test(message)) return;
    console.error("[Login] sign-in failed", e);
-   toast("تعذّر فتح تسجيل الدخول عبر Google، حاول مرة أخرى");
+   toast("تعذّر فتح تسجيل الدخول عبر Facebook، حاول مرة أخرى");
   }finally{setBusy(false);}};
- const social=(provider:"google")=>run(async()=>{
-  if(provider!=="google")return;
-  // Android: Credential Manager + Google ID token + Supabase.
-  // Never start browser OAuth here, which causes localhost/?code=... .
-  await signIn({method:"google",at:new Date().toISOString()});
+ const social=(provider:"facebook")=>run(async()=>{
+  if(provider!=="facebook")return;
+  await signIn({method:"facebook",at:new Date().toISOString()});
  });
  const emailSubmit=()=>run(async()=>{
   if(signup){const {data,error}=await supabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin}}); if(error)throw error; if(!data.session)toast("تم إنشاء الحساب، افتح بريدك لتأكيده");}
@@ -49,7 +47,7 @@ function Login() {
  <p className="auth-option mt-2 flex items-center gap-2 text-[13px] font-bold tracking-wide opacity-90"><span className="h-px w-7 bg-gold/60"/>صدى شات<span className="h-px w-7 bg-gold/60"/></p>
  <p className="auth-option mt-1.5 text-[11.5px] opacity-70">غرف صوتية، هدايا فاخرة وأصدقاء جدد</p><div className="flex-1"/>
  {mode==="menu"&&<div className="login-glass auth-option w-full space-y-2.5 rounded-3xl p-4"><p className="pb-1 text-center text-[13.5px] font-black">سجّل دخولك للمتابعة</p>
-  <Button disabled={busy} onClick={()=>void social("google")} className={`google-signin ${opt}`} style={{animationDelay:"0ms"}}><svg aria-hidden="true" viewBox="0 0 24 24" className="h-[18px] w-[18px]"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"/><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"/></svg><span className="flex-1 text-center">المتابعة باستخدام Google</span></Button>
+  <Button disabled={busy} onClick={()=>void social("facebook")} className={`facebook-signin ${opt}`} style={{animationDelay:"0ms"}}><svg aria-hidden="true" viewBox="0 0 24 24" className="h-[18px] w-[18px] fill-current"><path d="M13.5 22v-8h2.75l.42-3h-3.17V9.08c0-.87.24-1.46 1.5-1.46h1.79V4.94c-.31-.04-1.37-.14-2.61-.14-2.58 0-4.35 1.58-4.35 4.48V11H7v3h2.83v8h3.67Z"/></svg><span className="flex-1 text-center">المتابعة باستخدام Facebook</span></Button>
   <Button disabled={busy} variant="secondary" onClick={()=>setMode("email")} className={opt} style={{animationDelay:"80ms"}}><Mail className="h-[18px] w-[18px] text-primary"/><span className="flex-1 text-center">البريد الإلكتروني وكلمة السر</span></Button>
   <Button disabled={busy} variant="secondary" onClick={()=>setMode("phone")} className={opt} style={{animationDelay:"160ms"}}><Smartphone className="h-[18px] w-[18px] text-primary"/><span className="flex-1 text-center">رقم الهاتف</span></Button></div>}
  {mode==="email"&&<form className="auth-option w-full space-y-2.5 rounded-3xl login-glass p-4" onSubmit={e=>{e.preventDefault();void emailSubmit();}}>
