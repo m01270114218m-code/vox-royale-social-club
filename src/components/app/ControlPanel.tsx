@@ -265,6 +265,7 @@ function Catalog({ kind, ...p }: P & { kind: string }) {
   </>;
 }
 
+// Optional audio for catalog gifts and entry effects is stored by asset key.
 const privateKinds = ['frame', 'entry', 'bubble', 'seat', 'badge'];
 /** Send an item to one user only: from the store, or a private asset that never appears in the store. */
 function DirectSend({ d, busy, action, uid, setUid, refresh, kind }: P & { kind?: string }) {
