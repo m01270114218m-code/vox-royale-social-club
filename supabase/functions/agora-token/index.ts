@@ -90,7 +90,11 @@ Deno.serve(async (req: Request) => {
     if (membershipError) throw new Error("تعذّر التحقق من عضوية الغرفة");
     if (!membership) return json({ error: "يجب دخول الغرفة أولاً" }, 403);
 
-    const uid = Number(body?.rtc_uid ?? profile.uid);
+    const requestedUid = Number(body?.rtc_uid);
+    const profileUid = Number(profile.uid);
+    const uid = Number.isSafeInteger(requestedUid) && requestedUid > 0 && requestedUid <= 2147483647
+      ? requestedUid
+      : profileUid;
     if (!Number.isSafeInteger(uid) || uid <= 0 || uid > 2147483647) {
       throw new Error("معرّف اتصال الصوت غير صالح");
     }
