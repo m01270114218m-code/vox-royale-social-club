@@ -101,7 +101,7 @@ export function useProfile(): Profile {
   if(!cloud.profile)return local;
   const own=cloud.items.filter(i=>i.user_id===cloud.profile?.id&&i.equipped);
   const worn=(kind:string)=>cloud.catalog.find(c=>c.kind===kind&&own.some(i=>i.catalog_id===c.id));
-  return {...local,name:cloud.profile.name,bio:cloud.profile.bio,coins:cloud.profile.coins,diamonds:cloud.profile.diamonds,sid:cloud.profile.special_id,agentEnabled:cloud.roles.includes('host_agent'),bdEnabled:cloud.roles.includes('bd'),frame:worn('frame')?`cloud-${worn('frame')?.id}` as FrameKey:null,entry:worn('entry')?`cloud-${worn('entry')?.id}` as EntryKey:null,bubble:worn('bubble')?`cloud-${worn('bubble')?.id}` as BubbleKey:'none'};
+  return {...local,name:cloud.profile.name,bio:cloud.profile.bio,avatar:0,customAvatar:null,owned:[],following:[],roomMedia:{},dms:{},coins:cloud.profile.coins,diamonds:cloud.profile.diamonds,sid:cloud.profile.special_id,agentEnabled:cloud.roles.includes('host_agent'),bdEnabled:cloud.roles.includes('bd'),frame:worn('frame')?`cloud-${worn('frame')?.id}` as FrameKey:null,entry:worn('entry')?`cloud-${worn('entry')?.id}` as EntryKey:null,bubble:worn('bubble')?`cloud-${worn('bubble')?.id}` as BubbleKey:'none'};
 }
 
 export const MY_UID = "1031437";
