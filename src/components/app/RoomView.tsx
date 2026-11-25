@@ -181,7 +181,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     }
     let cancelled = false;
     const loadMembers = async () => {
-      const { data, error } = await (supabase as any).from("room_members").select("user_id").eq("room_id", roomDbId);
+      const { data, error } = await (supabase as any).from("room_members").select("user_id, joined_at").eq("room_id", roomDbId).order("joined_at", { ascending: true });
       if (cancelled) return;
       if (error) {
         console.warn("[room] member list unavailable:", error.message);
@@ -194,6 +194,17 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     const timer = window.setInterval(() => { void loadMembers(); }, 3000);
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [live, roomDbId, membershipReady]);
+
+  // Keep the visible member list synchronized with the real room_members rows.
+  // The previous UI only initialized this list with the local user, so other
+  // accounts could be in the database while remaining invisible in the room.
+  useEffect(() => {
+    if (!live || !membershipReady) return;
+    const ownId = cloud?.profile?.id;
+    const ids = roomMemberIds.map((uid) => uid === ownId ? "me" : uid);
+    if (ownId && !ids.includes("me")) ids.unshift("me");
+    setPresent(ids);
+  }, [roomMemberIds, cloud?.profile?.id, live, membershipReady]);
 
   // mic activity time for the host center
   const micLive = membershipReady && micOn && mySeat >= 0 && !seats[mySeat]?.muted;
