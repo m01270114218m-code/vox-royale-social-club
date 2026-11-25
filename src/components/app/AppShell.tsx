@@ -172,8 +172,8 @@ export function RoomCard({ r }: { r: Room }) {
   return (
     <Link to="/room/$id" params={{ id: r.id }} className="room-card-pro press flex items-center gap-3.5 p-2.5">
       <div className="relative shrink-0">
-        <img src={cover} alt={title} className="h-[76px] w-[76px] rounded-2xl object-cover shadow-sm" />
-        {frame?.url&&<img src={frame.url} alt="إطار الغرفة" className="pointer-events-none absolute -inset-2 h-[92px] w-[92px] max-w-none object-contain"/>}
+        <img src={cover || images.room} alt={title} className="h-[76px] w-[76px] rounded-2xl object-cover shadow-sm" onError={(e) => { if (e.currentTarget.dataset.fallback !== "1") { e.currentTarget.dataset.fallback = "1"; e.currentTarget.src = images.room; } }} />
+        {frame?.url&&<img src={frame.url} alt="إطار الغرفة" className="pointer-events-none absolute -inset-2 h-[92px] w-[92px] max-w-none object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }}/>}
         <span className="absolute bottom-1 right-1 rounded-md bg-night/70 px-1.5 py-px text-[9px] font-bold text-night-foreground backdrop-blur-sm">{r.tag}</span>
       </div>
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-2.5 py-0.5">
