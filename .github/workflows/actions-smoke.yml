@@ -39,10 +39,10 @@ jobs:
           set -euo pipefail
           node --version
           npm --version
-          if [ -n "${JAVA_HOME_17_X64:-}" ] && [ -x "$JAVA_HOME_17_X64/bin/java" ]; then
-            JDK_HOME="$JAVA_HOME_17_X64"
-          elif [ -n "${JAVA_HOME_21_X64:-}" ] && [ -x "$JAVA_HOME_21_X64/bin/java" ]; then
+          if [ -n "${JAVA_HOME_21_X64:-}" ] && [ -x "$JAVA_HOME_21_X64/bin/java" ]; then
             JDK_HOME="$JAVA_HOME_21_X64"
+          elif [ -n "${JAVA_HOME_17_X64:-}" ] && [ -x "$JAVA_HOME_17_X64/bin/java" ]; then
+            JDK_HOME="$JAVA_HOME_17_X64"
           else
             JDK_HOME="$JAVA_HOME"
           fi
@@ -50,6 +50,7 @@ jobs:
           echo "JAVA_HOME=$JDK_HOME" >> "$GITHUB_ENV"
           echo "$JDK_HOME/bin" >> "$GITHUB_PATH"
           "$JDK_HOME/bin/java" -version
+          "$JDK_HOME/bin/javac" -version
           test -n "${ANDROID_HOME:-}" || test -n "${ANDROID_SDK_ROOT:-}"
 
       - name: Build Android APK
