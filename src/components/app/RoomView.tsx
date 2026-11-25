@@ -239,14 +239,15 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
       if (!roomDbId || !recipient.id || recipient.id === cloud?.profile?.id) {
         throw new Error("اختر مستخدمًا موجودًا فعليًا في الغرفة");
       }
-      const { data, error } = await supabase.rpc('send_catalog_gift', {
+      const { data, error } = await (supabase as any).rpc('send_catalog_gift', {
         p_catalog_id: g.id,
         p_receiver_id: recipient.id,
         p_room_id: roomDbId,
         p_quantity: qty,
       });
       if (error) throw new Error(error.message);
-      res = (data ?? {}) as typeof res;
+      const giftResult = (data ?? {}) as unknown as { x?: number; win?: number };
+      res = giftResult;
       void qc.invalidateQueries({ queryKey: ['cloud'] });
     }
     catch (e) { toast(e instanceof Error ? e.message : 'تعذّر الإرسال'); return; }
