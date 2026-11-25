@@ -183,7 +183,7 @@ export const loginMedia = { video: (import.meta.env["VITE_LOGIN_VIDEO"] as strin
 
 /* ---------- gift categories ---------- */
 export type GiftTab = "static" | "animated" | "lucky";
-export type ShopGift = Gift & { lucky?: boolean; id?: string; animated?: boolean; full?: boolean; mime?: string };
+export type ShopGift = Gift & { lucky?: boolean; id?: string; animated?: boolean; full?: boolean; mime?: string; soundUrl?: string };
 export const luckyGifts: ShopGift[] = [
   { img: gRose, n: "وردة الحظ", p: 10, lucky: true },
   { img: gChoco, n: "حلوى الحظ", p: 50, lucky: true },
