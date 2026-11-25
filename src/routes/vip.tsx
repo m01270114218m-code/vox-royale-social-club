@@ -61,7 +61,7 @@ function Vip() {
         <div className="grid grid-cols-4 gap-y-3">
           {perks.map((p, i) => (
             <div key={p.l} className={`flex flex-col items-center gap-1 text-center text-[11px] transition ${i <= lv ? "" : "opacity-30 grayscale"}`}>
-              <span className="grid h-[52px] w-[52px] place-items-center rounded-2xl night-glass ring-1 ring-ice/40" onErrorCapture={(e) => { (e.currentTarget as HTMLSpanElement).style.display = "none"; }}><img src={p.i} alt="" className="h-9 w-9 object-contain" onError={(e) => { e.currentTarget.parentElement?.remove(); }} /></span>{p.l}
+              <span className="grid h-[52px] w-[52px] place-items-center rounded-2xl night-glass ring-1 ring-ice/40"><img src={p.i} alt="" className="h-9 w-9 object-contain" onError={(e) => { e.currentTarget.parentElement?.remove(); }} /></span>{p.l}
             </div>
           ))}
         </div>
