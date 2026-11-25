@@ -44,8 +44,8 @@ Deno.serve(async (req: Request) => {
     if (profile.banned) return Response.json({ error: "الحساب محظور" }, { status: 403, headers: cors });
     if (roomError || !room) return Response.json({ error: "الغرفة غير موجودة" }, { status: 404, headers: cors });
 
-    const uid = Number(profile.uid);
-    if (!Number.isSafeInteger(uid) || uid <= 0 || uid > 4294967295) throw new Error("معرّف المستخدم غير صالح للصوت");
+    const uid = Number(body?.rtc_uid ?? profile.uid);
+    if (!Number.isSafeInteger(uid) || uid <= 0 || uid > 4294967295) throw new Error("معرّف اتصال الصوت غير صالح");
     const channel = `sada-room-${room.room_uid}`;
     const expireAt = Math.floor(Date.now() / 1000) + 3600;
     const token = RtcTokenBuilder.buildTokenWithUid(
