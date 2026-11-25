@@ -25,6 +25,8 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 
 @CapacitorPlugin(name = "NativeGoogleAuth")
@@ -62,9 +64,12 @@ public class NativeGoogleAuthPlugin extends Plugin {
         // Google recommends GetSignInWithGoogleOption for a persistent sign-in
         // button because it can present the account chooser even when an
         // existing account needs re-authentication.
+        String rawNonce = generateSecureRandomNonce();
+        String hashedNonce = sha256Hex(rawNonce);
+
         GetSignInWithGoogleOption googleOption =
                 new GetSignInWithGoogleOption.Builder(webClientId)
-                        .setNonce(generateSecureRandomNonce())
+                        .setNonce(hashedNonce)
                         .build();
 
         GetCredentialRequest request = new GetCredentialRequest.Builder()
@@ -105,9 +110,8 @@ public class NativeGoogleAuthPlugin extends Plugin {
 
                             JSObject result = new JSObject();
                             result.put("idToken", idToken);
+                            result.put("nonce", rawNonce);
                             call.resolve(result);
-                        } catch (GoogleIdTokenParsingException error) {
-                            call.reject("Google returned an invalid ID token.", error);
                         } catch (Exception error) {
                             call.reject("Google sign-in could not be completed: " + safeMessage(error), error);
                         }
@@ -166,6 +170,16 @@ public class NativeGoogleAuthPlugin extends Plugin {
                 bytes,
                 Base64.NO_WRAP | Base64.URL_SAFE | Base64.NO_PADDING
         );
+    }
+
+    private static String sha256Hex(String value) throws Exception {
+        byte[] digest = MessageDigest.getInstance("SHA-256")
+                .digest(value.getBytes(StandardCharsets.UTF_8));
+        StringBuilder out = new StringBuilder(digest.length * 2);
+        for (byte b : digest) {
+            out.append(String.format("%02x", b & 0xff));
+        }
+        return out.toString();
     }
 
     private static String safeMessage(Throwable error) {
