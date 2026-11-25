@@ -17,7 +17,13 @@ function Login() {
  const [email,setEmail]=useState(""); const [password,setPassword]=useState("");
  const [phone,setPhone]=useState(""); const [code,setCode]=useState(""); const [sent,setSent]=useState(false);
  useEffect(()=>{if(auth?.userId)void nav({to:"/",replace:true});},[auth,nav]);
- const run=async(fn:()=>Promise<void>)=>{setBusy(true);try{await fn();}catch(e){toast(e instanceof Error?e.message:"تعذّر تسجيل الدخول");}finally{setBusy(false);}};
+ const run=async(fn:()=>Promise<void>)=>{setBusy(true);try{await fn();}catch(e){
+   const message=e instanceof Error?e.message:"";
+   // User cancellation is a normal action, not an error toast.
+   if (/cancelled|canceled|إلغاء|ألغى/i.test(message)) return;
+   console.error("[Login] sign-in failed", e);
+   toast("تعذّر فتح تسجيل الدخول عبر Google، حاول مرة أخرى");
+  }finally{setBusy(false);}};
  const social=(provider:"google")=>run(async()=>{
   if(provider!=="google")return;
   // Android: Credential Manager + Google ID token + Supabase.
