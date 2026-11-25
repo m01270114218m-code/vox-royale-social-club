@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "@/components/app/toast";
-import { SubHeader, Coin } from "@/components/app/AppShell";
+import { SubHeader } from "@/components/app/AppShell";
 import { gifts, icons, frames, entries, bubbles, storeItems } from "@/components/app/data";
 import { LiveCatalog } from '@/components/app/LiveCatalog';
 import { VipChip } from '@/components/app/ui';
@@ -24,7 +23,7 @@ function Vip() {
       <div className="px-3.5 pb-6">
         <LiveCatalog kind="vip"/>
         <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
-          {Array.from({ length: 8 }, (_, i) => i + 1).map((n) => (
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
             <button key={n} onClick={() => setLv(n)} className={`press h-8 shrink-0 rounded-full px-3.5 text-[12.5px] font-black ${lv === n ? "gold-bg text-navy" : "night-glass"}`}>VIP{n}</button>
           ))}
         </div>
@@ -49,7 +48,7 @@ function Vip() {
             </div>
           ))}
         </div>
-        <button onClick={() => toast('اختر عضوية VIP المنشورة من الإدارة لتفعيلها على حسابك')} className="press mt-6 flex w-full items-center justify-center gap-2 rounded-full gold-bg py-3 text-[15px] font-black text-navy shadow-lg">فتح VIP{lv} <Coin n={lv * 30000} /></button>
+        <p className="mt-5 text-center text-[11px] text-night-foreground/70">اختر مستوى VIP من المنتجات بالأعلى لإتمام الشراء وتفعيله على حسابك.</p>
       </div>
     </div>
   );
