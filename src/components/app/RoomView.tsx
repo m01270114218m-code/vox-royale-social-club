@@ -181,7 +181,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     }
     let cancelled = false;
     const loadMembers = async () => {
-      const { data, error } = await supabase.from("room_members").select("user_id").eq("room_id", roomDbId);
+      const { data, error } = await (supabase as any).from("room_members").select("user_id").eq("room_id", roomDbId);
       if (cancelled) return;
       if (error) {
         console.warn("[room] member list unavailable:", error.message);
