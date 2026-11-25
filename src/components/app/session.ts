@@ -18,39 +18,54 @@ function readAuth(): Auth | undefined {
   return authLoaded ? auth : undefined;
 }
 export async function signIn(a: NonNullable<Auth>) {
-  // Android opens the native Google account chooser, then exchanges the Google ID token
-  // with Supabase Auth. Supabase creates the Auth user on first sign-in and restores
-  // the same user from its persisted refresh-token session on later launches.
-  if (a.method === "google" && Capacitor.isNativePlatform()) {
+  if (a.method === "google") {
     try {
-      const webClientId = String(import.meta.env["VITE_GOOGLE_WEB_CLIENT_ID"] ?? "").trim();
-      if (!webClientId) throw new Error("Missing VITE_GOOGLE_WEB_CLIENT_ID");
+      if (Capacitor.isNativePlatform()) {
+        // Android account picker -> Google ID token -> Supabase Auth.
+        const webClientId = String(import.meta.env["VITE_GOOGLE_WEB_CLIENT_ID"] ?? "").trim();
+        if (!webClientId) throw new Error("Missing VITE_GOOGLE_WEB_CLIENT_ID");
 
-      const result = await NativeGoogleAuth.signIn({ webClientId });
-      const { data, error } = await supabase.auth.signInWithIdToken({
+        const result = await NativeGoogleAuth.signIn({ webClientId });
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: "google",
+          token: result.idToken,
+        });
+        if (error) throw error;
+        if (!data.user?.id) throw new Error("Supabase did not return a Google user");
+
+        authLoaded = true;
+        auth = { method: "google", at: new Date().toISOString(), userId: data.user.id };
+        aSubs.forEach((s) => s());
+        return;
+      }
+
+      // Browser sign-in also uses the real Supabase Google provider (never a local mock).
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        token: result.idToken,
+        options: { redirectTo: window.location.origin },
       });
       if (error) throw error;
-
-      const userId = data.user?.id;
-      if (!userId) throw new Error("Supabase did not return a Google user");
-      auth = { method: "google", at: new Date().toISOString(), userId };
-      aSubs.forEach((s) => s());
       return;
     } catch (error) {
-      console.error("[Auth] Native Google sign-in failed", error);
+      console.error("[Auth] Google sign-in failed", error);
       throw error;
     }
   }
 
+  // Preserve existing non-Google flows.
   auth = a;
+  authLoaded = true;
   try { localStorage.setItem(AKEY, JSON.stringify(a)); } catch { /* ignore */ }
   aSubs.forEach((s) => s());
 }
 export function signOut() {
-  void supabase.auth.signOut();
+  // Supabase clears its persisted refresh-token session; the same Google identity
+  // can sign in again and resolves to the same auth.users.id.
+  void supabase.auth.signOut().then(({ error }) => {
+    if (error) console.error("[Auth] Supabase sign-out failed", error);
+  });
   auth = null;
+  authLoaded = true;
   try { localStorage.removeItem(AKEY); } catch { /* ignore */ }
   aSubs.forEach((s) => s());
 }
@@ -60,49 +75,52 @@ export function useAuth(): Auth | undefined {
 }
 export function AuthBridge() {
   useEffect(() => {
-    const update = async (userId: string | undefined) => {
-      authLoaded = true;
-      auth = userId ? { method: 'google', at: new Date().toISOString(), userId } : null;
-      aSubs.forEach(s=>s());
+    let revision = 0;
 
-      // Make sure every authenticated provider (Google/email/phone) has a real
-      // profile row in Supabase and is marked online before the app shell loads.
+    const publishSession = (userId: string | undefined) => {
+      authLoaded = true;
+      auth = userId ? { method: "google", at: new Date().toISOString(), userId } : null;
+      aSubs.forEach((s) => s());
+
       if (userId) {
-        try {
-          const { data: userData } = await supabase.auth.getUser();
-          const u = userData.user;
-          const metadata = (u?.user_metadata ?? {}) as Record<string, unknown>;
-          const displayName = String(metadata["full_name"] ?? metadata["name"] ?? u?.email?.split("@")[0] ?? "مستخدم جديد").trim();
-          const avatarUrl = typeof metadata["avatar_url"] === "string" ? String(metadata["avatar_url"]) : null;
-          // The auth.users trigger creates the profile and wallet exactly once.
-          // This upsert only syncs public Google profile fields; it deliberately
-          // does not overwrite role, account_status, wallet balances, VIP or level.
-          const { error } = await supabase.from("profiles").upsert({
-            id: userId,
-            display_name: displayName,
-            name: displayName,
-            avatar_url: avatarUrl,
-            avatar: avatarUrl,
-            is_online: true,
-          }, { onConflict: "id" });
-          if (error) console.warn("[auth] profile sync failed:", error.message);
-        } catch (error) {
-          console.warn("[auth] profile sync unavailable:", error);
-        }
+        // The database trigger provisions profiles + wallets on first Auth signup.
+        // This idempotent upsert only marks the profile online. It never replaces
+        // a chosen display name, avatar, VIP, level, role, or wallet balance.
+        void supabase.from("profiles").upsert(
+          { id: userId, is_online: true },
+          { onConflict: "id", ignoreDuplicates: false },
+        ).then(({ error }) => {
+          if (error) console.warn("[auth] profile presence sync failed:", error.message);
+        }).catch((error) => {
+          console.warn("[auth] profile presence sync unavailable:", error);
+        });
       }
     };
 
-    void supabase.auth.getSession().then(({ data }) => update(data.session?.user.id));
-
-    const {data} = supabase.auth.onAuthStateChange((event,session)=>{
-      if(event==='SIGNED_IN'||event==='SIGNED_OUT'||event==='USER_UPDATED'||event==='INITIAL_SESSION') {
-        void update(session?.user.id);
+    // Subscribe before reading storage so a fresh sign-in cannot be overwritten
+    // by a slower initial getSession() response.
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" ||
+          event === "USER_UPDATED" || event === "INITIAL_SESSION" ||
+          event === "TOKEN_REFRESHED") {
+        revision += 1;
+        publishSession(session?.user.id);
       }
     });
-    return () => {
-      data.subscription.unsubscribe();
-    };
-  },[]);
+
+    const initialRevision = revision;
+    void supabase.auth.getSession().then(({ data: sessionData, error }) => {
+      if (error) console.warn("[auth] session restore failed:", error.message);
+      if (revision === initialRevision) {
+        publishSession(sessionData.session?.user.id);
+      }
+    }).catch((error) => {
+      console.warn("[auth] session restore unavailable:", error);
+      if (revision === initialRevision) publishSession(undefined);
+    });
+
+    return () => data.subscription.unsubscribe();
+  }, []);
   return null;
 }
 
