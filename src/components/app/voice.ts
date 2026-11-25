@@ -68,6 +68,7 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean, enabled = tr
         const instance = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" }) as unknown as RtcClient;
         client = instance;
         clientRef.current = instance;
+        (instance as unknown as { uid: number }).uid = credentials.uid;
         remoteUsersRef.current.clear();
 
         instance.on("user-published", (async (user: RemoteAudioUser, mediaType: "audio" | "video") => {
