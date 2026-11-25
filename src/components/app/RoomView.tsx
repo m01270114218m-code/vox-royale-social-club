@@ -174,7 +174,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
 
   // mic activity time for the host center
   const micLive = membershipReady && micOn && mySeat >= 0 && !seats[mySeat]?.muted;
-  useAgoraRoom(id, micLive, membershipReady);
+  const { speakingUids } = useAgoraRoom(id, micLive, membershipReady);
   useEffect(() => {
     if (!micLive) return;
     void cloudAction('activity',{kind:'mic'}).catch(()=>{});
@@ -346,7 +346,8 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
             const u = s.uid ? user(s.uid) : null;
             const myMicOff = s.uid === "me" && !micOn;
             const isTyping = !!u && s.uid === "me" && !!text.trim();
-            const speaking = !!u && !s.muted && (s.uid === "me" ? micOn : isTyping || i === 0);
+            const speakerUid = u?.uid ? String(u.uid) : "";
+            const speaking = !!u && !s.muted && speakingUids.has(speakerUid);
             const e = s.uid ? emo[s.uid] : undefined;
             return (
               <button key={i} onClick={() => tapSeat(i)} data-seat-uid={s.uid ?? undefined} className="relative flex flex-col items-center">
