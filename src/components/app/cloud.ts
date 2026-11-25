@@ -45,7 +45,7 @@ export async function fetchCloud() {
   const [catalog, assets, profiles, roles, settings, agencies, hosts, items, notifications, ledger, rooms, audit, userRooms, recharges] = await Promise.all([
     supabase.from('app_catalog').select('*').order('position'),
     id ? supabase.from('app_assets').select('*').order('created_at', { ascending: false }) : none,
-    id ? supabase.from('profiles').select('*').order('uid').limit(200) : none,
+    id ? supabase.from('profiles').select('*').order('uid').limit(1000) : none,
     id ? supabase.from('user_roles').select('*') : none,
     supabase.from('app_settings').select('*'),
     id ? supabase.from('agencies').select('*') : none,
