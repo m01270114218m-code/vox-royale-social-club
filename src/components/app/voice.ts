@@ -74,13 +74,17 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean, enabled = tr
         joinedUidRef.current = credentials.uid;
         remoteUsersRef.current.clear();
 
+        // Agora's volume-indicator event is not consistently emitted on every
+        // Android WebView/device. Keep it as a fast path, but also poll the
+        // actual local/remote audio tracks below so the speaking ring never
+        // disappears just because the event stream is unavailable.
         instance.enableAudioVolumeIndicator?.();
         instance.on("volume-indicator", ((volumes: Array<{ uid: string | number; level: number }>) => {
           const next = new Map<string, number>();
           for (const v of volumes) {
             const uid = String(v.uid);
             const level = Math.max(0, Math.min(100, Number(v.level) || 0));
-            if (level >= 8) next.set(uid, level);
+            if (level >= 3) next.set(uid, level);
           }
           setSpeakingLevels(next);
           setSpeakingUids(new Set(next.keys()));
@@ -125,6 +129,29 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean, enabled = tr
           await instance.leave();
           return;
         }
+
+        // Reliable speaking detection for Android: sample the real Agora
+        // audio tracks. This also fixes remote-speaker waves when
+        // volume-indicator is silent/unavailable in the WebView.
+        const speakingTimer = window.setInterval(() => {
+          if (disposed) return;
+          const next = new Map<string, number>();
+          const local = trackRef.current;
+          if (local?.getVolumeLevel) {
+            const level = Math.max(0, Math.min(100, Number(local.getVolumeLevel()) || 0));
+            if (level >= 3) next.set(String(credentials.uid), level);
+          }
+          for (const [uid, remote] of remoteUsersRef.current) {
+            const level = remote.audioTrack?.getVolumeLevel
+              ? Math.max(0, Math.min(100, Number(remote.audioTrack.getVolumeLevel()) || 0))
+              : 0;
+            if (level >= 3) next.set(uid, level);
+          }
+          setSpeakingLevels(next);
+          setSpeakingUids(new Set(next.keys()));
+        }, 120);
+
+        (instance as RtcClient & { __speakingTimer?: number }).__speakingTimer = speakingTimer;
         setReady(true);
       } catch (error) {
         if (!disposed) {
@@ -152,6 +179,8 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean, enabled = tr
         track.close();
       }
 
+      const speakingTimer = (client as (RtcClient & { __speakingTimer?: number }) | null)?.__speakingTimer;
+      if (speakingTimer) window.clearInterval(speakingTimer);
       if (client) void client.leave().catch(error => console.error("[Agora] leave failed", error));
     };
   }, [roomId, enabled]);
