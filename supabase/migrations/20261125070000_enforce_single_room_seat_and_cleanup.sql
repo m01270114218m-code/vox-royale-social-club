@@ -21,7 +21,20 @@ begin
     raise exception 'لا يمكن دخول هذه الغرفة';
   end if;
 
-  perform pg_advisory_xact_lock(hashtextextended(p_room_id::text || actor::text, 0));
+  -- One account can have only one active room membership at a time.
+  -- Serialize joins by account so switching rooms cannot race with another join.
+  perform pg_advisory_xact_lock(hashtextextended(actor::text, 0));
+
+  -- Entering a new room automatically releases every previous room membership
+  -- and any seats held there.
+  update public.room_seats
+    set user_id=null, seat_status='available', updated_at=now()
+    where user_id=actor
+      and room_id <> p_room_id;
+
+  delete from public.room_members
+    where user_id=actor
+      and room_id <> p_room_id;
 
   select last_seen_at into existing_seen
   from public.room_members
@@ -29,10 +42,9 @@ begin
   for update;
 
   if found and existing_seen > now() - interval '60 seconds' then
-    raise exception 'هذا الحساب موجود بالفعل في الغرفة على جهاز آخر';
+    return jsonb_build_object('ok',true,'switched',true);
   end if;
 
-  -- Remove any abandoned seat left by an expired session before admitting a new one.
   update public.room_seats
     set user_id=null, seat_status='available', updated_at=now()
     where room_id=p_room_id and user_id=actor;
