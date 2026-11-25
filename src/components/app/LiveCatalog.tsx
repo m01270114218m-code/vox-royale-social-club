@@ -16,7 +16,7 @@ export function LiveCatalog({ kind, home = false, empty }: { kind?: string; home
   const [busy, setBusy] = useState(false);
   const me = data?.profile?.id;
   const ownedOf = (id: string) => data?.items.find(i => i.user_id === me && i.catalog_id === id);
-  const list = data?.catalog.filter(c => c.enabled && (kind ? c.kind === kind : home ? c.home : OWN.includes(c.kind) && c.kind !== 'vip') && (!OWN.includes(c.kind) || c.in_store || !!ownedOf(c.id))) ?? [];
+  const list = data?.catalog.filter(c => c.enabled && (kind ? c.kind === kind : home ? c.home : OWN.includes(c.kind) && c.kind !== 'vip') && (!OWN.includes(c.kind) || (c.kind === 'sid' ? c.in_store : c.in_store || !!ownedOf(c.id)))) ?? [];
   const sel = data?.catalog.find(c => c.id === selected);
   const ownedItem = sel ? ownedOf(sel.id) : undefined;
   if (!list.length) return <>{empty ?? null}</>;
