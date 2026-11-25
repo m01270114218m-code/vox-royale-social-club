@@ -574,6 +574,7 @@ export type Database = {
         Returns: Json
       }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
+      purchase_vip: { Args: { p_level: number }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
