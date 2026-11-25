@@ -14,6 +14,7 @@ begin
     'where public_id::text=payload->>''uid''',
     'where uid::text=payload->>''uid'' or public_id::text=payload->>''uid'''
   );
+  if position('elsif admin and action=''levels'' then' in v) = 0 then
   v := replace(
     v,
     'else raise exception ''عملية غير معروفة''; end if;',
@@ -34,6 +35,7 @@ begin
       where id=target;
     else raise exception ''عملية غير معروفة''; end if;'
   );
+  end if;
   if v not like '%action=''levels''%' then
     raise exception 'Could not add levels action to app_action';
   end if;
