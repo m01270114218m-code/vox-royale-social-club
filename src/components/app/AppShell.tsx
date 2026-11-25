@@ -121,6 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   ];
   return (
     <div dir="rtl" className={`relative isolate mx-auto min-h-screen max-w-[440px] bg-background ${showNav ? "pb-[76px]" : ""}`}>
+      onContextMenu={(event) => event.preventDefault()}
       {children}
       {activeRoom && cloud && roomExists(activeRoom) && !isLogin && !(activeRoomDbId && cloud?.rooms.some(r=>r.room_id===activeRoomDbId&&r.banned)) && <RoomView key={activeRoom} id={activeRoom} minimized={!routeRoom} />}
       {!routeRoom && session && cloud && roomExists(session) && !isLogin && <MiniRoom id={session} lifted={showNav} />}
