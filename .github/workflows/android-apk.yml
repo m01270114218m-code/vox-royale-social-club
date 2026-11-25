@@ -2,44 +2,41 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main, empty]
+    branches:
+      - empty
   workflow_dispatch:
 
 jobs:
-  apk:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify repository
+        run: |
+          echo "Building Sada Chat from branch $GITHUB_REF_NAME"
+          test -f package.json
+          test -f mobile/build-android.sh
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - uses: actions/setup-java@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
-      - name: Backend settings
+      - name: Setup Android
+        uses: android-actions/setup-android@v3
+      - name: Build APK
+        run: bash mobile/build-android.sh
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
-        run: |
-          test -n "$VITE_SUPABASE_URL" || { echo "::error::Missing VITE_SUPABASE_URL repository secret"; exit 1; }
-          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || { echo "::error::Missing VITE_SUPABASE_PUBLISHABLE_KEY repository secret"; exit 1; }
-          {
-            echo "VITE_SUPABASE_URL=$VITE_SUPABASE_URL"
-            echo "VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY"
-            echo "VITE_SUPABASE_PROJECT_ID=${VITE_SUPABASE_PROJECT_ID:-pkqcxcfuelubonlkjgoq}"
-          } > .env
-      - name: Build APK
-        run: bash mobile/build-android.sh
-        env:
           SITE_URL: ${{ vars.SITE_URL }}
-      - uses: actions/upload-artifact@v4
-        if: success()
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: sada-chat-apk
           path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
