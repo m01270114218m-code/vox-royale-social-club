@@ -2,7 +2,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 
 interface NativeGoogleAuthPlugin {
-  signIn(options: { webClientId: string }): Promise<{ idToken: string }>;
+  signIn(options: { webClientId: string }): Promise<{ idToken: string; nonce: string }>;
 }
 
 const NativeGoogleAuth = registerPlugin<NativeGoogleAuthPlugin>("NativeGoogleAuth");
@@ -45,6 +45,7 @@ export async function signIn(a: NonNullable<Auth>) {
         const { data, error } = await supabase.auth.signInWithIdToken({
           provider: "google",
           token: result.idToken,
+          nonce: result.nonce,
         });
         if (error) throw error;
         if (!data.user?.id) throw new Error("Supabase did not return a Google user");
