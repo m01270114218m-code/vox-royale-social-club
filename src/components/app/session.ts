@@ -20,8 +20,18 @@ function readAuth(): Auth | undefined {
 export async function signIn(a: NonNullable<Auth>) {
   if (a.method === "google") {
     try {
-      if (Capacitor.isNativePlatform()) {
-        // Android account picker -> Google ID token -> Supabase Auth.
+      const nativePlatform = Capacitor.isNativePlatform() || Capacitor.getPlatform() === "android";
+      const androidDevice = typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
+
+      // Android must never fall back to browser OAuth: the installed APK uses
+      // Google Play Services to pick an on-device account and exchange its ID
+      // token directly with Supabase. A browser on Android is not the native app.
+      if (androidDevice && !nativePlatform) {
+        throw new Error("افتح تطبيق صدى شات المثبّت على الهاتف لتسجيل الدخول بحساب Google مباشرة.");
+      }
+
+      if (nativePlatform) {
+        // Native Android account picker -> Google ID token -> Supabase Auth.
         const webClientId = String(import.meta.env["VITE_GOOGLE_WEB_CLIENT_ID"] ?? "").trim();
         if (!webClientId) throw new Error("Missing VITE_GOOGLE_WEB_CLIENT_ID");
 
