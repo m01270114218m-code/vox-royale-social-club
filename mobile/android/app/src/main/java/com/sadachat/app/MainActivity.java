@@ -10,11 +10,14 @@ import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.BridgeActivity;
 
+import com.sadachat.app.plugins.NativeGoogleAuthPlugin;
+
 public class MainActivity extends BridgeActivity {
     private static final int AUDIO_PERMISSION_REQUEST = 4101;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(NativeGoogleAuthPlugin.class);
         super.onCreate(savedInstanceState);
         requestAudioPermissionIfNeeded();
     }
