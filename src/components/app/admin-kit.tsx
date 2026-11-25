@@ -49,13 +49,51 @@ export async function uploadAsset(file: File, section: string, userId: string, n
   if (!userId) throw new Error('سجّل الدخول بحساب المسؤول أولاً');
   if (file.size > MAX_UPLOAD_MB * 1024 * 1024) throw new Error(`الحجم أكبر من ${MAX_UPLOAD_MB}MB`);
   if (!file.size) throw new Error('الملف فارغ');
-  const ext = (file.name.includes('.') ? file.name.split('.').at(-1)! : 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+
+  // app_assets has required canonical columns in addition to its legacy
+  // compatibility columns. Generate a unique stable key for every upload.
+  const safeSection = section.toLowerCase().replace(/[^a-z0-9_-]/g, '-') || 'general';
+  const ext = (file.name.includes('.') ? file.name.split('.').at(-1)! : 'bin')
+    .toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
   const mime = assetMime(file.name, file.type);
-  const path = `library/${section}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from('app-assets').upload(path, file, { contentType: mime, cacheControl: '31536000' });
-  if (error) throw new Error(/row-level security|policy|Unauthorized/i.test(error.message) ? 'الرفع يحتاج حساب مسؤول' : error.message);
-  const { data, error: dbError } = await supabase.from('app_assets').insert({ name: name?.trim() || file.name.replace(/\.[^.]+$/, ''), path, mime, section, created_by: userId }).select('id').single();
-  if (dbError) { await supabase.storage.from('app-assets').remove([path]); throw new Error(dbError.message); }
+  const id = crypto.randomUUID();
+  const path = `library/${safeSection}/${id}.${ext}`;
+  const assetKey = `upload/${safeSection}/${id}`;
+  const title = (name?.trim() || file.name.replace(/\.[^.]+$/, '') || 'ملف جديد').slice(0, 180);
+  const category = ({
+    level: 'badge', vip: 'badge', sid: 'badge', room_frame: 'frame',
+    music: 'audio', welcome: 'media', splash: 'media', general: 'other',
+  } as Record<string, string>)[safeSection] ?? safeSection;
+
+  const { error: storageError } = await supabase.storage.from('app-assets').upload(path, file, {
+    contentType: mime,
+    cacheControl: '31536000',
+    upsert: false,
+  });
+  if (storageError) throw new Error(/row-level security|policy|Unauthorized/i.test(storageError.message)
+    ? 'الرفع يحتاج حساب مسؤول' : storageError.message);
+
+  const { data, error: dbError } = await supabase.from('app_assets').insert({
+    asset_key: assetKey,
+    title,
+    category,
+    storage_path: path,
+    mime_type: mime,
+    is_active: true,
+    sort_order: 0,
+    metadata: { source: 'admin-upload', original_name: file.name, section: safeSection },
+    section: safeSection,
+    name: title,
+    path,
+    mime,
+    created_by: userId,
+  }).select('id').single();
+
+  if (dbError) {
+    // Do not leave an orphaned Storage object if the metadata row is rejected.
+    await supabase.storage.from('app-assets').remove([path]);
+    throw new Error(dbError.message);
+  }
   return data.id;
 }
 
