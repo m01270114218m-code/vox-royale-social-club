@@ -62,7 +62,16 @@ export async function uploadAsset(file: File, section: string, userId: string, n
   const title = (name?.trim() || file.name.replace(/\.[^.]+$/, '') || 'ملف جديد').slice(0, 180);
   // Keep the canonical asset category populated for every section, including
   // custom sections added later by the admin.
-  const category = safeSection || 'other';
+  const category = ({
+    gift: 'gift',
+    entry: 'entrance',
+    frame: 'frame',
+    vip: 'vip',
+    banner: 'banner',
+    music: 'sound',
+    avatar: 'avatar',
+    room_frame: 'room_background',
+  } as Record<string, string>)[safeSection] ?? 'other';
 
   const { error: storageError } = await supabase.storage.from('app-assets').upload(path, file, {
     contentType: mime,
