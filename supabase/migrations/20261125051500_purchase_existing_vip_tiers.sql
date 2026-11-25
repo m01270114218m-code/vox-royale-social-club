@@ -43,4 +43,5 @@ end;
 $function$;
 
 revoke all on function public.purchase_vip(integer) from public;
+revoke all on function public.purchase_vip(integer) from anon;
 grant execute on function public.purchase_vip(integer) to authenticated;
