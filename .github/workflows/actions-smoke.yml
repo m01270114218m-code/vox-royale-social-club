@@ -14,3 +14,5 @@ jobs:
         run: |
           echo "GitHub Actions runner reached successfully"
           echo "SHA=$GITHUB_SHA"
+
+# Trigger the freshly registered Android APK workflow
