@@ -1,4 +1,5 @@
 name: Build Android APK
+# Sada Chat build workflow enabled for the empty branch
 
 on:
   push:
