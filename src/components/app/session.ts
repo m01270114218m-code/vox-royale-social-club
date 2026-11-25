@@ -159,6 +159,7 @@ export function AuthBridge() {
     if (Capacitor.isNativePlatform() || Capacitor.getPlatform() === "android") {
       void App.getLaunchUrl().then((launch) => {
         if (launch?.url) return handleOAuthCallback(launch.url);
+        return undefined;
       }).catch((error) => console.warn("[auth] launch URL unavailable", error));
       void App.addListener("appUrlOpen", ({ url }) => handleOAuthCallback(url)).then((listener) => {
         urlListener = listener;
