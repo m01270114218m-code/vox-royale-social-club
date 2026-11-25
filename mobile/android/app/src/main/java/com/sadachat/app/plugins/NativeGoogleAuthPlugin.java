@@ -3,7 +3,7 @@ package com.sadachat.app.plugins;
 import android.app.Activity;
 import android.content.Intent;
 
-import androidx.annotation.NonNull;
+import androidx.activity.result.ActivityResult;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -49,7 +49,7 @@ public class NativeGoogleAuthPlugin extends Plugin {
     }
 
     @ActivityCallback
-    private void googleSignInResult(PluginCall call, com.getcapacitor.ActivityResult result) {
+    private void googleSignInResult(PluginCall call, ActivityResult result) {
         if (call == null) return;
         if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) {
             call.reject("Google account selection was cancelled or could not be opened");
