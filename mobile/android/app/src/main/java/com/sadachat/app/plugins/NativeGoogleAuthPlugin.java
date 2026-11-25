@@ -65,7 +65,13 @@ public class NativeGoogleAuthPlugin extends Plugin {
         // button because it can present the account chooser even when an
         // existing account needs re-authentication.
         String rawNonce = generateSecureRandomNonce();
-        String hashedNonce = sha256Hex(rawNonce);
+        String hashedNonce;
+        try {
+            hashedNonce = sha256Hex(rawNonce);
+        } catch (Exception error) {
+            call.reject("Could not prepare secure Google sign-in nonce.", error);
+            return;
+        }
 
         GetSignInWithGoogleOption googleOption =
                 new GetSignInWithGoogleOption.Builder(webClientId)
