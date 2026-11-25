@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 import { Mail, Smartphone } from "lucide-react";
 import { useAuth } from "@/components/app/session";
@@ -19,7 +18,7 @@ function Login() {
  const [phone,setPhone]=useState(""); const [code,setCode]=useState(""); const [sent,setSent]=useState(false);
  useEffect(()=>{if(auth?.userId)void nav({to:"/",replace:true});},[auth,nav]);
  const run=async(fn:()=>Promise<void>)=>{setBusy(true);try{await fn();}catch(e){toast(e instanceof Error?e.message:"تعذّر تسجيل الدخول");}finally{setBusy(false);}};
- const social=(provider:"google")=>run(async()=>{const result=await lovable.auth.signInWithOAuth(provider,{redirect_uri:window.location.origin}); if(result.error)throw result.error;});
+ const social=(provider:"google")=>run(async()=>{const { error }=await supabase.auth.signInWithOAuth({provider,options:{redirectTo:window.location.origin}}); if(error)throw error;});
  const emailSubmit=()=>run(async()=>{
   if(signup){const {data,error}=await supabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin}}); if(error)throw error; if(!data.session)toast("تم إنشاء الحساب، افتح بريدك لتأكيده");}
   else{const {error}=await supabase.auth.signInWithPassword({email,password}); if(error)throw new Error("البريد أو كلمة السر غير صحيحة");}
