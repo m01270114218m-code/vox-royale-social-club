@@ -61,12 +61,12 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_rTPtpxMftXim8X_Re9LxMg_vZaF_ade' }}
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
           SITE_URL: ${{ vars.SITE_URL }}
-          VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
+          VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID || '174232630403-738ucmkk5otqvnuibm4g8hlcblnuvim1.apps.googleusercontent.com' }}
         run: |
           set -euo pipefail
           for name in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID VITE_GOOGLE_WEB_CLIENT_ID; do
             if [ -z "${!name:-}" ]; then
-              echo "::error::Missing GitHub Actions secret: $name"
+              echo "::error::Missing GitHub Actions configuration: $name"
               exit 1
             fi
           done
