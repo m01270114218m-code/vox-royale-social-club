@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Check, ChevronRight, ImagePlus, Megaphone, PencilLine, Sparkles } from "lucide-react";
 import { useCloudActions } from "./cloud";
-import { readImageFile } from "./imageUpload";
+import { readImageFile, uploadImageDataUrl } from "./imageUpload";
 import { images, roomCover, roomCovers } from "./data";
 import { pushBack } from "./back";
 import { toast } from "./toast";
@@ -44,9 +44,15 @@ export function RoomForm({ initial, uid, onDone, onClose }: { initial?: { name: 
   const ok = trimmed.length >= 2 && trimmed.length <= NAME_MAX;
   const save = async () => {
     setBusy(true);
-    const done = await act("room_save", { name: trimmed, notice: notice.trim(), ...(cover ? { cover } : {}) }, initial ? "تم حفظ الغرفة" : "تم إنشاء غرفتك");
-    setBusy(false);
-    if (done) onDone();
+    try {
+      const uploadedCover = cover ? await uploadImageDataUrl(cover, "room-covers") : null;
+      const done = await act("room_save", { name: trimmed, notice: notice.trim(), ...(uploadedCover ? { cover: uploadedCover } : {}) }, initial ? "تم حفظ الغرفة" : "تم إنشاء غرفتك");
+      if (done) onDone();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "تعذّر رفع صورة الغرفة");
+    } finally {
+      setBusy(false);
+    }
   };
   const field = "mt-1.5 w-full rounded-xl night-glass px-3 text-night-foreground outline-none ring-1 ring-night-foreground/15 placeholder:text-night-foreground/40 focus:ring-gold";
 
