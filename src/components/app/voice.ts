@@ -15,11 +15,11 @@ type RtcClient = {
 };
 
 /** Connects a room to Agora. The App Certificate stays in the Supabase Edge Function. */
-export function useAgoraRoom(roomId: string, publishAudio: boolean) {
+export function useAgoraRoom(roomId: string, publishAudio: boolean, enabled = true) {
   const clientRef = useRef<RtcClient | null>(null);
   const trackRef = useRef<LocalAudioTrack | null>(null);
   const publishRef = useRef(publishAudio);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(false);\n  const rtcUidRef = useRef(0);\n  if (!rtcUidRef.current) {\n    const values = new Uint32Array(1);\n    globalThis.crypto?.getRandomValues?.(values);\n    rtcUidRef.current = (values[0] || Math.floor(Math.random() * 0xfffffffe) + 1) >>> 0;\n    if (!rtcUidRef.current) rtcUidRef.current = 1;\n  }
 
   useEffect(() => { publishRef.current = publishAudio; }, [publishAudio]);
 
@@ -28,7 +28,7 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean) {
     let client: RtcClient | null = null;
 
     const getToken = async () => {
-      const { data, error } = await supabase.functions.invoke("agora-token", { body: { room_id: roomId } });
+      const { data, error } = await supabase.functions.invoke("agora-token", { body: { room_id: roomId, rtc_uid: rtcUidRef.current } });
       if (error) throw new Error(error.message);
       if (!data?.appId || !data?.token || !Number.isInteger(data?.uid) || !data?.channel) {
         throw new Error(data?.error || "إعدادات الصوت غير مكتملة");
@@ -78,10 +78,10 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean) {
       if (track) { track.stop(); track.close(); }
       if (client) void client.leave().catch(error => console.error("[Agora] leave failed", error));
     };
-  }, [roomId]);
+  }, [roomId, enabled]);
 
   useEffect(() => {
-    if (!ready || !clientRef.current) return;
+    if (!enabled || !ready || !clientRef.current) return;
     let cancelled = false;
     const sync = async () => {
       const client = clientRef.current;
@@ -113,7 +113,7 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean) {
     };
     void sync();
     return () => { cancelled = true; };
-  }, [publishAudio, ready]);
+  }, [publishAudio, ready, enabled]);
 
   return { ready };
 }
