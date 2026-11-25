@@ -82,19 +82,9 @@ export function AuthBridge() {
       auth = userId ? { method: "google", at: new Date().toISOString(), userId } : null;
       aSubs.forEach((s) => s());
 
-      if (userId) {
-        // The database trigger provisions profiles + wallets on first Auth signup.
-        // This idempotent upsert only marks the profile online. It never replaces
-        // a chosen display name, avatar, VIP, level, role, or wallet balance.
-        void supabase.from("profiles").upsert(
-          { id: userId, is_online: true },
-          { onConflict: "id", ignoreDuplicates: false },
-        ).then(({ error }) => {
-          if (error) console.warn("[auth] profile presence sync failed:", error.message);
-        }).catch((error) => {
-          console.warn("[auth] profile presence sync unavailable:", error);
-        });
-      }
+      // Supabase's on_auth_user_created trigger creates the profile and wallet
+      // atomically. Do not perform a client upsert here: it can violate generated
+      // column types and must never overwrite existing account data.
     };
 
     // Subscribe before reading storage so a fresh sign-in cannot be overwritten
