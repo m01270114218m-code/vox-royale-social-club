@@ -119,7 +119,7 @@ export function VipChip({ vip }: { vip: number }) {
   const custom=catalog.find(c=>c.kind==='vip'&&c.rank===n&&c.enabled);
   const original=assets.find(a=>a.asset_key===`project/roles/vip/${n}.webp`)?.url;
   const tier=n<=3?0:n<=6?1:n<=9?2:3;
-  return <span title={`VIP ${n}`} aria-label={`VIP ${n}`} dir="ltr" className={`rank-pill vip-t${tier} inline-flex h-[18px] shrink-0 items-center ps-[22px] pe-1.5`}><img src={custom?.url || original || rankArt.vip[n-1]} alt="" className="rank-pill-icon" onError={e=>{const el=e.currentTarget;if(el.dataset['fallback']!=='1'){el.dataset['fallback']='1';el.src=icons.badge;}else{el.style.visibility='hidden';}}}/><b className="text-[9.5px] font-black italic leading-none">VIP{n}</b></span>;
+  return <span title={`VIP ${n}`} aria-label={`VIP ${n}`} dir="ltr" className={`rank-pill vip-t${tier} inline-flex h-[18px] shrink-0 items-center ps-[22px] pe-1.5`}><img src={custom?.url || original || rankArt.vip[n-1]} alt="" className="rank-pill-icon" onError={e=>{e.currentTarget.remove();}}/><b className="text-[9.5px] font-black italic leading-none">VIP{n}</b></span>;
 }
 /** Badges the user owns (bought or sent by the administration), shown in one tidy row under the ID. */
 export function UserBadges({userId,align='center',size=26}:{userId:string;align?:'center'|'start';size?:number}) {
