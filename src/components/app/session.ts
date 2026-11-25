@@ -1,25 +1,23 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { supabase } from '@/integrations/supabase/client';
 
-/* ---------- local sign-in (device only until real accounts are enabled) ---------- */
-export type Auth = { method: "google" | "facebook" | "phone" | "lovable"; phone?: string; at: string; userId?: string } | null;
-const AKEY = "frost-auth-v1";
+/* ---------- Supabase session ---------- */
+export type Auth = { method: "google" | "phone" | "email"; phone?: string; at: string; userId?: string } | null;
+const AKEY = "sada-auth-v1";
 let auth: Auth = null;
 let authLoaded = false;
 const aSubs = new Set<() => void>();
-function readAuth(): Auth | undefined {
-  return authLoaded ? auth : undefined;
-}
+function readAuth(): Auth | undefined { return authLoaded ? auth : undefined; }
 export function signIn(a: NonNullable<Auth>) {
   auth = a;
-  try { localStorage.setItem(AKEY, JSON.stringify(a)); } catch { /* ignore */ }
-  aSubs.forEach((s) => s());
+  try { localStorage.setItem(AKEY, JSON.stringify(a)); } catch {}
+  aSubs.forEach(s => s());
 }
 export function signOut() {
   void supabase.auth.signOut();
   auth = null;
-  try { localStorage.removeItem(AKEY); } catch { /* ignore */ }
-  aSubs.forEach((s) => s());
+  try { localStorage.removeItem(AKEY); } catch {}
+  aSubs.forEach(s => s());
 }
 /** `undefined` while rendering on the server / before hydration. */
 export function useAuth(): Auth | undefined {
