@@ -19,7 +19,14 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean, enabled = tr
   const clientRef = useRef<RtcClient | null>(null);
   const trackRef = useRef<LocalAudioTrack | null>(null);
   const publishRef = useRef(publishAudio);
-  const [ready, setReady] = useState(false);\n  const rtcUidRef = useRef(0);\n  if (!rtcUidRef.current) {\n    const values = new Uint32Array(1);\n    globalThis.crypto?.getRandomValues?.(values);\n    rtcUidRef.current = (values[0] || Math.floor(Math.random() * 0xfffffffe) + 1) >>> 0;\n    if (!rtcUidRef.current) rtcUidRef.current = 1;\n  }
+  const [ready, setReady] = useState(false);
+  const rtcUidRef = useRef(0);
+  if (!rtcUidRef.current) {
+    const values = new Uint32Array(1);
+    globalThis.crypto?.getRandomValues?.(values);
+    rtcUidRef.current = (values[0] || Math.floor(Math.random() * 0xfffffffe) + 1) >>> 0;
+    if (!rtcUidRef.current) rtcUidRef.current = 1;
+  }
 
   useEffect(() => { publishRef.current = publishAudio; }, [publishAudio]);
 
