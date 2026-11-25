@@ -20,10 +20,12 @@ function UserPage() {
   if (!u) return <div><SubHeader title="الملف الشخصي" /><p className="p-6 text-center text-muted-foreground">المستخدم غير موجود</p></div>;
   const self = id === "me";
   const following = p.following.includes(id);
+  const cloudItem = (value: string | null, kind: string) => value?.startsWith("cloud-") ? data?.catalog.find(item => item.id === value.slice(6) && item.kind === kind && item.enabled) : undefined;
+  const cloudFrame = cloudItem(u.frame, "frame"), cloudEntry = cloudItem(u.entry, "entry"), cloudBubble = cloudItem(u.bubble, "bubble");
   const items = [
-    u.frame && frames[u.frame] && { l: "إطار", img: frames[u.frame]?.img ?? '', n: frames[u.frame]?.n ?? '' },
-    u.entry && entries[u.entry] && { l: "دخولية", img: entries[u.entry]?.img ?? '', n: entries[u.entry]?.n ?? '' },
-    u.bubble !== "none" && bubbles[u.bubble] && { l: "فقاعة", img: bubbles[u.bubble]?.img ?? '', n: bubbles[u.bubble]?.n ?? '' },
+    cloudFrame?.url ? { l: "إطار", img: cloudFrame.url, n: cloudFrame.name } : u.frame && frames[u.frame] && { l: "إطار", img: frames[u.frame]?.img ?? '', n: frames[u.frame]?.n ?? '' },
+    cloudEntry?.url ? { l: "دخولية", img: cloudEntry.url, n: cloudEntry.name } : u.entry && entries[u.entry] && { l: "دخولية", img: entries[u.entry]?.img ?? '', n: entries[u.entry]?.n ?? '' },
+    cloudBubble?.url ? { l: "فقاعة", img: cloudBubble.url, n: cloudBubble.name } : u.bubble !== "none" && bubbles[u.bubble] && { l: "فقاعة", img: bubbles[u.bubble]?.img ?? '', n: bubbles[u.bubble]?.n ?? '' },
   ].filter((x): x is { l: string; img: string; n: string } => !!x);
   return (
     <div className="pb-20">
