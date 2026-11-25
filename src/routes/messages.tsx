@@ -41,7 +41,7 @@ function Messages() {
     const worn = (kind: string) => data?.catalog.find(item => item.kind === kind && owned.some(ownedItem => ownedItem.catalog_id === item.id));
     const frame = worn("frame");
     return {
-      id: row.id, uid: String(row.uid), name: row.name, avatar: row.avatar_url || row.avatar || avatarAt(0),
+      id: row.id, uid: String(row.uid), name: row.name, avatar: row.avatar || avatarAt(0),
       frame: frame ? ("cloud-" + frame.id) as User["frame"] : null,
       bubble: "none" as const, entry: null, sid: row.special_id, level: row.level || 1, vip: row.vip || 0,
       gender: "m" as const, flag: "", bio: row.bio || "", fans: 0, following: 0,
