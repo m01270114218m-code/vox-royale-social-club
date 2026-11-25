@@ -234,7 +234,21 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     const cost = g.p * qty;
     if(!g.id){toast('اختر هدية منشورة من الإدارة ومستخدمًا حقيقيًا');return;}
     let res: { x?: number; win?: number } = {};
-    try { const { data, error } = await supabase.rpc('app_action', { action: 'gift', payload: { id: g.id, uid: user(giftTo).uid, qty } }); if (error) throw new Error(error.message); res = (data ?? {}) as typeof res; void qc.invalidateQueries({ queryKey: ['cloud'] }); }
+    try {
+      const recipient = user(giftTo);
+      if (!roomDbId || !recipient.id || recipient.id === cloud?.profile?.id) {
+        throw new Error("اختر مستخدمًا موجودًا فعليًا في الغرفة");
+      }
+      const { data, error } = await supabase.rpc('send_catalog_gift', {
+        p_catalog_id: g.id,
+        p_receiver_id: recipient.id,
+        p_room_id: roomDbId,
+        p_quantity: qty,
+      });
+      if (error) throw new Error(error.message);
+      res = (data ?? {}) as typeof res;
+      void qc.invalidateQueries({ queryKey: ['cloud'] });
+    }
     catch (e) { toast(e instanceof Error ? e.message : 'تعذّر الإرسال'); return; }
     const si = seats.findIndex((s) => s.uid === giftTo);
     if (si >= 0) setHearts((h) => h.map((v, i) => (i === si ? v + cost : v)));
