@@ -1,5 +1,4 @@
 name: Build Android APK
-# Sada Chat build workflow enabled for the empty branch
 
 on:
   push:
@@ -11,7 +10,9 @@ permissions:
 
 jobs:
   apk:
+    name: Build Capacitor Android APK
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,29 +23,29 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: android-actions/setup-android@v3
-      - name: Backend settings
+      - name: Validate Supabase configuration
         shell: bash
-        run: |
-          set -euo pipefail
-          for name in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID; do
-            if [ -z "${!name:-}" ]; then
-              echo "::error::Missing GitHub repository secret: $name"
-              exit 1
-            fi
-          done
-          {
-            echo "VITE_SUPABASE_URL=$VITE_SUPABASE_URL"
-            echo "VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY"
-            echo "VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID"
-          } > .env
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
-      - name: Build APK
+        run: |
+          set -euo pipefail
+          for name in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              exit 1
+            fi
+          done
+          printf 'VITE_SUPABASE_URL=%s\n' "$VITE_SUPABASE_URL" > .env
+          printf 'VITE_SUPABASE_PUBLISHABLE_KEY=%s\n' "$VITE_SUPABASE_PUBLISHABLE_KEY" >> .env
+          printf 'VITE_SUPABASE_PROJECT_ID=%s\n' "$VITE_SUPABASE_PROJECT_ID" >> .env
+      - name: Build web app and Android wrapper
         run: bash mobile/build-android.sh
         env:
           SITE_URL: ${{ vars.SITE_URL }}
+      - name: Verify APK
+        run: test -s mobile/android/app/build/outputs/apk/debug/app-debug.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -59,4 +60,4 @@ jobs:
           set -euo pipefail
           APK="mobile/android/app/build/outputs/apk/debug/app-debug.apk"
           TAG="sada-chat-${GITHUB_SHA:0:7}"
-          gh release create "$TAG" "$APK" --title "Sada Chat Android ${GITHUB_SHA:0:7}" --notes "APK built from branch ${GITHUB_REF_NAME} at commit ${GITHUB_SHA}." --target "$GITHUB_SHA"
+          gh release create "$TAG" "$APK" --title "Sada Chat Android ${GITHUB_SHA:0:7}" --notes "Capacitor Android wrapper built from ${GITHUB_REF_NAME} at commit ${GITHUB_SHA}." --target "$GITHUB_SHA"
