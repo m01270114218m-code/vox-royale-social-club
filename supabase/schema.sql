@@ -255,12 +255,21 @@ CREATE TABLE public.agency_hosts (
 
 CREATE TABLE public.app_assets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
+    asset_key text DEFAULT ('upload/'::text || gen_random_uuid()::text) NOT NULL,
+    title text NOT NULL,
+    category text NOT NULL,
+    storage_path text NOT NULL,
+    mime_type text,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created_by uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    section text DEFAULT 'general'::text NOT NULL,
     name text NOT NULL,
     path text NOT NULL,
-    mime text NOT NULL,
-    created_by uuid NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    section text DEFAULT 'general'::text NOT NULL
+    mime text
 );
 
 
