@@ -575,6 +575,9 @@ export type Database = {
       }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       purchase_vip: { Args: { p_level: number }; Returns: Json }
+      join_room: { Args: { p_room_id: string }; Returns: Json }
+      heartbeat_room: { Args: { p_room_id: string }; Returns: boolean }
+      leave_room: { Args: { p_room_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
