@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronRight, MessageCircle, Send } from "lucide-react";
 import { IceHeader, Badge } from "@/components/app/AppShell";
-import { images, users } from "@/components/app/data";
+import { images, type User } from "@/components/app/data";
 import { meAsUser, sendDm, useProfile } from "@/components/app/profile";
 import { Avatar, LevelChip, SpecialId, VipChip } from "@/components/app/ui";
 import megaphone from "@/assets/megaphone.png";
@@ -36,8 +36,20 @@ function Messages() {
   const inbox = mine(data?.notifications ?? [], data?.profile?.id);
   const counts = unreadByKind(data?.notifications ?? [], data?.profile?.id, seen);
   const [draft, setDraft] = useState("");
+  const realUsers: User[] = (data?.profiles ?? []).filter(row => row.id !== data?.profile?.id).map(row => {
+    const owned = (data?.items ?? []).filter(item => item.user_id === row.id && item.equipped);
+    const worn = (kind: string) => data?.catalog.find(item => item.kind === kind && owned.some(ownedItem => ownedItem.catalog_id === item.id));
+    const frame = worn("frame");
+    return {
+      id: row.id, uid: String(row.uid), name: row.name, avatar: row.avatar_url || row.avatar || "",
+      frame: frame ? ("cloud-" + frame.id) as User["frame"] : null,
+      bubble: "none", entry: null, sid: row.special_id, level: row.level || 1, vip: row.vip || 0,
+      gender: "m", flag: "", bio: row.bio || "", fans: 0, following: 0,
+      charm: row.gift_value || 0, wealth: row.coins || 0, gifts: [],
+    };
+  });
 
-  const activeUser = chat ? users.find((u) => u.id === chat) : undefined;
+  const activeUser = chat ? realUsers.find((u) => u.id === chat) : undefined;
   const openChat = (uid: string) => void nav({ search: { chat: uid } });
   const closeChat = () => void nav({ search: {} });
 
@@ -100,7 +112,7 @@ function Messages() {
     );
   }
 
-  const dmUsers = users.filter((u) => (profile.dms[u.id]?.length ?? 0) > 0);
+  const dmUsers = realUsers.filter((u) => (profile.dms[u.id]?.length ?? 0) > 0);
   return (
     <div>
       <IceHeader>
@@ -180,7 +192,7 @@ function Messages() {
         </div>
       ) : (
         <div className="space-y-2 px-3.5 pt-3 pb-3">
-          {users.map((u) => (
+          {realUsers.map((u) => (
             <div key={u.id} className="room-card-pro flex items-center gap-3 p-2.5">
               <Avatar img={u.avatar} frame={u.frame} size={50} className="m-1" />
               <div className="min-w-0 flex-1">
