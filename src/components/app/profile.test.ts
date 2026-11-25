@@ -9,7 +9,7 @@ describe("store purchases", () => {
     expect(buyResult({ ...defaultProfile, coins: 1000 }, item("frame:wings"))).toBe("poor");
   });
   it("an already owned item is not charged again", () => {
-    expect(buyResult(defaultProfile, item("frame:ice"))).toBe("owned");
+    expect(buyResult({ ...defaultProfile, owned: ["frame:ice"] }, item("frame:ice"))).toBe("owned");
   });
   it("buying a special ID equips that colored ID", () => {
     expect(equipPatch(item("sid:8888"))).toEqual({ sid: "8888" });
