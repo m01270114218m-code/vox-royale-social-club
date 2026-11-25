@@ -1,4 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react";
+import { App } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
+import { Capacitor } from "@capacitor/core";
 import { supabase } from '@/integrations/supabase/client';
 
 /* ---------- local sign-in (device only until real accounts are enabled) ---------- */
@@ -10,7 +13,30 @@ const aSubs = new Set<() => void>();
 function readAuth(): Auth | undefined {
   return authLoaded ? auth : undefined;
 }
-export function signIn(a: NonNullable<Auth>) {
+export async function signIn(a: NonNullable<Auth>) {
+  // On Android, Google OAuth must return through the native app deep link.
+  // Do not navigate the WebView to localhost or a hosted web page.
+  if (a.method === "google" && Capacitor.isNativePlatform()) {
+    try {
+      const redirectTo = "com.sadachat.app://login-callback";
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+          queryParams: { prompt: "select_account" },
+        },
+      });
+      if (error) throw error;
+      if (!data?.url) throw new Error("Google OAuth URL was not returned");
+      await Browser.open({ url: data.url, presentationStyle: "popover" });
+      return;
+    } catch (error) {
+      console.error("[Auth] Native Google sign-in failed", error);
+      return;
+    }
+  }
+
   auth = a;
   try { localStorage.setItem(AKEY, JSON.stringify(a)); } catch { /* ignore */ }
   aSubs.forEach((s) => s());
@@ -27,6 +53,48 @@ export function useAuth(): Auth | undefined {
 }
 export function AuthBridge() {
   useEffect(() => {
+    let appUrlListener: { remove: () => Promise<void> } | null = null;
+
+    const handleNativeOAuthUrl = async (url: string) => {
+      try {
+        const parsed = new URL(url);
+        const queryCode = parsed.searchParams.get("code");
+        const hash = new URLSearchParams(parsed.hash.replace(/^#/, ""));
+        const accessToken = hash.get("access_token");
+        const refreshToken = hash.get("refresh_token");
+
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+        } else if (queryCode) {
+          const { error } = await supabase.auth.exchangeCodeForSession(queryCode);
+          if (error) throw error;
+        } else {
+          throw new Error("Google callback did not contain a session code");
+        }
+
+        await Browser.close().catch(() => undefined);
+        const { data } = await supabase.auth.getSession();
+        if (data.session?.user?.id) {
+          await update(data.session.user.id);
+        }
+      } catch (error) {
+        console.error("[Auth] Native Google callback failed", error);
+        await Browser.close().catch(() => undefined);
+      }
+    };
+
+    if (Capacitor.isNativePlatform()) {
+      void App.addListener("appUrlOpen", ({ url }) => {
+        if (url.startsWith("com.sadachat.app://login-callback")) {
+          void handleNativeOAuthUrl(url);
+        }
+      }).then(listener => { appUrlListener = listener; });
+    }
+
     const update = async (userId: string | undefined) => {
       authLoaded = true;
       auth = userId ? { method: 'google', at: new Date().toISOString(), userId } : null;
@@ -96,7 +164,10 @@ export function AuthBridge() {
         void update(session?.user.id);
       }
     });
-    return ()=>data.subscription.unsubscribe();
+    return () => {
+      data.subscription.unsubscribe();
+      if (appUrlListener) void appUrlListener.remove();
+    };
   },[]);
   return null;
 }
