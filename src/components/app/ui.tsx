@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
-import { frames, roleImg, icons, images, avatarAt, sidTone, type FrameKey } from "./data";
+import { frames, roleImg, icons, images, avatarAt, sidTone, rankArt, type FrameKey } from "./data";
 import { useCloudState } from './cloud-state';
 import type { Role } from "./permissions";
 import { pushBack } from './back';
@@ -14,9 +14,9 @@ export function Avatar({ img, frame, size, className = "", ring = "" }: { img: s
   return (
     <span className={`relative inline-grid shrink-0 place-items-center overflow-visible ${className}`} style={{ width: size, height: size }}>
       <span className="absolute inset-0 z-10 block overflow-hidden rounded-full" style={{ clipPath: "circle(50% at 50% 50%)" }}>
-        <img src={img || avatarAt(0)} alt="" className={`h-full w-full rounded-full object-cover ${ring}`} onError={(e) => { if (e.currentTarget.dataset.fallback !== "1") { e.currentTarget.dataset.fallback = "1"; e.currentTarget.src = avatarAt(0); } }} />
+        <img src={img || avatarAt(0)} alt="" className={`h-full w-full rounded-full object-cover ${ring}`} onError={(e) => { if (e.currentTarget.dataset['fallback'] !== "1") { e.currentTarget.dataset.fallback = "1"; e.currentTarget.src = avatarAt(0); } }} />
       </span>
-      {frameImage && <img src={frameImage} alt="" className="pointer-events-none absolute z-20 max-w-none object-contain" style={{ width: fs, height: fs, left: (size - fs) / 2, top: (size - fs) / 2 }} onError={(e) => { const el=e.currentTarget; if(el.dataset.fallback!=="1"){el.dataset.fallback="1";el.src=frames.ice.img;}else{el.style.display="none";} }} />}
+      {frameImage && <img src={frameImage} alt="" className="pointer-events-none absolute z-20 max-w-none object-contain" style={{ width: fs, height: fs, left: (size - fs) / 2, top: (size - fs) / 2 }} onError={(e) => { const el=e.currentTarget; if(el.dataset['fallback']!=="1"){el.dataset.fallback="1";el.src=frames.ice.img;}else{el.style.display="none";} }} />}
     </span>
   );
 }
