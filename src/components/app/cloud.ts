@@ -32,8 +32,16 @@ export async function signedAsset(path: string) {
 }
 const none = Promise.resolve({ data: [], error: null });
 export async function fetchCloud() {
-  const { data: session } = await supabase.auth.getUser();
-  const id = session.user?.id;
+  // Cloud data is loaded in parallel. A transient auth/network issue must not
+  // reject the entire app shell and turn every screen into the generic error page.
+  let id: string | undefined;
+  try {
+    const { data: session, error } = await supabase.auth.getUser();
+    if (error) console.warn('[cloud] auth lookup failed:', error.message);
+    id = session.user?.id;
+  } catch (error) {
+    console.warn('[cloud] auth lookup unavailable:', error);
+  }
   const [catalog, assets, profiles, roles, settings, agencies, hosts, items, notifications, ledger, rooms, audit, userRooms, recharges] = await Promise.all([
     supabase.from('app_catalog').select('*').order('position'),
     id ? supabase.from('app_assets').select('*').order('created_at', { ascending: false }) : none,
@@ -50,9 +58,18 @@ export async function fetchCloud() {
     id ? supabase.from('rooms').select('*').order('created_at', { ascending: false }).limit(60) : none,
     id ? supabase.from('recharge_requests').select('*').order('created_at', { ascending: false }).limit(100) : none,
   ]);
-  for (const result of [catalog, assets, profiles, roles, settings, agencies, hosts, items, notifications, ledger, rooms, audit, userRooms, recharges]) if (result.error) throw new Error(result.error.message);
+  // Keep optional backend modules isolated: one missing table/policy must not
+  // take down login, the profile, or the room list.
+  for (const [name, result] of Object.entries({ catalog, assets, profiles, roles, settings, agencies, hosts, items, notifications, ledger, rooms, audit, userRooms, recharges })) {
+    if (result?.error) console.warn(`[cloud] ${name} query failed:`, result.error.message);
+  }
   const now = Date.now();
-  const url = await signMany((assets.data ?? []).map(a => a.path));
+  let url = (path: string) => bundledAssets[path] ?? signed.get(path)?.url ?? '';
+  try {
+    url = await signMany((assets.data ?? []).map(a => a.path));
+  } catch (error) {
+    console.warn('[cloud] asset signing unavailable; using bundled fallbacks:', error);
+  }
   const art = (assets.data ?? []).map(a => ({ ...a, url: url(a.path) }));
   const ownRoles = (roles.data ?? []).filter(r => r.user_id === id).map(r => r.role);
   const isAdmin = ownRoles.includes('admin');
