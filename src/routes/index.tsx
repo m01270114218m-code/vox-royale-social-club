@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { IceHeader, PartyTabs, RoomCard } from "@/components/app/AppShell";
 import { ui } from "@/components/app/data";
 import { LiveCatalog } from "@/components/app/LiveCatalog";
 import { useCloud } from "@/components/app/cloud";
 import { meAsUser, useProfile } from "@/components/app/profile";
+import { useAuth } from "@/components/app/session";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [{ title: "الحفلات | صدى شات" }, { name: "description", content: "اكتشف أقوى غرف الدردشة الصوتية العربية" }, { property: "og:title", content: "الحفلات | صدى شات" }, { property: "og:description", content: "اكتشف أقوى غرف الدردشة الصوتية العربية" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
@@ -14,7 +16,12 @@ export const Route = createFileRoute("/")({
 const countries = [{ k: "all", l: "شائع", f: "❄️" }, { k: "🇪🇬", l: "مصر", f: "🇪🇬" }, { k: "🇸🇦", l: "السعودية", f: "🇸🇦" }, { k: "🇦🇪", l: "الإمارات", f: "🇦🇪" }, { k: "🇯🇴", l: "الأردن", f: "🇯🇴" }, { k: "🇲🇦", l: "المغرب", f: "🇲🇦" }];
 
 function Home() {
+  const nav = useNavigate();
+  const auth = useAuth();
   const profile = useProfile();
+  useEffect(() => {
+    if (auth === null) void nav({ to: "/login", replace: true });
+  }, [auth, nav]);
   const { data } = useCloud();
   const liveList = data?.roomList ?? [];
   const [c, setC] = useState("all");
