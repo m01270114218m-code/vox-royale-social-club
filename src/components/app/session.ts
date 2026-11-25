@@ -3,21 +3,19 @@ import { supabase } from '@/integrations/supabase/client';
 
 /* ---------- Supabase session ---------- */
 export type Auth = { method: "google" | "phone" | "email"; phone?: string; at: string; userId?: string } | null;
-const AKEY = "sada-auth-v1";
 let auth: Auth = null;
 let authLoaded = false;
 const aSubs = new Set<() => void>();
 function readAuth(): Auth | undefined { return authLoaded ? auth : undefined; }
 export function signIn(a: NonNullable<Auth>) {
+  // Supabase is the single source of truth. This helper only updates the
+  // in-memory compatibility state for existing UI callers.
   auth = a;
-  try { localStorage.setItem(AKEY, JSON.stringify(a)); } catch {}
+  authLoaded = true;
   aSubs.forEach(s => s());
 }
 export function signOut() {
   void supabase.auth.signOut();
-  auth = null;
-  try { localStorage.removeItem(AKEY); } catch {}
-  aSubs.forEach(s => s());
 }
 /** `undefined` while rendering on the server / before hydration. */
 export function useAuth(): Auth | undefined {
@@ -25,14 +23,21 @@ export function useAuth(): Auth | undefined {
 }
 export function AuthBridge() {
   useEffect(() => {
-    const update = (userId: string | undefined) => {
+    const update = (session: import("@supabase/supabase-js").Session | null) => {
       authLoaded = true;
-      auth = userId ? { method: 'google', at: new Date().toISOString(), userId } : null;
+      const user = session?.user;
+      if (!user) {
+        auth = null;
+      } else {
+        const provider = String(user.app_metadata?.provider ?? user.identities?.[0]?.provider ?? "email");
+        const method: Auth["method"] = provider === "google" ? "google" : provider === "phone" ? "phone" : "email";
+        auth = { method, at: new Date().toISOString(), userId: user.id, phone: user.phone ?? undefined };
+      }
       aSubs.forEach(s=>s());
     };
-    void supabase.auth.getSession().then(({data})=>update(data.session?.user.id));
+    void supabase.auth.getSession().then(({data})=>update(data.session));
     const {data} = supabase.auth.onAuthStateChange((event,session)=>{
-      if(event==='SIGNED_IN'||event==='SIGNED_OUT'||event==='USER_UPDATED') update(session?.user.id);
+      if(event==='SIGNED_IN'||event==='SIGNED_OUT'||event==='USER_UPDATED'||event==='TOKEN_REFRESHED') update(session);
     });
     return ()=>data.subscription.unsubscribe();
   },[]);
