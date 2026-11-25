@@ -143,6 +143,7 @@ export function AuthBridge() {
       if (!code) return;
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) console.error("[auth] Facebook callback exchange failed", error);
+      return;
     };
 
     const publishSession = (userId: string | undefined) => {
