@@ -357,6 +357,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
                     <>
                       <span className="voice-wave" />
                       <span className="voice-wave voice-wave-2" />
+                      <span className="voice-wave voice-wave-3" />
                     </>
                   )}
                   {u ? (
