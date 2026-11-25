@@ -2,18 +2,15 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Mail, Smartphone } from "lucide-react";
-import { signIn, useAuth } from "@/components/app/session";
+import { useAuth } from "@/components/app/session";
 import { toast } from "@/components/app/toast";
 import { loginMedia, ui } from "@/components/app/data";
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "تسجيل الدخول | صدى شات" }, { name: "description", content: "سجّل دخولك إلى صدى شات وانضم لغرف الدردشة الصوتية" }, { property: "og:title", content: "تسجيل الدخول | صدى شات" }, { property: "og:description", content: "سجّل دخولك إلى صدى شات وانضم لغرف الدردشة الصوتية" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: Login,
 });
-type Mode = "email";
 function Login() {
  const nav=useNavigate(); const auth=useAuth(); const [busy,setBusy]=useState(false);
- const [mode]=useState<Mode>("email");
  const [email,setEmail]=useState(""); const [code,setCode]=useState(""); const [sent,setSent]=useState(false);
  useEffect(()=>{if(auth?.userId)void nav({to:"/",replace:true});},[auth,nav]);
  const run=async(fn:()=>Promise<void>)=>{setBusy(true);try{await fn();}catch(e){
