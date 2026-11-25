@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { avatarAt, users, type BubbleKey, type EntryKey, type FrameKey, type StoreItem, type User } from "./data";
+import { avatarAt, type BubbleKey, type EntryKey, type FrameKey, type StoreItem, type User } from "./data";
 import { readCloud, useCloudState } from './cloud-state';
 
 export type Profile = {
@@ -34,20 +34,20 @@ export const agencyPermLabel: Record<AgencyPerm, string> = { inviteHosts: "دع�
 export type Agency = { id: string; name: string; agentUid: string; hosts: string[]; perms: AgencyPerm[]; createdAt: string };
 
 export const defaultProfile: Profile = {
-  name: "H·A·M·O",
-  bio: "أهلاً بكم في صدى شات",
+  name: "مستخدم جديد",
+  bio: "",
   gender: "m",
-  flag: "🇪🇬",
-  avatar: 5,
+  flag: "",
+  avatar: 0,
   customAvatar: null,
-  frame: "ice",
+  frame: null,
   bubble: "none",
-  entry: "car",
+  entry: null,
   sid: null,
-  coins: 150000,
-  diamonds: 340,
-  owned: ["frame:ice", "entry:car"],
-  following: ["u2"],
+  coins: 0,
+  diamonds: 0,
+  owned: [],
+  following: [],
   stats: { giftsOut: 0, days: {} },
   roomMedia: {},
   dms: {},
@@ -112,7 +112,7 @@ export function meAsUser(p: Profile): User {
   const cloud = readCloud().profile;
   return {
     id: "me", uid: cloud ? String(cloud.uid) : MY_UID, name: cloud?.name ?? p.name, avatar: cloud?.avatar_url || cloud?.avatar || p.customAvatar || avatarAt(p.avatar), frame: p.frame, bubble: p.bubble, entry: p.entry, sid: cloud?.special_id ?? p.sid,
-    level: cloud?.level ?? 12, vip: cloud?.vip ?? 2, gender: p.gender, flag: p.flag, bio: cloud?.bio ?? p.bio, fans: 1, following: p.following.length, charm: cloud?.gift_value ?? giftsIn, wealth: cloud?.coins ?? 12500 + p.stats.giftsOut, gifts: [[0, 3], [1, 1]],
+    level: cloud?.level ?? 1, vip: cloud?.vip ?? 0, gender: p.gender, flag: p.flag, bio: cloud?.bio ?? p.bio, fans: 0, following: p.following.length, charm: cloud?.gift_value ?? giftsIn, wealth: cloud?.coins ?? p.coins, gifts: [],
   };
 }
 
@@ -149,7 +149,7 @@ export function findUser(id: string, p: Profile): User | undefined {
   const cloud=readCloud();
   const row=cloud.profiles.find(u=>u.id===id||String(u.uid)===id);
   if(row){const own=cloud.items.filter(i=>i.user_id===row.id&&i.equipped);const worn=(kind:string)=>cloud.catalog.find(c=>c.kind===kind&&own.some(i=>i.catalog_id===c.id));return {id:row.id,uid:String(row.uid),name:row.name,avatar:row.avatar_url||row.avatar||avatarAt(0),frame:worn('frame')?`cloud-${worn('frame')?.id}` as FrameKey:null,entry:worn('entry')?`cloud-${worn('entry')?.id}` as EntryKey:null,bubble:worn('bubble')?`cloud-${worn('bubble')?.id}` as BubbleKey:'none',sid:row.special_id,level:row.level,vip:row.vip,gender:'m',flag:'',bio:row.bio,fans:0,following:0,charm:row.gift_value,wealth:row.coins,gifts:[]};}
-  return id === "me" ? meAsUser(p) : users.find((u) => u.id === id);
+  return id === "me" ? meAsUser(p) : undefined;
 }
 
 /** Apply an owned store item to the profile. */
