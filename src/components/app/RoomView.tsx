@@ -34,7 +34,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const cloudAct=useCloudActions();
   const room = roomById(id) ?? cloud?.roomList.find((r) => r.id === id) ?? {
     id, name: "غرفة صوتية", flag: "", vip: 0, online: 0,
-    img: images.room, host: cloud?.profile?.avatar_url || "", hostId: cloud?.profile?.id || "me",
+    img: images.room, host: cloud?.profile?.avatar || "", hostId: cloud?.profile?.id || "me",
     badges: [], tag: "غرفة", notice: "", cloud: true,
   };
   const nav = useNavigate();
@@ -283,8 +283,8 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
           {seats.map((s, i) => {
             const u = s.uid ? user(s.uid) : null;
             const myMicOff = s.uid === "me" && !micOn;
-            const speaking = !!u && !s.muted && (s.uid === "me" ? micOn : !!typing[s.uid!] || i === 0);
-            const isTyping = !!u && !!s.uid && (typing[s.uid] || (s.uid === "me" && !!text.trim()));
+            const isTyping = !!u && s.uid === "me" && !!text.trim();
+            const speaking = !!u && !s.muted && (s.uid === "me" ? micOn : isTyping || i === 0);
             const e = s.uid ? emo[s.uid] : undefined;
             return (
               <button key={i} onClick={() => tapSeat(i)} data-seat-uid={s.uid ?? undefined} className="relative flex flex-col items-center">
