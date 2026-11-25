@@ -287,7 +287,7 @@ CREATE TABLE public.app_assets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     asset_key text DEFAULT ('upload/'::text || gen_random_uuid()::text) NOT NULL UNIQUE,
     title text NOT NULL,
-    category text NOT NULL,
+    category text DEFAULT 'other'::text NOT NULL,
     storage_path text NOT NULL,
     mime_type text,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -1479,7 +1479,7 @@ CREATE TABLE public.app_assets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     asset_key text DEFAULT ('upload/'::text || gen_random_uuid()::text) NOT NULL UNIQUE,
     title text NOT NULL,
-    category text NOT NULL,
+    category text DEFAULT 'other'::text NOT NULL,
     storage_path text NOT NULL,
     mime_type text,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -2613,7 +2613,7 @@ CREATE TABLE public.app_assets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     asset_key text DEFAULT ('upload/'::text || gen_random_uuid()::text) NOT NULL UNIQUE,
     title text NOT NULL,
-    category text NOT NULL,
+    category text DEFAULT 'other'::text NOT NULL,
     storage_path text NOT NULL,
     mime_type text,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -3805,7 +3805,7 @@ CREATE TABLE public.app_assets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     asset_key text DEFAULT ('upload/'::text || gen_random_uuid()::text) NOT NULL UNIQUE,
     title text NOT NULL,
-    category text NOT NULL,
+    category text DEFAULT 'other'::text NOT NULL,
     storage_path text NOT NULL,
     mime_type text,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -4924,7 +4924,7 @@ CREATE TABLE public.app_assets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     asset_key text DEFAULT ('upload/'::text || gen_random_uuid()::text) NOT NULL UNIQUE,
     title text NOT NULL,
-    category text NOT NULL,
+    category text DEFAULT 'other'::text NOT NULL,
     storage_path text NOT NULL,
     mime_type text,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -6116,7 +6116,7 @@ CREATE TABLE public.app_assets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     asset_key text DEFAULT ('upload/'::text || gen_random_uuid()::text) NOT NULL UNIQUE,
     title text NOT NULL,
-    category text NOT NULL,
+    category text DEFAULT 'other'::text NOT NULL,
     storage_path text NOT NULL,
     mime_type text,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -7250,7 +7250,7 @@ CREATE TABLE public.app_assets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     asset_key text DEFAULT ('upload/'::text || gen_random_uuid()::text) NOT NULL UNIQUE,
     title text NOT NULL,
-    category text NOT NULL,
+    category text DEFAULT 'other'::text NOT NULL,
     storage_path text NOT NULL,
     mime_type text,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -8442,7 +8442,7 @@ CREATE TABLE public.app_assets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     asset_key text DEFAULT ('upload/'::text || gen_random_uuid()::text) NOT NULL UNIQUE,
     title text NOT NULL,
-    category text NOT NULL,
+    category text DEFAULT 'other'::text NOT NULL,
     storage_path text NOT NULL,
     mime_type text,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -9471,13 +9471,16 @@ BEGIN
   IF NEW.asset_key IS NULL OR btrim(NEW.asset_key)='' THEN
     NEW.asset_key := 'upload/' || gen_random_uuid()::text;
   END IF;
+  IF NEW.category IS NULL OR btrim(NEW.category)='' THEN
+    NEW.category := coalesce(nullif(btrim(NEW.section),''),'other');
+  END IF;
   RETURN NEW;
 END;
 $function$;
 
 DROP TRIGGER IF EXISTS app_assets_fill_asset_key ON public.app_assets;
 CREATE TRIGGER app_assets_fill_asset_key
-BEFORE INSERT OR UPDATE OF asset_key ON public.app_assets
+BEFORE INSERT OR UPDATE OF asset_key, category, section ON public.app_assets
 FOR EACH ROW EXECUTE FUNCTION public.fill_app_asset_key();
 
 
