@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Power, Mic, MicOff, Smile, LayoutGrid, Mail, Send, Heart, Share2, Plus, Check, Lock, Users, Trash2, Volume2, VolumeX, Pencil, UserPlus, MessageCircle, Gift as GiftIcon, AtSign, Minimize2, X, Music2, Image as ImageIcon } from "lucide-react";
 import { toast } from "./toast";
 import { Coin } from "./AppShell";
-import { images, roomById, gifts, ui, entries, bubbles, emojis, giftTabs, LUXURY_BANNER_MIN, type GiftTab, type ShopGift, type User } from "./data";
+import { images, roomById, ui, entries, bubbles, emojis, giftTabs, LUXURY_BANNER_MIN, type GiftTab, type ShopGift, type User } from "./data";
 import { readImageFile, uploadImageDataUrl } from "./imageUpload";
 import { addStat, findUser, setProfile, setRoomMedia, spendCoins, toggleFollow, useProfile } from "./profile";
 import { can, roleLabel, type Role } from "./permissions";
@@ -174,7 +174,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   };
 
   const cloudGifts: ShopGift[] = cloudState.catalog.filter((c) => c.kind === "gift" && c.enabled && c.url).map((c) => { const m = (c.metadata ?? {}) as Record<string, unknown>; const type = String(m["type"] ?? "static"); return { id: c.id, img: c.url, n: c.name, p: c.price, mime: c.mime ?? "", lucky: type === "lucky", animated: type === "animated", full: m["full"] === true }; });
-  const list = cloudGifts.length ? cloudGifts.filter((g) => (gTab === "lucky" ? g.lucky : gTab === "animated" ? g.animated : !g.lucky && !g.animated)) : giftTabs.find((t) => t.k === gTab)!.list;
+  const list = cloudGifts.filter((g) => (gTab === "lucky" ? g.lucky : gTab === "animated" ? g.animated : !g.lucky && !g.animated));
   const sendGift = async (g: ShopGift & {id?:string}) => {
     const cost = g.p * qty;
     if(!g.id){toast('اختر هدية منشورة من الإدارة ومستخدمًا حقيقيًا');return;}
@@ -487,6 +487,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
               <span className="text-[10px] text-gold"><Coin n={g.p} /></span>
             </button>
           ))}
+          {!list.length && <p className="col-span-4 py-8 text-center text-[12px] text-night-foreground/70">لا توجد هدايا منشورة حاليًا</p>}
         </div>
         <div className="mt-3 flex items-center gap-2 px-3">
           <div className="no-scrollbar flex flex-1 gap-1 overflow-x-auto">
