@@ -18,6 +18,14 @@ type LocalAudioTrack = {
   getVolumeLevel?: () => number;
 };
 
+// Agora audio-track getVolumeLevel() returns a normalized 0..1 value,
+// while the volume-indicator event reports 0..100. Normalize both to 0..100.
+function normalizeTrackLevel(value: unknown): number {
+  const raw = Number(value);
+  if (!Number.isFinite(raw) || raw <= 0) return 0;
+  return Math.max(0, Math.min(100, raw <= 1 ? raw * 100 : raw));
+}
+
 type RtcClient = {
   join: (appId: string, channel: string, token: string, uid: number) => Promise<unknown>;
   leave: () => Promise<void>;
@@ -138,12 +146,12 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean, enabled = tr
           const next = new Map<string, number>();
           const local = trackRef.current;
           if (local?.getVolumeLevel) {
-            const level = Math.max(0, Math.min(100, Number(local.getVolumeLevel()) || 0));
+            const level = normalizeTrackLevel(local.getVolumeLevel());
             if (level >= 3) next.set(String(credentials.uid), level);
           }
           for (const [uid, remote] of remoteUsersRef.current) {
             const level = remote.audioTrack?.getVolumeLevel
-              ? Math.max(0, Math.min(100, Number(remote.audioTrack.getVolumeLevel()) || 0))
+              ? normalizeTrackLevel(remote.audioTrack.getVolumeLevel())
               : 0;
             if (level >= 3) next.set(uid, level);
           }
