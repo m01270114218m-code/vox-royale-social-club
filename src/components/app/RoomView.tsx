@@ -174,7 +174,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
 
   // mic activity time for the host center
   const micLive = membershipReady && micOn && mySeat >= 0 && !seats[mySeat]?.muted;
-  const { speakingUids } = useAgoraRoom(id, micLive, membershipReady);
+  const { speakingUids, speakingLevels } = useAgoraRoom(id, micLive, membershipReady);
   useEffect(() => {
     if (!micLive) return;
     void cloudAction('activity',{kind:'mic'}).catch(()=>{});
@@ -362,6 +362,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
             const isTyping = !!u && s.uid === "me" && !!text.trim();
             const speakerUid = u?.uid ? String(u.uid) : "";
             const speaking = !!u && !s.muted && speakingUids.has(speakerUid);
+            const speakingLevel = speakingLevels.get(speakerUid) ?? 0;
             const e = s.uid ? emo[s.uid] : undefined;
             return (
               <button key={i} onClick={() => tapSeat(i)} data-seat-uid={s.uid ?? undefined} className="relative flex flex-col items-center">
@@ -369,9 +370,9 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
                   <span className="seat-shadow" />
                   {speaking && (
                     <>
-                      <span className="voice-wave" />
-                      <span className="voice-wave voice-wave-2" />
-                      <span className="voice-wave voice-wave-3" />
+                      <span className="voice-wave" style={{ "--voice-level": Math.max(0.55, speakingLevel / 70) } as CSSProperties} />
+                      <span className="voice-wave voice-wave-2" style={{ "--voice-level": Math.max(0.65, speakingLevel / 60) } as CSSProperties} />
+                      <span className="voice-wave voice-wave-3" style={{ "--voice-level": Math.max(0.75, speakingLevel / 50) } as CSSProperties} />
                     </>
                   )}
                   {u ? (
