@@ -66,7 +66,6 @@ import eLion from "@/assets/entries/lion.webp";
 import eDragon from "@/assets/entries/dragon.webp";
 import eJet from "@/assets/entries/jet.webp";
 import eCarriage from "@/assets/entries/carriage.webp";
-import { vipArtwork, levelsArtwork } from './rank-art';
 
 export const images = { ice, room, mascot };
 export const avatars = [a1, a2, a3, a4, a5, a6, a7, a8];
@@ -77,14 +76,7 @@ export const icons = { wallet: iWallet, host: iHost, task: iTask, rewards: iRewa
 export type Room = { id: string; name: string; flag: string; vip: number; online: number; img: string; host: string; hostId: string; badges: string[]; tag: string; notice: string; cloud?: boolean; ownerId?: string };
 
 const notice = "أهلاً بكم في الغرفة. الاحترام أولاً، وممنوع الإساءة أو الإعلانات.";
-export const rooms: Room[] = [
-  { id: "1", name: "عسل بالشحن ومحلي", flag: "🇪🇬", vip: 7, online: 24, img: cHoney, host: a2, hostId: "u1", badges: [gCrown, iBadge, gDiamond], tag: "حفلة", notice },
-  { id: "2", name: "وكر كل العرب", flag: "🇪🇬", vip: 5, online: 21, img: cWolf, host: a1, hostId: "u5", badges: [gDiamond, sTrophy], tag: "دردشة", notice },
-  { id: "3", name: "ليالي الصحراء", flag: "🇸🇦", vip: 6, online: 18, img: cDesert, host: a3, hostId: "u2", badges: [gCrown], tag: "سهرة", notice },
-  { id: "4", name: "سهرة الملوك", flag: "🇯🇴", vip: 8, online: 33, img: cEagle, host: a8, hostId: "u7", badges: [gCrown, sTrophy, iBadge], tag: "ملكي", notice },
-  { id: "5", name: "قعدة صحاب وقهوة", flag: "🇦🇪", vip: 3, online: 12, img: cCafe, host: a5, hostId: "u4", badges: [gDiamond], tag: "صحاب", notice },
-  { id: "6", name: "Paris Night", flag: "🇲🇦", vip: 4, online: 9, img: cParis, host: a4, hostId: "u3", badges: [iBadge], tag: "موسيقى", notice },
-];
+export const rooms: Room[] = [];
 /** Rooms created by real users, keyed by the owner's account ID. Installed by CloudBridge. */
 const userRooms = new Map<string, Room>();
 export function installRooms(list: readonly Room[]) { userRooms.clear(); for (const r of list) userRooms.set(r.id, r); }
@@ -138,17 +130,8 @@ export type User = {
   id: string; uid: string; name: string; avatar: string; frame: FrameKey | null; bubble: BubbleKey; entry: EntryKey | null; sid: string | null;
   level: number; vip: number; gender: "m" | "f"; flag: string; bio: string; fans: number; following: number; charm: number; wealth: number; gifts: [number, number][];
 };
-export const users: User[] = [
-  { id: "u1", uid: "2281904", name: "سارة", avatar: a2, frame: "roses", bubble: "ice", entry: "carriage", sid: "520", level: 28, vip: 5, gender: "f", flag: "🇪🇬", bio: "صوتي هو هويتي، أحب السهرات الهادية.", fans: 3240, following: 210, charm: 88210, wealth: 12000, gifts: [[0, 120], [3, 14], [5, 6], [6, 1]] },
-  { id: "u2", uid: "1180023", name: "أبو فهد", avatar: a3, frame: "wings", bubble: "gold", entry: "lion", sid: "8888", level: 46, vip: 8, gender: "m", flag: "🇸🇦", bio: "ملك السهرات وداعم الغرف.", fans: 15200, following: 98, charm: 20500, wealth: 9870000, gifts: [[7, 9], [6, 21], [4, 40]] },
-  { id: "u3", uid: "3390117", name: "ريم", avatar: a4, frame: "angel", bubble: "none", entry: null, sid: null, level: 19, vip: 3, gender: "f", flag: "🇯🇴", bio: "شعر وموسيقى وقهوة.", fans: 980, following: 340, charm: 15420, wealth: 3000, gifts: [[0, 60], [1, 22], [2, 5]] },
-  { id: "u4", uid: "4471230", name: "لين", avatar: a5, frame: "ice", bubble: "ice", entry: "pegasus", sid: null, level: 22, vip: 4, gender: "f", flag: "🇦🇪", bio: "مرحباً بالجميع في قعدة الصحاب.", fans: 2110, following: 156, charm: 40110, wealth: 54000, gifts: [[0, 80], [3, 9], [5, 2]] },
-  { id: "u5", uid: "1007770", name: "يوسف", avatar: a1, frame: "fire", bubble: "gold", entry: "dragon", sid: "777", level: 33, vip: 6, gender: "m", flag: "🇪🇬", bio: "مشرف وكر كل العرب، النظام أولاً.", fans: 6400, following: 77, charm: 9900, wealth: 640000, gifts: [[4, 12], [2, 30]] },
-  { id: "u6", uid: "5522901", name: "نور", avatar: a7, frame: null, bubble: "none", entry: null, sid: null, level: 9, vip: 0, gender: "f", flag: "🇲🇦", bio: "جديدة هنا، أهلاً بكم.", fans: 120, following: 45, charm: 2100, wealth: 400, gifts: [[0, 12]] },
-  { id: "u7", uid: "1000001", name: "الشيخ زايد", avatar: a8, frame: "sapphire", bubble: "gold", entry: "jet", sid: "1000", level: 51, vip: 8, gender: "m", flag: "🇦🇪", bio: "داعم رسمي لفعاليات القصر الجليدي.", fans: 22100, following: 30, charm: 31000, wealth: 25400000, gifts: [[7, 30], [6, 44]] },
-];
+export const users: User[] = [];
 
-export const me = { name: "H·A·M·O", id: "1031437", img: a6, following: 1, fans: 1, charm: 0, coins: 12500, diamonds: 340, level: 12 };
 
 export type Gift = { img: string; n: string; p: number };
 export const gifts: Gift[] = [
@@ -220,7 +203,6 @@ export const giftTabs: { k: GiftTab; n: string; list: ShopGift[] }[] = [
 
 /* ---------- badges ---------- */
 export const badgeArt = { vip: iBadge, level: iLevel, owner: rOwner, admin: rAdmin, fan: rFan, member: rMember, host: iHost, wealth: uWealth, charm: uCharm, id: iId, gift: gCrown, rocket: gRocket, castle: gCastle, task: iTask };
-export const rankArt = { vip: vipArtwork, level: levelsArtwork };
 export const bundledAssets:Record<string,string>={
   'bundled/gift/rose':gRose,'bundled/gift/chocolate':gChoco,'bundled/gift/diamond':gDiamond,'bundled/gift/crown':gCrown,'bundled/gift/falcon':gFalcon,'bundled/gift/ring':gRing,'bundled/gift/castle':gCastle,'bundled/gift/rocket':gRocket,'bundled/emoji/heart':emHeart,'bundled/emoji/kiss':emKiss,'bundled/emoji/fire':emFire,'bundled/emoji/party':emParty,'bundled/emoji/rose':emRose,
   ...Object.fromEntries(Object.entries(frames).map(([key,value])=>[`bundled/frame/${key}`,value.img])),
