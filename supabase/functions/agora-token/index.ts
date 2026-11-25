@@ -44,6 +44,16 @@ Deno.serve(async (req: Request) => {
     if (profile.banned) return Response.json({ error: "الحساب محظور" }, { status: 403, headers: cors });
     if (roomError || !room) return Response.json({ error: "الغرفة غير موجودة" }, { status: 404, headers: cors });
 
+    // Only an account with an active database membership may obtain an Agora token.
+    const { data: membership, error: membershipError } = await supabase
+      .from("room_members")
+      .select("user_id")
+      .eq("room_id", room.id)
+      .eq("user_id", authData.user.id)
+      .maybeSingle();
+    if (membershipError) throw new Error("تعذّر التحقق من عضوية الغرفة");
+    if (!membership) return Response.json({ error: "يجب دخول الغرفة أولاً" }, { status: 403, headers: cors });
+
     const uid = Number(body?.rtc_uid ?? profile.uid);
     if (!Number.isSafeInteger(uid) || uid <= 0 || uid > 4294967295) throw new Error("معرّف اتصال الصوت غير صالح");
     const channel = `sada-room-${room.room_uid}`;
