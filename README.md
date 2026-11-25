@@ -1,29 +1,19 @@
-# Welcome to your Lovable project
+# صدى شات (Sada Chat)
 
-This project was built with [Lovable](https://lovable.dev).
+تطبيق غرف صوتية اجتماعي مبني بـ React و TypeScript و TanStack Start، مع قاعدة بيانات وخدمات Supabase حقيقية.
 
-## Build with Lovable
-
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
+## التشغيل
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+npm install
 npm run dev
 ```
 
-## Built with
+## Supabase
+ضع بيانات المشروع في ملف `.env`:
+```env
+VITE_SUPABASE_URL=https://pkqcxcfuelubonlkjgoq.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
+VITE_SUPABASE_PROJECT_ID=pkqcxcfuelubonlkjgoq
+```
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+لا يتم وضع مفتاح الخدمة السري داخل التطبيق أو أي كود عميل.
