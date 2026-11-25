@@ -4,7 +4,7 @@ import { Power, Mic, MicOff, Smile, LayoutGrid, Mail, Send, Heart, Share2, Plus,
 import { toast } from "./toast";
 import { Coin } from "./AppShell";
 import { images, roomById, rooms, gifts, ui, entries, bubbles, emojis, giftTabs, LUXURY_BANNER_MIN, type GiftTab, type ShopGift, type User } from "./data";
-import { readImageFile } from "./imageUpload";
+import { readImageFile, uploadImageDataUrl } from "./imageUpload";
 import { addStat, findUser, setProfile, setRoomMedia, spendCoins, toggleFollow, useProfile } from "./profile";
 import { can, roleLabel, type Role } from "./permissions";
 import { LUCKY_BANNER_MIN_X, luckyRtp, pickLucky } from "./lucky";
@@ -485,13 +485,23 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
           bg={roomBg}
           hasCustomCover={live ? false : Boolean(roomOv?.cover)}
           hasCustomBg={Boolean(roomOv?.bg)}
-          onSave={(n, t, cover, bg) => {
-            setRoomName(n);
-            if (live) { setRoomMedia(id, { bg }); void cloudAct("room_save", { name: n, notice: t, ...(cover ? { cover } : {}) }, ""); }
-            else setRoomMedia(id, { name: n, notice: t, cover, bg });
-            setMsgs((m) => m.map((x) => (x.kind === "notice" ? { ...x, t } : x)));
-            setSheet(null);
-            toast("تم حفظ إعدادات الغرفة");
+          onSave={async (n, t, cover, bg) => {
+            try {
+              setRoomName(n);
+              if (live) {
+                const uploadedCover = cover ? await uploadImageDataUrl(cover, "room-covers") : null;
+                setRoomMedia(id, { bg });
+                const saved = await cloudAct("room_save", { name: n, notice: t, ...(uploadedCover ? { cover: uploadedCover } : {}) }, "");
+                if (!saved) return;
+              } else {
+                setRoomMedia(id, { name: n, notice: t, cover, bg });
+              }
+              setMsgs((m) => m.map((x) => (x.kind === "notice" ? { ...x, t } : x)));
+              setSheet(null);
+              toast("تم حفظ إعدادات الغرفة");
+            } catch (error) {
+              toast(error instanceof Error ? error.message : "تعذّر حفظ صورة الغرفة");
+            }
           }}
         />
       </Sheet>
@@ -628,7 +638,7 @@ function UserCard({ u, self, role, myRole, onMic, muted, following, onFollow, on
 
 function EditRoom({ name, notice, cover, bg, hasCustomCover, hasCustomBg, onSave }: {
   name: string; notice: string; cover: string; bg: string; hasCustomCover: boolean; hasCustomBg: boolean;
-  onSave: (n: string, t: string, cover: string | null, bg: string | null) => void;
+  onSave: (n: string, t: string, cover: string | null, bg: string | null) => void | Promise<void>;
 }) {
   const [n, setN] = useState(name);
   const [t, setT] = useState(notice);
@@ -671,7 +681,7 @@ function EditRoom({ name, notice, cover, bg, hasCustomCover, hasCustomBg, onSave
       </div>
       <label className="block text-[12px] font-bold text-muted-foreground">اسم الغرفة<input value={n} maxLength={24} onChange={(e) => setN(e.target.value)} className="mt-1 w-full rounded-xl bg-secondary px-3 py-2 text-[14px] text-navy outline-none" /></label>
       <label className="block text-[12px] font-bold text-muted-foreground">إعلان الغرفة<textarea value={t} maxLength={120} rows={3} onChange={(e) => setT(e.target.value)} className="mt-1 w-full resize-none rounded-xl bg-secondary px-3 py-2 text-[13px] text-navy outline-none" /></label>
-      <button onClick={() => n.trim() && onSave(n.trim(), t.trim(), cImg, bImg)} className="press w-full rounded-full gold-bg py-2.5 text-[14px] font-black text-navy">حفظ</button>
+      <button onClick={() => { if (n.trim()) void onSave(n.trim(), t.trim(), cImg, bImg); }} className="press w-full rounded-full gold-bg py-2.5 text-[14px] font-black text-navy">حفظ</button>
     </div>
   );
 }
