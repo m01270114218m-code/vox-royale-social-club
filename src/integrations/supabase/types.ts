@@ -217,6 +217,74 @@ export type Database = {
         }
         Relationships: []
       }
+      app_catalog: {
+        Row: {
+          asset_id: string | null
+          created_at: string
+          description: string
+          duration_days: number
+          enabled: boolean
+          home: boolean
+          id: string
+          in_store: boolean
+          kind: string
+          link: string
+          metadata: Json
+          name: string
+          position: number
+          price: number
+          publish_until: string | null
+          rank: number
+          updated_at: string
+        }
+        Insert: {
+          asset_id?: string | null
+          created_at?: string
+          description?: string
+          duration_days?: number
+          enabled?: boolean
+          home?: boolean
+          id?: string
+          in_store?: boolean
+          kind: string
+          link?: string
+          metadata?: Json
+          name: string
+          position?: number
+          price?: number
+          publish_until?: string | null
+          rank?: number
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string | null
+          created_at?: string
+          description?: string
+          duration_days?: number
+          enabled?: boolean
+          home?: boolean
+          id?: string
+          in_store?: boolean
+          kind?: string
+          link?: string
+          metadata?: Json
+          name?: string
+          position?: number
+          price?: number
+          publish_until?: string | null
+          rank?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_catalog_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "app_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_settings: {
         Row: {
           is_public: boolean
@@ -821,6 +889,42 @@ export type Database = {
             foreignKeyName: "room_bans_room_id_fkey"
             columns: ["room_id"]
             isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_controls: {
+        Row: {
+          banned: boolean
+          frame_id: string | null
+          room_id: string
+          updated_at: string
+        }
+        Insert: {
+          banned?: boolean
+          frame_id?: string | null
+          room_id: string
+          updated_at?: string
+        }
+        Update: {
+          banned?: boolean
+          frame_id?: string | null
+          room_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_controls_frame_id_fkey"
+            columns: ["frame_id"]
+            isOneToOne: false
+            referencedRelation: "app_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_controls_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: true
             referencedRelation: "rooms"
             referencedColumns: ["id"]
           },
