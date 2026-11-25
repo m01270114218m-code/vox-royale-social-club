@@ -111,14 +111,14 @@ export function meAsUser(p: Profile): User {
   const giftsIn = Object.values(p.stats.days).reduce((s, d) => s + d.gifts, 0);
   const cloud = readCloud().profile;
   return {
-    id: "me", uid: cloud ? String(cloud.uid) : MY_UID, name: cloud?.name ?? p.name, avatar: cloud?.avatar || p.customAvatar || avatarAt(p.avatar), frame: p.frame, bubble: p.bubble, entry: p.entry, sid: cloud?.special_id ?? p.sid,
+    id: "me", uid: cloud ? String(cloud.uid) : MY_UID, name: cloud?.name ?? p.name, avatar: cloud?.avatar_url || cloud?.avatar || p.customAvatar || avatarAt(p.avatar), frame: p.frame, bubble: p.bubble, entry: p.entry, sid: cloud?.special_id ?? p.sid,
     level: cloud?.level ?? 1, vip: cloud?.vip ?? 0, gender: p.gender, flag: p.flag, bio: cloud?.bio ?? p.bio, fans: 0, following: p.following.length, charm: cloud?.gift_value ?? giftsIn, wealth: cloud?.coins ?? p.coins, gifts: [],
   };
 }
 
 /** Resolve the user's current avatar URL (device upload or preset). */
 export function profileAvatar(p: Profile): string {
-  return readCloud().profile?.avatar || p.customAvatar || avatarAt(p.avatar);
+  return readCloud().profile?.avatar_url || readCloud().profile?.avatar || p.customAvatar || avatarAt(p.avatar);
 }
 
 /** Save custom room name, notice, cover photo, or background photo. */
@@ -148,7 +148,7 @@ export function sendDm(uid: string, text: string) {
 export function findUser(id: string, p: Profile): User | undefined {
   const cloud=readCloud();
   const row=cloud.profiles.find(u=>u.id===id||String(u.uid)===id);
-  if(row){const own=cloud.items.filter(i=>i.user_id===row.id&&i.equipped);const worn=(kind:string)=>cloud.catalog.find(c=>c.kind===kind&&own.some(i=>i.catalog_id===c.id));return {id:row.id,uid:String(row.uid),name:row.name,avatar:row.avatar||avatarAt(0),frame:worn('frame')?`cloud-${worn('frame')?.id}` as FrameKey:null,entry:worn('entry')?`cloud-${worn('entry')?.id}` as EntryKey:null,bubble:worn('bubble')?`cloud-${worn('bubble')?.id}` as BubbleKey:'none',sid:row.special_id,level:row.level,vip:row.vip,gender:'m',flag:'',bio:row.bio,fans:0,following:0,charm:row.gift_value,wealth:row.coins,gifts:[]};}
+  if(row){const own=cloud.items.filter(i=>i.user_id===row.id&&i.equipped);const worn=(kind:string)=>cloud.catalog.find(c=>c.kind===kind&&own.some(i=>i.catalog_id===c.id));return {id:row.id,uid:String(row.uid),name:row.name,avatar:row.avatar_url||row.avatar||avatarAt(0),frame:worn('frame')?`cloud-${worn('frame')?.id}` as FrameKey:null,entry:worn('entry')?`cloud-${worn('entry')?.id}` as EntryKey:null,bubble:worn('bubble')?`cloud-${worn('bubble')?.id}` as BubbleKey:'none',sid:row.special_id,level:row.level,vip:row.vip,gender:'m',flag:'',bio:row.bio,fans:0,following:0,charm:row.gift_value,wealth:row.coins,gifts:[]};}
   return id === "me" ? meAsUser(p) : undefined;
 }
 
