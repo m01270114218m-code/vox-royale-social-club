@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Plus, Settings2, DoorOpen } from "lucide-react";
 import { IceHeader, PartyTabs, RoomCard } from "@/components/app/AppShell";
-import { rooms, images } from "@/components/app/data";
+import { images } from "@/components/app/data";
 import { useCloud } from "@/components/app/cloud";
 import { RoomForm } from "@/components/app/RoomForm";
 
@@ -19,7 +19,7 @@ function Mine() {
   const my = data?.myRoom ?? null;
   const uid = String(data?.profile?.uid ?? "");
   const others = (data?.roomList ?? []).filter((r) => r.id !== my?.id);
-  const lists = [rooms.slice(0, 3), rooms.slice(3), others];
+  const lists = [[], [], others];
   const empty = ["لم تزر أي غرفة بعد", "لا تتابع أي غرفة بعد", "لا توجد غرف أعضاء بعد"];
   return (
     <div>
