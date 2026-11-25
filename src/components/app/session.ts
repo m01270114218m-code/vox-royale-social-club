@@ -176,6 +176,27 @@ export function AuthBridge() {
         revision += 1;
         publishSession(session?.user.id);
       }
+      // Enroll the signed-in account's device so later registrations from
+      // this device or network are routed to the admin review queue.
+      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.access_token) {
+        try {
+          const key = "sada-chat-device-v1";
+          let deviceId = localStorage.getItem(key);
+          if (!deviceId) {
+            deviceId = typeof crypto !== "undefined" && "randomUUID" in crypto
+              ? crypto.randomUUID()
+              : `sada-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+            localStorage.setItem(key, deviceId);
+          }
+          void supabase.functions.invoke("register-device", {
+            body: { deviceId },
+          }).then(({ error }) => {
+            if (error) console.warn("[auth] device enrollment deferred:", error.message);
+          });
+        } catch (error) {
+          console.warn("[auth] device enrollment unavailable:", error);
+        }
+      }
     });
 
     const initialRevision = revision;
