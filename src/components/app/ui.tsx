@@ -100,24 +100,30 @@ export function RoleBadge({ role, className = "h-4 w-4" }: { role: Role; classNa
 /** Level badge — each level range gets its own tier style. */
 export function LevelChip({ level }: { level: number }) {
   const {catalog} = useCloudState();
-  const custom=catalog.find(c=>c.kind==='level'&&c.rank===level&&c.enabled);
-  const lv=Math.min(100,Math.max(1,level));
-  const tier=Math.min(5,Math.floor((lv-1)/20));
-  return <span className={`rank-pill lv-t${tier} inline-flex h-[18px] shrink-0 items-center ps-[22px] pe-1.5`} dir="ltr" title={`المستوى ${level}`}>
-    <img src={custom?.url || icons.level} alt="" className="rank-pill-icon" onError={(e)=>{const el=e.currentTarget;if(el.dataset.fallback!=="1"){el.dataset.fallback="1";el.src=icons.level;}}}/>
-    <b className="text-[10px] font-black leading-none">Lv.{lv}</b>
+  const lv=Math.min(100,Math.max(1,Number.isFinite(level)?Math.floor(level):1));
+  const custom=catalog.find(c=>c.kind==='level'&&c.rank===lv&&c.enabled);
+  const tier=Math.min(4,Math.floor((lv-1)/20));
+  const hue=(lv*37+155)%360;
+  return <span className={`rank-pill lv-t${tier} rank-pill-number inline-flex h-[20px] shrink-0 items-center ps-[23px] pe-1.5`} dir="ltr" title={`المستوى ${lv}`} style={{'--rank-hue':hue} as React.CSSProperties}>
+    <span className="rank-emblem rank-emblem-level" aria-hidden="true">{lv}</span>
+    {custom?.url && <img src={custom.url} alt="" className="rank-pill-icon" onError={e=>{e.currentTarget.style.display='none';}}/>}
+    <b className="text-[9px] font-black leading-none tracking-wide">LEVEL</b>
   </span>;
 }
-/** VIP badge — glossy pill whose color climbs with the VIP rank. */
+/** Numbered VIP medal: every VIP rank receives its own jewel hue and the original glossy pill treatment. */
 export function VipChip({ vip }: { vip: number }) {
   const {catalog} = useCloudState();
   if (!vip) return null;
-  const custom=catalog.find(c=>c.kind==='vip'&&c.rank===vip&&c.enabled);
-  const n=Math.min(12,Math.max(1,vip));
+  const n=Math.min(12,Math.max(1,Math.floor(vip)));
+  const custom=catalog.find(c=>c.kind==='vip'&&c.rank===n&&c.enabled);
   const tier=n<=3?0:n<=6?1:n<=9?2:3;
-  return <span title={`VIP ${vip}`} aria-label={`VIP ${vip}`} dir="ltr" className={`rank-pill vip-t${tier} inline-flex h-[18px] shrink-0 items-center ps-[22px] pe-1.5`}><img src={custom?.url || icons.badge} alt="" className="rank-pill-icon" onError={(e)=>{const el=e.currentTarget;if(el.dataset.fallback!=="1"){el.dataset.fallback="1";el.src=icons.badge;}}}/><b className="text-[9.5px] font-black italic leading-none">VIP{n}</b></span>;
+  const hue=(n*29+38)%360;
+  return <span title={`VIP ${n}`} aria-label={`VIP ${n}`} dir="ltr" className={`rank-pill vip-t${tier} rank-pill-number inline-flex h-[20px] shrink-0 items-center ps-[23px] pe-1.5`} style={{'--rank-hue':hue} as React.CSSProperties}>
+    <span className="rank-emblem rank-emblem-vip" aria-hidden="true">{n}</span>
+    {custom?.url && <img src={custom.url} alt="" className="rank-pill-icon" onError={e=>{e.currentTarget.style.display='none';}}/>}
+    <b className="text-[9px] font-black italic leading-none tracking-wide">VIP</b>
+  </span>;
 }
-/** Badges the user owns (bought or sent by the administration), shown in one tidy row under the ID. */
 export function UserBadges({userId,align='center',size=26}:{userId:string;align?:'center'|'start';size?:number}) {
   const {catalog,items}=useCloudState();
   const owned=new Set(items.filter(i=>i.user_id===userId).map(i=>i.catalog_id));
