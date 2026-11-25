@@ -33,11 +33,15 @@ function EditProfile() {
     }
   };
   const save = async () => {
-    if (!f.name.trim()) { toast("اكتب اسمك أولاً"); return; }
+    // Cloud profile columns may legitimately be NULL for older accounts.
+    // Normalize editable text before calling trim().
+    const cleanName = String(f.name ?? "").trim();
+    const cleanBio = String(f.bio ?? "").trim();
+    if (!cleanName) { toast("اكتب اسمك أولاً"); return; }
     try {
       const avatar = f.customAvatar ? await uploadImageDataUrl(f.customAvatar, "profile") : avatars[f.avatar] || "";
-      if(!await act('profile',{name:f.name.trim(),bio:f.bio.trim(),avatar}))return;
-      setProfile({ name: f.name.trim(), bio: f.bio.trim(), gender: f.gender, flag: f.flag, avatar: f.avatar, customAvatar: f.customAvatar ? avatar : null });
+      if(!await act('profile',{name:cleanName,bio:cleanBio,avatar}))return;
+      setProfile({ name: cleanName, bio: cleanBio, gender: f.gender, flag: f.flag, avatar: f.avatar, customAvatar: f.customAvatar ? avatar : null });
     } catch (error) {
       toast(error instanceof Error ? error.message : "تعذّر رفع الصورة");
       return;
