@@ -36,6 +36,7 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean, enabled = tr
   const publishRef = useRef(publishAudio);
   const [ready, setReady] = useState(false);
   const [speakingUids, setSpeakingUids] = useState<Set<string>>(() => new Set());
+  const [speakingLevels, setSpeakingLevels] = useState<Map<string, number>>(() => new Map());
 
   useEffect(() => { publishRef.current = publishAudio; }, [publishAudio]);
 
@@ -70,6 +71,18 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean, enabled = tr
         clientRef.current = instance;
         (instance as unknown as { uid: number }).uid = credentials.uid;
         remoteUsersRef.current.clear();
+
+        instance.enableAudioVolumeIndicator?.();
+        instance.on("volume-indicator", ((volumes: Array<{ uid: string | number; level: number }>) => {
+          const next = new Map<string, number>();
+          for (const v of volumes) {
+            const uid = String(v.uid);
+            const level = Math.max(0, Math.min(100, Number(v.level) || 0));
+            if (level >= 8) next.set(uid, level);
+          }
+          setSpeakingLevels(next);
+          setSpeakingUids(new Set(next.keys()));
+        }) as (...args: never[]) => void);
 
         instance.on("user-published", (async (user: RemoteAudioUser, mediaType: "audio" | "video") => {
           try {
@@ -187,38 +200,12 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean, enabled = tr
     return () => { cancelled = true; };
   }, [publishAudio, ready, enabled]);
 
-  // Real-time speaker detection from the actual Agora audio levels.
-  // The UI uses these IDs to animate only users who are really producing audio.
   useEffect(() => {
     if (!enabled || !ready) {
       setSpeakingUids(new Set());
-      return;
+      setSpeakingLevels(new Map());
     }
-
-    const timer = window.setInterval(() => {
-      const next = new Set<string>();
-      const local = trackRef.current;
-      const localLevel = local?.getVolumeLevel?.() ?? 0;
-      if (local && localLevel >= 0.08) {
-        // The token endpoint returns the authenticated profile UID.
-        // It is stored on the client object after join.
-        const joinedUid = (clientRef.current as unknown as { uid?: number } | null)?.uid;
-        if (joinedUid !== undefined) next.add(String(joinedUid));
-      }
-
-      for (const [uid, user] of remoteUsersRef.current) {
-        const level = user.audioTrack?.getVolumeLevel?.() ?? 0;
-        if (level >= 0.08) next.add(uid);
-      }
-
-      setSpeakingUids((prev) => {
-        if (prev.size === next.size && [...next].every((uid) => prev.has(uid))) return prev;
-        return next;
-      });
-    }, 120);
-
-    return () => window.clearInterval(timer);
   }, [enabled, ready]);
 
-  return { ready, speakingUids };
+  return { ready, speakingUids, speakingLevels };
 }
