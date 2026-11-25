@@ -1,1 +1,0 @@
-alter table public.gifts add column if not exists asset_url text;

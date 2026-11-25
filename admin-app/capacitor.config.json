@@ -1,8 +1,0 @@
-{
-  "appId": "com.voxroyale.admin",
-  "appName": "VOX Admin",
-  "webDir": "../admin-panel",
-  "server": {
-    "cleartext": false
-  }
-}
