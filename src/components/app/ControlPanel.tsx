@@ -18,7 +18,7 @@ import { ACCEPT, ASSET_SECTIONS, AssetPicker, Block, Button, DurationPicker, Emp
 type Sec = { k: string; n: string; i: LucideIcon };
 const groups: { n: string; items: Sec[] }[] = [
   { n: 'المالية', items: [{ k: 'recharge_requests', n: 'طلبات الشحن', i: Wallet }, { k: 'coins', n: 'العملات', i: Coins }, { k: 'recharge', n: 'وكلاء الشحن', i: BadgeDollarSign }] },
-  { n: 'المستخدمون', items: [{ k: 'users', n: 'المستخدمون', i: Users }, { k: 'grants', n: 'إرسال مباشر', i: Send }, { k: 'roles', n: 'الصلاحيات', i: ShieldCheck }, { k: 'style', n: 'ألوان الاسم', i: Palette }, { k: 'agencies', n: 'الوكالات', i: Building2 }, { k: 'notifications', n: 'الرسائل', i: Bell }] },
+  { n: 'المستخدمون', items: [{ k: 'users', n: 'المستخدمون', i: Users }, { k: 'account_requests', n: 'طلبات الحسابات', i: ShieldCheck }, { k: 'grants', n: 'إرسال مباشر', i: Send }, { k: 'roles', n: 'الصلاحيات', i: ShieldCheck }, { k: 'style', n: 'ألوان الاسم', i: Palette }, { k: 'agencies', n: 'الوكالات', i: Building2 }, { k: 'notifications', n: 'الرسائل', i: Bell }] },
   { n: 'المحتوى والمتجر', items: [{ k: 'assets', n: 'مكتبة الأصول', i: FolderUp }, { k: 'gift', n: 'الهدايا', i: Gift }, { k: 'entry', n: 'الدخوليات', i: Rocket }, { k: 'frame', n: 'الإطارات', i: CircleDashed }, { k: 'bubble', n: 'الفقاعات', i: MessageCircle }, { k: 'seat', n: 'المايكات', i: Armchair }, { k: 'badge', n: 'الشارات', i: Award }, { k: 'sid', n: 'أرقام مميزة', i: Hash }, { k: 'vip', n: 'VIP', i: Crown }, { k: 'level', n: 'المستويات', i: TrendingUp }, { k: 'music', n: 'أغاني الغرف', i: Music2 }] },
   { n: 'واجهة التطبيق', items: [{ k: 'banner', n: 'البنرات', i: ImageIcon }, { k: 'event', n: 'الفعاليات', i: CalendarDays }, { k: 'welcome', n: 'الترحيب', i: PartyPopper }, { k: 'room_frame', n: 'إطارات الغرف', i: SquareDashed }, { k: 'rooms', n: 'الغرف', i: DoorOpen }] },
   { n: 'النظام', items: [{ k: 'updates', n: 'الصيانة والتحديث', i: Wrench }, { k: 'development', n: 'تشغيل الميزات', i: FlaskConical }, { k: 'audit', n: 'سجل الإدارة', i: ScrollText }] },
@@ -62,6 +62,7 @@ export function ControlPanel() {
       {section === 'assets' && <Assets {...p} />}
       {catalogKinds.includes(section) && <Catalog key={section} kind={section} {...p} />}
       {section === 'users' && <UsersList {...p} />}
+      {section === 'account_requests' && <AccountRequests />}
       {section === 'grants' && <><DirectSend {...p} /><Levels {...p} /></>}
       {section === 'coins' && <CoinsSec {...p} />}
       {section === 'recharge_requests' && <Recharge {...p} />}
@@ -76,6 +77,60 @@ export function ControlPanel() {
       {section === 'audit' && <Block title="آخر العمليات">{d.audit.map(a => <div key={a.id} className="flex items-center justify-between border-b border-border/60 py-2 text-[11.5px] last:border-0"><b className="text-navy">{a.action}</b><span className="text-muted-foreground">{when(a.created_at)}</span></div>)}{!d.audit.length && <Empty text="لا توجد عمليات مسجلة" />}</Block>}
     </div>
   </div>;
+}
+
+type AccountRegistrationRequest = { id: string; display_name: string; email: string; status: string; created_at: string };
+
+function AccountRequests() {
+  const [items, setItems] = useState<AccountRegistrationRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState("");
+  const load = async () => {
+    setLoading(true);
+    const { data, error } = await (supabase as any).from("account_registration_requests")
+      .select("id,display_name,email,status,created_at")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+    if (error) toast(error.message);
+    else setItems((data ?? []) as AccountRegistrationRequest[]);
+    setLoading(false);
+  };
+  useEffect(() => { void load(); }, []);
+  const decide = async (item: AccountRegistrationRequest, status: "approved" | "rejected") => {
+    setBusyId(item.id);
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) throw new Error("انتهت جلسة المشرف، سجّل الدخول مرة أخرى");
+      const { error } = await (supabase as any).from("account_registration_requests")
+        .update({ status, reviewed_by: authData.user.id, reviewed_at: new Date().toISOString() })
+        .eq("id", item.id)
+        .eq("status", "pending");
+      if (error) throw error;
+      toast.success(status === "approved" ? "تمت الموافقة على الطلب" : "تم رفض الطلب");
+      await load();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "تعذر تحديث الطلب");
+    } finally {
+      setBusyId("");
+    }
+  };
+  return <Block title="طلبات إنشاء الحسابات">
+    <p className="mb-2 text-[11px] leading-relaxed text-muted-foreground">تظهر هنا الحسابات الإضافية التي تحتاج موافقة. بعد الموافقة، يعيد المستخدم التسجيل بنفس البريد وكلمة المرور التي اختارها؛ كلمة المرور لا تُحفظ في لوحة الإدارة.</p>
+    <div className="mb-3 flex justify-end"><Button size="sm" variant="outline" onClick={() => void load()} disabled={loading || !!busyId}>تحديث الطلبات</Button></div>
+    {loading ? <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div> : items.length ? <div className="space-y-2">
+      {items.map(item => <div key={item.id} className="surface space-y-2.5 p-3">
+        <div className="flex items-start gap-2">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><Users className="h-4 w-4" /></div>
+          <div className="min-w-0 flex-1"><p className="truncate text-[13px] font-black text-navy">{item.display_name}</p><p dir="ltr" className="truncate text-start text-[11px] text-muted-foreground">{item.email}</p><p className="mt-1 text-[10px] text-muted-foreground">طلب بتاريخ {when(item.created_at)} · جهاز أو شبكة سبق التسجيل منها</p></div>
+          <span className="rounded-full bg-gold/20 px-2 py-1 text-[10px] font-bold text-navy">قيد المراجعة</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Button size="sm" disabled={!!busyId} onClick={() => void decide(item, "approved")}>{busyId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} موافقة</Button>
+          <Button size="sm" variant="outline" disabled={!!busyId} onClick={() => void decide(item, "rejected")}>{busyId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />} رفض</Button>
+        </div>
+      </div>)}
+    </div> : <Empty text="لا توجد طلبات حسابات معلقة" />}
+  </Block>;
 }
 
 function Overview({ d, go }: P) {
