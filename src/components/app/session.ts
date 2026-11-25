@@ -87,6 +87,19 @@ export function signOut(): Promise<void> {
       console.error("[Auth] Supabase sign-out failed", error);
       throw error;
     }
+  }).then(async () => {
+    // Clear Credential Manager state so the next Google login starts from
+    // the account chooser instead of reusing a provider session.
+    if (Capacitor.isNativePlatform() || Capacitor.getPlatform() === "android") {
+      try {
+        const native = NativeGoogleAuth as NativeGoogleAuthPlugin & {
+          clearCredentialState?: () => Promise<void>;
+        };
+        await native.clearCredentialState?.();
+      } catch (error) {
+        console.warn("[Auth] Native Google credential state clear failed", error);
+      }
+    }
   }).catch((error) => {
     console.error("[Auth] Supabase sign-out failed", error);
   });
