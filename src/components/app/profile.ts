@@ -111,14 +111,14 @@ export function meAsUser(p: Profile): User {
   const giftsIn = Object.values(p.stats.days).reduce((s, d) => s + d.gifts, 0);
   const cloud = readCloud().profile;
   return {
-    id: "me", uid: cloud ? String(cloud.uid) : MY_UID, name: cloud?.name ?? p.name, avatar: cloud?.avatar || p.customAvatar || avatarAt(p.avatar), frame: p.frame, bubble: p.bubble, entry: p.entry, sid: cloud?.special_id ?? p.sid,
+    id: "me", uid: cloud ? String(cloud.uid) : MY_UID, name: cloud?.name ?? p.name, avatar: cloud?.avatar_url || cloud?.avatar || p.customAvatar || avatarAt(p.avatar), frame: p.frame, bubble: p.bubble, entry: p.entry, sid: cloud?.special_id ?? p.sid,
     level: cloud?.level ?? 12, vip: cloud?.vip ?? 2, gender: p.gender, flag: p.flag, bio: cloud?.bio ?? p.bio, fans: 1, following: p.following.length, charm: cloud?.gift_value ?? giftsIn, wealth: cloud?.coins ?? 12500 + p.stats.giftsOut, gifts: [[0, 3], [1, 1]],
   };
 }
 
 /** Resolve the user's current avatar URL (device upload or preset). */
 export function profileAvatar(p: Profile): string {
-  return p.customAvatar || avatarAt(p.avatar);
+  return readCloud().profile?.avatar_url || readCloud().profile?.avatar || p.customAvatar || avatarAt(p.avatar);
 }
 
 /** Save custom room name, notice, cover photo, or background photo. */
