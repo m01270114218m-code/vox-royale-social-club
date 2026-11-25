@@ -188,7 +188,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
         setRoomMemberIds([]);
         return;
       }
-      setRoomMemberIds((data ?? []).map((row) => String(row.user_id)));
+      setRoomMemberIds((data ?? []).map((row: { user_id: unknown }) => String(row.user_id)));
     };
     void loadMembers();
     const timer = window.setInterval(() => { void loadMembers(); }, 3000);
