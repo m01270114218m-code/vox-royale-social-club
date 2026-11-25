@@ -94,7 +94,7 @@ export function useCloud() {
 }
 export function CloudBridge() {
   const { data } = useCloud();
-  useEffect(() => { if (data) { installCatalog(data.catalog); installRooms(data.roomList); publishCloud({ profile: data.profile, roles: data.roles, catalog: data.catalog, profiles: data.profiles, items: data.items }); } }, [data]);
+  useEffect(() => { if (data) { installCatalog(data.catalog); installRooms(data.roomList); publishCloud({ profile: data.profile, roles: data.roles, catalog: data.catalog, assets: data.assets.map(a => ({ asset_key: a.asset_key, url: a.url, mime: a.mime_type })), profiles: data.profiles, items: data.items }); } }, [data]);
   return null;
 }
 export function useCloudActions() {
