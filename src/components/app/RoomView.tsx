@@ -151,8 +151,15 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
       }
       setMembershipReady(true);
       heartbeat = setInterval(() => {
-        void supabase.rpc('heartbeat_room', { p_room_id: roomDbId }).then(({ error: beatError }) => {
-          if (beatError) console.warn('[room] heartbeat failed:', beatError.message);
+        void supabase.rpc('heartbeat_room', { p_room_id: roomDbId }).then(({ data: alive, error: beatError }) => {
+          if (beatError || !alive) {
+            console.warn('[room] membership heartbeat lost:', beatError?.message || 'membership missing');
+            setMicOn(false);
+            setMembershipReady(false);
+            setActiveRoom(null);
+            toast('انتهى اتصالك بالغرفة، أعد الدخول للمتابعة');
+            void nav({ to: '/', replace: true });
+          }
         });
       }, 20000);
     };
@@ -265,7 +272,20 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const onlineCount = room.online + present.length;
   const leave = () => { if (router.history.canGoBack()) router.history.back(); else void nav({ to: "/", replace: true }); };
   const minimize = () => { setExitMenu(false); leave(); };
-  const close = async () => { setExitMenu(false); setMicOn(false); if (live && roomDbId) await supabase.rpc("leave_room", { p_room_id: roomDbId }); setActiveRoom(null); leave(); };
+  const close = async () => {
+    setExitMenu(false);
+    setMicOn(false);
+    if (live && roomDbId) {
+      const { data, error } = await supabase.rpc("leave_room", { p_room_id: roomDbId });
+      if (error || data !== true) {
+        toast(error?.message || "تعذّر تسجيل مغادرة الغرفة؛ حاول مرة أخرى");
+        return;
+      }
+    }
+    setMembershipReady(false);
+    setActiveRoom(null);
+    leave();
+  };
 
   const tools = [
     {n:'الأغاني',i:Music2,ok:true,f:()=>setSheet({kind:'music'})},
