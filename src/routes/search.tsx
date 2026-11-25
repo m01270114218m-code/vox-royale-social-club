@@ -2,7 +2,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { ChevronRight, Search as S, X } from "lucide-react";
 import { useState } from "react";
 import { RoomCard } from "@/components/app/AppShell";
-import { rooms, liveRooms } from "@/components/app/data";
+import { liveRooms } from "@/components/app/data";
 import { useCloud } from "@/components/app/cloud";
 
 export const Route = createFileRoute("/search")({
@@ -16,7 +16,7 @@ function Search() {
   const r = useRouter();
   const [q, setQ] = useState("");
   useCloud();
-  const res = [...liveRooms(), ...rooms].filter((x) => x.name.includes(q) || x.id === q);
+  const res = liveRooms().filter((x) => x.name.includes(q) || x.id === q);
   return (
     <div className="px-3.5 pb-6">
       <div className="sticky top-0 z-30 -mx-3.5 flex h-14 items-center gap-1.5 bg-background/90 px-2 backdrop-blur">
