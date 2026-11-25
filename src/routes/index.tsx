@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { IceHeader, PartyTabs, RoomCard } from "@/components/app/AppShell";
-import { rooms, ui, users } from "@/components/app/data";
+import { ui } from "@/components/app/data";
 import { LiveCatalog } from "@/components/app/LiveCatalog";
 import { useCloud } from "@/components/app/cloud";
 import { meAsUser, useProfile } from "@/components/app/profile";
@@ -18,16 +18,16 @@ function Home() {
   const { data } = useCloud();
   const liveList = data?.roomList ?? [];
   const [c, setC] = useState("all");
-  const allUsers = [meAsUser(profile), ...users];
+  const allUsers = [meAsUser(profile)];
   const topWealth = [...allUsers].sort((a, b) => b.wealth - a.wealth).slice(0, 2).map((u) => u.avatar);
-  const topRooms = [...liveList, ...rooms].sort((a, b) => b.online - a.online).slice(0, 2).map((r) => profile.roomMedia[r.id]?.cover || r.img);
+  const topRooms = [...liveList].sort((a, b) => b.online - a.online).slice(0, 2).map((r) => profile.roomMedia[r.id]?.cover || r.img);
   const topCharm = [...allUsers].sort((a, b) => b.charm - a.charm).slice(0, 2).map((u) => u.avatar);
   const ranks = [
     { k: "wealth" as const, l: "الثروة", i: ui.wealth, gold: true, imgs: topWealth },
     { k: "room" as const, l: "الغرفة", i: ui.room, gold: false, imgs: topRooms },
     { k: "charm" as const, l: "الكاريزما", i: ui.charm, gold: false, imgs: topCharm },
   ];
-  const list = c === "all" ? [...liveList, ...rooms.slice().sort((a, b) => b.online - a.online)] : rooms.filter((r) => r.flag === c).sort((a, b) => b.online - a.online);
+  const list = c === "all" ? liveList.slice().sort((a, b) => b.online - a.online) : liveList.filter((r) => r.flag === c).sort((a, b) => b.online - a.online);
   return (
     <div>
       <IceHeader><PartyTabs active="party" /></IceHeader>
