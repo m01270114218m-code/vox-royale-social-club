@@ -1,9 +1,9 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Power, Mic, MicOff, Smile, LayoutGrid, Mail, Send, Heart, Share2, Plus, Check, Lock, Users, Trash2, Volume2, VolumeX, Pencil, UserPlus, MessageCircle, Gift as GiftIcon, AtSign, Minimize2, X, Music2, Image as ImageIcon } from "lucide-react";
 import { toast } from "./toast";
 import { Coin } from "./AppShell";
-import { images, roomById, rooms, gifts, ui, entries, bubbles, emojis, giftTabs, LUXURY_BANNER_MIN, type GiftTab, type ShopGift, type User } from "./data";
+import { images, roomById, gifts, ui, entries, bubbles, emojis, giftTabs, LUXURY_BANNER_MIN, type GiftTab, type ShopGift, type User } from "./data";
 import { readImageFile, uploadImageDataUrl } from "./imageUpload";
 import { addStat, findUser, setProfile, setRoomMedia, spendCoins, toggleFollow, useProfile } from "./profile";
 import { can, roleLabel, type Role } from "./permissions";
@@ -24,11 +24,9 @@ type SeatS = { uid: string | null; locked: boolean; muted: boolean };
 type Sheets = { kind: "user"; uid: string } | { kind: "seat"; i: number } | { kind: "menu" } | { kind: "members" } | { kind: "edit" } | { kind: "gift" } | { kind: "emoji" } | {kind:'music'} | null;
 type Banner = { k: number; kind: "luxury" | "lucky"; from: User; to: User; gift: ShopGift; qty: number; room?: string; x?: number };
 
-const lines = ["مساء النور يا حبايب", "منورين السهرة والله", "أحلى لمة الليلة", "مين يطلع مايك يغني؟", "تحية كبيرة للمضيف", "صوتك روعة ما شاء الله", "نورت الغرفة يا غالي"];
 const QTYS = [1, 10, 66, 99, 520];
 let mid = 1;
 const nid = () => ++mid;
-const pick = <T,>(a: T[]): T | undefined => a[Math.floor(Math.random() * a.length)];
 
 export function RoomView({ id, minimized }: { id: string; minimized: boolean }) {
   const {data:cloud}=useCloud();
@@ -46,17 +44,16 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
 
   const myRole: Role = room.hostId === "me" ? "owner" : cloud?.roles.includes('admin')||cloud?.roles.includes('moderator') ? "admin" : "member";
   // rooms owned by real users have no simulated guests
-  const guestPool = useMemo(() => (live ? [] : ["u1", "u2", "u3", "u4", "u5", "u6", "u7"].filter((u) => u !== room.hostId)), [room.hostId, live]);
-  const hostHere = !live || room.hostId === "me";
+  const hostHere = room.hostId === "me";
   const cloudMembers=cloud?.profiles.filter(p=>p.id!==cloud.profile?.id&&!p.banned).map(p=>p.id) ?? [];
   const equippedSeat=cloud?.items.find(i=>i.user_id===cloud.profile?.id&&i.equipped&&cloud.catalog.some(c=>c.id===i.catalog_id&&c.kind==='seat'));
   const seatArt=cloud?.catalog.find(c=>c.id===equippedSeat?.catalog_id)?.url || ui.seat;
 
   const [roomName, setRoomName] = useState(live ? room.name : roomOv?.name || room.name);
-  const [roles, setRoles] = useState<Record<string, Role>>(() => ({ [room.hostId]: "owner", me: myRole, ...(guestPool[2] ? { [guestPool[2]]: "admin" as Role } : {}) }));
-  const [present, setPresent] = useState<string[]>(() => [...(hostHere ? [room.hostId] : []), ...guestPool.slice(0, 4), ...(room.hostId === "me" ? [] : ["me"])]);
-  const [seats, setSeats] = useState<SeatS[]>(() => Array.from({ length: 8 }, (_, i) => ({ uid: i === 0 ? (hostHere ? room.hostId : null) : i === 1 ? guestPool[0] ?? null : i === 4 ? guestPool[1] ?? null : null, locked: !live && i === 6, muted: !live && i === 4 })));
-  const [hearts, setHearts] = useState<number[]>(live ? [0, 0, 0, 0, 0, 0, 0, 0] : [1520, 210, 0, 88, 36, 0, 0, 0]);
+  const [roles, setRoles] = useState<Record<string, Role>>(() => ({ [room.hostId]: "owner", me: myRole }));
+  const [present, setPresent] = useState<string[]>(() => [...(hostHere ? [room.hostId] : []), ...(room.hostId === "me" ? [] : ["me"])]);
+  const [seats, setSeats] = useState<SeatS[]>(() => Array.from({ length: 8 }, (_, i) => ({ uid: i === 0 && hostHere ? room.hostId : null, locked: false, muted: false })));
+  const [hearts, setHearts] = useState<number[]>([0, 0, 0, 0, 0, 0, 0, 0]);
   const [micOn, setMicOn] = useState(false);
   const [follow, setFollow] = useState(false);
   const [tab, setTab] = useState(0);
@@ -73,7 +70,6 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const [fly, setFly] = useState<{ k: number; img: string; dx: number; dy: number } | null>(null);
   const roomRef = useRef<HTMLDivElement>(null);
   const [text, setText] = useState("");
-  const [typing, setTyping] = useState<Record<string, boolean>>({});
   const [emo, setEmo] = useState<Record<string, { k: number; img: string }>>({});
   const [entry, setEntry] = useState<{ k: number; uid: string } | null>(null);
   const [banner, setBanner] = useState<Banner | null>(null);
@@ -84,8 +80,6 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const entryTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const bannerQ = useRef<Banner[]>([]);
   const bannerBusy = useRef(false);
-  const state = useRef({ seats, present });
-  state.current = { seats, present };
 
   const roleOf = (uid: string): Role => roles[uid] ?? "member";
   const mySeat = seats.findIndex((s) => s.uid === "me");
@@ -121,51 +115,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
 
   useEffect(() => {
     const t0 = setTimeout(() => { sys("دخل الغرفة", "me"); enqueueEntry("me"); }, 500);
-    if (live) return () => clearTimeout(t0);
-    let pool = guestPool.slice(4);
-    const arrive = setInterval(() => {
-      const nxt = pool[0];
-      if (!nxt) return;
-      pool = pool.slice(1);
-      setPresent((p) => (p.includes(nxt) ? p : [...p, nxt]));
-      sys("دخل الغرفة", nxt);
-      enqueueEntry(nxt);
-    }, 11000);
-    const chatter = setInterval(() => {
-      const speakers = state.current.seats.filter((s) => s.uid && s.uid !== "me" && !s.muted).map((s) => s.uid!);
-      const u = pick(speakers);
-      if (!u) return;
-      if (Math.random() < 0.3) { showEmoji(u, pick(emojis)!.img); return; }
-      const line = pick(lines)!;
-      setTyping((t) => ({ ...t, [u]: true }));
-      setTimeout(() => { setTyping((t) => ({ ...t, [u]: false })); push({ kind: "chat", uid: u, t: line }); }, 1600);
-    }, 6000);
-    // other members send gifts to people on the mic (including me)
-    const giving = setInterval(() => {
-      if (Math.random() > 0.45) return;
-      const s = state.current;
-      const from = pick(s.present.filter((x) => x !== "me"));
-      const to = pick(s.seats.map((x) => x.uid).filter((x): x is string => !!x && x !== from));
-      if (!from || !to) return;
-      const g = Math.random() < 0.85 ? gifts[Math.floor(Math.random() * 4)]! : gifts[6 + Math.floor(Math.random() * 2)]!;
-      const q = g.p > 100 ? 1 : pick([1, 1, 10, 66])!;
-      const value = g.p * q;
-      const si = s.seats.findIndex((x) => x.uid === to);
-      setHearts((h) => h.map((v, i) => (i === si ? v + value : v)));
-      push({ kind: "gift", uid: from, t: `أرسل ${g.n} ×${q} إلى ${to === "me" ? "أنا" : findUser(to, profile)?.name ?? ""}`, gift: g.img });
-      if (to === "me") { addStat("gifts", value); toast(`وصلتك هدية ${g.n} ×${q}`); }
-      if (value >= LUXURY_BANNER_MIN) enqueueBanner({ kind: "luxury", from: findUser(from, profile)!, to: findUser(to, profile)!, gift: g, qty: q });
-    }, 9000);
-    // luxury gifts broadcast from other rooms
-    const broadcast = setInterval(() => {
-      const r = pick(rooms.filter((x) => x.id !== id))!;
-      const [a, b] = [pick(["u2", "u7", "u5"])!, pick(["u1", "u3", "u4"])!];
-      const lucky = Math.random() < 0.4;
-      if (lucky) return;
-      else enqueueBanner({ kind: "luxury", from: findUser(a, profile)!, to: findUser(b, profile)!, gift: gifts[6 + Math.floor(Math.random() * 2)]!, qty: pick([1, 1, 3, 12])!, room: r.name });
-    }, 28000);
-    return () => { clearTimeout(t0); clearInterval(arrive); clearInterval(chatter); clearInterval(giving); clearInterval(broadcast); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => clearTimeout(t0);
   }, []);
 
   // mic activity time for the host center
