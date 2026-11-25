@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1795563494495,
+      "tag": "0000_sada_admin_rooms_recharge_daily",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795565701803,
+      "tag": "0001_splash_ad_read",
+      "breakpoints": true
+    }
+  ]
+}
