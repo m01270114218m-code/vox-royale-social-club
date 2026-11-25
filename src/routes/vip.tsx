@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { SubHeader } from "@/components/app/AppShell";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "@/components/app/toast";
+import { supabase } from "@/integrations/supabase/client";
+import { SubHeader, Coin } from "@/components/app/AppShell";
 import { gifts, icons, frames, entries, bubbles, storeItems } from "@/components/app/data";
-import { LiveCatalog } from '@/components/app/LiveCatalog';
 import { VipChip } from '@/components/app/ui';
 
 export const Route = createFileRoute("/vip")({
@@ -17,11 +19,26 @@ const perks = [
 
 function Vip() {
   const [lv, setLv] = useState(1);
+  const [buying, setBuying] = useState(false);
+  const qc = useQueryClient();
+  const buyVip = async () => {
+    if (buying) return;
+    setBuying(true);
+    try {
+      const { data, error } = await supabase.rpc("purchase_vip", { p_level: lv });
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["cloud"] });
+      toast.success(`تم تفعيل VIP${lv} لمدة 30 يومًا`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "تعذر شراء VIP");
+    } finally {
+      setBuying(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-night text-night-foreground">
       <SubHeader title="VIP" dark />
       <div className="px-3.5 pb-6">
-        <LiveCatalog kind="vip"/>
         <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
           {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
             <button key={n} onClick={() => setLv(n)} className={`press h-8 shrink-0 rounded-full px-3.5 text-[12.5px] font-black ${lv === n ? "gold-bg text-navy" : "night-glass"}`}>VIP{n}</button>
@@ -48,7 +65,7 @@ function Vip() {
             </div>
           ))}
         </div>
-        <p className="mt-5 text-center text-[11px] text-night-foreground/70">اختر مستوى VIP من المنتجات بالأعلى لإتمام الشراء وتفعيله على حسابك.</p>
+        <button disabled={buying} onClick={() => void buyVip()} className="press mt-6 flex w-full items-center justify-center gap-2 rounded-full gold-bg py-3 text-[15px] font-black text-navy shadow-lg disabled:opacity-60">{buying ? "جارٍ التفعيل..." : `شراء VIP${lv}`} <Coin n={lv * 30000} /></button>
       </div>
     </div>
   );
