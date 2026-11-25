@@ -8,7 +8,7 @@ interface NativeGoogleAuthPlugin {
 const NativeGoogleAuth = registerPlugin<NativeGoogleAuthPlugin>("NativeGoogleAuth");
 import { supabase } from '@/integrations/supabase/client';
 
-/* ---------- local sign-in (device only until real accounts are enabled) ---------- */
+/* ---------- Supabase-backed authentication ---------- */
 export type Auth = { method: "google" | "facebook" | "phone" | "lovable"; phone?: string; at: string; userId?: string } | null;
 const AKEY = "frost-auth-v1";
 let auth: Auth = null;
@@ -18,8 +18,9 @@ function readAuth(): Auth | undefined {
   return authLoaded ? auth : undefined;
 }
 export async function signIn(a: NonNullable<Auth>) {
-  // Android uses Google's native Credential Manager. No browser, WebView,
-  // localhost callback, Vercel callback, or custom-scheme OAuth is involved.
+  // Android opens the native Google account chooser, then exchanges the Google ID token
+  // with Supabase Auth. Supabase creates the Auth user on first sign-in and restores
+  // the same user from its persisted refresh-token session on later launches.
   if (a.method === "google" && Capacitor.isNativePlatform()) {
     try {
       const webClientId = String(import.meta.env["VITE_GOOGLE_WEB_CLIENT_ID"] ?? "").trim();
@@ -73,14 +74,16 @@ export function AuthBridge() {
           const metadata = (u?.user_metadata ?? {}) as Record<string, unknown>;
           const displayName = String(metadata["full_name"] ?? metadata["name"] ?? u?.email?.split("@")[0] ?? "مستخدم جديد").trim();
           const avatarUrl = typeof metadata["avatar_url"] === "string" ? String(metadata["avatar_url"]) : null;
-          const { error } = await (supabase as any).from("profiles").upsert({
+          // The auth.users trigger creates the profile and wallet exactly once.
+          // This upsert only syncs public Google profile fields; it deliberately
+          // does not overwrite role, account_status, wallet balances, VIP or level.
+          const { error } = await supabase.from("profiles").upsert({
             id: userId,
             display_name: displayName,
             name: displayName,
             avatar_url: avatarUrl,
             avatar: avatarUrl,
             is_online: true,
-            account_status: "active",
           }, { onConflict: "id" });
           if (error) console.warn("[auth] profile sync failed:", error.message);
         } catch (error) {
