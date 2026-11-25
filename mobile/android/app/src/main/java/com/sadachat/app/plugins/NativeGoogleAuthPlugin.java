@@ -49,7 +49,8 @@ public class NativeGoogleAuthPlugin extends Plugin {
             return;
         }
 
-        requestCredential(call, activity, webClientId, true);
+        // Always show the account chooser; do not silently auto-select a previously authorized account.
+        requestCredential(call, activity, webClientId, false);
     }
 
     private void requestCredential(
@@ -61,9 +62,9 @@ public class NativeGoogleAuthPlugin extends Plugin {
         final String nonce = generateNonce();
 
         final GetGoogleIdOption option = new GetGoogleIdOption.Builder()
-                .setFilterByAuthorizedAccounts(authorizedOnly)
+                .setFilterByAuthorizedAccounts(false)
                 .setServerClientId(webClientId)
-                .setAutoSelectEnabled(authorizedOnly)
+                .setAutoSelectEnabled(false)
                 .setNonce(nonce)
                 .build();
 
