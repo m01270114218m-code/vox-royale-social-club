@@ -38,6 +38,7 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean, enabled = tr
   const [ready, setReady] = useState(false);
   const [speakingUids, setSpeakingUids] = useState<Set<string>>(() => new Set());
   const [speakingLevels, setSpeakingLevels] = useState<Map<string, number>>(() => new Map());
+  const joinedUidRef = useRef<number | null>(null);
 
   useEffect(() => { publishRef.current = publishAudio; }, [publishAudio]);
 
@@ -70,7 +71,7 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean, enabled = tr
         const instance = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" }) as unknown as RtcClient;
         client = instance;
         clientRef.current = instance;
-        (instance as unknown as { uid: number }).uid = credentials.uid;
+        joinedUidRef.current = credentials.uid;
         remoteUsersRef.current.clear();
 
         instance.enableAudioVolumeIndicator?.();
@@ -142,6 +143,7 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean, enabled = tr
       setSpeakingUids(new Set());
       remoteUsersRef.current.clear();
       clientRef.current = null;
+      joinedUidRef.current = null;
 
       const track = trackRef.current;
       trackRef.current = null;
