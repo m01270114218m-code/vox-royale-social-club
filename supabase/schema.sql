@@ -255,7 +255,7 @@ CREATE TABLE public.agency_hosts (
 
 CREATE TABLE public.app_assets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    asset_key text DEFAULT ('upload/'::text || gen_random_uuid()::text) NOT NULL,
+    asset_key text DEFAULT ('upload/'::text || gen_random_uuid()::text) NOT NULL UNIQUE,
     title text NOT NULL,
     category text NOT NULL,
     storage_path text NOT NULL,
