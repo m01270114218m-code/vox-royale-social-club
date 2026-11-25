@@ -63,6 +63,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const routeRoom = /^\/room\/([^/]+)\/?$/.exec(path)?.[1] ?? null;
   const session = useActiveRoom();
   const activeRoom = routeRoom ?? session;
+  // Public room links use numeric room_uid; room_controls is keyed by rooms.id (UUID).
+  const activeRoomDbId = activeRoom ? roomById(activeRoom).dbId : undefined;
 
   useEffect(() => { if (routeRoom) setActiveRoom(routeRoom); }, [routeRoom]);
   // device-only sign-in gate (auth is undefined until hydrated)
@@ -118,7 +120,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div dir="rtl" className={`relative isolate mx-auto min-h-screen max-w-[440px] bg-background ${showNav ? "pb-[76px]" : ""}`}>
       {children}
-      {activeRoom && cloud && roomExists(activeRoom) && !isLogin && !cloud?.rooms.some(r=>r.room_id===activeRoom&&r.banned) && <RoomView key={activeRoom} id={activeRoom} minimized={!routeRoom} />}
+      {activeRoom && cloud && roomExists(activeRoom) && !isLogin && !(activeRoomDbId && cloud?.rooms.some(r=>r.room_id===activeRoomDbId&&r.banned)) && <RoomView key={activeRoom} id={activeRoom} minimized={!routeRoom} />}
       {!routeRoom && session && cloud && roomExists(session) && !isLogin && <MiniRoom id={session} lifted={showNav} />}
       {auth && !isLogin && !routeRoom && <DailyCard />}
       {auth && !isLogin && <SplashAd />}
@@ -163,7 +165,7 @@ export function PartyTabs({ active }: { active: "mine" | "party" | "events" }) {
 export function RoomCard({ r }: { r: Room }) {
   const profile = useProfile();
   const {data}=useCloud();
-  const control=data?.rooms.find(c=>c.room_id===r.id);
+  const control=data?.rooms.find(c=>c.room_id===r.dbId);
   const frame=data?.catalog.find(c=>c.id===control?.frame_id&&c.enabled);
   if(control?.banned)return null;
   const ov = profile.roomMedia[r.id];
