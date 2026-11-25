@@ -61,6 +61,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const [hearts, setHearts] = useState<number[]>([0, 0, 0, 0, 0, 0, 0, 0]);
   const [micOn, setMicOn] = useState(false);
   const [membershipReady, setMembershipReady] = useState(false);
+  const [roomMemberIds, setRoomMemberIds] = useState<string[]>([]);
   const [follow, setFollow] = useState(false);
   const [tab, setTab] = useState(0);
   const [sheet, setSheet] = useState<Sheets>(null);
@@ -171,6 +172,28 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
       if (acquired) void supabase.rpc('leave_room', { p_room_id: roomDbId });
     };
   }, [id, roomDbId, live, nav]);
+
+  // Gift recipients come only from the real room_members table.
+  useEffect(() => {
+    if (!live || !roomDbId || !membershipReady) {
+      setRoomMemberIds([]);
+      return;
+    }
+    let cancelled = false;
+    const loadMembers = async () => {
+      const { data, error } = await supabase.from("room_members").select("user_id").eq("room_id", roomDbId);
+      if (cancelled) return;
+      if (error) {
+        console.warn("[room] member list unavailable:", error.message);
+        setRoomMemberIds([]);
+        return;
+      }
+      setRoomMemberIds((data ?? []).map((row) => String(row.user_id)));
+    };
+    void loadMembers();
+    const timer = window.setInterval(() => { void loadMembers(); }, 3000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [live, roomDbId, membershipReady]);
 
   // mic activity time for the host center
   const micLive = membershipReady && micOn && mySeat >= 0 && !seats[mySeat]?.muted;
@@ -283,7 +306,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   };
 
   const shown = (tab === 0 ? msgs : msgs.filter((m) => m.kind === "chat")).filter((m) => m.kind !== "gift" && m.kind !== "lucky");
-  const giftTargets = [...new Set([...seated.filter((u) => u !== "me"),...cloudMembers])];
+  const giftTargets = [...new Set(roomMemberIds.filter((uid) => uid !== cloud?.profile?.id))];
   const onlineCount = room.online + present.length;
   const leave = () => { if (router.history.canGoBack()) router.history.back(); else void nav({ to: "/", replace: true }); };
   const minimize = () => { setExitMenu(false); leave(); };
@@ -469,7 +492,14 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
           <UserCard u={user(sheet.uid)} self={sheet.uid === "me"} role={roleOf(sheet.uid)} myRole={myRole} onMic={seated.includes(sheet.uid)} muted={!!seats.find((s) => s.uid === sheet.uid)?.muted}
             following={profile.following.includes(sheet.uid)}
             onFollow={() => toast(toggleFollow(sheet.uid) ? "تمت المتابعة" : "تم إلغاء المتابعة")}
-            onGift={() => { setGiftTo(sheet.uid); setSheet({ kind: "gift" }); }}
+            onGift={() => {
+              const targetId = roomMemberIds.includes(user(sheet.uid).id)
+                ? user(sheet.uid).id
+                : roomMemberIds.find((uid) => uid !== cloud?.profile?.id);
+              if (!targetId) { toast("لا يوجد مستخدم حاليًا داخل الغرفة لإرسال الهدية"); return; }
+              setGiftTo(targetId);
+              setSheet({ kind: "gift" });
+            }}
             onMention={() => { setText((t) => `@${user(sheet.uid).name} ${t}`); setSheet(null); }}
             onMessage={() => { const target = sheet.uid; setSheet(null); setExitMenu(false); void nav({ to: "/messages", search: { chat: target }, replace: true }); }}
             onMod={(a) => { mod[a](sheet.uid); setSheet(null); }} />
@@ -545,7 +575,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
       <Sheet open={sheet?.kind === "gift"} onClose={() => setSheet(null)} dark>
         <div className="gift-tray-anim">
         <div className="no-scrollbar flex items-center gap-2.5 overflow-x-auto px-3 pb-2 pt-1">
-          {(giftTargets.length ? giftTargets : [room.hostId]).filter((u) => u !== "me").map((uid) => {
+          {giftTargets.filter((u) => u !== "me").map((uid) => {
             const si = seats.findIndex((s) => s.uid === uid);
             return (
               <button key={uid} aria-label={`إرسال إلى ID ${user(uid).uid}`} onClick={() => setGiftTo(uid)} className="relative flex shrink-0 flex-col items-center">
