@@ -60,14 +60,9 @@ export async function uploadAsset(file: File, section: string, userId: string, n
   const path = `library/${safeSection}/${id}.${ext}`;
   const assetKey = `upload/${safeSection}/${id}`;
   const title = (name?.trim() || file.name.replace(/\.[^.]+$/, '') || 'ملف جديد').slice(0, 180);
-  // Keep category values inside the database CHECK constraint; section remains the
-  // user-facing grouping and may use richer names than the canonical asset category.
-  const category = ({
-    entry: 'entrance', vip: 'vip', sid: 'icon', badge: 'icon', level: 'icon',
-    room_frame: 'frame', bubble: 'page_element', seat: 'page_element',
-    music: 'sound', event: 'banner', welcome: 'page_element',
-    splash: 'page_element', general: 'other',
-  } as Record<string, string>)[safeSection] ?? (['gift', 'frame', 'entrance', 'banner'].includes(safeSection) ? safeSection : 'other');
+  // Keep the canonical asset category populated for every section, including
+  // custom sections added later by the admin.
+  const category = safeSection || 'other';
 
   const { error: storageError } = await supabase.storage.from('app-assets').upload(path, file, {
     contentType: mime,
