@@ -27,10 +27,34 @@ export function useAuth(): Auth | undefined {
 }
 export function AuthBridge() {
   useEffect(() => {
-    const update = (userId: string | undefined) => {
+    const update = async (userId: string | undefined) => {
       authLoaded = true;
       auth = userId ? { method: 'google', at: new Date().toISOString(), userId } : null;
       aSubs.forEach(s=>s());
+
+      // Make sure every authenticated provider (Google/email/phone) has a real
+      // profile row in Supabase and is marked online before the app shell loads.
+      if (userId) {
+        try {
+          const { data: userData } = await supabase.auth.getUser();
+          const u = userData.user;
+          const metadata = (u?.user_metadata ?? {}) as Record<string, unknown>;
+          const displayName = String(metadata.full_name ?? metadata.name ?? u?.email?.split("@")[0] ?? "مستخدم جديد").trim();
+          const avatarUrl = typeof metadata.avatar_url === "string" ? metadata.avatar_url : null;
+          const { error } = await supabase.from("profiles").upsert({
+            id: userId,
+            display_name: displayName,
+            name: displayName,
+            avatar_url: avatarUrl,
+            avatar: avatarUrl,
+            is_online: true,
+            account_status: "active",
+          }, { onConflict: "id" });
+          if (error) console.warn("[auth] profile sync failed:", error.message);
+        } catch (error) {
+          console.warn("[auth] profile sync unavailable:", error);
+        }
+      }
     };
 
     // Google may return to the web origin with a hash session (especially in
@@ -69,7 +93,7 @@ export function AuthBridge() {
 
     const {data} = supabase.auth.onAuthStateChange((event,session)=>{
       if(event==='SIGNED_IN'||event==='SIGNED_OUT'||event==='USER_UPDATED'||event==='INITIAL_SESSION') {
-        update(session?.user.id);
+        void update(session?.user.id);
       }
     });
     return ()=>data.subscription.unsubscribe();
