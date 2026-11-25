@@ -25,6 +25,7 @@ type RtcClient = {
   unpublish: (track: LocalAudioTrack) => Promise<void>;
   subscribe: (user: RemoteAudioUser, mediaType: "audio" | "video") => Promise<void>;
   renewToken: (token: string) => Promise<void>;
+  enableAudioVolumeIndicator?: () => void;
   on: (event: string, callback: (...args: never[]) => void) => void;
 };
 
