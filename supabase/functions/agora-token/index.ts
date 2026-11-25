@@ -8,54 +8,93 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+function json(body: Record<string, unknown>, status = 200) {
+  return Response.json(body, { status, headers: { ...cors, "Cache-Control": "no-store" } });
+}
+
+function getSecretKey() {
+  const secretKeysRaw = Deno.env.get("SUPABASE_SECRET_KEYS");
+  if (secretKeysRaw) {
+    try {
+      const parsed = JSON.parse(secretKeysRaw) as Record<string, string>;
+      if (parsed.default) return parsed.default;
+    } catch {
+      // Fall through to the legacy server-only key.
+    }
+  }
+  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405, headers: cors });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return Response.json({ error: "سجّل الدخول أولاً" }, { status: 401, headers: cors });
+    if (!authHeader) return json({ error: "سجّل الدخول أولاً" }, 401);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    const appId = Deno.env.get("AGORA_APP_ID");
-    const appCertificate = Deno.env.get("AGORA_APP_CERTIFICATE");
-    if (!supabaseUrl || !anonKey) throw new Error("إعداد Supabase غير مكتمل");
-    if (!appId || !appCertificate) throw new Error("خدمة الصوت غير مهيأة: أضف AGORA_APP_ID وAGORA_APP_CERTIFICATE إلى أسرار Supabase");
+    const publishableKey = Deno.env.get("SUPABASE_ANON_KEY")
+      || (() => {
+        const raw = Deno.env.get("SUPABASE_PUBLISHABLE_KEYS");
+        if (!raw) return "";
+        try { return (JSON.parse(raw) as Record<string, string>).default || ""; } catch { return ""; }
+      })();
+    const secretKey = getSecretKey();
+    const appId = Deno.env.get("AGORA_APP_ID")?.trim();
+    const appCertificate = Deno.env.get("AGORA_APP_CERTIFICATE")?.trim();
 
-    const supabase = createClient(supabaseUrl, anonKey, {
+    if (!supabaseUrl || !publishableKey) throw new Error("إعداد Supabase غير مكتمل");
+    if (!appId || !appCertificate) {
+      return json({ error: "خدمة الصوت غير مهيأة: بيانات Agora غير موجودة في أسرار Supabase" }, 503);
+    }
+
+    // Validate the caller's Supabase session with the user's JWT.
+    const userClient = createClient(supabaseUrl, publishableKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) return Response.json({ error: "جلسة الدخول غير صالحة" }, { status: 401, headers: cors });
+    const { data: authData, error: authError } = await userClient.auth.getUser();
+    if (authError || !authData.user) return json({ error: "جلسة الدخول غير صالحة" }, 401);
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const roomId = Number(body?.room_id);
     if (!Number.isSafeInteger(roomId) || roomId <= 0) {
-      return Response.json({ error: "رقم الغرفة غير صحيح" }, { status: 400, headers: cors });
+      return json({ error: "رقم الغرفة غير صحيح" }, 400);
     }
 
-    const [{ data: profile, error: profileError }, { data: room, error: roomError }] = await Promise.all([
-      supabase.from("profiles").select("uid,banned").eq("id", authData.user.id).single(),
-      supabase.from("rooms").select("room_uid").eq("room_uid", roomId).maybeSingle(),
-    ]);
-    if (profileError || !profile) throw new Error("لم يتم العثور على ملف المستخدم");
-    if (profile.banned) return Response.json({ error: "الحساب محظور" }, { status: 403, headers: cors });
-    if (roomError || !room) return Response.json({ error: "الغرفة غير موجودة" }, { status: 404, headers: cors });
+    // Room/membership checks use the server-only key so RLS cannot turn a valid
+    // active membership into a false negative inside this token endpoint.
+    const db = secretKey
+      ? createClient(supabaseUrl, secretKey, { auth: { persistSession: false, autoRefreshToken: false } })
+      : userClient;
 
-    // Only an account with an active database membership may obtain an Agora token.
-    const { data: membership, error: membershipError } = await supabase
+    const [{ data: profile, error: profileError }, { data: room, error: roomError }] = await Promise.all([
+      db.from("profiles").select("uid,banned").eq("id", authData.user.id).maybeSingle(),
+      db.from("rooms").select("id,room_uid").eq("room_uid", roomId).maybeSingle(),
+    ]);
+
+    if (profileError) throw new Error("تعذّر قراءة ملف المستخدم");
+    if (!profile) return json({ error: "لم يتم العثور على ملف المستخدم" }, 404);
+    if (profile.banned) return json({ error: "الحساب محظور" }, 403);
+    if (roomError) throw new Error("تعذّر قراءة الغرفة");
+    if (!room) return json({ error: "الغرفة غير موجودة" }, 404);
+
+    const { data: membership, error: membershipError } = await db
       .from("room_members")
       .select("user_id")
       .eq("room_id", room.id)
       .eq("user_id", authData.user.id)
       .maybeSingle();
+
     if (membershipError) throw new Error("تعذّر التحقق من عضوية الغرفة");
-    if (!membership) return Response.json({ error: "يجب دخول الغرفة أولاً" }, { status: 403, headers: cors });
+    if (!membership) return json({ error: "يجب دخول الغرفة أولاً" }, 403);
 
     const uid = Number(body?.rtc_uid ?? profile.uid);
-    if (!Number.isSafeInteger(uid) || uid <= 0 || uid > 4294967295) throw new Error("معرّف اتصال الصوت غير صالح");
+    if (!Number.isSafeInteger(uid) || uid <= 0 || uid > 2147483647) {
+      throw new Error("معرّف اتصال الصوت غير صالح");
+    }
+
     const channel = `sada-room-${room.room_uid}`;
     const expireAt = Math.floor(Date.now() / 1000) + 3600;
     const token = RtcTokenBuilder.buildTokenWithUid(
@@ -68,9 +107,11 @@ Deno.serve(async (req: Request) => {
       expireAt,
     );
 
-    return Response.json({ appId, channel, uid, token, expireAt }, { headers: { ...cors, "Cache-Control": "no-store" } });
+    if (!token) throw new Error("تعذّر إنشاء رمز Agora");
+    return json({ appId, channel, uid, token, expireAt });
   } catch (error) {
     const message = error instanceof Error ? error.message : "تعذّر إصدار رمز الصوت";
-    return Response.json({ error: message }, { status: 400, headers: { ...cors, "Cache-Control": "no-store" } });
+    console.error("[agora-token]", message);
+    return json({ error: message }, 500);
   }
 });
