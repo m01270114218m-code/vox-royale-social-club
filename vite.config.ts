@@ -1,8 +1,15 @@
-import { defineConfig } from "@tanstack/start/config";
+import { defineConfig } from "vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import viteReact from "@vitejs/plugin-react";
 
 export default defineConfig({
-  tanstackStart: {
-    server: { entry: "server" },
-    spa: { enabled: process.env["CAPACITOR"] === "1" },
+  plugins: [
+    tanstackStart({
+      server: { entry: "./server" },
+    }),
+    viteReact(),
+  ],
+  define: {
+    "process.env.CAPACITOR": JSON.stringify(process.env.CAPACITOR ?? ""),
   },
 });
