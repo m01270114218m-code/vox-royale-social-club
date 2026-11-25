@@ -128,7 +128,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const roomDbId = room.dbId ?? cloud?.roomList.find((r) => r.id === id)?.dbId;
   useEffect(() => {
     if (!live || !roomDbId) {
-      setMembershipReady(!live);
+      setMembershipReady(false);
       return;
     }
     let cancelled = false;
