@@ -17,14 +17,20 @@ if [ ! -d "$WEB_DIR/assets" ]; then
   exit 1
 fi
 
-# TanStack Start's Cloudflare preset emits the client bundle but does not emit
-# a standalone HTML document in this build. Create the local Capacitor SPA shell
-# that loads the exact hashed entry bundle and stylesheet generated above.
-MAIN_JS="$(find "$WEB_DIR/assets" -maxdepth 1 -type f -name 'index-*.js' -print -quit)"
-MAIN_CSS="$(find "$WEB_DIR/assets" -maxdepth 1 -type f -name 'styles-*.css' -print -quit)"
-if [ -z "$MAIN_JS" ] || [ -z "$MAIN_CSS" ]; then
-  echo "::error::Could not locate the generated app entry JavaScript or stylesheet"
-  find "$WEB_DIR/assets" -maxdepth 1 -type f -print | sort
+# TanStack Start SPA mode prerenders the real application shell. Use that
+# generated document so its StartClient bootstrap, router manifest, and asset
+# references stay exactly as produced by the framework. A hand-written HTML
+# page with a guessed entry bundle is not a valid TanStack Start client shell.
+SHELL_HTML=""
+for candidate in "$WEB_DIR/_shell.html" "$WEB_DIR/index.html"; do
+  if [ -s "$candidate" ]; then
+    SHELL_HTML="$candidate"
+    break
+  fi
+done
+if [ -z "$SHELL_HTML" ]; then
+  echo "::error::TanStack Start did not generate its SPA shell (_shell.html or index.html)"
+  find "$WEB_DIR" -maxdepth 3 -type f | sort | head -200
   exit 1
 fi
 
@@ -32,24 +38,15 @@ rm -rf "$MOBILE/www"
 mkdir -p "$MOBILE/www"
 cp -a "$WEB_DIR/." "$MOBILE/www/"
 rm -f "$MOBILE/www/_headers"
-JS_ASSET="/assets/$(basename "$MAIN_JS")"
-CSS_ASSET="/assets/$(basename "$MAIN_CSS")"
-cat > "$MOBILE/www/index.html" <<EOF
-<!doctype html>
-<html lang="ar" dir="rtl">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0d1226" />
-    <title>صدى شات</title>
-    <link rel="stylesheet" href="$CSS_ASSET" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="$JS_ASSET"></script>
-  </body>
-</html>
-EOF
+if [ "$SHELL_HTML" != "$WEB_DIR/index.html" ]; then
+  cp "$SHELL_HTML" "$MOBILE/www/index.html"
+fi
+test -s "$MOBILE/www/index.html"
+grep -qE '<script[^>]+src=' "$MOBILE/www/index.html" || {
+  echo "::error::Generated SPA shell has no client bootstrap script"
+  sed -n '1,160p' "$MOBILE/www/index.html"
+  exit 1
+}
 
 mkdir -p "$MOBILE/www/media"
 SITE_URL="${SITE_URL:-}"
