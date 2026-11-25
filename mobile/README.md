@@ -5,7 +5,12 @@
 ## 1) ربط Supabase
 1. أنشئ مشروعاً جديداً في Supabase.
 2. افتح SQL Editor والصق محتوى الملف `supabase/schema.sql` كاملاً ثم شغّله مرة واحدة.
-3. من Authentication ← Providers فعّل Email (وأي طريقة أخرى تريدها).
+3. من Authentication ← Providers فعّل Email وGoogle.
+4. في Google Cloud أنشئ OAuth Client من نوع Web، وأضف رابط إعادة التوجيه التالي إلى Authorized redirect URIs:
+   `https://pkqcxcfuelubonlkjgoq.supabase.co/auth/v1/callback`
+5. في Supabase ← Authentication ← URL Configuration أضف إلى Redirect URLs:
+   `com.sadachat.app://login-callback`
+   وأضف رابط موقعك المنشور مع `/**` لتسجيل الدخول عبر الويب.
 4. انسخ `.env.example` إلى `.env` وضع رابط المشروع والمفتاح العام (Project Settings ← API).
 5. سجّل حساباً من التطبيق، ثم شغّل السطر الأخير في `supabase/schema.sql` ببريدك لتصبح مسؤولاً.
 
@@ -27,6 +32,7 @@ bash mobile/build-android.sh
 افتح `mobile/android` في Android Studio ← Build ← Generate Signed Bundle / APK وأنشئ مفتاح توقيع واحفظه جيداً.
 
 ## ملاحظات مهمة
-- الدخول بالبريد وكلمة السر يعمل مباشرة مع Supabase. زر Google يعتمد على خدمة Lovable ويحتاج إعداداً خاصاً داخل تطبيق الأندرويد، لذلك لا يعمل في الـ APK كما هو.
+- تسجيل Google يستخدم Supabase OAuth مباشرة، ويعود إلى تطبيق Android عبر الرابط `com.sadachat.app://login-callback`. يلزم تفعيل Google Provider وإدخال Google Client ID وClient Secret في Supabase؛ لا تضع Client Secret داخل التطبيق.
+- الصوت الحي لم يتم تفعيله بعد؛ يحتاج حساب Agora (App ID وApp Certificate) وخدمة خادم لإصدار Tokens. لا تضع App Certificate داخل التطبيق.
 - فيديو خلفية صفحة الدخول يُحمَّل فقط إذا ضبطت المتغير `SITE_URL` على رابط موقعك المنشور؛ بدونه تظهر صورة ثابتة.
 - الصوت الحي بين المستخدمين في الغرف يحتاج خدمة صوت (مثل Agora أو LiveKit) وغير مفعّل بعد.
