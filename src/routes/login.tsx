@@ -18,7 +18,7 @@ function Login() {
    // User cancellation is a normal action, not an error toast.
    if (/cancelled|canceled|إلغاء|ألغى/i.test(message)) return;
    console.error("[Login] sign-in failed", e);
-   toast("تعذّر فتح تسجيل الدخول عبر Facebook، حاول مرة أخرى");
+   toast("تعذّر إرسال أو تأكيد رمز البريد، حاول مرة أخرى");
   }finally{setBusy(false);}};
  const emailSubmit=()=>run(async()=>{
   const normalized=email.trim().toLowerCase();
@@ -29,7 +29,7 @@ function Login() {
     setSent(true);
     toast("تم إرسال رمز التحقق المكوّن من 6 أرقام إلى بريدك");
   }else{
-    const token=code.replace(/\\D/g,"").slice(0,6);
+    const token=code.replace(/\D/g,"").slice(0,6);
     if(token.length!==6)throw new Error("أدخل رمز التحقق المكوّن من 6 أرقام");
     const {error}=await supabase.auth.verifyOtp({email:normalized,token,type:"email"});
     if(error)throw new Error("رمز التحقق غير صحيح أو منتهي الصلاحية");
@@ -48,7 +48,7 @@ function Login() {
   <p className="text-center text-[15px] font-black">تسجيل الدخول</p>
   <p className="text-center text-[11.5px] opacity-70">أدخل بريدك الإلكتروني وسنرسل لك رمز تحقق من 6 أرقام</p>
   <input aria-label="البريد الإلكتروني" type="email" required dir="ltr" autoComplete="email" placeholder="name@email.com" className={field} value={email} onChange={e=>setEmail(e.target.value)} disabled={sent}/>
-  {sent&&<input aria-label="رمز التحقق" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" required dir="ltr" placeholder="••••••" className={field+" text-center tracking-[0.5em] text-lg font-black"} value={code} onChange={e=>setCode(e.target.value.replace(/\\D/g,"").slice(0,6))}/>} 
+  {sent&&<input aria-label="رمز التحقق" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" required dir="ltr" placeholder="••••••" className={field+" text-center tracking-[0.5em] text-lg font-black"} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,"").slice(0,6))}/>} 
   <Button type="button" disabled={busy} onClick={()=>void emailSubmit()} className="h-12 w-full rounded-xl text-[14px] font-bold">{busy?"جارٍ...":sent?"تأكيد الرمز":"إرسال رمز التحقق"}</Button>
   {sent&&<Button type="button" variant="ghost" className="w-full text-night-foreground" onClick={()=>{setSent(false);setCode("");}}>تغيير البريد</Button>}
  </div>
