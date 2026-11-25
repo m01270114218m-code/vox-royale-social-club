@@ -43,7 +43,7 @@ function Rankings() {
     const worn = (kind: string) => data?.catalog.find(item => item.kind === kind && owned.some(ownedItem => ownedItem.catalog_id === item.id));
     const frame = worn("frame"), entry = worn("entry"), bubble = worn("bubble");
     return {
-      id: row.id, uid: String(row.uid), name: row.name, avatar: row.avatar || me.avatar,
+      id: row.id, uid: String(row.uid), name: row.name, avatar: row.avatar_url || row.avatar || me.avatar,
       frame: frame ? ("cloud-" + frame.id) as User["frame"] : null,
       entry: entry ? ("cloud-" + entry.id) as User["entry"] : null,
       bubble: bubble ? ("cloud-" + bubble.id) as User["bubble"] : "none",
