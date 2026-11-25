@@ -39,9 +39,9 @@ export function AuthBridge() {
           const { data: userData } = await supabase.auth.getUser();
           const u = userData.user;
           const metadata = (u?.user_metadata ?? {}) as Record<string, unknown>;
-          const displayName = String(metadata.full_name ?? metadata.name ?? u?.email?.split("@")[0] ?? "مستخدم جديد").trim();
-          const avatarUrl = typeof metadata.avatar_url === "string" ? metadata.avatar_url : null;
-          const { error } = await supabase.from("profiles").upsert({
+          const displayName = String(metadata["full_name"] ?? metadata["name"] ?? u?.email?.split("@")[0] ?? "مستخدم جديد").trim();
+          const avatarUrl = typeof metadata["avatar_url"] === "string" ? String(metadata["avatar_url"]) : null;
+          const { error } = await (supabase as any).from("profiles").upsert({
             id: userId,
             display_name: displayName,
             name: displayName,
