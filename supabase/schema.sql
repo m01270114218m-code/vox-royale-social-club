@@ -9479,3 +9479,64 @@ DROP TRIGGER IF EXISTS app_assets_fill_asset_key ON public.app_assets;
 CREATE TRIGGER app_assets_fill_asset_key
 BEFORE INSERT OR UPDATE OF asset_key ON public.app_assets
 FOR EACH ROW EXECUTE FUNCTION public.fill_app_asset_key();
+
+
+-- Return expired one-of-a-kind IDs to the store automatically, within one minute.
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+CREATE OR REPLACE FUNCTION public.release_expired_special_ids()
+RETURNS integer
+LANGUAGE plpgsql
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  item record;
+  released_count integer := 0;
+BEGIN
+  FOR item IN
+    SELECT ui.user_id,ui.catalog_id,c.name,p.uid
+    FROM public.user_items ui
+    JOIN public.app_catalog c ON c.id=ui.catalog_id
+    JOIN public.profiles p ON p.id=ui.user_id
+    WHERE c.kind='sid' AND ui.expires_at IS NOT NULL AND ui.expires_at<=now()
+    FOR UPDATE OF ui SKIP LOCKED
+  LOOP
+    UPDATE public.app_catalog c
+    SET in_store=NOT EXISTS (
+      SELECT 1 FROM public.user_items active
+      WHERE active.catalog_id=item.catalog_id
+        AND (active.expires_at IS NULL OR active.expires_at>now())
+    ),updated_at=now()
+    WHERE c.id=item.catalog_id;
+
+    UPDATE public.profiles
+    SET special_id=NULL,updated_at=now()
+    WHERE id=item.user_id AND special_id=item.name;
+
+    IF FOUND THEN
+      UPDATE public.rooms SET room_uid=item.uid,updated_at=now()
+      WHERE owner_id=item.user_id;
+      released_count:=released_count+1;
+    END IF;
+  END LOOP;
+
+  DELETE FROM public.user_items
+  WHERE expires_at IS NOT NULL AND expires_at<=now();
+
+  RETURN released_count;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.release_expired_special_ids() FROM PUBLIC,anon,authenticated,service_role;
+
+DO $schedule$
+DECLARE existing_job record;
+BEGIN
+  FOR existing_job IN SELECT jobid FROM cron.job WHERE jobname='release-expired-special-ids'
+  LOOP
+    PERFORM cron.unschedule(existing_job.jobid);
+  END LOOP;
+END;
+$schedule$;
+
+SELECT cron.schedule('release-expired-special-ids','* * * * *','select public.release_expired_special_ids();');
