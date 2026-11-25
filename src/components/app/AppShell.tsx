@@ -69,6 +69,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => { if (routeRoom) setActiveRoom(routeRoom); }, [routeRoom]);
   // device-only sign-in gate (auth is undefined until hydrated)
   useEffect(() => { if (auth === null && !isPublic) void nav({ to: "/login", replace: true }); }, [auth, isPublic, nav]);
+  // Keep an authenticated account on its current session: opening the login route must not offer an accidental account switch. Sign out explicitly first.
+  useEffect(() => { if (auth && isLogin) void nav({ to: "/", replace: true }); }, [auth, isLogin, nav]);
   // in-app activity time for the host center
   useEffect(() => {
     if (!auth) return;
