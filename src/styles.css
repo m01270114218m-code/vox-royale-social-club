@@ -119,8 +119,16 @@
   animation: voiceRipple 1.6s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
 }
 @utility voice-wave-2 {
-  border-color: oklch(0.84 0.15 80 / 0.75);
-  animation-delay: 0.8s;
+  inset: -2px;
+  border-color: oklch(0.84 0.15 80 / 0.78);
+  box-shadow: 0 0 18px oklch(0.82 0.17 80 / 0.45);
+  animation-delay: 0.55s;
+}
+@utility voice-wave-3 {
+  inset: -6px;
+  border-color: oklch(0.72 0.20 205 / 0.55);
+  box-shadow: 0 0 22px oklch(0.72 0.20 205 / 0.35);
+  animation-delay: 1.05s;
 }
 @utility gift-box-3d {
   background: var(--gloss), var(--edge-gold), var(--gradient-gold);
