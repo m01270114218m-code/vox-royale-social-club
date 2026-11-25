@@ -1,0 +1,15 @@
+name: Actions Smoke Test
+
+on:
+  push:
+    branches:
+      - empty
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Smoke
+        run: |
+          echo "GitHub Actions runner reached successfully"
+          echo "SHA=$GITHUB_SHA"
