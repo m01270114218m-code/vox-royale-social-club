@@ -148,7 +148,7 @@ export function sendDm(uid: string, text: string) {
 export function findUser(id: string, p: Profile): User | undefined {
   const cloud=readCloud();
   const row=cloud.profiles.find(u=>u.id===id||String(u.uid)===id);
-  if(row){const own=cloud.items.filter(i=>i.user_id===row.id&&i.equipped);const worn=(kind:string)=>cloud.catalog.find(c=>c.kind===kind&&own.some(i=>i.catalog_id===c.id));return {id:row.id,uid:String(row.uid),name:row.name,avatar:row.avatar||avatarAt(0),frame:worn('frame')?`cloud-${worn('frame')?.id}` as FrameKey:null,entry:worn('entry')?`cloud-${worn('entry')?.id}` as EntryKey:null,bubble:worn('bubble')?`cloud-${worn('bubble')?.id}` as BubbleKey:'none',sid:row.special_id,level:row.level,vip:row.vip,gender:'m',flag:'',bio:row.bio,fans:0,following:0,charm:row.gift_value,wealth:row.coins,gifts:[]};}
+  if(row){const own=cloud.items.filter(i=>i.user_id===row.id&&i.equipped);const worn=(kind:string)=>cloud.catalog.find(c=>c.kind===kind&&own.some(i=>i.catalog_id===c.id));return {id:row.id,uid:String(row.uid),name:row.name,avatar:row.avatar_url||row.avatar||avatarAt(0),frame:worn('frame')?`cloud-${worn('frame')?.id}` as FrameKey:null,entry:worn('entry')?`cloud-${worn('entry')?.id}` as EntryKey:null,bubble:worn('bubble')?`cloud-${worn('bubble')?.id}` as BubbleKey:'none',sid:row.special_id,level:row.level,vip:row.vip,gender:'m',flag:'',bio:row.bio,fans:0,following:0,charm:row.gift_value,wealth:row.coins,gifts:[]};}
   return id === "me" ? meAsUser(p) : users.find((u) => u.id === id);
 }
 
