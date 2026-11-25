@@ -178,7 +178,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   useEffect(() => { chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" }); }, [msgs.length, tab]);
 
   const setSeat = (i: number, patch: Partial<SeatS>) => setSeats((a) => a.map((s, j) => (j === i ? { ...s, ...patch } : s)));
-  const sitAt = (i: number, uid: string) => setSeats((a) => a.map((s, j) => (j === i ? { ...s, uid, muted: false } : s.uid === uid && j !== 0 ? { ...s, uid: null, muted: false } : s)));
+  const sitAt = (i: number, uid: string) => setSeats((a) => a.map((s, j) => (j === i ? { ...s, uid, muted: false } : s.uid === uid ? { ...s, uid: null, muted: false } : s)));
   const leaveMic = (uid: string) => setSeats((a) => a.map((s, j) => (s.uid === uid && j !== 0 ? { ...s, uid: null, muted: false } : s)));
 
   const tapSeat = (i: number) => {
