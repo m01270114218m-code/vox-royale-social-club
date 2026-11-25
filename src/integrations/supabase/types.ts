@@ -111,31 +111,58 @@ export type Database = {
       }
       app_assets: {
         Row: {
-          created_at: string
-          created_by: string
           id: string
-          mime: string
+          asset_key: string
+          title: string
+          category: string
+          storage_path: string
+          mime_type: string | null
+          metadata: Json
+          is_active: boolean
+          sort_order: number
+          created_by: string | null
+          created_at: string
+          updated_at: string
+          section: string
           name: string
           path: string
-          section: string
+          mime: string | null
         }
         Insert: {
-          created_at?: string
-          created_by: string
           id?: string
-          mime: string
+          asset_key: string
+          title: string
+          category?: string
+          storage_path: string
+          mime_type?: string | null
+          metadata?: Json
+          is_active?: boolean
+          sort_order?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          section?: string
           name: string
           path: string
-          section?: string
+          mime?: string | null
         }
         Update: {
-          created_at?: string
-          created_by?: string
           id?: string
-          mime?: string
+          asset_key?: string
+          title?: string
+          category?: string
+          storage_path?: string
+          mime_type?: string | null
+          metadata?: Json
+          is_active?: boolean
+          sort_order?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          section?: string
           name?: string
           path?: string
-          section?: string
+          mime?: string | null
         }
         Relationships: []
       }
