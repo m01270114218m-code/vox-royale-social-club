@@ -325,6 +325,7 @@ export type Database = {
         Row: {
           app_seconds: number
           avatar: string | null
+          avatar_url: string | null
           banned: boolean
           bio: string
           coins: number
@@ -348,6 +349,7 @@ export type Database = {
         Insert: {
           app_seconds?: number
           avatar?: string | null
+          avatar_url?: string | null
           banned?: boolean
           bio?: string
           coins?: number
