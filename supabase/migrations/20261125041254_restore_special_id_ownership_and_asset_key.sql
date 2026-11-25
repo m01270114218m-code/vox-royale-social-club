@@ -9,6 +9,15 @@ declare
   old text;
   replacement text;
 begin
+  -- The complete schema may already contain the fixed wrapper + internal action.
+  -- The deployed database variant may instead keep all actions in app_action.
+  IF (
+    to_regprocedure('public.app_action_internal(text,jsonb)') IS NOT NULL
+    AND position('لديك رقم مميز نشط بالفعل' in pg_get_functiondef('public.app_action_internal(text,jsonb)'::regprocedure)) > 0
+    AND position('p.special_id ~' in pg_get_functiondef('public.app_action(text,jsonb)'::regprocedure)) > 0
+  ) OR position('لديك رقم مميز نشط بالفعل' in pg_get_functiondef('public.app_action(text,jsonb)'::regprocedure)) > 0 THEN
+    NULL; -- Already fixed by the schema baseline or a previous deployment.
+  ELSE
   v := pg_get_functiondef('public.app_action(text,jsonb)'::regprocedure);
 
   old := $old$if exists(select 1 from public.profiles where id=actor and banned) then raise exception 'الحساب محظور'; end if;
@@ -86,6 +95,7 @@ $new$;
   v := replace(v,old,replacement);
 
   execute v;
+  END IF;
 end
 $fix$;
 
