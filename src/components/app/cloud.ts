@@ -7,7 +7,7 @@ import { toast } from "./toast";
 import { installCatalog, installRooms, bundledAssets, avatarAt, roomCover, type Room } from "./data";
 import { stillValid } from "./daily";
 
-export async function cloudAction(action: string, _payload: Record<string, unknown>) { throw new Error("الإجراء السحابي غير متاح بعد: " + action); }
+export async function cloudAction(action: string, payload: Record<string, unknown>) { const { data, error } = await supabase.rpc("app_action", { action, payload }); if (error) throw new Error(error.message); return data; }
 const signed = new Map<string, { url: string; until: number }>();
 const SIGN_SECONDS = 6 * 3600;
 export async function signMany(paths: string[]) {
