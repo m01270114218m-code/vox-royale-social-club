@@ -1,5 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { App } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
 
 interface NativeGoogleAuthPlugin {
   signIn(options: { webClientId: string }): Promise<{ idToken: string; nonce: string }>;
@@ -21,6 +23,24 @@ function readAuth(): Auth | undefined {
   return authLoaded ? auth : undefined;
 }
 export async function signIn(a: NonNullable<Auth>) {
+  if (a.method === "facebook") {
+    const redirectTo = Capacitor.isNativePlatform() || Capacitor.getPlatform() === "android"
+      ? "com.sadachat.app://login-callback"
+      : window.location.origin;
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "facebook",
+      options: { redirectTo, skipBrowserRedirect: true },
+    });
+    if (error) throw error;
+    if (!data.url) throw new Error("Facebook OAuth URL was not returned");
+    if (Capacitor.isNativePlatform() || Capacitor.getPlatform() === "android") {
+      await Browser.open({ url: data.url });
+      return;
+    }
+    window.location.assign(data.url);
+    return;
+  }
+
   if (a.method === "google") {
     try {
       const nativePlatform = Capacitor.isNativePlatform() || Capacitor.getPlatform() === "android";
@@ -113,6 +133,17 @@ export function useAuth(): Auth | undefined {
 export function AuthBridge() {
   useEffect(() => {
     let revision = 0;
+    let urlListener: { remove: () => Promise<void> } | undefined;
+
+    const handleOAuthCallback = async (url: string) => {
+      if (!url.startsWith("com.sadachat.app://login-callback")) return;
+      await Browser.close().catch(() => undefined);
+      const parsed = new URL(url);
+      const code = parsed.searchParams.get("code");
+      if (!code) return;
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) console.error("[auth] Facebook callback exchange failed", error);
+    };
 
     const publishSession = (userId: string | undefined) => {
       authLoaded = true;
@@ -123,6 +154,15 @@ export function AuthBridge() {
       // atomically. Do not perform a client upsert here: it can violate generated
       // column types and must never overwrite existing account data.
     };
+
+    if (Capacitor.isNativePlatform() || Capacitor.getPlatform() === "android") {
+      void App.getLaunchUrl().then((launch) => {
+        if (launch?.url) return handleOAuthCallback(launch.url);
+      }).catch((error) => console.warn("[auth] launch URL unavailable", error));
+      void App.addListener("appUrlOpen", ({ url }) => handleOAuthCallback(url)).then((listener) => {
+        urlListener = listener;
+      });
+    }
 
     // Subscribe before reading storage so a fresh sign-in cannot be overwritten
     // by a slower initial getSession() response.
@@ -146,7 +186,10 @@ export function AuthBridge() {
       if (revision === initialRevision) publishSession(undefined);
     });
 
-    return () => data.subscription.unsubscribe();
+    return () => {
+      data.subscription.unsubscribe();
+      void urlListener?.remove();
+    };
   }, []);
   return null;
 }
