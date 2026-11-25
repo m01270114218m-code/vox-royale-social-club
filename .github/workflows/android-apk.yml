@@ -88,5 +88,7 @@ jobs:
           APK="mobile/android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           ls -lh "$APK"
+          echo "=== Android APK signing certificate (register this SHA-1 in Google Cloud Android OAuth client) ==="
+          keytool -printcert -jarfile "$APK" | grep -E "Owner:|Issuer:|SHA1:|SHA-256:" || true
           TAG="sada-chat-apk-${GITHUB_SHA::7}"
           gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --title "Sada Chat APK ${GITHUB_SHA::7}" --notes "Capacitor Android wrapper built from branch $GITHUB_REF_NAME at commit $GITHUB_SHA."
