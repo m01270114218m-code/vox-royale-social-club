@@ -66,12 +66,14 @@ import eLion from "@/assets/entries/lion.webp";
 import eDragon from "@/assets/entries/dragon.webp";
 import eJet from "@/assets/entries/jet.webp";
 import eCarriage from "@/assets/entries/carriage.webp";
+import { vipArtwork, levelsArtwork } from "./rank-art";
 
 export const images = { ice, room, mascot };
 export const avatars = [a1, a2, a3, a4, a5, a6, a7, a8];
 export const avatarAt = (i: number) => avatars[((i % 8) + 8) % 8]!;
 export const ui = { coin: uCoin, gem: uGem, seat: uSeat, castle: uCastle, mail: uMail, wealth: uWealth, room: uRoom, charm: uCharm };
 export const icons = { wallet: iWallet, host: iHost, task: iTask, rewards: iRewards, shop: iShop, level: iLevel, badge: iBadge, id: iId, recharge: iRecharge, hostAgent: iHostAgent, bd: iBd };
+export const rankArt = { vip: vipArtwork, level: levelsArtwork };
 
 export type Room = { id: string; name: string; flag: string; vip: number; online: number; img: string; host: string; hostId: string; badges: string[]; tag: string; notice: string; cloud?: boolean; ownerId?: string };
 
