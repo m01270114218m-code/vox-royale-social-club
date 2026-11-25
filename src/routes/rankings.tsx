@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AudioLines, Trophy } from "lucide-react";
 import { Coin, IceHeader, SubHeader } from "@/components/app/AppShell";
-import { liveRooms, rooms, users, type Room, type User } from "@/components/app/data";
+import { liveRooms, type Room, type User } from "@/components/app/data";
 import { meAsUser, useProfile } from "@/components/app/profile";
 import { useCloud } from "@/components/app/cloud";
 import { Avatar, LevelChip, VipChip } from "@/components/app/ui";
