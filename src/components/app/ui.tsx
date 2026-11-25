@@ -1,18 +1,20 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { X } from "lucide-react";
-import { frames, roleImg, icons, sidTone, rankArt, type FrameKey } from "./data";
+import { X, Crown, Award } from "lucide-react";
+import { frames, roleImg, icons, sidTone, type FrameKey } from "./data";
 import { useCloudState } from './cloud-state';
 import type { Role } from "./permissions";
 import { pushBack } from './back';
 
 /** Avatar with an optional decorative frame drawn around it. */
 export function Avatar({ img, frame, size, className = "", ring = "" }: { img: string; frame?: FrameKey | null; size: number; className?: string; ring?: string }) {
-  const f = frame ? frames[frame] : null;
+  const { catalog } = useCloudState();
+  const cloudFrame = typeof frame === "string" && frame.startsWith("cloud-") ? catalog.find(c => c.id === frame.slice(6) && c.kind === "frame" && c.enabled) : undefined;
+  const frameImage = cloudFrame?.url || (frame ? frames[frame]?.img : null);
   const fs = Math.round(size * 1.42);
   return (
     <span className={`relative inline-grid shrink-0 place-items-center ${className}`} style={{ width: size, height: size }}>
       <img src={img} alt="" className={`h-full w-full rounded-full object-cover ${ring}`} />
-      {f && <img src={f.img} alt="" className="pointer-events-none absolute max-w-none" style={{ width: fs, height: fs, left: (size - fs) / 2, top: (size - fs) / 2 }} />}
+      {frameImage && <img src={frameImage} alt="" className="pointer-events-none absolute max-w-none" style={{ width: fs, height: fs, left: (size - fs) / 2, top: (size - fs) / 2 }} />}
     </span>
   );
 }
@@ -102,7 +104,7 @@ export function LevelChip({ level }: { level: number }) {
   const lv=Math.min(100,Math.max(1,level));
   const tier=Math.min(5,Math.floor((lv-1)/20));
   return <span className={`rank-pill lv-t${tier} inline-flex h-[18px] shrink-0 items-center ps-[22px] pe-1.5`} dir="ltr" title={`المستوى ${level}`}>
-    <img src={custom?.url||rankArt.level[lv-1]} alt="" className="rank-pill-icon"/>
+    <span className="rank-pill-icon grid place-items-center rounded-full bg-white/20 p-1"><Award className="h-4 w-4 text-white" strokeWidth={2.6}/>{custom?.url && <img src={custom.url} alt="" className="absolute inset-0 h-full w-full object-contain"/>}</span>
     <b className="text-[10px] font-black leading-none">Lv.{lv}</b>
   </span>;
 }
@@ -113,7 +115,7 @@ export function VipChip({ vip }: { vip: number }) {
   const custom=catalog.find(c=>c.kind==='vip'&&c.rank===vip&&c.enabled);
   const n=Math.min(12,Math.max(1,vip));
   const tier=n<=3?0:n<=6?1:n<=9?2:3;
-  return <span title={`VIP ${vip}`} aria-label={`VIP ${vip}`} dir="ltr" className={`rank-pill vip-t${tier} inline-flex h-[18px] shrink-0 items-center ps-[22px] pe-1.5`}><img src={custom?.url||rankArt.vip[n-1]} alt="" className="rank-pill-icon"/><b className="text-[9.5px] font-black italic leading-none">VIP{n}</b></span>;
+  return <span title={`VIP ${vip}`} aria-label={`VIP ${vip}`} dir="ltr" className={`rank-pill vip-t${tier} inline-flex h-[18px] shrink-0 items-center ps-[22px] pe-1.5`}><span className="rank-pill-icon grid place-items-center rounded-full bg-white/20 p-1"><Crown className="h-4 w-4 text-current" strokeWidth={2.6}/>{custom?.url && <img src={custom.url} alt="" className="absolute inset-0 h-full w-full object-contain"/>}</span><b className="text-[9.5px] font-black italic leading-none">VIP{n}</b></span>;
 }
 /** Badges the user owns (bought or sent by the administration), shown in one tidy row under the ID. */
 export function UserBadges({userId,align='center',size=26}:{userId:string;align?:'center'|'start';size?:number}) {
