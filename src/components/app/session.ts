@@ -77,10 +77,6 @@ export function AuthBridge() {
         }
 
         await Browser.close().catch(() => undefined);
-        const { data } = await supabase.auth.getSession();
-        if (data.session?.user?.id) {
-          await update(data.session.user.id);
-        }
       } catch (error) {
         console.error("[Auth] Native Google callback failed", error);
         await Browser.close().catch(() => undefined);
