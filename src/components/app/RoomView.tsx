@@ -168,6 +168,48 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Live room data: membership, chat and seats come from Supabase without changing the existing UI.
+  useEffect(() => {
+    if (!live) return;
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    const loadLiveRoom = async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (!uid) return;
+      await supabase.from("room_members").upsert({ room_id: id, user_id: uid, role: room.hostId === uid ? "owner" : "member" }, { onConflict: "room_id,user_id" });
+      const [messagesRes, seatsRes] = await Promise.all([
+        supabase.from("chat_messages").select("*").eq("room_id", id).is("deleted_at", null).order("created_at", { ascending: true }).limit(80),
+        supabase.from("room_seats").select("*").eq("room_id", id).order("seat_number", { ascending: true }),
+      ]);
+      if (cancelled) return;
+      if (!messagesRes.error) {
+        setMsgs((messagesRes.data ?? []).map((m) => ({ id: Date.parse(String(m.created_at)) || nid(), kind: m.message_type === "system" ? "sys" : "chat", uid: String(m.sender_id), t: String(m.body ?? "") })));
+      }
+      if (!seatsRes.error && (seatsRes.data ?? []).length) {
+        setSeats((current) => current.map((seat, index) => {
+          const row = (seatsRes.data ?? []).find((x) => Number(x.seat_number) === index + 1);
+          if (!row) return seat;
+          return { ...seat, uid: row.user_id ? String(row.user_id) : null, locked: String(row.seat_status ?? "") === "locked", muted: String(row.seat_status ?? "") === "muted" };
+        }));
+      }
+      channel = supabase.channel("room-live-" + id)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: "room_id=eq." + id }, (payload) => {
+          const m = payload.new as Record<string, unknown>;
+          setMsgs((current) => [...current.slice(-79), { id: Date.parse(String(m.created_at)) || nid(), kind: String(m.message_type ?? "chat") === "system" ? "sys" : "chat", uid: String(m.sender_id), t: String(m.body ?? "") }]);
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "room_seats", filter: "room_id=eq." + id }, (payload) => {
+          const row = payload.new as Record<string, unknown>;
+          const index = Number(row.seat_number) - 1;
+          if (index < 0 || index >= 8) return;
+          setSeats((current) => current.map((seat, i) => i === index ? { ...seat, uid: row.user_id ? String(row.user_id) : null, locked: String(row.seat_status ?? "") === "locked", muted: String(row.seat_status ?? "") === "muted" } : seat));
+        })
+        .subscribe();
+    };
+    void loadLiveRoom();
+    return () => { cancelled = true; if (channel) void supabase.removeChannel(channel); };
+  }, [id, live, room.hostId]);
+
   // mic activity time for the host center
   const micLive = micOn && mySeat >= 0 && !seats[mySeat]?.muted;
   useEffect(() => {
@@ -210,10 +252,18 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     return items;
   };
 
-  const send = () => {
+  const send = async () => {
     const t = text.trim();
     if (!t) return;
-    push({ kind: "chat", uid: "me", t });
+    if (live) {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (!uid) { toast("سجّل الدخول أولاً"); return; }
+      const { error } = await supabase.from("chat_messages").insert({ room_id: id, sender_id: uid, message_type: "text", body: t });
+      if (error) { toast(error.message); return; }
+    } else {
+      push({ kind: "chat", uid: "me", t });
+    }
     setText("");
   };
 
