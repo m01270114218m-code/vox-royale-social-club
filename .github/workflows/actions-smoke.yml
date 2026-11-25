@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - empty
+  workflow_dispatch:
 
 jobs:
   smoke:
