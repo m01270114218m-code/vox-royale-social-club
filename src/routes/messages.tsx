@@ -76,7 +76,7 @@ function Messages() {
       seenDmIds.current.add(row.id);
       setRemoteThread(current => [...current, {
         id: row.id,
-        from: row.sender_id === data.profile!.id ? "me" : "them",
+        from: (row.sender_id === data.profile!.id ? "me" : "them") as "me" | "them",
         text: row.body!,
         at: new Date(row.created_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" }),
         createdAt: row.created_at,
