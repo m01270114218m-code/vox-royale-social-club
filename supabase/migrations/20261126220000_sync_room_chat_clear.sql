@@ -11,7 +11,7 @@ begin
   if v_uid is null then raise exception 'غير مصرح'; end if;
   select owner_id into v_owner from public.rooms where id = p_room_id;
   if v_owner is null then raise exception 'الغرفة غير موجودة'; end if;
-  if v_owner <> v_uid and not public.has_role('admin') then
+  if v_owner <> v_uid and not exists (select 1 from public.user_roles ur where ur.user_id = v_uid and ur.role = 'admin') then
     raise exception 'ليس لديك صلاحية مسح دردشة الغرفة';
   end if;
   delete from public.chat_messages where room_id = p_room_id and message_type = 'text';
