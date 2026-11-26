@@ -1,106 +1,101 @@
-name: Build VOX ROYALE Android APK
+name: Sada Chat CI and APK
 
 on:
   push:
-    branches: [admin-asset-center-build-407]
+    branches:
+      - empty
+      - login-page-lovable-copy
   workflow_dispatch:
 
 permissions:
   contents: write
 
-concurrency:
-  group: vox-royale-android-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  android:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Smoke
+        run: |
+          echo "GitHub Actions runner reached successfully"
+          echo "SHA=$GITHUB_SHA"
+
+  android-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Checkout source
+      - name: Checkout source without external actions
+        shell: bash
         run: |
+          set -euo pipefail
           git clone --depth 1 --branch "$GITHUB_REF_NAME" "https://github.com/${GITHUB_REPOSITORY}.git" source
           cd source
           test -f package.json
-          test -f bun.lock
-          test -f capacitor.config.json
-          test -s public/control-center/index.html
+          test -f mobile/build-android.sh
+          test -f mobile/android/gradlew
+          test -f mobile/android/app/build.gradle
 
-      - name: Install dependencies and build web app
-        working-directory: source
+      - name: Prepare installed build tools
+        shell: bash
         run: |
-          curl -fsSL https://bun.sh/install | bash
-          export PATH="$HOME/.bun/bin:$PATH"
-          bun --version
-          bun install
-          bun add @capacitor/app@latest
-          export VITE_APP_VERSION="$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")"
-          bun run build
-          test -s .output/public/index.html
-          if grep -Eqi 'lovable\\.app|lovable\\.dev' .output/public/index.html; then
-            echo "::error::Lovable preview branding or host reference remains in the Android app shell."
-            exit 1
-          fi
-
-      - name: Select Java 21
-        run: |
+          set -euo pipefail
+          node --version
+          npm --version
           if [ -n "${JAVA_HOME_21_X64:-}" ] && [ -x "$JAVA_HOME_21_X64/bin/java" ]; then
             JDK_HOME="$JAVA_HOME_21_X64"
+          elif [ -n "${JAVA_HOME_17_X64:-}" ] && [ -x "$JAVA_HOME_17_X64/bin/java" ]; then
+            JDK_HOME="$JAVA_HOME_17_X64"
           else
-            sudo apt-get update
-            sudo apt-get install -y openjdk-21-jdk
-            JDK_HOME="/usr/lib/jvm/java-21-openjdk-amd64"
+            JDK_HOME="$JAVA_HOME"
           fi
+          test -x "$JDK_HOME/bin/java"
           echo "JAVA_HOME=$JDK_HOME" >> "$GITHUB_ENV"
           echo "$JDK_HOME/bin" >> "$GITHUB_PATH"
+          "$JDK_HOME/bin/java" -version
+          "$JDK_HOME/bin/javac" -version
+          test -n "${ANDROID_HOME:-}" || test -n "${ANDROID_SDK_ROOT:-}"
 
-      - name: Prepare Android toolchain
+      - name: Build Android APK
+        shell: bash
         working-directory: source
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_rTPtpxMftXim8X_Re9LxMg_vZaF_ade' }}
+          VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID || '174232630403-738ucmkk5otqvnuibm4g8hlcblnuvim1.apps.googleusercontent.com' }}
         run: |
-          export PATH="$HOME/.bun/bin:$PATH"
-          java -version 2>&1 | grep -Eq 'version "21([.]|")'
-          test -n "$ANDROID_HOME" || test -n "$ANDROID_SDK_ROOT"
-          bun add @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/app@latest
-          bunx cap add android
-          python3 - <<'PY'
-          from pathlib import Path
-          manifest = Path("android/app/src/main/AndroidManifest.xml")
-          xml = manifest.read_text()
-          if "android.permission.RECORD_AUDIO" not in xml:
-              xml = xml.replace("<application", '    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <application', 1)
-          manifest.write_text(xml)
-          PY
-          sudo apt-get update
-          sudo apt-get install -y imagemagick librsvg2-bin
-          mkdir -p android/app/src/main/res/mipmap-mdpi android/app/src/main/res/mipmap-hdpi android/app/src/main/res/mipmap-xhdpi android/app/src/main/res/mipmap-xxhdpi android/app/src/main/res/mipmap-xxxhdpi
-          for spec in "mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192"; do
-            density="${spec%%:*}"; size="${spec##*:}"
-            convert public/sdy-chat-icon.svg -background none -resize "${size}x${size}" "android/app/src/main/res/mipmap-${density}/ic_launcher.png"
-            cp "android/app/src/main/res/mipmap-${density}/ic_launcher.png" "android/app/src/main/res/mipmap-${density}/ic_launcher_round.png"
+          set -euo pipefail
+          for name in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID VITE_GOOGLE_WEB_CLIENT_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions configuration: $name"
+              exit 1
+            fi
           done
-          VERSION="$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")"
-          VERSION_CODE="$(node -p "const p=process.argv[1].split('.').map(Number); p[0]*10000+p[1]*100+p[2]" "$VERSION")"
-          sed -i -E "s/versionCode [0-9]+/versionCode $VERSION_CODE/; s/versionName \"[^\"]+\"/versionName \"$VERSION\"/" android/app/build.gradle
+          {
+            printf 'VITE_SUPABASE_URL=%s\n' "$VITE_SUPABASE_URL"
+            printf 'VITE_SUPABASE_PUBLISHABLE_KEY=%s\n' "$VITE_SUPABASE_PUBLISHABLE_KEY"
+            printf 'VITE_SUPABASE_PROJECT_ID=%s\n' "$VITE_SUPABASE_PROJECT_ID"
+            printf 'VITE_GOOGLE_WEB_CLIENT_ID=%s\n' "$VITE_GOOGLE_WEB_CLIENT_ID"
+          } > .env
+          bash mobile/build-android.sh
 
-      - name: Sync web assets
-        working-directory: source
-        run: |
-          export PATH="$HOME/.bun/bin:$PATH"
-          bunx cap sync android
-          test -s android/app/src/main/assets/public/index.html
-
-      - name: Build debug APK
-        working-directory: source/android
-        run: |
-          chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon
-
-      - name: Publish APK release
+      - name: Verify and publish APK
+        shell: bash
         working-directory: source
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          set -euo pipefail
+          APK="mobile/android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
-          TAG="vox-royale-apk-${GITHUB_SHA::7}"
-          gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --title "VOX ROYALE Android APK ${GITHUB_SHA::7}" --notes "Bundled Android APK for commit $GITHUB_SHA on branch $GITHUB_REF_NAME."
+          ls -lh "$APK"
+          echo "=== Android APK signing certificate (register this SHA-1 in Google Cloud Android OAuth client) ==="
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n 1)"
+          if [ -n "$APKSIGNER" ]; then
+            "$APKSIGNER" verify --print-certs "$APK" | grep -E "Signer #|SHA-1|SHA-256"
+          else
+            echo "::warning::apksigner was not found; could not print the APK SHA-1."
+          fi
+          TAG="sada-chat-apk-${GITHUB_SHA::7}"
+          gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --title "Sada Chat APK ${GITHUB_SHA::7}" --notes "Capacitor Android wrapper built from branch $GITHUB_REF_NAME at commit $GITHUB_SHA."

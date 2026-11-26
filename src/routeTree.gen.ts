@@ -11,19 +11,26 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as FamiliesRouteImport } from './routes/families'
-import { Route as FriendsRouteImport } from './routes/friends'
-import { Route as HelpRouteImport } from './routes/help'
+import { Route as AgentRouteImport } from './routes/agent'
+import { Route as BadgesRouteImport } from './routes/badges'
+import { Route as BdRouteImport } from './routes/bd'
+import { Route as EventsRouteImport } from './routes/events'
+import { Route as HostRouteImport } from './routes/host'
+import { Route as LevelRouteImport } from './routes/level'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as MeRouteImport } from './routes/me'
 import { Route as MessagesRouteImport } from './routes/messages'
-import { Route as MomentsRouteImport } from './routes/moments'
-import { Route as NotificationsRouteImport } from './routes/notifications'
-import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as MineRouteImport } from './routes/mine'
+import { Route as RankingsRouteImport } from './routes/rankings'
+import { Route as RechargeAgentRouteImport } from './routes/recharge-agent'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StoreRouteImport } from './routes/store'
-import { Route as ChatIdRouteImport } from './routes/chat.$id'
-import { Route as RoomIdRouteImport } from './routes/room.$id'
-import { Route as UIdRouteImport } from './routes/u.$id'
+import { Route as VipRouteImport } from './routes/vip'
+import { Route as WalletRouteImport } from './routes/wallet'
+import { Route as MeEditRouteImport } from './routes/me_.edit'
+import { Route as RoomIdRouteImport } from './routes/room/$id'
+import { Route as UserIdRouteImport } from './routes/user/$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -35,24 +42,44 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const AgentRoute = AgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FamiliesRoute = FamiliesRouteImport.update({
-  id: '/families',
-  path: '/families',
+const BadgesRoute = BadgesRouteImport.update({
+  id: '/badges',
+  path: '/badges',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FriendsRoute = FriendsRouteImport.update({
-  id: '/friends',
-  path: '/friends',
+const BdRoute = BdRouteImport.update({
+  id: '/bd',
+  path: '/bd',
   getParentRoute: () => rootRouteImport,
 } as any)
-const HelpRoute = HelpRouteImport.update({
-  id: '/help',
-  path: '/help',
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HostRoute = HostRouteImport.update({
+  id: '/host',
+  path: '/host',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LevelRoute = LevelRouteImport.update({
+  id: '/level',
+  path: '/level',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeRoute = MeRouteImport.update({
+  id: '/me',
+  path: '/me',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MessagesRoute = MessagesRouteImport.update({
@@ -60,24 +87,29 @@ const MessagesRoute = MessagesRouteImport.update({
   path: '/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MomentsRoute = MomentsRouteImport.update({
-  id: '/moments',
-  path: '/moments',
+const MineRoute = MineRouteImport.update({
+  id: '/mine',
+  path: '/mine',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NotificationsRoute = NotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
+const RankingsRoute = RankingsRouteImport.update({
+  id: '/rankings',
+  path: '/rankings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
+const RechargeAgentRoute = RechargeAgentRouteImport.update({
+  id: '/recharge-agent',
+  path: '/recharge-agent',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StoreRoute = StoreRouteImport.update({
@@ -85,9 +117,19 @@ const StoreRoute = StoreRouteImport.update({
   path: '/store',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ChatIdRoute = ChatIdRouteImport.update({
-  id: '/chat/$id',
-  path: '/chat/$id',
+const VipRoute = VipRouteImport.update({
+  id: '/vip',
+  path: '/vip',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WalletRoute = WalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeEditRoute = MeEditRouteImport.update({
+  id: '/me_/edit',
+  path: '/me/edit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RoomIdRoute = RoomIdRouteImport.update({
@@ -95,134 +137,183 @@ const RoomIdRoute = RoomIdRouteImport.update({
   path: '/room/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const UIdRoute = UIdRouteImport.update({
-  id: '/u/$id',
-  path: '/u/$id',
+const UserIdRoute = UserIdRouteImport.update({
+  id: '/user/$id',
+  path: '/user/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/auth': typeof AuthRoute
-  '/families': typeof FamiliesRoute
-  '/friends': typeof FriendsRoute
-  '/help': typeof HelpRoute
+  '/agent': typeof AgentRoute
+  '/badges': typeof BadgesRoute
+  '/bd': typeof BdRoute
+  '/events': typeof EventsRoute
+  '/host': typeof HostRoute
+  '/level': typeof LevelRoute
+  '/login': typeof LoginRoute
+  '/me': typeof MeRoute
   '/messages': typeof MessagesRoute
-  '/moments': typeof MomentsRoute
-  '/notifications': typeof NotificationsRoute
-  '/profile': typeof ProfileRoute
-  '/reset-password': typeof ResetPasswordRoute
+  '/mine': typeof MineRoute
+  '/rankings': typeof RankingsRoute
+  '/recharge-agent': typeof RechargeAgentRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/store': typeof StoreRoute
-  '/chat/$id': typeof ChatIdRoute
+  '/vip': typeof VipRoute
+  '/wallet': typeof WalletRoute
+  '/me/edit': typeof MeEditRoute
   '/room/$id': typeof RoomIdRoute
-  '/u/$id': typeof UIdRoute
+  '/user/$id': typeof UserIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/auth': typeof AuthRoute
-  '/families': typeof FamiliesRoute
-  '/friends': typeof FriendsRoute
-  '/help': typeof HelpRoute
+  '/agent': typeof AgentRoute
+  '/badges': typeof BadgesRoute
+  '/bd': typeof BdRoute
+  '/events': typeof EventsRoute
+  '/host': typeof HostRoute
+  '/level': typeof LevelRoute
+  '/login': typeof LoginRoute
+  '/me': typeof MeRoute
   '/messages': typeof MessagesRoute
-  '/moments': typeof MomentsRoute
-  '/notifications': typeof NotificationsRoute
-  '/profile': typeof ProfileRoute
-  '/reset-password': typeof ResetPasswordRoute
+  '/mine': typeof MineRoute
+  '/rankings': typeof RankingsRoute
+  '/recharge-agent': typeof RechargeAgentRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/store': typeof StoreRoute
-  '/chat/$id': typeof ChatIdRoute
+  '/vip': typeof VipRoute
+  '/wallet': typeof WalletRoute
+  '/me/edit': typeof MeEditRoute
   '/room/$id': typeof RoomIdRoute
-  '/u/$id': typeof UIdRoute
+  '/user/$id': typeof UserIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/auth': typeof AuthRoute
-  '/families': typeof FamiliesRoute
-  '/friends': typeof FriendsRoute
-  '/help': typeof HelpRoute
+  '/agent': typeof AgentRoute
+  '/badges': typeof BadgesRoute
+  '/bd': typeof BdRoute
+  '/events': typeof EventsRoute
+  '/host': typeof HostRoute
+  '/level': typeof LevelRoute
+  '/login': typeof LoginRoute
+  '/me': typeof MeRoute
   '/messages': typeof MessagesRoute
-  '/moments': typeof MomentsRoute
-  '/notifications': typeof NotificationsRoute
-  '/profile': typeof ProfileRoute
-  '/reset-password': typeof ResetPasswordRoute
+  '/mine': typeof MineRoute
+  '/rankings': typeof RankingsRoute
+  '/recharge-agent': typeof RechargeAgentRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/store': typeof StoreRoute
-  '/chat/$id': typeof ChatIdRoute
+  '/vip': typeof VipRoute
+  '/wallet': typeof WalletRoute
+  '/me_/edit': typeof MeEditRoute
   '/room/$id': typeof RoomIdRoute
-  '/u/$id': typeof UIdRoute
+  '/user/$id': typeof UserIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/admin'
-    | '/auth'
-    | '/families'
-    | '/friends'
-    | '/help'
+    | '/agent'
+    | '/badges'
+    | '/bd'
+    | '/events'
+    | '/host'
+    | '/level'
+    | '/login'
+    | '/me'
     | '/messages'
-    | '/moments'
-    | '/notifications'
-    | '/profile'
-    | '/reset-password'
+    | '/mine'
+    | '/rankings'
+    | '/recharge-agent'
+    | '/search'
+    | '/settings'
     | '/store'
-    | '/chat/$id'
+    | '/vip'
+    | '/wallet'
+    | '/me/edit'
     | '/room/$id'
-    | '/u/$id'
+    | '/user/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
-    | '/auth'
-    | '/families'
-    | '/friends'
-    | '/help'
+    | '/agent'
+    | '/badges'
+    | '/bd'
+    | '/events'
+    | '/host'
+    | '/level'
+    | '/login'
+    | '/me'
     | '/messages'
-    | '/moments'
-    | '/notifications'
-    | '/profile'
-    | '/reset-password'
+    | '/mine'
+    | '/rankings'
+    | '/recharge-agent'
+    | '/search'
+    | '/settings'
     | '/store'
-    | '/chat/$id'
+    | '/vip'
+    | '/wallet'
+    | '/me/edit'
     | '/room/$id'
-    | '/u/$id'
+    | '/user/$id'
   id:
     | '__root__'
     | '/'
     | '/admin'
-    | '/auth'
-    | '/families'
-    | '/friends'
-    | '/help'
+    | '/agent'
+    | '/badges'
+    | '/bd'
+    | '/events'
+    | '/host'
+    | '/level'
+    | '/login'
+    | '/me'
     | '/messages'
-    | '/moments'
-    | '/notifications'
-    | '/profile'
-    | '/reset-password'
+    | '/mine'
+    | '/rankings'
+    | '/recharge-agent'
+    | '/search'
+    | '/settings'
     | '/store'
-    | '/chat/$id'
+    | '/vip'
+    | '/wallet'
+    | '/me_/edit'
     | '/room/$id'
-    | '/u/$id'
+    | '/user/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
-  AuthRoute: typeof AuthRoute
-  FamiliesRoute: typeof FamiliesRoute
-  FriendsRoute: typeof FriendsRoute
-  HelpRoute: typeof HelpRoute
+  AgentRoute: typeof AgentRoute
+  BadgesRoute: typeof BadgesRoute
+  BdRoute: typeof BdRoute
+  EventsRoute: typeof EventsRoute
+  HostRoute: typeof HostRoute
+  LevelRoute: typeof LevelRoute
+  LoginRoute: typeof LoginRoute
+  MeRoute: typeof MeRoute
   MessagesRoute: typeof MessagesRoute
-  MomentsRoute: typeof MomentsRoute
-  NotificationsRoute: typeof NotificationsRoute
-  ProfileRoute: typeof ProfileRoute
-  ResetPasswordRoute: typeof ResetPasswordRoute
+  MineRoute: typeof MineRoute
+  RankingsRoute: typeof RankingsRoute
+  RechargeAgentRoute: typeof RechargeAgentRoute
+  SearchRoute: typeof SearchRoute
+  SettingsRoute: typeof SettingsRoute
   StoreRoute: typeof StoreRoute
-  ChatIdRoute: typeof ChatIdRoute
+  VipRoute: typeof VipRoute
+  WalletRoute: typeof WalletRoute
+  MeEditRoute: typeof MeEditRoute
   RoomIdRoute: typeof RoomIdRoute
-  UIdRoute: typeof UIdRoute
+  UserIdRoute: typeof UserIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -241,32 +332,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/agent': {
+      id: '/agent'
+      path: '/agent'
+      fullPath: '/agent'
+      preLoaderRoute: typeof AgentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/families': {
-      id: '/families'
-      path: '/families'
-      fullPath: '/families'
-      preLoaderRoute: typeof FamiliesRouteImport
+    '/badges': {
+      id: '/badges'
+      path: '/badges'
+      fullPath: '/badges'
+      preLoaderRoute: typeof BadgesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/friends': {
-      id: '/friends'
-      path: '/friends'
-      fullPath: '/friends'
-      preLoaderRoute: typeof FriendsRouteImport
+    '/bd': {
+      id: '/bd'
+      path: '/bd'
+      fullPath: '/bd'
+      preLoaderRoute: typeof BdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/help': {
-      id: '/help'
-      path: '/help'
-      fullPath: '/help'
-      preLoaderRoute: typeof HelpRouteImport
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/host': {
+      id: '/host'
+      path: '/host'
+      fullPath: '/host'
+      preLoaderRoute: typeof HostRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/level': {
+      id: '/level'
+      path: '/level'
+      fullPath: '/level'
+      preLoaderRoute: typeof LevelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me': {
+      id: '/me'
+      path: '/me'
+      fullPath: '/me'
+      preLoaderRoute: typeof MeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/messages': {
@@ -276,32 +395,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/moments': {
-      id: '/moments'
-      path: '/moments'
-      fullPath: '/moments'
-      preLoaderRoute: typeof MomentsRouteImport
+    '/mine': {
+      id: '/mine'
+      path: '/mine'
+      fullPath: '/mine'
+      preLoaderRoute: typeof MineRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/notifications': {
-      id: '/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof NotificationsRouteImport
+    '/rankings': {
+      id: '/rankings'
+      path: '/rankings'
+      fullPath: '/rankings'
+      preLoaderRoute: typeof RankingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
+    '/recharge-agent': {
+      id: '/recharge-agent'
+      path: '/recharge-agent'
+      fullPath: '/recharge-agent'
+      preLoaderRoute: typeof RechargeAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/store': {
@@ -311,11 +437,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StoreRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/chat/$id': {
-      id: '/chat/$id'
-      path: '/chat/$id'
-      fullPath: '/chat/$id'
-      preLoaderRoute: typeof ChatIdRouteImport
+    '/vip': {
+      id: '/vip'
+      path: '/vip'
+      fullPath: '/vip'
+      preLoaderRoute: typeof VipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wallet': {
+      id: '/wallet'
+      path: '/wallet'
+      fullPath: '/wallet'
+      preLoaderRoute: typeof WalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me_/edit': {
+      id: '/me_/edit'
+      path: '/me/edit'
+      fullPath: '/me/edit'
+      preLoaderRoute: typeof MeEditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/room/$id': {
@@ -325,11 +465,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RoomIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/u/$id': {
-      id: '/u/$id'
-      path: '/u/$id'
-      fullPath: '/u/$id'
-      preLoaderRoute: typeof UIdRouteImport
+    '/user/$id': {
+      id: '/user/$id'
+      path: '/user/$id'
+      fullPath: '/user/$id'
+      preLoaderRoute: typeof UserIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -338,19 +478,26 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
-  AuthRoute: AuthRoute,
-  FamiliesRoute: FamiliesRoute,
-  FriendsRoute: FriendsRoute,
-  HelpRoute: HelpRoute,
+  AgentRoute: AgentRoute,
+  BadgesRoute: BadgesRoute,
+  BdRoute: BdRoute,
+  EventsRoute: EventsRoute,
+  HostRoute: HostRoute,
+  LevelRoute: LevelRoute,
+  LoginRoute: LoginRoute,
+  MeRoute: MeRoute,
   MessagesRoute: MessagesRoute,
-  MomentsRoute: MomentsRoute,
-  NotificationsRoute: NotificationsRoute,
-  ProfileRoute: ProfileRoute,
-  ResetPasswordRoute: ResetPasswordRoute,
+  MineRoute: MineRoute,
+  RankingsRoute: RankingsRoute,
+  RechargeAgentRoute: RechargeAgentRoute,
+  SearchRoute: SearchRoute,
+  SettingsRoute: SettingsRoute,
   StoreRoute: StoreRoute,
-  ChatIdRoute: ChatIdRoute,
+  VipRoute: VipRoute,
+  WalletRoute: WalletRoute,
+  MeEditRoute: MeEditRoute,
   RoomIdRoute: RoomIdRoute,
-  UIdRoute: UIdRoute,
+  UserIdRoute: UserIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

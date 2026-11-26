@@ -1,0 +1,10 @@
+{
+  "appId": "com.sadachat.app",
+  "appName": "صدى شات",
+  "webDir": "www",
+  "android": { "backgroundColor": "#0d1226", "allowMixedContent": false },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 1200, "backgroundColor": "#0d1226", "showSpinner": false },
+    "StatusBar": { "style": "DARK", "backgroundColor": "#0d1226", "overlaysWebView": false }
+  }
+}

@@ -42,7 +42,7 @@ export async function fetchCloud() {
   } catch (error) {
     console.warn('[cloud] auth lookup unavailable:', error);
   }
-  const [catalog, assets, profiles, roles, settings, agencies, hosts, items, equippedItems, follows, notifications, ledger, rooms, audit, userRooms, recharges] = await Promise.all([
+  const [catalog, assets, profiles, roles, settings, agencies, hosts, items, equippedItems, follows, notifications, ledger, rooms, audit, userRooms, recharges, roomMembers] = await Promise.all([
     supabase.from('app_catalog').select('*').order('position'),
     id ? supabase.from('app_assets').select('*').order('created_at', { ascending: false }) : none,
     id ? supabase.from('profiles').select('*').order('uid').limit(1000) : none,
@@ -59,10 +59,11 @@ export async function fetchCloud() {
     id ? supabase.from('admin_audit').select('*').order('created_at', { ascending: false }).limit(50) : none,
     id ? supabase.from('rooms').select('*').order('created_at', { ascending: false }).limit(60) : none,
     id ? supabase.from('recharge_requests').select('*').order('created_at', { ascending: false }).limit(100) : none,
+    id ? supabase.from('room_members').select('room_id,user_id').limit(5000) : none,
   ]);
   // Keep optional backend modules isolated: one missing table/policy must not
   // take down login, the profile, or the room list.
-  for (const [name, result] of Object.entries({ catalog, assets, profiles, roles, settings, agencies, hosts, items, equippedItems, follows, notifications, ledger, rooms, audit, userRooms, recharges })) {
+  for (const [name, result] of Object.entries({ catalog, assets, profiles, roles, settings, agencies, hosts, items, equippedItems, follows, notifications, ledger, rooms, audit, userRooms, recharges, roomMembers })) {
     if (result?.error) console.warn(`[cloud] ${name} query failed:`, result.error.message);
   }
   const now = Date.now();
@@ -80,9 +81,15 @@ export async function fetchCloud() {
   const people = (profiles.data ?? []).map(liveVip);
   const own = id ? await supabase.from('profiles').select('*').eq('id', id).maybeSingle() : { data: null };
   const profile = own.data ? liveVip(own.data) : null;
+  const memberCounts = new Map<string, number>();
+  for (const member of roomMembers.data ?? []) {
+    const roomId = String(member.room_id ?? '');
+    if (roomId) memberCounts.set(roomId, (memberCounts.get(roomId) ?? 0) + 1);
+  }
   const roomList: Room[] = (userRooms.data ?? []).map(r => {
+    const roomRow = r as typeof r & { title?: string | null; cover_url?: string | null; background_url?: string | null };
     const owner = r.owner_id === id ? profile : people.find(p => p.id === r.owner_id);
-    return { id: String(r.room_uid), dbId: r.id, name: r.name, flag: '', vip: owner?.vip ?? 0, online: 0, img: r.cover || owner?.avatar || roomCover, host: owner?.avatar || avatarAt(0), hostId: r.owner_id === id ? 'me' : r.owner_id, badges: [], tag: 'غرفة', notice: r.notice, cloud: true, ownerId: r.owner_id };
+    return { id: String(r.room_uid), dbId: r.id, name: roomRow.title?.trim() || r.name?.trim() || 'غرفة صوتية', flag: '', vip: owner?.vip ?? 0, online: memberCounts.get(String(r.id)) ?? 0, img: roomRow.cover_url || r.cover || owner?.avatar || roomCover, ...(roomRow.background_url ? { bg: roomRow.background_url } : {}), host: owner?.avatar || avatarAt(0), hostId: r.owner_id === id ? 'me' : r.owner_id, badges: [], tag: 'غرفة', notice: r.notice, cloud: true, ownerId: r.owner_id };
   });
   const myRoom = roomList.find(r => r.ownerId === id) ?? null;
   // install before returning so the first render with this data already resolves rooms and art
@@ -98,7 +105,7 @@ const LIVE_APP_TABLES = [
   "profiles", "app_catalog", "app_assets", "user_items", "user_roles", "app_settings", "follows",
   "rooms", "room_controls", "agencies", "agency_hosts", "agency_members",
   "app_notifications", "coin_ledger", "recharge_requests", "user_vips", "vip_packages",
-  "gift_transactions",
+  "gift_transactions", "room_members", "room_seats",
 ] as const;
 
 export function CloudBridge() {

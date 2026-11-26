@@ -1,0 +1,2 @@
+CREATE POLICY assets_splash_read ON public.app_assets FOR SELECT TO authenticated USING (section = 'splash');
+CREATE POLICY storage_splash_read ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'app-assets' AND (storage.foldername(name))[1] = 'library' AND (storage.foldername(name))[2] = 'splash');
