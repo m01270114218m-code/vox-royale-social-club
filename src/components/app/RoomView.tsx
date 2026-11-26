@@ -253,7 +253,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
       if (error) { console.warn("[room] seat state unavailable:", error.message); return; }
       applySeatRows(data ?? []);
       if (room.ownerId === cloud?.profile?.id && !(data ?? []).some(row => row.seat_number === 0 && row.user_id === cloud?.profile?.id)) {
-        const { error: seatError } = await supabase.rpc("set_room_seat", {
+        const { error: seatError } = await (supabase as any).rpc("set_room_seat", {
           p_room_id: roomDbId, p_seat_number: 0, p_user_id: cloud?.profile?.id, p_seat_status: "occupied",
         });
         if (seatError) console.warn("[room] host seat initialization failed:", seatError.message);
@@ -315,7 +315,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
       if (previous && previous.uid === seat.uid && previous.locked === seat.locked && previous.muted === seat.muted) return;
       const userId = seat.uid === "me" ? cloud.profile!.id : seat.uid;
       const status = seat.locked && !userId ? "locked" : seat.muted && userId ? "muted" : userId ? "occupied" : "available";
-      const { error } = await supabase.rpc("set_room_seat", {
+      const { error } = await (supabase as any).rpc("set_room_seat", {
         p_room_id: roomDbId, p_seat_number: index, p_user_id: userId || null, p_seat_status: status,
       });
       if (error) toast(error.message || "تعذّر مزامنة المقعد");
