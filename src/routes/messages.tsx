@@ -10,6 +10,7 @@ import bell from "@/assets/bell.png";
 import gift from "@/assets/gift.png";
 import { useCloud } from '@/components/app/cloud';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/app/toast';
 import { Coin } from '@/components/app/AppShell';
 import { Media } from '@/components/app/ui';
 import { INBOX_KINDS, inboxKind, inboxLabel, markRead, mine, unreadByKind, useInboxRead, type InboxKind } from '@/components/app/inbox';
@@ -41,8 +42,8 @@ function Messages() {
   const [remoteThread, setRemoteThread] = useState<Array<{ id: string; from: "me" | "them"; text: string; at: string; createdAt: string }>>([]);
   const seenDmIds = useRef<Set<string>>(new Set());
   const realUsers: User[] = (data?.profiles ?? []).filter(row => row.id !== data?.profile?.id).map(row => {
-    const owned = (data?.equippedItems ?? []).filter(item => item.user_id === row.id);
-    const worn = (kind: string) => data?.catalog.find(item => item.kind === kind && owned.some(ownedItem => ownedItem.catalog_id === item.id));
+    const owned = (data?.equippedItems ?? []).filter((item: { user_id: string; catalog_id: string }) => item.user_id === row.id);
+    const worn = (kind: string) => data?.catalog.find(item => item.kind === kind && owned.some((ownedItem: { catalog_id: string }) => ownedItem.catalog_id === item.id));
     const frame = worn("frame");
     return {
       id: row.id, uid: String(row.uid), name: row.name, avatar: row.avatar_url || row.avatar || avatarAt(0),
