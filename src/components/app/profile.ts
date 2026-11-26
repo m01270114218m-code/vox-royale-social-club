@@ -149,7 +149,7 @@ export function findUser(id: string, p: Profile): User | undefined {
   const cloud=readCloud();
   const row=cloud.profiles.find(u=>u.id===id||String(u.uid)===id) ?? (id === "me" ? cloud.profile : null);
   if(row){const nameFields=row as typeof row & {display_name?:string|null;username?:string|null};const own=cloud.equippedItems.filter(i=>i.user_id===row.id);const worn=(kind:string)=>cloud.catalog.find(c=>c.kind===kind&&c.enabled&&own.some(i=>i.catalog_id===c.id));return {id:row.id,uid:String(row.uid),name:nameFields.display_name?.trim() || row.name?.trim() || nameFields.username?.trim() || `مستخدم ${row.uid}`,avatar:row.avatar_url||row.avatar||avatarAt(0),frame:worn('frame')?`cloud-${worn('frame')?.id}` as FrameKey:null,entry:worn('entry')?`cloud-${worn('entry')?.id}` as EntryKey:null,bubble:worn('bubble')?`cloud-${worn('bubble')?.id}` as BubbleKey:'none',sid:row.special_id,level:row.level,vip:row.vip,gender:'m',flag:'',bio:row.bio,fans:cloud.follows.filter(f=>f.following_id===row.id).length,following:cloud.follows.filter(f=>f.follower_id===row.id).length,charm:row.gift_value,wealth:row.coins,gifts:[]};}
-  return id === "me" ? meAsUser(p) : undefined;
+  return undefined;
 }
 
 /** Apply an owned store item to the profile. */
