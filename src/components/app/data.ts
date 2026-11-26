@@ -211,7 +211,7 @@ export const bundledAssets:Record<string,string>={
   ...Object.fromEntries(Object.entries(entries).map(([key,value])=>[`bundled/entry/${key}`,value.img])),
   'bundled/bubble/gold':sBubbleGold,'bundled/bubble/ice':sBubbleIce,'bundled/seat/throne':sThrone,'bundled/seat/trophy':sTrophy,'bundled/sid':iId,
 };
-export function installCatalog(list: readonly {id:string;kind:string;name:string;url:string;price:number;enabled:boolean;description:string;metadata?:Record<string, unknown>}[]) {
+export function installCatalog(list: readonly {id:string;kind:string;name:string;url:string;price:number;enabled:boolean;description:string;metadata?:unknown}[]) {
   // The room/store UI is cloud-authoritative. Local bundled catalog entries are never
   // promoted into the live catalog; only rows returned by Supabase can be displayed.
   for(const c of list.filter(c=>c.enabled&&c.url)) {
@@ -221,7 +221,7 @@ export function installCatalog(list: readonly {id:string;kind:string;name:string
     if(c.kind==='bubble')Object.assign(bubbles,{[key]:{n:c.name,img:c.url,p:c.price,cls:'bubble-ice'}});
   }
   const custom=list.filter(c=>c.kind==='gift'&&c.enabled&&c.url).map(c=>{
-    const meta=(c.metadata ?? {}) as Record<string, unknown>;
+    const meta=(c.metadata && typeof c.metadata === "object" && !Array.isArray(c.metadata) ? c.metadata : {}) as Record<string, unknown>;
     return {img:c.url,n:c.name,p:c.price,id:c.id, mime:undefined, animated:meta.type==='animated', lucky:meta.type==='lucky', full:meta.full===true, bannerStyle: (meta.banner_style==="luxury"||meta.banner_style==="minimal"||meta.banner_style==="neon"||meta.banner_style==="glass") ? meta.banner_style : "luxury"};
   });
   const staticGifts=custom.filter(g=>!g.lucky&&!g.animated);
