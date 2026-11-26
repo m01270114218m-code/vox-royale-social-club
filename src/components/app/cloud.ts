@@ -5,7 +5,7 @@ import type { Database, Json } from '@/integrations/supabase/types';
 import { publishCloud, type CatalogItem } from './cloud-state';
 import { useAuth } from './session';
 import { toast } from './toast';
-import { installCatalog, installRooms, bundledAssets, avatarAt, roomCover, type Room } from './data';
+import { installCatalog, installRooms, type Room } from './data';
 import { stillValid } from './daily';
 
 export async function cloudAction(action: string, payload: Record<string, Json>) {
