@@ -395,6 +395,21 @@ export type Database = {
         }
         Relationships: []
       }
+      room_members: {
+        Row: {
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       recharge_requests: {
         Row: {
           admin_note: string
@@ -578,6 +593,10 @@ export type Database = {
       join_room: { Args: { p_room_id: string }; Returns: Json }
       heartbeat_room: { Args: { p_room_id: string }; Returns: boolean }
       leave_room: { Args: { p_room_id: string }; Returns: boolean }
+      request_account_approval: {
+        Args: { p_display_name: string; p_email: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
