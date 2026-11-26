@@ -65,6 +65,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const seenChatIds = useRef<Set<string>>(new Set());
   const previousRoomMembers = useRef<Set<string>>(new Set());
   const previousMembersRoomId = useRef<string | null>(null);
+  const normalizedOwnMicRoomRef = useRef<string | null>(null);
   const hasLoadedRoomMembers = useRef(false);
   const [follow, setFollow] = useState(false);
   const [tab, setTab] = useState(0);
@@ -320,6 +321,19 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
       if (cancelled) return;
       if (error) { console.warn("[room] seat state unavailable:", error.message); return; }
       applySeatRows(data ?? []);
+      if (normalizedOwnMicRoomRef.current !== roomDbId) {
+        normalizedOwnMicRoomRef.current = roomDbId;
+        const ownSeat = (data ?? []).find((row: { user_id: string | null; seat_status: string; mic_enabled?: boolean }) =>
+          row.user_id === cloud?.profile?.id && row.seat_status === "occupied" && row.mic_enabled === true
+        );
+        if (ownSeat) {
+          setMicOn(false);
+          const { error: resetMicError } = await (supabase as any).rpc("set_room_seat_mic", {
+            p_room_id: roomDbId, p_enabled: false,
+          });
+          if (resetMicError) console.warn("[room] stale microphone state reset failed:", resetMicError.message);
+        }
+      }
       if (room.ownerId === cloud?.profile?.id && !(data ?? []).some((row: { seat_number: number; user_id: string | null }) => row.seat_number === 0 && row.user_id === cloud?.profile?.id)) {
         const { error: seatError } = await (supabase as any).rpc("set_room_seat", {
           p_room_id: roomDbId, p_seat_number: 0, p_user_id: cloud?.profile?.id, p_seat_status: "occupied",
