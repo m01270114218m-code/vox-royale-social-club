@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "@/components/app/toast";
 import { SubHeader } from "@/components/app/AppShell";
-import { meAsUser, useProfile } from "@/components/app/profile";
+import { meAsUser, setProfile, useProfile } from "@/components/app/profile";
 import { setActiveRoom, signOut } from "@/components/app/session";
 import { Avatar, Sheet, SpecialId } from "@/components/app/ui";
 import { Toggle } from "@/components/app/centers";
@@ -12,7 +13,7 @@ import { useCloudState } from '@/components/app/cloud-state';
 import { canAdmin } from '@/components/app/control-rules';
 
 export const Route = createFileRoute("/settings")({
-  head: () => ({ meta: [{ title: "الإعدادات | صدى شات" }, { name: "description", content: "الخصوصية والإشعارات وإدارة الحساب" }, { property: "og:title", content: "الإعدادات | صدى شات" }, { property: "og:description", content: "ربط الحساب والخصوصية والإشعارات وحذف الحساب" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
+  head: () => ({ meta: [{ title: "الإعدادات | صدى شات" }, { name: "description", content: "الخصوصية والإشعارات وإدارة الحساب" }, { property: "og:title", content: "الإعدادات | صدى شات" }, { property: "og:description", content: "الخصوصية والإشعارات وإدارة الحساب" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: Settings,
 });
 
