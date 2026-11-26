@@ -25,9 +25,9 @@ export function AgencyCenter({mode}:{mode:'agent'|'bd'|'host'|'recharge'}) {
   const ag=data?.agencies.find(a=>a.owner_id===data.profile?.id);
   const agencyHosts=data?.hosts.filter(h=>h.agency_id===ag?.id) ?? [];
   const hostProfiles=agencyHosts.map(h=>data?.profiles.find(p=>p.id===h.user_id)).filter((p):p is NonNullable<typeof p>=>!!p);
+  const agencySummary=(data?.agencyRankings??[]).find(a=>a.agency_id===ag?.id);
   const totalDiamonds=Number(agencySummary?.total_diamonds??hostProfiles.reduce((sum,p)=>sum+Number(p.diamonds||0),0));
   const agencyLevel=Number(agencySummary?.agency_level||Math.max(1,Math.floor(totalDiamonds/100000)+1));
-  const agencySummary=(data?.agencyRankings??[]).find(a=>a.agency_id===ag?.id);
   const agencyRank=Number(agencySummary?.agency_rank||0);
   const agencyPosition=agencySummary;
 
