@@ -40,7 +40,7 @@ function Messages() {
   const [draft, setDraft] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [remoteThread, setRemoteThread] = useState<Array<{ id: string; from: "me" | "them"; text: string; at: string; createdAt: string }>>([]);
-  const [privateThreads, setPrivateThreads] = useState<Record<string, { text: string; at: string; createdAt: string; from: "me" | "them" }>>({});
+  const [privateThreads, setPrivateThreads] = useState<Record<string, { text: string; at: string; createdAt: string; from: "me" | "them"; unread: number }>>({});
   const seenDmIds = useRef<Set<string>>(new Set());
   const realUsers: User[] = (data?.profiles ?? []).filter(row => row.id !== data?.profile?.id).map(row => {
     const owned = (data?.equippedItems ?? []).filter((item: { user_id: string; catalog_id: string }) => item.user_id === row.id);
@@ -85,21 +85,30 @@ function Messages() {
       }
       const { data: rows, error: messageError } = await (supabase as any)
         .from("private_messages")
-        .select("conversation_id,body,created_at,deleted_at")
+        .select("conversation_id,sender_id,body,created_at,deleted_at")
         .in("conversation_id", conversationIds)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(200);
       if (cancelled || messageError) return;
-      const next: Record<string, { text: string; at: string; createdAt: string; from: "me" | "them" }> = {};
+      const next: Record<string, { text: string; at: string; createdAt: string; from: "me" | "them"; unread: number }> = {};
       for (const row of rows ?? []) {
         const userId = otherByConversation[row.conversation_id];
         if (!userId || next[userId] || !row.body) continue;
+        const readKey = `sada-chat:dm-read:${myId}:${userId}`;
+        const lastRead = typeof window !== "undefined" ? window.localStorage.getItem(readKey) || "" : "";
+        const unread = (rows ?? []).filter((m: { conversation_id: string; sender_id: string; created_at: string; body?: string | null }) =>
+          m.conversation_id === row.conversation_id &&
+          m.sender_id !== myId &&
+          !!m.body &&
+          m.created_at > lastRead
+        ).length;
         next[userId] = {
           text: row.body,
           at: new Date(row.created_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" }),
           createdAt: row.created_at,
           from: row.sender_id === myId ? "me" : "them",
+          unread,
         };
       }
       setPrivateThreads(next);
@@ -115,7 +124,13 @@ function Messages() {
   }, [data?.profile?.id, realUsers.length]);
 
   const activeUser = chat ? realUsers.find((u) => u.id === chat) : undefined;
-  const openChat = (uid: string) => void nav({ search: { chat: uid } });
+  const openChat = (uid: string) => {
+    if (data?.profile?.id && typeof window !== "undefined") {
+      window.localStorage.setItem(`sada-chat:dm-read:${data.profile.id}:${uid}`, new Date().toISOString());
+      setPrivateThreads(current => current[uid] ? { ...current, [uid]: { ...current[uid], unread: 0 } } : current);
+    }
+    void nav({ search: { chat: uid } });
+  };
   const closeChat = () => void nav({ search: {} });
 
   useEffect(() => {
@@ -268,13 +283,19 @@ function Messages() {
                     const last = privateThreads[u.id]!;
                     return (
                       <button key={u.id} onClick={() => openChat(u.id)} className="room-card-pro press flex w-full items-center gap-3 p-2.5 text-start">
-                        <Avatar img={u.avatar} frame={u.frame} size={50} className="m-1" />
+                        <span className="relative shrink-0">
+                          <Avatar img={u.avatar} frame={u.frame} size={50} className="m-1" />
+                          {last.unread > 0 && <Badge n={Math.min(99, last.unread)} />}
+                        </span>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <p className="user-name text-[14px] font-extrabold text-navy">{u.name} <span className="text-[12px]">{u.flag}</span></p>
                             <span className="shrink-0 text-[10.5px] text-muted-foreground">{last.at}</span>
                           </div>
-                          <p className="truncate text-[12px] text-muted-foreground"><span className="font-bold text-primary">{last.from === "me" ? "أرسلت: " : "مستلم: "}</span>{last.text}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="min-w-0 flex-1 truncate text-[12px] text-muted-foreground"><span className="font-bold text-primary">{last.from === "me" ? "أرسلت: " : "مستلم: "}</span>{last.text}</p>
+                            {last.unread > 0 && <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white">{Math.min(99, last.unread)}</span>}
+                          </div>
                         </div>
                       </button>
                     );
