@@ -21,7 +21,7 @@ import { RoomMusic } from './RoomMusic';
 import { useAgoraRoom } from './voice';
 
 type Msg = { id: number; kind: "chat" | "sys" | "gift" | "notice" | "lucky"; uid?: string; t: string; gift?: string };
-type SeatS = { uid: string | null; locked: boolean; muted: boolean };
+type SeatS = { uid: string | null; locked: boolean; muted: boolean; micEnabled: boolean };
 type Sheets = { kind: "user"; uid: string } | { kind: "seat"; i: number } | { kind: "menu" } | { kind: "members" } | { kind: "edit" } | { kind: "gift" } | { kind: "emoji" } | {kind:'music'} | null;
 type Banner = { k: number; kind: "luxury" | "lucky"; from: User; to: User; gift: ShopGift; qty: number; room?: string; x?: number };
 
@@ -45,7 +45,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const roomCover = live ? room.img : roomOv?.cover || room.img;
   const roomBg = roomOv?.bg || images.room;
   const meU = findUser("me", profile)!;
-  const user = (uid: string): User => findUser(uid, profile) ?? meU;
+  const user = (uid: string): User => findUser(uid === "me" ? (cloud?.profile?.id ?? "me") : uid, profile) ?? meU;
 
   const myRole: Role = room.hostId === "me" ? "owner" : cloud?.roles.includes('admin')||cloud?.roles.includes('moderator') ? "admin" : "member";
   // rooms owned by real users have no simulated guests
@@ -57,7 +57,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const [roomName, setRoomName] = useState(live ? room.name : roomOv?.name || room.name);
   const [roles, setRoles] = useState<Record<string, Role>>(() => ({ [room.hostId]: "owner", me: myRole }));
   const [present, setPresent] = useState<string[]>(() => [...(hostHere ? [room.hostId] : []), ...(room.hostId === "me" ? [] : ["me"])]);
-  const [seats, setSeats] = useState<SeatS[]>(() => Array.from({ length: 8 }, (_, i) => ({ uid: i === 0 && hostHere ? room.hostId : null, locked: false, muted: false })));
+  const [seats, setSeats] = useState<SeatS[]>(() => Array.from({ length: 8 }, (_, i) => ({ uid: i === 0 && hostHere ? room.hostId : null, locked: false, muted: false, micEnabled: false })));
   const [hearts, setHearts] = useState<number[]>([0, 0, 0, 0, 0, 0, 0, 0]);
   const [micOn, setMicOn] = useState(false);
   const [membershipReady, setMembershipReady] = useState(false);
@@ -83,6 +83,10 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const [fly, setFly] = useState<{ k: number; img: string; dx: number; dy: number } | null>(null);
   const roomRef = useRef<HTMLDivElement>(null);
   const [text, setText] = useState("");
+  const [typingUids, setTypingUids] = useState<Set<string>>(() => new Set());
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const typingTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const lastTypingBroadcast = useRef(0);
   const [emo, setEmo] = useState<Record<string, { k: number; img: string }>>({});
   const [entry, setEntry] = useState<{ k: number; uid: string } | null>(null);
   const [banner, setBanner] = useState<Banner | null>(null);
@@ -132,6 +136,18 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
 
   // A single database membership row prevents the same account from appearing twice.
   const roomDbId = room.dbId ?? cloud?.roomList.find((r) => r.id === id)?.dbId;
+  useEffect(() => {
+    if (live) setRoomName(room.name);
+  }, [live, room.name]);
+  useEffect(() => {
+    if (!live) return;
+    const latestNotice = room.notice || "أهلاً بالجميع في الغرفة.";
+    setMsgs(current => {
+      const index = current.findIndex(message => message.kind === "notice");
+      if (index < 0) return [{ id: nid(), kind: "notice", t: latestNotice }, ...current];
+      return current.map(message => message.kind === "notice" ? { ...message, t: latestNotice } : message);
+    });
+  }, [live, room.notice]);
   useEffect(() => {
     if (!live || !roomDbId) {
       setMembershipReady(false);
@@ -204,6 +220,54 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   }, [live, roomDbId, membershipReady]);
 
 
+  // Typing is ephemeral room activity: broadcast only the user's ID and typing flag,
+  // never the text being composed.
+  const broadcastTyping = (active: boolean) => {
+    const userId = cloud?.profile?.id;
+    const channel = typingChannelRef.current;
+    if (!live || !membershipReady || !userId || !channel) return;
+    const now = Date.now();
+    if (active && now - lastTypingBroadcast.current < 650) return;
+    lastTypingBroadcast.current = now;
+    void channel.send({
+      type: "broadcast",
+      event: "typing",
+      payload: { user_id: userId, typing: active },
+    });
+  };
+
+  useEffect(() => {
+    if (!live || !roomDbId || !membershipReady || !cloud?.profile?.id) return;
+    const channel = supabase.channel(`room-activity:${roomDbId}`);
+    typingChannelRef.current = channel;
+    channel.on("broadcast", { event: "typing" }, ({ payload }) => {
+      const userId = String((payload as { user_id?: unknown })?.user_id ?? "");
+      const active = (payload as { typing?: unknown })?.typing === true;
+      if (!userId || userId === cloud.profile?.id || !roomMemberIds.includes(userId)) return;
+      const existing = typingTimers.current.get(userId);
+      if (existing) clearTimeout(existing);
+      if (active) {
+        setTypingUids(current => new Set(current).add(userId));
+        typingTimers.current.set(userId, window.setTimeout(() => {
+          setTypingUids(current => { const next = new Set(current); next.delete(userId); return next; });
+          typingTimers.current.delete(userId);
+        }, 2600));
+      } else {
+        setTypingUids(current => { const next = new Set(current); next.delete(userId); return next; });
+        typingTimers.current.delete(userId);
+      }
+    });
+    channel.subscribe();
+    return () => {
+      void channel.send({ type: "broadcast", event: "typing", payload: { user_id: cloud.profile?.id, typing: false } });
+      typingChannelRef.current = null;
+      for (const timer of typingTimers.current.values()) clearTimeout(timer);
+      typingTimers.current.clear();
+      setTypingUids(new Set());
+      void supabase.removeChannel(channel);
+    };
+  }, [live, roomDbId, membershipReady, cloud?.profile?.id, roomMemberIds.join("|")]);
+
   // Restore chat history and receive every new room message through Supabase Realtime.
   useEffect(() => {
     if (!live || !roomDbId || !membershipReady) return;
@@ -233,7 +297,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   useEffect(() => {
     if (!live || !roomDbId || !membershipReady) { setRoomSeatsLoaded(false); return; }
     let cancelled = false;
-    const applySeatRows = (rows: Array<{ seat_number: number; user_id: string | null; seat_status: string }>) => {
+    const applySeatRows = (rows: Array<{ seat_number: number; user_id: string | null; seat_status: string; mic_enabled?: boolean }>) => {
       const next: SeatS[] = Array.from({ length: 8 }, () => ({ uid: null, locked: false, muted: false }));
       for (const row of rows) {
         if (row.seat_number < 0 || row.seat_number > 7) continue;
@@ -242,13 +306,14 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
           uid,
           locked: row.seat_status === "locked",
           muted: row.seat_status === "muted",
+          micEnabled: row.seat_status === "occupied" && row.mic_enabled === true,
         };
       }
       setSeats(next);
       setRoomSeatsLoaded(true);
     };
     const loadSeats = async () => {
-      const { data, error } = await (supabase as any).from("room_seats").select("seat_number,user_id,seat_status").eq("room_id", roomDbId).order("seat_number");
+      const { data, error } = await (supabase as any).from("room_seats").select("seat_number,user_id,seat_status,mic_enabled").eq("room_id", roomDbId).order("seat_number");
       if (cancelled) return;
       if (error) { console.warn("[room] seat state unavailable:", error.message); return; }
       applySeatRows(data ?? []);
@@ -312,7 +377,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     if (!live || !roomDbId || !cloud?.profile?.id || !roomSeatsLoaded) return;
     void Promise.all(next.map(async (seat, index) => {
       const previous = seats[index];
-      if (previous && previous.uid === seat.uid && previous.locked === seat.locked && previous.muted === seat.muted) return;
+      if (previous && previous.uid === seat.uid && previous.locked === seat.locked && previous.muted === seat.muted && previous.micEnabled === seat.micEnabled) return;
       const userId = seat.uid === "me" ? cloud.profile!.id : seat.uid;
       const status = seat.locked && !userId ? "locked" : seat.muted && userId ? "muted" : userId ? "occupied" : "available";
       const { error } = await (supabase as any).rpc("set_room_seat", {
@@ -323,7 +388,28 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   };
   const setSeat = (i: number, patch: Partial<SeatS>) => commitSeats((a) => a.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const sitAt = (i: number, uid: string) => commitSeats((a) => a.map((s, j) => (j === i ? { ...s, uid, muted: false } : s.uid === uid ? { ...s, uid: null, muted: false } : s)));
-  const leaveMic = (uid: string) => commitSeats((a) => a.map((s, j) => (s.uid === uid && j !== 0 ? { ...s, uid: null, muted: false } : s)));
+  const leaveMic = (uid: string) => commitSeats((a) => a.map((s, j) => (s.uid === uid && j !== 0 ? { ...s, uid: null, muted: false, micEnabled: false } : s)));
+
+  const toggleMyMic = async (enabled: boolean) => {
+    if (mySeat < 0) { toast("اصعد على مقعد أولاً"); return; }
+    if (seats[mySeat]?.muted && enabled) { toast("مايكك مكتوم من المشرف"); return; }
+    const previous = micOn;
+    setMicOn(enabled);
+    setSeats(current => current.map((seat, index) => index === mySeat ? { ...seat, micEnabled: enabled } : seat));
+    if (!live || !roomDbId) return;
+    const { error } = await (supabase as any).rpc("set_room_seat_mic", {
+      p_room_id: roomDbId, p_enabled: enabled,
+    });
+    if (error) {
+      setMicOn(previous);
+      setSeats(current => current.map((seat, index) => index === mySeat ? { ...seat, micEnabled: previous } : seat));
+      toast(error.message || "تعذّر مزامنة حالة المايك");
+    }
+  };
+
+  useEffect(() => {
+    if (mySeat >= 0 && seats[mySeat]?.muted && micOn) setMicOn(false);
+  }, [mySeat, seats, micOn]);
 
   const tapSeat = (i: number) => {
     const s = seats[i]!;
@@ -338,9 +424,9 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     const s = seats[i]!;
     const items: { label: string; danger?: boolean; onClick: () => void }[] = [];
     if (s.uid === "me") {
-      items.push({ label: micOn ? "إيقاف المايك" : "تشغيل المايك", onClick: () => setMicOn((m) => !m) });
+      items.push({ label: micOn ? "إيقاف المايك" : "تشغيل المايك", onClick: () => { void toggleMyMic(!micOn); } });
       items.push({ label: "عرض بطاقتي", onClick: () => setTimeout(() => setSheet({ kind: "user", uid: "me" }), 0) });
-      if (i !== 0) items.push({ label: "النزول من المايك", danger: true, onClick: () => { leaveMic("me"); setMicOn(false); sys("نزل من المايك", "me"); } });
+      if (i !== 0) items.push({ label: "النزول من المايك", danger: true, onClick: () => { leaveMic("me"); void toggleMyMic(false); sys("نزل من المايك", "me"); } });
       return items;
     }
     if (!s.locked && (i !== 0 || room.hostId === "me")) items.push({ label: "الصعود على المقعد", onClick: () => { sitAt(i, "me"); sys(`صعد على المقعد No.${i + 1}`, "me"); } });
@@ -355,12 +441,13 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const send = () => {
     const t = text.trim();
     if (!t) return;
+    broadcastTyping(false);
     if (!live || !roomDbId || !cloud?.profile?.id) { toast("الدردشة السحابية غير متاحة الآن"); return; }
     void (supabase as any).from("chat_messages").insert({
       room_id: roomDbId, sender_id: cloud.profile.id, message_type: "text", body: t,
     }).then(({ error }: { error: { message: string } | null }) => {
       if (error) toast(error.message || "تعذّر إرسال الرسالة");
-      else setText("");
+      else setText(""); broadcastTyping(false);
     });
   };
 
@@ -551,8 +638,8 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
         <div className="mt-7 grid grid-cols-4 gap-y-5 px-2">
           {seats.map((s, i) => {
             const u = s.uid ? user(s.uid) : null;
-            const myMicOff = s.uid === "me" && !micOn;
-            const isTyping = !!u && s.uid === "me" && !!text.trim();
+            const myMicOff = !!u && !s.micEnabled;
+            const isTyping = !!u && (s.uid === "me" ? !!text.trim() : typingUids.has(u.id));
             const speakerUid = u?.uid ? String(u.uid) : "";
             const speaking = !!u && !s.muted && speakingUids.has(speakerUid);
             const speakingLevel = speakingLevels.get(speakerUid) ?? 0;
@@ -602,6 +689,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
             </button>
           ))}
         </div>
+        {typingUids.size > 0 && <p className="px-4 text-[10.5px] text-ice/90">{[...typingUids].map(uid => user(uid).name).filter(Boolean).join("، ")} يكتب الآن...</p>}
         <div ref={chatRef} className="no-scrollbar mt-1.5 flex-1 space-y-2 overflow-y-auto px-3 pb-2">
           {shown.map((m) => {
             if (m.kind === "notice") return <div key={m.id} className="rounded-xl border border-ice/30 bg-primary/25 px-2.5 py-1.5 text-[11.5px] leading-snug"><span className="font-bold text-ice">إعلان: </span>{m.t}</div>;
@@ -633,11 +721,11 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
         {/* bottom dock */}
         <div className="room-dock mx-2.5 mb-3 flex items-center gap-1.5 rounded-full p-1.5">
           <div className="dock-input flex h-10 min-w-0 flex-1 items-center rounded-full ps-3.5 pe-1.5">
-            <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} maxLength={120} placeholder="اكتب رسالة للغرفة..." className="w-full min-w-0 bg-transparent text-[13px] outline-none placeholder:text-night-foreground/55" />
+            <input value={text} onChange={(e) => { const value = e.target.value; setText(value); broadcastTyping(!!value.trim()); }} onKeyDown={(e) => e.key === "Enter" && send()} maxLength={120} placeholder="اكتب رسالة للغرفة..." className="w-full min-w-0 bg-transparent text-[13px] outline-none placeholder:text-night-foreground/55" />
             {text.trim() && <button onClick={send} aria-label="إرسال" className="pop-in grid h-7 w-7 shrink-0 place-items-center rounded-full gold-bg text-navy shadow"><Send className="h-3.5 w-3.5 -scale-x-100" /></button>}
           </div>
           <button onClick={() => setSheet({ kind: "emoji" })} aria-label="إيموجي" className="dock-btn"><Smile className="h-[18px] w-[18px]" /></button>
-          <button onClick={() => { if (mySeat < 0) { toast("اصعد على مقعد أولاً"); return; } if (seats[mySeat]!.muted) { toast("مايك مكتوم من المشرف"); return; } setMicOn((m) => !m); }} aria-label="المايك" className={`dock-btn ${micOn && mySeat >= 0 ? "dock-btn-on" : ""}`}>{micOn && mySeat >= 0 ? <Mic className="h-[18px] w-[18px]" /> : <MicOff className="h-[18px] w-[18px] opacity-80" />}</button>
+          <button onClick={() => { if (mySeat < 0) { toast("اصعد على مقعد أولاً"); return; } if (seats[mySeat]!.muted) { toast("مايك مكتوم من المشرف"); return; } void toggleMyMic(!micOn); }} aria-label="المايك" className={`dock-btn ${micOn && mySeat >= 0 ? "dock-btn-on" : ""}`}>{micOn && mySeat >= 0 ? <Mic className="h-[18px] w-[18px]" /> : <MicOff className="h-[18px] w-[18px] opacity-80" />}</button>
           <button onClick={() => setSheet({ kind: "menu" })} aria-label="القائمة" className="dock-btn relative"><LayoutGrid className="h-[18px] w-[18px]" /><span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-badge" /></button>
           <button onClick={() => { setGiftTo(giftTargets[0] ?? room.hostId); setSheet({ kind: "gift" }); }} aria-label="الهدايا" className="gift-box-3d press grid h-10 w-10 shrink-0 place-items-center rounded-full text-navy">
             <GiftIcon className="h-5 w-5" strokeWidth={2.4} />
