@@ -62,6 +62,8 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const [micOn, setMicOn] = useState(false);
   const [membershipReady, setMembershipReady] = useState(false);
   const [roomMemberIds, setRoomMemberIds] = useState<string[]>([]);
+  const previousRoomMembers = useRef<Set<string>>(new Set());
+  const hasLoadedRoomMembers = useRef(false);
   const [follow, setFollow] = useState(false);
   const [tab, setTab] = useState(0);
   const [sheet, setSheet] = useState<Sheets>(null);
@@ -196,15 +198,27 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [live, roomDbId, membershipReady]);
 
-  // Keep the visible member list synchronized with the real room_members rows.
-  // The previous UI only initialized this list with the local user, so other
-  // accounts could be in the database while remaining invisible in the room.
+  // All clients derive the room roster from the same room_members rows.
+  // Newly observed members trigger the same room-entry announcement/effect on every device.
   useEffect(() => {
     if (!live || !membershipReady) return;
     const ownId = cloud?.profile?.id;
+    const current = new Set(roomMemberIds);
     const ids = roomMemberIds.map((uid) => uid === ownId ? "me" : uid);
     if (ownId && !ids.includes("me")) ids.unshift("me");
     setPresent(ids);
+    if (!hasLoadedRoomMembers.current) {
+      hasLoadedRoomMembers.current = true;
+      previousRoomMembers.current = current;
+      return;
+    }
+    for (const uid of current) {
+      if (!previousRoomMembers.current.has(uid) && uid !== ownId) {
+        sys("دخل الغرفة", uid);
+        enqueueEntry(uid);
+      }
+    }
+    previousRoomMembers.current = current;
   }, [roomMemberIds, cloud?.profile?.id, live, membershipReady]);
 
   // mic activity time for the host center
@@ -370,10 +384,6 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const shown = (tab === 0 ? msgs : msgs.filter((m) => m.kind === "chat")).filter((m) => m.kind !== "gift" && m.kind !== "lucky");
   const giftTargets = [...new Set(roomMemberIds.filter((uid) => uid !== cloud?.profile?.id))];
   const onlineCount = Math.max(room.online, present.length);
-  // Include listeners as visible room members even when they are not on mic seats.
-  const visibleMembers = [...new Set(present)]
-    .map((uid) => ({ uid, person: findUser(uid, profile) }))
-    .filter((item): item is { uid: string; person: User } => !!item.person);
   const leave = () => { if (router.history.canGoBack()) router.history.back(); else void nav({ to: "/", replace: true }); };
   const minimize = () => { setExitMenu(false); leave(); };
   const close = async () => {
@@ -489,22 +499,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
           })}
         </div>
 
-        {visibleMembers.length > 0 && (
-          <div className="mx-3 mt-3 rounded-2xl border border-ice/20 bg-night/45 px-2.5 py-2">
-            <div className="mb-1.5 flex items-center justify-between text-[10px] font-bold text-night-foreground/75">
-              <span>المتواجدون داخل الغرفة</span>
-              <span>{visibleMembers.length}</span>
-            </div>
-            <div className="no-scrollbar flex gap-3 overflow-x-auto pb-0.5">
-              {visibleMembers.map(({ uid, person }) => (
-                <button key={uid} type="button" onClick={() => setSheet({ kind: "user", uid })} className="flex min-w-[52px] flex-col items-center gap-1">
-                  <Avatar img={person.avatar} frame={person.frame} size={36} />
-                  <span className="max-w-[58px] truncate text-[9px] font-bold text-night-foreground">{uid === "me" ? "أنا" : person.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        {entry && <EntryShow key={entry.k} u={user(entry.uid)} onSkip={skipEntry} />}
 
         {/* chat tabs */}
         <div className="mt-3 flex items-center gap-5 px-4 text-[13.5px]">
@@ -568,8 +563,6 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
           </div>
         </div>
       )}
-      {entry && <EntryShow key={entry.k} u={user(entry.uid)} onSkip={skipEntry} />}
-
       <Sheet open={sheet?.kind === "user"} onClose={() => setSheet(null)}>
         {sheet?.kind === "user" && (
           <UserCard u={user(sheet.uid)} self={sheet.uid === "me"} role={roleOf(sheet.uid)} myRole={myRole} onMic={seated.includes(sheet.uid)} muted={!!seats.find((s) => s.uid === sheet.uid)?.muted}
@@ -845,14 +838,14 @@ function EntryShow({ u, onSkip }: { u: User; onSkip: () => void }) {
   const sound=assets.find(a=>a.asset_key===audioKey)?.url;
   useEffect(() => { if (!sound) return; const audio = new Audio(sound); audio.volume = 0.9; void audio.play().catch(() => undefined); return () => { audio.pause(); audio.currentTime = 0; }; }, [sound]);
   return (
-    <div className="entry-full pointer-events-none fixed inset-0 z-[100] h-[100dvh] w-screen overflow-hidden bg-black/80" role="dialog" aria-label="تأثير الدخول">
-      <Button size="sm" variant="secondary" onClick={onSkip} className="pointer-events-auto absolute end-3 top-[max(env(safe-area-inset-top),12px)] z-10 h-8 rounded-full px-3 text-[11px] font-bold opacity-95">إخفاء ✕</Button>
+    <div className="relative mx-3 mt-3 h-[104px] shrink-0 overflow-hidden rounded-2xl border border-ice/25 bg-night/65 shadow-lg" role="status" aria-label="دخول الغرفة">
+      <Button size="sm" variant="secondary" onClick={onSkip} className="pointer-events-auto absolute end-2 top-2 z-10 h-7 rounded-full px-2.5 text-[10px] font-bold opacity-95">إخفاء ✕</Button>
       {v && <div className={`${cloud?.url ? "" : "entry-ride"} absolute inset-0 grid place-items-center`}><Media src={cloud?.url||v.img} mime={cloud?.mime} alt="" className="h-full w-full object-contain drop-shadow-2xl" loop={false}/></div>}
-      <div className={`entry-ribbon ${u.vip >= 5 ? "entry-ribbon-gold" : ""} absolute start-0 bottom-[max(env(safe-area-inset-bottom),8%)] flex items-center gap-2 rounded-e-full py-1 pe-4 ps-1.5 text-[12px]`}>
-        <Avatar img={u.avatar} frame={u.frame} size={30} />
+      <div className={`entry-ribbon ${u.vip >= 5 ? "entry-ribbon-gold" : ""} absolute inset-x-0 bottom-0 flex items-center gap-2 bg-night/75 px-2 py-1 text-[11px]`}>
+        <Avatar img={u.avatar} frame={u.frame} size={28} />
         <div className="min-w-0 leading-tight">
-          <div className="flex items-center gap-1"><UserName className="max-w-[120px] truncate font-black" uid={u.uid} name={u.name}/><VipChip vip={u.vip} /></div>
-          <span className="text-[10.5px] opacity-90">{v ? `دخل راكباً ${v.n}` : "دخل الغرفة"}</span>
+          <div className="flex items-center gap-1"><UserName className="max-w-[150px] truncate font-black" uid={u.uid} name={u.name}/><VipChip vip={u.vip} /></div>
+          <span className="text-[10px] opacity-90">{v ? `دخل راكباً ${v.n}` : "دخل الغرفة"}</span>
         </div>
       </div>
     </div>
