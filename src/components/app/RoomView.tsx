@@ -912,10 +912,11 @@ function GiftBanner({ b }: { b: Banner }) {
   const value = b.gift.p * b.qty;
   const tier = lucky ? luckyTier(x) ?? "lucky" : luxuryTier(value) ?? "gold";
   const big = tier === "legend" || tier === "jackpot";
+  const style = b.gift.bannerStyle ?? "luxury";
   return (
     <div className="pointer-events-none absolute inset-x-0 top-[84px] z-30 h-[120px]">
       {big && <div className="coin-rain absolute inset-x-0 -top-[84px] h-[60vh] overflow-hidden">{Array.from({ length: 14 }, (_, i) => <img key={i} src={ui.coin} alt="" style={{ left: `${(i * 37) % 100}%`, animationDelay: `${(i % 7) * 0.22}s` }} />)}</div>}
-      <div className={`gift-banner gb gb-${tier} relative mx-auto mt-3 h-[64px] w-[344px]`}>
+      <div className={`gift-banner gb gb-${tier} gb-style-${style} relative mx-auto mt-3 h-[64px] w-[344px]`}>
         <span className="gb-wing gb-wing-r" /><span className="gb-wing gb-wing-l" />
         <div className="gb-frame absolute inset-0 rounded-[20px] p-[2px]">
           <div className="gb-plate relative flex h-full items-center gap-2 overflow-hidden rounded-[18px] pe-[74px] ps-2">
