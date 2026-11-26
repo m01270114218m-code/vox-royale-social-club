@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/app/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { SubHeader, Coin } from "@/components/app/AppShell";
-import { gifts, icons, frames, entries, bubbles, storeItems } from "@/components/app/data";
+import { icons, frames, entries, bubbles, storeItems } from "@/components/app/data";
 import { VipChip } from '@/components/app/ui';
 
 export const Route = createFileRoute("/vip")({
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/vip")({
 
 const perks = [
   { l: "شارة VIP", i: icons.badge }, { l: "إطار حصري", i: frames.wings.img }, { l: "مركبة دخول", i: entries.lion.img }, { l: "فقاعة ذهبية", i: bubbles.gold.img },
-  { l: "حماية الطرد", i: icons.level }, { l: "مقعد مميز", i: storeItems.find((s) => s.key === "seat:throne")!.img }, { l: "هدايا حصرية", i: gifts[6]!.img }, { l: "ID مميز", i: icons.id },
+  { l: "حماية الطرد", i: icons.level }, { l: "مقعد مميز", i: storeItems.find((s) => s.key === "seat:throne")!.img }, { l: "هدايا حصرية", i: icons.shop }, { l: "ID مميز", i: icons.id },
 ];
 
 function Vip() {
