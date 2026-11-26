@@ -66,6 +66,25 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Public room links use numeric room_uid; room_controls is keyed by rooms.id (UUID).
   const activeRoomDbId = activeRoom ? roomById(activeRoom)?.dbId : undefined;
 
+  // Block Android/WebView long-press menus, link dragging and accidental copying
+  // across the app while keeping editable fields fully usable.
+  useEffect(() => {
+    const isEditable = (target: EventTarget | null) =>
+      target instanceof HTMLElement && !!target.closest('input, textarea, select, [contenteditable="true"], .selectable, .copyable');
+    const block = (event: Event) => {
+      if (!isEditable(event.target)) event.preventDefault();
+    };
+    document.addEventListener("contextmenu", block, true);
+    document.addEventListener("dragstart", block, true);
+    document.addEventListener("selectstart", block, true);
+    document.addEventListener("copy", block, true);
+    return () => {
+      document.removeEventListener("contextmenu", block, true);
+      document.removeEventListener("dragstart", block, true);
+      document.removeEventListener("selectstart", block, true);
+      document.removeEventListener("copy", block, true);
+    };
+  }, []);
   useEffect(() => { if (routeRoom) setActiveRoom(routeRoom); }, [routeRoom]);
   // device-only sign-in gate (auth is undefined until hydrated)
   useEffect(() => { if (auth === null && !isPublic) void nav({ to: "/login", replace: true }); }, [auth, isPublic, nav]);
