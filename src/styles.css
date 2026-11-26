@@ -429,6 +429,12 @@
 .sid-pro-icon { position: absolute; left: -6px; top: 50%; height: 30px; width: 32px; transform: translateY(-50%); object-fit: contain; filter: drop-shadow(0 0 4px var(--sid)); }
 .sid-pro-tag { margin-inline-end: 4px; border-radius: 4px; padding: 2px 3px; font-size: 8px; font-weight: 900; line-height: 1; color: oklch(0.15 0.03 265); background: var(--sid); }
 
+/* Transparent room-entry strip: avatar + name only, no card/background. */
+.entry-strip { background: transparent; }
+.entry-strip-track { animation: entry-strip-run 4.5s cubic-bezier(.18,.8,.25,1) forwards; background: linear-gradient(90deg, transparent 0%, oklch(0.15 0.04 265 / .12) 12%, oklch(0.15 0.04 265 / .22) 50%, oklch(0.15 0.04 265 / .12) 88%, transparent 100%); border-radius: 9999px; }
+.entry-strip-gold { background: linear-gradient(90deg, transparent 0%, oklch(0.72 0.16 75 / .16) 12%, oklch(0.72 0.16 75 / .28) 50%, oklch(0.72 0.16 75 / .16) 88%, transparent 100%); }
+@keyframes entry-strip-run { 0% { transform: translateX(115vw); opacity: 0; } 12% { opacity: 1; } 25%, 72% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(-115vw); opacity: 0; } }
+
 /* Entry name ribbon — slides in from the side like popular voice apps */
 .entry-ribbon { color: oklch(0.99 0 0); background: linear-gradient(90deg, oklch(0.5 0.2 258 / 0.95), oklch(0.55 0.22 300 / 0.85) 70%, transparent); box-shadow: 0 4px 14px -4px oklch(0.4 0.2 270 / 0.6); animation: ribbon-in 4.4s cubic-bezier(.2,.8,.2,1) forwards; }
 .entry-ribbon-gold { background: linear-gradient(90deg, oklch(0.72 0.16 75 / 0.97), oklch(0.6 0.17 50 / 0.9) 70%, transparent); }
