@@ -42,7 +42,7 @@ export async function fetchCloud() {
   } catch (error) {
     console.warn('[cloud] auth lookup unavailable:', error);
   }
-  const [catalog, assets, profiles, roles, settings, agencies, hosts, items, equippedItems, notifications, ledger, rooms, audit, userRooms, recharges] = await Promise.all([
+  const [catalog, assets, profiles, roles, settings, agencies, hosts, items, equippedItems, follows, notifications, ledger, rooms, audit, userRooms, recharges] = await Promise.all([
     supabase.from('app_catalog').select('*').order('position'),
     id ? supabase.from('app_assets').select('*').order('created_at', { ascending: false }) : none,
     id ? supabase.from('profiles').select('*').order('uid').limit(1000) : none,
@@ -52,6 +52,7 @@ export async function fetchCloud() {
     id ? supabase.from('agency_hosts').select('*') : none,
     id ? supabase.from('user_items').select('*') : none,
     id ? (supabase as any).from('public_equipped_items').select('*') : none,
+    id ? (supabase as any).from('follows').select('*') : none,
     id ? supabase.from('app_notifications').select('*').order('created_at', { ascending: false }).limit(100) : none,
     id ? supabase.from('coin_ledger').select('*').order('created_at', { ascending: false }).limit(50) : none,
     supabase.from('room_controls').select('*'),
@@ -61,7 +62,7 @@ export async function fetchCloud() {
   ]);
   // Keep optional backend modules isolated: one missing table/policy must not
   // take down login, the profile, or the room list.
-  for (const [name, result] of Object.entries({ catalog, assets, profiles, roles, settings, agencies, hosts, items, equippedItems, notifications, ledger, rooms, audit, userRooms, recharges })) {
+  for (const [name, result] of Object.entries({ catalog, assets, profiles, roles, settings, agencies, hosts, items, equippedItems, follows, notifications, ledger, rooms, audit, userRooms, recharges })) {
     if (result?.error) console.warn(`[cloud] ${name} query failed:`, result.error.message);
   }
   const now = Date.now();
@@ -86,7 +87,7 @@ export async function fetchCloud() {
   const myRoom = roomList.find(r => r.ownerId === id) ?? null;
   // install before returning so the first render with this data already resolves rooms and art
   installCatalog(list); installRooms(roomList);
-  return { profile, roles: ownRoles, catalog: list, assets: art, profiles: people, allRoles: roles.data ?? [], settings: settings.data ?? [], agencies: agencies.data ?? [], hosts: hosts.data ?? [], items: (items.data ?? []).filter(i => stillValid(i.expires_at, now)), equippedItems: equippedItems.data ?? [], notifications: notifications.data ?? [], ledger: ledger.data ?? [], rooms: rooms.data ?? [], audit: audit.data ?? [], roomList, myRoom, recharges: recharges.data ?? [] };
+  return { profile, roles: ownRoles, catalog: list, assets: art, profiles: people, allRoles: roles.data ?? [], settings: settings.data ?? [], agencies: agencies.data ?? [], hosts: hosts.data ?? [], items: (items.data ?? []).filter(i => stillValid(i.expires_at, now)), equippedItems: equippedItems.data ?? [], follows: follows.data ?? [], notifications: notifications.data ?? [], ledger: ledger.data ?? [], rooms: rooms.data ?? [], audit: audit.data ?? [], roomList, myRoom, recharges: recharges.data ?? [] };
 }
 export type CloudData = Awaited<ReturnType<typeof fetchCloud>>;
 export function useCloud() {
@@ -94,7 +95,7 @@ export function useCloud() {
   return useQuery({ queryKey: ['cloud', auth?.userId ?? 'public'], queryFn: fetchCloud, staleTime: 10000, refetchInterval: 20000, retry: 1 });
 }
 const LIVE_APP_TABLES = [
-  "profiles", "app_catalog", "app_assets", "user_items", "user_roles", "app_settings",
+  "profiles", "app_catalog", "app_assets", "user_items", "user_roles", "app_settings", "follows",
   "rooms", "room_controls", "agencies", "agency_hosts", "agency_members",
   "app_notifications", "coin_ledger", "recharge_requests", "user_vips", "vip_packages",
   "gift_transactions",
@@ -103,7 +104,7 @@ const LIVE_APP_TABLES = [
 export function CloudBridge() {
   const { data } = useCloud();
   const queryClient = useQueryClient();
-  useEffect(() => { if (data) { installCatalog(data.catalog); installRooms(data.roomList); publishCloud({ profile: data.profile, roles: data.roles, catalog: data.catalog, assets: data.assets.map(a => ({ asset_key: a.asset_key, url: a.url, mime: a.mime_type })), profiles: data.profiles, items: data.items, equippedItems: data.equippedItems }); } }, [data]);
+  useEffect(() => { if (data) { installCatalog(data.catalog); installRooms(data.roomList); publishCloud({ profile: data.profile, roles: data.roles, catalog: data.catalog, assets: data.assets.map(a => ({ asset_key: a.asset_key, url: a.url, mime: a.mime_type })), profiles: data.profiles, items: data.items, equippedItems: data.equippedItems, follows: data.follows }); } }, [data]);
   useEffect(() => {
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     const refresh = () => {
