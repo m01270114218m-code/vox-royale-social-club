@@ -817,9 +817,10 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
               setRoomName(n);
               if (live) {
                 const uploadedCover = cover ? await uploadImageDataUrl(cover, "room-covers") : null;
-                setRoomMedia(id, { bg });
-                const saved = await cloudAct("room_save", { name: n, notice: t, ...(uploadedCover ? { cover: uploadedCover } : {}) }, "");
-                if (!saved) return;
+                const uploadedBackground = bg ? await uploadImageDataUrl(bg, "room-backgrounds") : null;
+                const { error } = await (supabase as any).rpc("save_room_settings", { p_name: n, p_notice: t, p_cover_url: uploadedCover, p_background_url: uploadedBackground });
+                if (error) throw new Error(error.message || "تعذّر حفظ إعدادات الغرفة");
+                await qc.invalidateQueries({ queryKey: ["cloud"] });
               } else {
                 setRoomMedia(id, { name: n, notice: t, cover, bg });
               }
