@@ -99,7 +99,13 @@ function Messages() {
         const userId = otherByConversation[row.conversation_id];
         if (!userId || next[userId] || !row.body) continue;
         const readKey = `sada-chat:dm-read:${myId}:${userId}`;
-        const lastRead = typeof window !== "undefined" ? window.localStorage.getItem(readKey) || "" : "";
+        // While this conversation is open, keep its read watermark current so
+        // incoming realtime messages never increase its unread badge.
+        let lastRead = typeof window !== "undefined" ? window.localStorage.getItem(readKey) || "" : "";
+        if (chat === userId && typeof window !== "undefined") {
+          lastRead = new Date().toISOString();
+          window.localStorage.setItem(readKey, lastRead);
+        }
         const unread = (rows ?? []).filter((m: { conversation_id: string; sender_id: string; created_at: string; body?: string | null }) =>
           m.conversation_id === row.conversation_id &&
           m.sender_id !== myId &&
@@ -124,7 +130,7 @@ function Messages() {
       cancelled = true;
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [data?.profile?.id]);
+  }, [data?.profile?.id, chat]);
 
   const activeUser = chat ? realUsers.find((u) => u.id === chat) : undefined;
   const openChat = (uid: string) => {
