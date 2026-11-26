@@ -111,7 +111,19 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const bannerQ = useRef<Banner[]>([]);
   const bannerBusy = useRef(false);
 
-  useEffect(() => {\n    if (!live) return;\n    const next: Record<string, Role> = {};\n    if (room.ownerId) next[room.ownerId] = "owner";\n    for (const row of cloud?.allRoles ?? []) {\n      const value = String(row.role);\n      if (value === "admin" || value === "moderator" || value === "member") next[row.user_id] = value === "moderator" ? "admin" : value as Role;\n    }\n    if (cloud?.profile?.id && cloud.roles.includes("admin")) next[cloud.profile.id] = "admin";\n    setRoles(next);\n  }, [live, room.ownerId, cloud?.allRoles, cloud?.profile?.id, cloud?.roles.join("|")]);\n\n  const roleOf = (uid: string): Role => roles[uid] ?? (uid === room.hostId ? "owner" : "member");
+  useEffect(() => {
+    if (!live) return;
+    const next: Record<string, Role> = {};
+    if (room.ownerId) next[room.ownerId] = "owner";
+    for (const row of cloud?.allRoles ?? []) {
+      const value = String(row.role);
+      if (value === "admin" || value === "moderator" || value === "member") next[row.user_id] = value === "moderator" ? "admin" : value as Role;
+    }
+    if (cloud?.profile?.id && cloud.roles.includes("admin")) next[cloud.profile.id] = "admin";
+    setRoles(next);
+  }, [live, room.ownerId, cloud?.allRoles, cloud?.profile?.id, cloud?.roles.join("|")]);
+
+  const roleOf = (uid: string): Role => roles[uid] ?? (uid === room.hostId ? "owner" : "member");
   const mySeat = seats.findIndex((s) => s.uid === "me");
   const seated = seats.map((s) => s.uid).filter((u): u is string => !!u);
   const push = (m: Omit<Msg, "id">) => setMsgs((a) => [...a.slice(-80), { ...m, id: nid() }]);
