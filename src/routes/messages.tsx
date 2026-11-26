@@ -57,7 +57,7 @@ function Messages() {
 
   useEffect(() => {
     const myId = data?.profile?.id;
-    if (!myId || realUsers.length === 0) {
+    if (!myId) {
       setPrivateThreads({});
       return;
     }
@@ -68,7 +68,8 @@ function Messages() {
         .from("private_conversation_members")
         .select("conversation_id,user_id")
         .eq("user_id", myId);
-      if (cancelled || memberError) return;
+      if (cancelled) return;
+      if (memberError) { console.warn("[messages] inbox members unavailable:", memberError.message); toast("تعذّر تحميل صندوق الرسائل: " + memberError.message); return; }
       const conversationIds = (memberships ?? []).map((m: { conversation_id: string }) => m.conversation_id);
       if (!conversationIds.length) {
         setPrivateThreads({});
@@ -78,7 +79,8 @@ function Messages() {
         .from("private_conversation_members")
         .select("conversation_id,user_id")
         .in("conversation_id", conversationIds);
-      if (cancelled || membersError) return;
+      if (cancelled) return;
+      if (membersError) { console.warn("[messages] conversation members unavailable:", membersError.message); toast("تعذّر تحميل المحادثات: " + membersError.message); return; }
       const otherByConversation: Record<string, string> = {};
       for (const member of members ?? []) {
         if (member.user_id !== myId) otherByConversation[member.conversation_id] = member.user_id;
@@ -90,7 +92,8 @@ function Messages() {
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(200);
-      if (cancelled || messageError) return;
+      if (cancelled) return;
+      if (messageError) { console.warn("[messages] inbox messages unavailable:", messageError.message); toast("تعذّر تحميل الرسائل: " + messageError.message); return; }
       const next: Record<string, { text: string; at: string; createdAt: string; from: "me" | "them"; unread: number }> = {};
       for (const row of rows ?? []) {
         const userId = otherByConversation[row.conversation_id];
@@ -115,13 +118,13 @@ function Messages() {
     };
     void loadThreads();
     channel = supabase.channel("private-messages-inbox")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "private_messages" }, () => { void loadThreads(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "private_messages" }, () => { void loadThreads(); })
       .subscribe();
     return () => {
       cancelled = true;
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [data?.profile?.id, realUsers.length]);
+  }, [data?.profile?.id]);
 
   const activeUser = chat ? realUsers.find((u) => u.id === chat) : undefined;
   const openChat = (uid: string) => {
