@@ -319,7 +319,11 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
 
   const shown = (tab === 0 ? msgs : msgs.filter((m) => m.kind === "chat")).filter((m) => m.kind !== "gift" && m.kind !== "lucky");
   const giftTargets = [...new Set(roomMemberIds.filter((uid) => uid !== cloud?.profile?.id))];
-  const onlineCount = room.online + present.length;
+  const onlineCount = Math.max(room.online, present.length);
+  // Include listeners as visible room members even when they are not on mic seats.
+  const visibleMembers = [...new Set(present)]
+    .map((uid) => ({ uid, person: findUser(uid, profile) }))
+    .filter((item): item is { uid: string; person: User } => !!item.person);
   const leave = () => { if (router.history.canGoBack()) router.history.back(); else void nav({ to: "/", replace: true }); };
   const minimize = () => { setExitMenu(false); leave(); };
   const close = async () => {
@@ -434,6 +438,23 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
             );
           })}
         </div>
+
+        {visibleMembers.length > 0 && (
+          <div className="mx-3 mt-3 rounded-2xl border border-ice/20 bg-night/45 px-2.5 py-2">
+            <div className="mb-1.5 flex items-center justify-between text-[10px] font-bold text-night-foreground/75">
+              <span>المتواجدون داخل الغرفة</span>
+              <span>{visibleMembers.length}</span>
+            </div>
+            <div className="no-scrollbar flex gap-3 overflow-x-auto pb-0.5">
+              {visibleMembers.map(({ uid, person }) => (
+                <button key={uid} type="button" onClick={() => setSheet({ kind: "user", uid })} className="flex min-w-[52px] flex-col items-center gap-1">
+                  <Avatar img={person.avatar} frame={person.frame} size={36} />
+                  <span className="max-w-[58px] truncate text-[9px] font-bold text-night-foreground">{uid === "me" ? "أنا" : person.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* chat tabs */}
         <div className="mt-3 flex items-center gap-5 px-4 text-[13.5px]">
