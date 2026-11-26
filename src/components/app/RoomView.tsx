@@ -238,7 +238,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
 
   useEffect(() => {
     if (!live || !roomDbId || !membershipReady || !cloud?.profile?.id) return;
-    void supabase.realtime.setAuth();
+    let cancelled = false;
     const channel = supabase.channel(`room-activity:${roomDbId}`, { config: { private: true } });
     typingChannelRef.current = channel;
     channel.on("broadcast", { event: "typing" }, ({ payload }) => {
@@ -258,8 +258,11 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
         typingTimers.current.delete(userId);
       }
     });
-    channel.subscribe();
+    void supabase.realtime.setAuth().then(() => {
+      if (!cancelled) channel.subscribe();
+    }).catch(error => console.warn("[room] typing channel auth failed:", error));
     return () => {
+      cancelled = true;
       void channel.send({ type: "broadcast", event: "typing", payload: { user_id: cloud.profile?.id, typing: false } });
       typingChannelRef.current = null;
       for (const timer of typingTimers.current.values()) window.clearTimeout(timer);
