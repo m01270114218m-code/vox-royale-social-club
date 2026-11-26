@@ -96,7 +96,9 @@
   button, a { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   body { background-color: var(--color-background); color: var(--color-foreground); font-family: var(--font-sans); font-size: 14px; line-height: 1.45; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
   h1, h2, h3 { letter-spacing: 0; }
-  img { user-select: none; -webkit-user-drag: none; }
+  img, svg { user-select: none; -webkit-user-drag: none; }
+  a, button, [role="button"] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  * { -webkit-tap-highlight-color: transparent; }
   button, a { touch-action: manipulation; }
 }
 
