@@ -58,7 +58,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const cloudMembers=cloud?.profiles.filter(p=>p.id!==cloud.profile?.id&&!p.banned).map(p=>p.id) ?? [];
   // Mic/seat artwork is room-authoritative, never based on the viewer's own inventory.
   const roomOwnerId = room.ownerId || room.hostId;
-  const equippedSeat = cloud?.equippedItems.find(i =>
+  const equippedSeat = cloud?.equippedItems.find((i: { user_id: string; catalog_id: string }) =>
     i.user_id === roomOwnerId &&
     cloud.catalog.some(c => c.id === i.catalog_id && c.kind === 'seat' && c.enabled && c.url)
   );
