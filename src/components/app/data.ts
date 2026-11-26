@@ -222,7 +222,7 @@ export function installCatalog(list: readonly {id:string;kind:string;name:string
   }
   const custom=list.filter(c=>c.kind==='gift'&&c.enabled&&c.url).map(c=>{
     const meta=(c.metadata && typeof c.metadata === "object" && !Array.isArray(c.metadata) ? c.metadata : {}) as Record<string, unknown>;
-    return {img:c.url,n:c.name,p:c.price,id:c.id, mime:undefined, animated:meta.type==='animated', lucky:meta.type==='lucky', full:meta.full===true, bannerStyle: (meta.banner_style==="luxury"||meta.banner_style==="minimal"||meta.banner_style==="neon"||meta.banner_style==="glass") ? meta.banner_style : "luxury"};
+    return {img:c.url,n:c.name,p:c.price,id:c.id, animated:meta['type']==='animated', lucky:meta['type']==='lucky', full:meta['full']===true, bannerStyle: (meta.banner_style==="luxury"||meta.banner_style==="minimal"||meta.banner_style==="neon"||meta.banner_style==="glass") ? meta.banner_style : "luxury"};
   });
   const staticGifts=custom.filter(g=>!g.lucky&&!g.animated);
   const animatedGifts=custom.filter(g=>g.animated&&!g.lucky);
