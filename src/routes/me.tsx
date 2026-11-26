@@ -6,6 +6,7 @@ import { images, icons, gifts } from "@/components/app/data";
 import { MY_UID, meAsUser, useProfile } from "@/components/app/profile";
 import { Avatar, GenderChip, LevelChip, SpecialId, VipChip, UserBadges, UserName } from "@/components/app/ui";
 import { useCloud } from '@/components/app/cloud';
+import { supabase } from "@/integrations/supabase/client";
 import { canRecharge, canHost, canAdmin } from '@/components/app/control-rules';
 import { openDaily } from '@/components/app/DailyCard';
 
@@ -24,6 +25,16 @@ function Me() {
     ...(canHost(data?.roles ?? []) ? [{ l: p.gender === "f" ? "مركز المضيفة" : "مركز المضيف", i: icons.host, to: "/host" as const }] : []),
     ...(canAdmin(data?.roles ?? []) ? [{ l: 'لوحة التحكم', i: icons.bd, to: '/admin' as const }] : []),
   ] as const;
+  const requestAccount = async () => {
+    const email = window.prompt("اكتب البريد الإلكتروني للحساب المطلوب إرساله للإدارة");
+    if (!email?.trim()) return;
+    const { error } = await supabase.rpc("request_account_approval", {
+      p_display_name: p.name || "مستخدم",
+      p_email: email.trim().toLowerCase(),
+    });
+    if (error) { toast(error.message); return; }
+    toast("تم إرسال الطلب إلى الإدارة");
+  };
   const agents = [
     ...(canRecharge(data?.roles ?? []) ? [{ l: "وكيل الشحن", d: "بيع العملات للمستخدمين", i: icons.recharge, to: "/recharge-agent" as const }] : []),
     { l: "وكيل المضيفين", d: "إدارة وكالتك ومضيفيك", i: icons.hostAgent, to: "/agent" },
@@ -78,6 +89,11 @@ function Me() {
           <button type="button" onClick={openDaily} className="flex h-[52px] w-full items-center gap-3 px-3 text-start active:bg-muted">
             <img src={icons.rewards} alt="" className="h-7 w-7" />
             <span className="flex-1 text-[14px] font-semibold text-navy">هدية الدخول اليومي</span>
+            <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+          </button>
+          <button type="button" onClick={() => void requestAccount()} className="flex h-[52px] w-full items-center gap-3 px-3 text-start active:bg-muted">
+            <img src={icons.id} alt="" className="h-7 w-7" />
+            <span className="flex-1 text-[14px] font-semibold text-navy">طلب حساب إضافي من الإدارة</span>
             <ChevronLeft className="h-4 w-4 text-muted-foreground" />
           </button>
           {menu.map((m) => (
