@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronRight, MessageCircle, Send } from "lucide-react";
 import { IceHeader, Badge } from "@/components/app/AppShell";
 import { images, avatarAt, type User } from "@/components/app/data";
-import { meAsUser, sendDm, useProfile } from "@/components/app/profile";
+import { meAsUser, useProfile } from "@/components/app/profile";
 import { Avatar, LevelChip, SpecialId, VipChip } from "@/components/app/ui";
 import megaphone from "@/assets/megaphone.png";
 import bell from "@/assets/bell.png";
@@ -38,7 +38,7 @@ function Messages() {
   const counts = unreadByKind(data?.notifications ?? [], data?.profile?.id, seen);
   const [draft, setDraft] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [remoteThread, setRemoteThread] = useState<Array<{ id: string; from: "me" | "them"; text: string; at: string }>>([]);
+  const [remoteThread, setRemoteThread] = useState<Array<{ id: string; from: "me" | "them"; text: string; at: string; createdAt: string }>>([]);
   const seenDmIds = useRef<Set<string>>(new Set());
   const realUsers: User[] = (data?.profiles ?? []).filter(row => row.id !== data?.profile?.id).map(row => {
     const owned = (data?.equippedItems ?? []).filter(item => item.user_id === row.id);
@@ -78,7 +78,8 @@ function Messages() {
         from: row.sender_id === data.profile!.id ? "me" : "them",
         text: row.body!,
         at: new Date(row.created_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" }),
-      }].sort((a,b) => a.at.localeCompare(b.at)));
+        createdAt: row.created_at,
+      }].sort((a,b) => a.createdAt.localeCompare(b.createdAt)));
     };
 
     void (supabase as any).rpc("get_or_create_private_conversation", { p_other_user_id: activeUser.id })
