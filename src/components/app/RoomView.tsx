@@ -52,7 +52,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     level: 1, vip: 0, gender: "m", flag: "", bio: "", fans: 0, following: 0, charm: 0, wealth: 0, gifts: [],
   };
 
-  const myRole: Role = room.hostId === "me" ? "owner" : cloud?.roles.includes('admin')||cloud?.roles.includes('moderator') ? "admin" : "member";
+  const myRole: Role = room.ownerId === cloud?.profile?.id || room.hostId === "me" ? "owner" : cloud?.roles.includes("admin") ? "admin" : "member";
   // rooms owned by real users have no simulated guests
   const hostHere = room.hostId === "me";
   const cloudMembers=cloud?.profiles.filter(p=>p.id!==cloud.profile?.id&&!p.banned).map(p=>p.id) ?? [];
@@ -123,7 +123,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     setRoles(next);
   }, [live, room.ownerId, cloud?.allRoles, cloud?.profile?.id, cloud?.roles.join("|")]);
 
-  const roleOf = (uid: string): Role => roles[uid] ?? (uid === room.hostId ? "owner" : "member");
+  const roleOf = (uid: string): Role => roles[uid] ?? (uid === room.ownerId || uid === room.hostId || (uid === cloud?.profile?.id && myRole === "owner") ? "owner" : "member");
   const mySeat = seats.findIndex((s) => s.uid === "me");
   const seated = seats.map((s) => s.uid).filter((u): u is string => !!u);
   const push = (m: Omit<Msg, "id">) => setMsgs((a) => [...a.slice(-80), { ...m, id: nid() }]);
