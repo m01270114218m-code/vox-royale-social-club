@@ -170,7 +170,10 @@ export function useAgoraRoom(roomId: string, publishAudio: boolean, enabled = tr
       }
     };
 
-    void connect();
+    // Do not request an Agora token until join_room has confirmed membership.
+    // This prevents the first render from issuing a guaranteed 403 before the
+    // room_members row exists.
+    if (enabled) void connect();
 
     return () => {
       disposed = true;
