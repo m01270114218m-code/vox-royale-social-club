@@ -40,7 +40,7 @@ function Messages() {
   const [draft, setDraft] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [remoteThread, setRemoteThread] = useState<Array<{ id: string; from: "me" | "them"; text: string; at: string; createdAt: string }>>([]);
-  const [privateThreads, setPrivateThreads] = useState<Record<string, { text: string; at: string; createdAt: string }>>({});
+  const [privateThreads, setPrivateThreads] = useState<Record<string, { text: string; at: string; createdAt: string; from: "me" | "them" }>>({});
   const seenDmIds = useRef<Set<string>>(new Set());
   const realUsers: User[] = (data?.profiles ?? []).filter(row => row.id !== data?.profile?.id).map(row => {
     const owned = (data?.equippedItems ?? []).filter((item: { user_id: string; catalog_id: string }) => item.user_id === row.id);
@@ -91,7 +91,7 @@ function Messages() {
         .order("created_at", { ascending: false })
         .limit(200);
       if (cancelled || messageError) return;
-      const next: Record<string, { text: string; at: string; createdAt: string }> = {};
+      const next: Record<string, { text: string; at: string; createdAt: string; from: "me" | "them" }> = {};
       for (const row of rows ?? []) {
         const userId = otherByConversation[row.conversation_id];
         if (!userId || next[userId] || !row.body) continue;
@@ -99,6 +99,7 @@ function Messages() {
           text: row.body,
           at: new Date(row.created_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" }),
           createdAt: row.created_at,
+          from: row.sender_id === myId ? "me" : "them",
         };
       }
       setPrivateThreads(next);
@@ -273,7 +274,7 @@ function Messages() {
                             <p className="user-name text-[14px] font-extrabold text-navy">{u.name} <span className="text-[12px]">{u.flag}</span></p>
                             <span className="shrink-0 text-[10.5px] text-muted-foreground">{last.at}</span>
                           </div>
-                          <p className="truncate text-[12px] text-muted-foreground">{last.text}</p>
+                          <p className="truncate text-[12px] text-muted-foreground"><span className="font-bold text-primary">{last.from === "me" ? "أرسلت: " : "مستلم: "}</span>{last.text}</p>
                         </div>
                       </button>
                     );
