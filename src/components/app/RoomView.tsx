@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { Power, Mic, MicOff, Smile, LayoutGrid, Mail, Send, Heart, Share2, Plus, Check, Lock, Users, Trash2, Volume2, VolumeX, Pencil, UserPlus, MessageCircle, Gift as GiftIcon, AtSign, Minimize2, X, Music2, Image as ImageIcon } from "lucide-react";
 import { toast } from "./toast";
 import { Coin } from "./AppShell";
-import { images, ui, entries, bubbles, emojis, giftTabs, LUXURY_BANNER_MIN, type GiftTab, type ShopGift, type User } from "./data";
+import { images, entries, bubbles, emojis, giftTabs, LUXURY_BANNER_MIN, type GiftTab, type ShopGift, type User } from "./data";
 import { readImageFile, uploadImageDataUrl } from "./imageUpload";
 import { addStat, findUser, setProfile, setRoomMedia, spendCoins, toggleFollow, useProfile } from "./profile";
 import { can, roleLabel, type Role } from "./permissions";
@@ -53,8 +53,15 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   // rooms owned by real users have no simulated guests
   const hostHere = room.hostId === "me";
   const cloudMembers=cloud?.profiles.filter(p=>p.id!==cloud.profile?.id&&!p.banned).map(p=>p.id) ?? [];
-  const equippedSeat=cloud?.items.find(i=>i.user_id===cloud.profile?.id&&i.equipped&&cloud.catalog.some(c=>c.id===i.catalog_id&&c.kind==='seat'));
-  const seatArt=cloud?.catalog.find(c=>c.id===equippedSeat?.catalog_id)?.url || ui.seat;
+  // Mic/seat artwork is room-authoritative, never based on the viewer's own inventory.
+  const roomOwnerId = room.ownerId || room.hostId;
+  const equippedSeat = cloud?.equippedItems.find(i =>
+    i.user_id === roomOwnerId &&
+    cloud.catalog.some(c => c.id === i.catalog_id && c.kind === 'seat' && c.enabled && c.url)
+  );
+  const seatArt = cloud?.catalog.find(c => c.id === equippedSeat?.catalog_id && c.kind === 'seat' && c.enabled && c.url)?.url
+    || cloud?.catalog.find(c => c.kind === 'seat' && c.enabled && c.url)?.url
+    || "";
 
   const [roomName, setRoomName] = useState(live ? room.name : roomOv?.name || room.name);
   const [roles, setRoles] = useState<Record<string, Role>>(() => ({ [room.hostId]: "owner", me: myRole }));
