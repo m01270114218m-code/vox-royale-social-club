@@ -5,6 +5,7 @@ on:
     branches:
       - empty
       - login-page-lovable-copy
+      - app_new
   workflow_dispatch:
 
 permissions:
@@ -62,10 +63,9 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_rTPtpxMftXim8X_Re9LxMg_vZaF_ade' }}
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
           SITE_URL: ${{ vars.SITE_URL }}
-          VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID || '174232630403-738ucmkk5otqvnuibm4g8hlcblnuvim1.apps.googleusercontent.com' }}
         run: |
           set -euo pipefail
-          for name in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID VITE_GOOGLE_WEB_CLIENT_ID; do
+          for name in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID; do
             if [ -z "${!name:-}" ]; then
               echo "::error::Missing GitHub Actions configuration: $name"
               exit 1
@@ -75,7 +75,6 @@ jobs:
             printf 'VITE_SUPABASE_URL=%s\n' "$VITE_SUPABASE_URL"
             printf 'VITE_SUPABASE_PUBLISHABLE_KEY=%s\n' "$VITE_SUPABASE_PUBLISHABLE_KEY"
             printf 'VITE_SUPABASE_PROJECT_ID=%s\n' "$VITE_SUPABASE_PROJECT_ID"
-            printf 'VITE_GOOGLE_WEB_CLIENT_ID=%s\n' "$VITE_GOOGLE_WEB_CLIENT_ID"
           } > .env
           bash mobile/build-android.sh
 
