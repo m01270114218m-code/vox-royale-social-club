@@ -18,7 +18,7 @@ const signed = new Map<string, { url: string; until: number }>();
 const SIGN_SECONDS = 6 * 3600;
 export async function signMany(paths: string[]) {
   const now = Date.now();
-  const need = [...new Set(paths)].filter(p => p && !bundledAssets[p] && (signed.get(p)?.until ?? 0) < now);
+  const need = [...new Set(paths)].filter(p => p && (signed.get(p)?.until ?? 0) < now);
   if (need.length) {
     const { data, error } = await supabase.storage.from('app-assets').createSignedUrls(need, SIGN_SECONDS);
     if (error) throw new Error(error.message);
@@ -89,7 +89,7 @@ export async function fetchCloud() {
   const roomList: Room[] = (userRooms.data ?? []).map(r => {
     const roomRow = r as typeof r & { title?: string | null; cover_url?: string | null; background_url?: string | null };
     const owner = r.owner_id === id ? profile : people.find(p => p.id === r.owner_id);
-    return { id: String(r.room_uid), dbId: r.id, name: roomRow.title?.trim() || r.name?.trim() || 'غرفة صوتية', flag: '', vip: owner?.vip ?? 0, online: memberCounts.get(String(r.id)) ?? 0, img: roomRow.cover_url || r.cover || owner?.avatar || roomCover, ...(roomRow.background_url ? { bg: roomRow.background_url } : {}), host: owner?.avatar || avatarAt(0), hostId: r.owner_id === id ? 'me' : r.owner_id, badges: [], tag: 'غرفة', notice: r.notice, cloud: true, ownerId: r.owner_id };
+    return { id: String(r.room_uid), dbId: r.id, name: roomRow.title?.trim() || r.name?.trim() || 'غرفة صوتية', flag: '', vip: owner?.vip ?? 0, online: memberCounts.get(String(r.id)) ?? 0, img: roomRow.cover_url || r.cover || owner?.avatar || "", ...(roomRow.background_url ? { bg: roomRow.background_url } : {}), host: owner?.avatar || "", hostId: r.owner_id === id ? 'me' : r.owner_id, badges: [], tag: 'غرفة', notice: r.notice, cloud: true, ownerId: r.owner_id };
   });
   const myRoom = roomList.find(r => r.ownerId === id) ?? null;
   // install before returning so the first render with this data already resolves rooms and art
