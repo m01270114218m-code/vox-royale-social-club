@@ -42,7 +42,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const roomOv = profile.roomMedia[id];
   const live = !!room.cloud;
   const roomCover = live ? room.img : roomOv?.cover || room.img;
-  const roomBg = live ? (room.bg || room.img || images.room) : (roomOv?.bg || images.room);
+  const roomBg = live ? (room.bg || room.img || "") : (roomOv?.bg || images.room);
   const meU: User = findUser("me", profile) ?? {
     id: "", uid: "", name: "", avatar: "", frame: null, bubble: "none", entry: null, sid: null,
     level: 1, vip: 0, gender: "m", flag: "", bio: "", fans: 0, following: 0, charm: 0, wealth: 0, gifts: [],
@@ -67,8 +67,8 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     || "";
 
   const [roomName, setRoomName] = useState(live ? room.name : roomOv?.name || room.name);
-  const [roles, setRoles] = useState<Record<string, Role>>(() => ({ [room.hostId]: "owner", me: myRole }));
-  const [present, setPresent] = useState<string[]>(() => [...(hostHere ? [room.hostId] : []), ...(room.hostId === "me" ? [] : ["me"])]);
+  const [roles, setRoles] = useState<Record<string, Role>>({});
+  const [present, setPresent] = useState<string[]>([]);
   const [seats, setSeats] = useState<SeatS[]>(() => Array.from({ length: 8 }, (_, i) => ({ uid: i === 0 && hostHere ? room.hostId : null, locked: false, muted: false, micEnabled: false })));
   const [hearts, setHearts] = useState<number[]>([0, 0, 0, 0, 0, 0, 0, 0]);
   const [micOn, setMicOn] = useState(false);
@@ -111,7 +111,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const bannerQ = useRef<Banner[]>([]);
   const bannerBusy = useRef(false);
 
-  const roleOf = (uid: string): Role => roles[uid] ?? "member";
+  useEffect(() => {\n    if (!live) return;\n    const next: Record<string, Role> = {};\n    if (room.ownerId) next[room.ownerId] = "owner";\n    for (const row of cloud?.allRoles ?? []) {\n      const value = String(row.role);\n      if (value === "admin" || value === "moderator" || value === "member") next[row.user_id] = value === "moderator" ? "admin" : value as Role;\n    }\n    if (cloud?.profile?.id && cloud.roles.includes("admin")) next[cloud.profile.id] = "admin";\n    setRoles(next);\n  }, [live, room.ownerId, cloud?.allRoles, cloud?.profile?.id, cloud?.roles.join("|")]);\n\n  const roleOf = (uid: string): Role => roles[uid] ?? (uid === room.hostId ? "owner" : "member");
   const mySeat = seats.findIndex((s) => s.uid === "me");
   const seated = seats.map((s) => s.uid).filter((u): u is string => !!u);
   const push = (m: Omit<Msg, "id">) => setMsgs((a) => [...a.slice(-80), { ...m, id: nid() }]);
