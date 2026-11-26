@@ -102,9 +102,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     let dead = false; let remove: (() => void) | undefined; let last = 0;
     void (async () => {
-      const { Capacitor } = await import("@capacitor/core");
+      const { Capacitor } = await import(/* @vite-ignore */ "@capacitor/core");
       if (!Capacitor.isNativePlatform()) return;
-      const { App } = await import("@capacitor/app");
+      const { App } = await import(/* @vite-ignore */ "@capacitor/app");
       const handle = await App.addListener("backButton", () => {
         const step = backStep({ hasSheet: hasBack(), path: pathRef.current, canGoBack: router.history.canGoBack(), pressedRecently: Date.now() - last < 2000 });
         if (step === "close") popBack();
