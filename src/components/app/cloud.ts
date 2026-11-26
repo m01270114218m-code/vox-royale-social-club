@@ -51,7 +51,7 @@ export async function fetchCloud() {
   } catch (error) {
     console.warn('[cloud] auth lookup unavailable:', error);
   }
-  const [catalog, assets, profiles, roles, settings, agencies, hosts, items, equippedItems, follows, notifications, ledger, rooms, audit, userRooms, recharges, roomMembers] = await Promise.all([
+  const [catalog, assets, profiles, roles, settings, agencies, hosts, agencyRankings, items, equippedItems, follows, notifications, ledger, rooms, audit, userRooms, recharges, roomMembers] = await Promise.all([
     supabase.from('app_catalog').select('*').order('position'),
     id ? supabase.from('app_assets').select('*').order('created_at', { ascending: false }) : none,
     id ? supabase.from('profiles').select('*').order('uid').limit(1000) : none,
@@ -59,6 +59,7 @@ export async function fetchCloud() {
     supabase.from('app_settings').select('*'),
     id ? supabase.from('agencies').select('*') : none,
     id ? supabase.from('agency_hosts').select('*') : none,
+    id ? supabase.rpc('agency_leaderboard') : none,
     id ? supabase.from('user_items').select('*') : none,
     id ? (supabase as any).from('public_equipped_items').select('*') : none,
     id ? (supabase as any).from('follows').select('*') : none,
@@ -72,7 +73,7 @@ export async function fetchCloud() {
   ]);
   // Keep optional backend modules isolated: one missing table/policy must not
   // take down login, the profile, or the room list.
-  for (const [name, result] of Object.entries({ catalog, assets, profiles, roles, settings, agencies, hosts, items, equippedItems, follows, notifications, ledger, rooms, audit, userRooms, recharges, roomMembers })) {
+  for (const [name, result] of Object.entries({ catalog, assets, profiles, roles, settings, agencies, hosts, agencyRankings, items, equippedItems, follows, notifications, ledger, rooms, audit, userRooms, recharges, roomMembers })) {
     if (result?.error) console.warn(`[cloud] ${name} query failed:`, result.error.message);
   }
   const now = Date.now();
@@ -103,7 +104,7 @@ export async function fetchCloud() {
   const myRoom = roomList.find(r => r.ownerId === id) ?? null;
   // install before returning so the first render with this data already resolves rooms and art
   installCatalog(list); installRooms(roomList);
-  return { profile, roles: ownRoles, catalog: list, assets: art, profiles: people, allRoles: roles.data ?? [], settings: settings.data ?? [], agencies: agencies.data ?? [], hosts: hosts.data ?? [], items: (items.data ?? []).filter(i => stillValid(i.expires_at, now)), equippedItems: equippedItems.data ?? [], follows: follows.data ?? [], notifications: notifications.data ?? [], ledger: ledger.data ?? [], rooms: rooms.data ?? [], audit: audit.data ?? [], roomList, myRoom, recharges: recharges.data ?? [] };
+  return { profile, roles: ownRoles, catalog: list, assets: art, profiles: people, allRoles: roles.data ?? [], settings: settings.data ?? [], agencies: agencies.data ?? [], hosts: hosts.data ?? [], agencyRankings: agencyRankings.data ?? [], items: (items.data ?? []).filter(i => stillValid(i.expires_at, now)), equippedItems: equippedItems.data ?? [], follows: follows.data ?? [], notifications: notifications.data ?? [], ledger: ledger.data ?? [], rooms: rooms.data ?? [], audit: audit.data ?? [], roomList, myRoom, recharges: recharges.data ?? [] };
 }
 export type CloudData = Awaited<ReturnType<typeof fetchCloud>>;
 export function useCloud() {
