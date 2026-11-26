@@ -588,6 +588,20 @@ export type Database = {
         Args: { action: string; payload: Json }
         Returns: Json
       }
+      agency_leaderboard: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          agency_id: string
+          host_count: number
+          total_diamonds: number
+          agency_level: number
+          agency_rank: number
+        }[]
+      }
+      request_host_agency: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       purchase_vip: { Args: { p_level: number }; Returns: Json }
       join_room: { Args: { p_room_id: string }; Returns: Json }
