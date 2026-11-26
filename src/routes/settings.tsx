@@ -1,9 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "@/components/app/toast";
 import { SubHeader } from "@/components/app/AppShell";
-import { meAsUser, setProfile, useProfile } from "@/components/app/profile";
+import { meAsUser, useProfile } from "@/components/app/profile";
 import { setActiveRoom, signOut } from "@/components/app/session";
 import { Avatar, Sheet, SpecialId } from "@/components/app/ui";
 import { Toggle } from "@/components/app/centers";
@@ -13,7 +12,7 @@ import { useCloudState } from '@/components/app/cloud-state';
 import { canAdmin } from '@/components/app/control-rules';
 
 export const Route = createFileRoute("/settings")({
-  head: () => ({ meta: [{ title: "الإعدادات | صدى شات" }, { name: "description", content: "ربط الحساب والخصوصية والإشعارات وحذف الحساب" }, { property: "og:title", content: "الإعدادات | صدى شات" }, { property: "og:description", content: "ربط الحساب والخصوصية والإشعارات وحذف الحساب" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
+  head: () => ({ meta: [{ title: "الإعدادات | صدى شات" }, { name: "description", content: "الخصوصية والإشعارات وإدارة الحساب" }, { property: "og:title", content: "الإعدادات | صدى شات" }, { property: "og:description", content: "ربط الحساب والخصوصية والإشعارات وحذف الحساب" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: Settings,
 });
 
@@ -35,10 +34,9 @@ function Settings() {
   const admin = canAdmin(useCloudState().roles);
   const user=meAsUser(p);
   const nav = useNavigate();
-  const [sheet, setSheet] = useState<"link" | "delete" | "privacy" | "about" | null>(null);
+  const [sheet, setSheet] = useState<"delete" | "privacy" | "about" | null>(null);
   const [confirm, setConfirm] = useState("");
   const [hideOnline, setHideOnline] = useState(false);
-  const linkedCount = providers.filter((x) => p.linked[x.k]).length;
   const logout = () => { setActiveRoom(null); signOut(); void nav({ to: "/login", replace: true }); };
   const del = () => { toast('حذف الحساب الحقيقي غير متاح حاليًا؛ لم يتم حذف بياناتك'); };
   return (
@@ -47,7 +45,6 @@ function Settings() {
       <div className="space-y-3 px-3.5">
         <Link to="/me/edit" className="flex items-center gap-4 border-b border-border py-4"><Avatar img={user.avatar} frame={p.frame} size={54} className="m-2"/><div className="min-w-0 flex-1"><h1 className="user-name text-[17px] font-black text-navy">{user.name}</h1><SpecialId uid={user.uid} sid={user.sid}/></div><ChevronLeft className="h-4 w-4 shrink-0"/></Link>
         <div className="divide-y divide-border border-b border-border pb-3">
-          <Row icon={icons.id} label="ربط الحساب" value={`${linkedCount} مربوط`} onClick={() => setSheet("link")} />
           <Row icon={icons.badge} label="الخصوصية" onClick={() => setSheet("privacy")} />
           <Row icon={ui.mail} label="الإشعارات" right={<Toggle label="الإشعارات" on={p.notify} onChange={(v) => { setProfile({ notify: v }); toast(v ? "تم تشغيل الإشعارات" : "تم إيقاف الإشعارات"); }} />} />
           <Row icon={icons.host} label="اللغة" value="العربية" onClick={() => toast("العربية هي اللغة الحالية")} />
@@ -63,18 +60,6 @@ function Settings() {
           <Row icon={icons.host} label="حذف حسابي" danger onClick={() => setSheet("delete")} />
         </div>
       </div>
-
-      <Sheet open={sheet === "link"} onClose={() => setSheet(null)} title="ربط الحساب">
-        <div className="divide-y px-4">
-          {providers.map((x) => (
-            <div key={x.k} className="flex items-center justify-between py-3">
-              <span className="text-[14px] font-bold text-navy">{x.n}</span>
-              <button onClick={() => { setProfile({ linked: { ...p.linked, [x.k]: !p.linked[x.k] } }); toast(p.linked[x.k] ? `تم فك ربط ${x.n}` : `تم ربط ${x.n}`); }} className={`press rounded-full px-4 py-1.5 text-[12px] font-bold ${p.linked[x.k] ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"}`}>{p.linked[x.k] ? "مربوط ✓" : "ربط"}</button>
-            </div>
-          ))}
-        </div>
-        <p className="px-4 pt-2 text-[11px] text-muted-foreground">اربط أكثر من طريقة دخول حتى لا تفقد حسابك.</p>
-      </Sheet>
 
       <Sheet open={sheet === "privacy"} onClose={() => setSheet(null)} title="الخصوصية">
         <div className="px-4">
