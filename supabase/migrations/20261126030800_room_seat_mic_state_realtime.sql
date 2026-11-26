@@ -25,7 +25,7 @@ for each row execute function public.normalize_room_seat_mic_state();
 create or replace function public.set_room_seat_mic(p_room_id uuid, p_enabled boolean)
 returns jsonb
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $$
 declare
