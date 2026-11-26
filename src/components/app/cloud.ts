@@ -21,10 +21,19 @@ export async function signMany(paths: string[]) {
   const need = [...new Set(paths)].filter(p => p && (signed.get(p)?.until ?? 0) < now);
   if (need.length) {
     const { data, error } = await supabase.storage.from('app-assets').createSignedUrls(need, SIGN_SECONDS);
-    if (error) throw new Error(error.message);
-    for (const row of data ?? []) if (row.path && row.signedUrl) signed.set(row.path, { url: row.signedUrl, until: now + (SIGN_SECONDS - 600) * 1000 });
+    if (error) {
+      console.warn('[cloud] signed asset URLs unavailable; using public asset URLs where available:', error.message);
+    } else {
+      for (const row of data ?? []) if (row.path && row.signedUrl) signed.set(row.path, { url: row.signedUrl, until: now + (SIGN_SECONDS - 600) * 1000 });
+    }
   }
-  return (path: string) => bundledAssets[path] ?? signed.get(path)?.url ?? '';
+  return (path: string) => {
+    if (!path) return '';
+    if (bundledAssets[path]) return bundledAssets[path];
+    const cached = signed.get(path)?.url;
+    if (cached) return cached;
+    return supabase.storage.from('app-assets').getPublicUrl(path).data.publicUrl || '';
+  };
 }
 export async function signedAsset(path: string) {
   if (!path) return '';
