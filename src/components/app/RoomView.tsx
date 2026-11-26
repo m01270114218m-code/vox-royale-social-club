@@ -69,7 +69,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const [roomName, setRoomName] = useState(live ? room.name : roomOv?.name || room.name);
   const [roles, setRoles] = useState<Record<string, Role>>({});
   const [present, setPresent] = useState<string[]>([]);
-  const [seats, setSeats] = useState<SeatS[]>(() => Array.from({ length: 8 }, (_, i) => ({ uid: i === 0 && hostHere ? room.hostId : null, locked: false, muted: false, micEnabled: false })));
+  const [seats, setSeats] = useState<SeatS[]>(() => Array.from({ length: 8 }, (_: unknown, i: number) => ({ uid: i === 0 && hostHere ? room.hostId : null, locked: false, muted: false, micEnabled: false })));
   const [hearts, setHearts] = useState<number[]>([0, 0, 0, 0, 0, 0, 0, 0]);
   const [micOn, setMicOn] = useState(false);
   const [membershipReady, setMembershipReady] = useState(false);
@@ -103,7 +103,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const [emo, setEmo] = useState<Record<string, { k: number; img: string }>>({});
   const [entry, setEntry] = useState<{ k: number; uid: string } | null>(null);
   const [banner, setBanner] = useState<Banner | null>(null);
-  const [msgs, setMsgs] = useState<Msg[]>([{ id: 0, kind: "notice", t: (live ? room.notice : roomOv?.notice || room.notice) || "أهلاً بالجميع في الغرفة." }]);
+  const [msgs, setMsgs] = useState<Msg[]>([{ id: "0", kind: "notice", t: (live ? room.notice : roomOv?.notice || room.notice) || "أهلاً بالجميع في الغرفة." }]);
   const chatRef = useRef<HTMLDivElement>(null);
   const entryQ = useRef<string[]>([]);
   const entryBusy = useRef(false);
