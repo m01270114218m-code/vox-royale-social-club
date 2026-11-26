@@ -13,6 +13,8 @@ import { SplashAd } from './SplashAd';
 import { backStep, hasBack, popBack } from './back';
 import { unreadByKind, useInboxRead } from './inbox';
 import { toast } from './toast';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 
 export function IceHeader({ children, tall = false }: { children: ReactNode; tall?: boolean }) {
   return (
