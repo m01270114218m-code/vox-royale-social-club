@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { Power, Mic, MicOff, Smile, LayoutGrid, Mail, Send, Heart, Share2, Plus, Check, Lock, Users, Trash2, Volume2, VolumeX, Pencil, UserPlus, MessageCircle, Gift as GiftIcon, AtSign, Minimize2, X, Music2, Image as ImageIcon } from "lucide-react";
 import { toast } from "./toast";
 import { Coin } from "./AppShell";
-import { images, roomById, ui, entries, bubbles, emojis, giftTabs, LUXURY_BANNER_MIN, type GiftTab, type ShopGift, type User } from "./data";
+import { images, ui, entries, bubbles, emojis, giftTabs, LUXURY_BANNER_MIN, type GiftTab, type ShopGift, type User } from "./data";
 import { readImageFile, uploadImageDataUrl } from "./imageUpload";
 import { addStat, findUser, setProfile, setRoomMedia, spendCoins, toggleFollow, useProfile } from "./profile";
 import { can, roleLabel, type Role } from "./permissions";
@@ -31,9 +31,9 @@ const nid = () => ++mid;
 
 export function RoomView({ id, minimized }: { id: string; minimized: boolean }) {
   const {data:cloud}=useCloud();
-  const room = cloud?.roomList.find((r) => r.id === id) ?? roomById(id) ?? {
-    id, name: "غرفة صوتية", flag: "", vip: 0, online: 0,
-    img: images.room, host: cloud?.profile?.avatar_url || cloud?.profile?.avatar || "", hostId: cloud?.profile?.id || "me",
+  const room = cloud?.roomList.find((r) => r.id === id) ?? {
+    id, name: "جارٍ تحميل الغرفة…", flag: "", vip: 0, online: 0,
+    img: cloud?.profile?.avatar_url || cloud?.profile?.avatar || "", host: cloud?.profile?.avatar_url || cloud?.profile?.avatar || "", hostId: cloud?.profile?.id || "",
     badges: [], tag: "غرفة", notice: "", cloud: true,
   };
   const nav = useNavigate();
@@ -43,8 +43,11 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const live = !!room.cloud;
   const roomCover = live ? room.img : roomOv?.cover || room.img;
   const roomBg = live ? (room.bg || room.img || images.room) : (roomOv?.bg || images.room);
-  const meU = findUser("me", profile)!;
-  const user = (uid: string): User => findUser(uid, profile) ?? meU;
+  const meU = findUser("me", profile);
+  const user = (uid: string): User => findUser(uid, profile) ?? meU ?? {
+    id: uid, uid, name: "مستخدم", avatar: "", frame: null, bubble: "none", entry: null, sid: null,
+    level: 1, vip: 0, gender: "m", flag: "", bio: "", fans: 0, following: 0, charm: 0, wealth: 0, gifts: [],
+  };
 
   const myRole: Role = room.hostId === "me" ? "owner" : cloud?.roles.includes('admin')||cloud?.roles.includes('moderator') ? "admin" : "member";
   // rooms owned by real users have no simulated guests
@@ -1036,22 +1039,24 @@ function EditRoom({ name, notice, cover, bg, hasCustomCover, hasCustomBg, onSave
 }
 
 function EntryShow({ u }: { u: User }) {
-  const v = u.entry ? entries[u.entry] : null;
   const {catalog, assets}=useCloudState();
-  const cloud=u.entry?.startsWith('cloud-')?catalog.find(c=>`cloud-${c.id}`===u.entry):undefined;
+  const cloud = u.entry?.startsWith("cloud-") ? catalog.find(c=>`cloud-${c.id}`===u.entry) : undefined;
   const meta=(cloud?.metadata ?? {}) as Record<string, unknown>;
   const audioKey=typeof meta["audio_asset_key"] === "string" ? meta["audio_asset_key"] : "";
   const sound=assets.find(a=>a.asset_key===audioKey)?.url;
-  useEffect(() => { if (!sound) return; const audio = new Audio(sound); audio.volume = 0.9; void audio.play().catch(() => undefined); return () => { audio.pause(); audio.currentTime = 0; }; }, [sound]);
+  useEffect(() => {
+    if (!sound) return;
+    const audio = new Audio(sound);
+    audio.volume = 0.9;
+    void audio.play().catch(() => undefined);
+    return () => { audio.pause(); audio.currentTime = 0; };
+  }, [sound]);
   return (
-    <div className="relative mx-3 mt-3 h-[104px] shrink-0 overflow-hidden rounded-2xl border border-ice/25 bg-night/65 shadow-lg" role="status" aria-label="دخول الغرفة">
-      {v && <div className={`${cloud?.url ? "" : "entry-ride"} absolute inset-0 grid place-items-center`}><Media src={cloud?.url||v.img} mime={cloud?.mime} alt="" className="h-full w-full object-contain drop-shadow-2xl" loop={false}/></div>}
-      <div className={`entry-ribbon ${u.vip >= 5 ? "entry-ribbon-gold" : ""} absolute inset-x-0 bottom-0 flex items-center gap-2 bg-night/75 px-2 py-1 text-[11px]`}>
-        <Avatar img={u.avatar} frame={u.frame} size={28} />
-        <div className="min-w-0 leading-tight">
-          <div className="flex items-center gap-1"><UserName className="max-w-[150px] truncate font-black" uid={u.uid} name={u.name}/><VipChip vip={u.vip} /></div>
-          <span className="text-[10px] opacity-90">{v ? `دخل راكباً ${v.n}` : "دخل الغرفة"}</span>
-        </div>
+    <div className="entry-strip pointer-events-none absolute inset-x-0 bottom-0 z-40 h-12 overflow-hidden" role="status" aria-label="دخول الغرفة">
+      <div className={`entry-strip-track ${u.vip >= 5 ? "entry-strip-gold" : ""} flex h-full w-max items-center gap-2 px-3`}>
+        <Avatar img={u.avatar} frame={u.frame} size={34} />
+        <UserName className="max-w-[180px] truncate text-[13px] font-black text-white" uid={u.uid} name={u.name}/>
+        <VipChip vip={u.vip} />
       </div>
     </div>
   );
