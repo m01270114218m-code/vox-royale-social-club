@@ -101,7 +101,7 @@ export function useProfile(): Profile {
   if(!cloud.profile)return local;
   const own=cloud.items.filter(i=>i.user_id===cloud.profile?.id&&i.equipped);
   const worn=(kind:string)=>cloud.catalog.find(c=>c.kind===kind&&own.some(i=>i.catalog_id===c.id));
-  return {...local,name:cloud.profile.name??local.name,bio:cloud.profile.bio??local.bio,avatar:0,customAvatar:null,owned:[],following:[],roomMedia:{},dms:{},coins:cloud.profile.coins??local.coins,diamonds:cloud.profile.diamonds??local.diamonds,sid:cloud.profile.special_id,agentEnabled:cloud.roles.includes('host_agent'),bdEnabled:cloud.roles.includes('bd'),frame:worn('frame')?`cloud-${worn('frame')?.id}` as FrameKey:null,entry:worn('entry')?`cloud-${worn('entry')?.id}` as EntryKey:null,bubble:worn('bubble')?`cloud-${worn('bubble')?.id}` as BubbleKey:'none'};
+  return {...local,following:cloud.follows.filter(f=>f.follower_id===cloud.profile?.id).map(f=>f.following_id),name:cloud.profile.name??local.name,bio:cloud.profile.bio??local.bio,avatar:0,customAvatar:null,owned:[],following:[],roomMedia:{},dms:{},coins:cloud.profile.coins??local.coins,diamonds:cloud.profile.diamonds??local.diamonds,sid:cloud.profile.special_id,agentEnabled:cloud.roles.includes('host_agent'),bdEnabled:cloud.roles.includes('bd'),frame:worn('frame')?`cloud-${worn('frame')?.id}` as FrameKey:null,entry:worn('entry')?`cloud-${worn('entry')?.id}` as EntryKey:null,bubble:worn('bubble')?`cloud-${worn('bubble')?.id}` as BubbleKey:'none'};
 }
 
 export const MY_UID = "1031437";
@@ -112,7 +112,7 @@ export function meAsUser(p: Profile): User {
   const cloud = readCloud().profile;
   return {
     id: "me", uid: cloud ? String(cloud.uid) : MY_UID, name: cloud?.name ?? p.name, avatar: cloud?.avatar_url || cloud?.avatar || p.customAvatar || avatarAt(p.avatar), frame: (() => { const item=readCloud().equippedItems.find(i=>i.user_id===cloud?.id&&readCloud().catalog.some(c=>c.id===i.catalog_id&&c.kind==="frame"&&c.enabled)); return item ? ("cloud-"+item.catalog_id) as FrameKey : p.frame; })(), bubble: (() => { const item=readCloud().equippedItems.find(i=>i.user_id===cloud?.id&&readCloud().catalog.some(c=>c.id===i.catalog_id&&c.kind==="bubble"&&c.enabled)); return item ? ("cloud-"+item.catalog_id) as BubbleKey : p.bubble; })(), entry: (() => { const item=readCloud().equippedItems.find(i=>i.user_id===cloud?.id&&readCloud().catalog.some(c=>c.id===i.catalog_id&&c.kind==="entry"&&c.enabled)); return item ? ("cloud-"+item.catalog_id) as EntryKey : p.entry; })(), sid: cloud?.special_id ?? p.sid,
-    level: cloud?.level ?? 1, vip: cloud?.vip ?? 0, gender: p.gender, flag: p.flag, bio: cloud?.bio ?? p.bio, fans: 0, following: p.following.length, charm: cloud?.gift_value ?? giftsIn, wealth: cloud?.coins ?? p.coins, gifts: [],
+    level: cloud?.level ?? 1, vip: cloud?.vip ?? 0, gender: p.gender, flag: p.flag, bio: cloud?.bio ?? p.bio, fans: readCloud().follows.filter(f=>f.following_id===cloud?.id).length, following: readCloud().follows.filter(f=>f.follower_id===cloud?.id).length, charm: cloud?.gift_value ?? giftsIn, wealth: cloud?.coins ?? p.coins, gifts: [],
   };
 }
 
@@ -148,7 +148,7 @@ export function sendDm(uid: string, text: string) {
 export function findUser(id: string, p: Profile): User | undefined {
   const cloud=readCloud();
   const row=cloud.profiles.find(u=>u.id===id||String(u.uid)===id);
-  if(row){const own=cloud.equippedItems.filter(i=>i.user_id===row.id);const worn=(kind:string)=>cloud.catalog.find(c=>c.kind===kind&&c.enabled&&own.some(i=>i.catalog_id===c.id));return {id:row.id,uid:String(row.uid),name:row.name,avatar:row.avatar_url||row.avatar||avatarAt(0),frame:worn('frame')?`cloud-${worn('frame')?.id}` as FrameKey:null,entry:worn('entry')?`cloud-${worn('entry')?.id}` as EntryKey:null,bubble:worn('bubble')?`cloud-${worn('bubble')?.id}` as BubbleKey:'none',sid:row.special_id,level:row.level,vip:row.vip,gender:'m',flag:'',bio:row.bio,fans:0,following:0,charm:row.gift_value,wealth:row.coins,gifts:[]};}
+  if(row){const own=cloud.equippedItems.filter(i=>i.user_id===row.id);const worn=(kind:string)=>cloud.catalog.find(c=>c.kind===kind&&c.enabled&&own.some(i=>i.catalog_id===c.id));return {id:row.id,uid:String(row.uid),name:row.name,avatar:row.avatar_url||row.avatar||avatarAt(0),frame:worn('frame')?`cloud-${worn('frame')?.id}` as FrameKey:null,entry:worn('entry')?`cloud-${worn('entry')?.id}` as EntryKey:null,bubble:worn('bubble')?`cloud-${worn('bubble')?.id}` as BubbleKey:'none',sid:row.special_id,level:row.level,vip:row.vip,gender:'m',flag:'',bio:row.bio,fans:cloud.follows.filter(f=>f.following_id===row.id).length,following:cloud.follows.filter(f=>f.follower_id===row.id).length,charm:row.gift_value,wealth:row.coins,gifts:[]};}
   return id === "me" ? meAsUser(p) : undefined;
 }
 
