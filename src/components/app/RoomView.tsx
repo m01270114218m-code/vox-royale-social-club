@@ -702,7 +702,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
           })}
         </div>
 
-        {entry && <EntryShow key={entry.k} u={user(entry.uid)} />}
+        {entry && <div className="pointer-events-none fixed inset-x-0 bottom-[72px] z-[35] mx-auto w-full max-w-[440px]"><EntryShow key={entry.k} u={user(entry.uid)} /></div>}
 
         {/* chat tabs */}
         <div className="mt-3 flex items-center gap-5 px-4 text-[13.5px]">
