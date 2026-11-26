@@ -105,6 +105,15 @@ export function CloudBridge() {
   const { data } = useCloud();
   const queryClient = useQueryClient();
   useEffect(() => { if (data) { installCatalog(data.catalog); installRooms(data.roomList); publishCloud({ profile: data.profile, roles: data.roles, catalog: data.catalog, assets: data.assets.map(a => ({ asset_key: a.asset_key, url: a.url, mime: a.mime_type })), profiles: data.profiles, items: data.items, equippedItems: data.equippedItems, follows: data.follows }); } }, [data]);
+  // Keep a real server timestamp for app-wide online status, including users
+  // who are not currently inside a voice room.
+  useEffect(() => {
+    if (!data?.profile?.id) return;
+    const heartbeat = () => { void cloudAction("activity", { kind: "app" }).catch(error => console.warn("[cloud] app heartbeat failed:", error)); };
+    heartbeat();
+    const timer = window.setInterval(heartbeat, 30000);
+    return () => window.clearInterval(timer);
+  }, [data?.profile?.id]);
   useEffect(() => {
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     const refresh = () => {
