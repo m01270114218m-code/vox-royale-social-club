@@ -92,9 +92,37 @@ export function useCloud() {
   const auth = useAuth();
   return useQuery({ queryKey: ['cloud', auth?.userId ?? 'public'], queryFn: fetchCloud, staleTime: 10000, refetchInterval: 20000, retry: 1 });
 }
+const LIVE_APP_TABLES = [
+  "profiles", "app_catalog", "app_assets", "user_items", "user_roles", "app_settings",
+  "rooms", "room_controls", "agencies", "agency_hosts", "agency_members",
+  "app_notifications", "coin_ledger", "recharge_requests", "user_vips", "vip_packages",
+  "gift_transactions",
+] as const;
+
 export function CloudBridge() {
   const { data } = useCloud();
+  const queryClient = useQueryClient();
   useEffect(() => { if (data) { installCatalog(data.catalog); installRooms(data.roomList); publishCloud({ profile: data.profile, roles: data.roles, catalog: data.catalog, assets: data.assets.map(a => ({ asset_key: a.asset_key, url: a.url, mime: a.mime_type })), profiles: data.profiles, items: data.items }); } }, [data]);
+  useEffect(() => {
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => { void queryClient.invalidateQueries({ queryKey: ["cloud"] }); }, 250);
+    };
+    let channel = supabase.channel("sada-app-live-data");
+    for (const table of LIVE_APP_TABLES) {
+      channel = channel.on("postgres_changes", { event: "*", schema: "public", table }, refresh);
+    }
+    channel.subscribe((status) => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.warn("[cloud] live data subscription:", status);
+      }
+    });
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      void supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
   return null;
 }
 export function useCloudActions() {
