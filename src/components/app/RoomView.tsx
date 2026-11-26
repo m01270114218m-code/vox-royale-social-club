@@ -214,7 +214,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
       const uid = row.sender_id === cloud?.profile?.id ? "me" : row.sender_id;
       push({ kind: "chat", uid, t: row.body });
     };
-    void supabase.from("chat_messages").select("id,sender_id,body,message_type,deleted_at,created_at")
+    void (supabase as any).from("chat_messages").select("id,sender_id,body,message_type,deleted_at,created_at")
       .eq("room_id", roomDbId).is("deleted_at", null).order("created_at", { ascending: true }).limit(100)
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -248,7 +248,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
       setRoomSeatsLoaded(true);
     };
     const loadSeats = async () => {
-      const { data, error } = await supabase.from("room_seats").select("seat_number,user_id,seat_status").eq("room_id", roomDbId).order("seat_number");
+      const { data, error } = await (supabase as any).from("room_seats").select("seat_number,user_id,seat_status").eq("room_id", roomDbId).order("seat_number");
       if (cancelled) return;
       if (error) { console.warn("[room] seat state unavailable:", error.message); return; }
       applySeatRows(data ?? []);
@@ -356,7 +356,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     const t = text.trim();
     if (!t) return;
     if (!live || !roomDbId || !cloud?.profile?.id) { toast("الدردشة السحابية غير متاحة الآن"); return; }
-    void supabase.from("chat_messages").insert({
+    void (supabase as any).from("chat_messages").insert({
       room_id: roomDbId, sender_id: cloud.profile.id, message_type: "text", body: t,
     }).then(({ error }) => {
       if (error) toast(error.message || "تعذّر إرسال الرسالة");
