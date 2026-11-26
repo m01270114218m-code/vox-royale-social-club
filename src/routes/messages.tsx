@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronRight, MessageCircle, Send } from "lucide-react";
 import { IceHeader, Badge } from "@/components/app/AppShell";
 import { images, avatarAt, type User } from "@/components/app/data";
@@ -9,6 +9,7 @@ import megaphone from "@/assets/megaphone.png";
 import bell from "@/assets/bell.png";
 import gift from "@/assets/gift.png";
 import { useCloud } from '@/components/app/cloud';
+import { supabase } from '@/integrations/supabase/client';
 import { Coin } from '@/components/app/AppShell';
 import { Media } from '@/components/app/ui';
 import { INBOX_KINDS, inboxKind, inboxLabel, markRead, mine, unreadByKind, useInboxRead, type InboxKind } from '@/components/app/inbox';
@@ -36,8 +37,11 @@ function Messages() {
   const inbox = mine(data?.notifications ?? [], data?.profile?.id);
   const counts = unreadByKind(data?.notifications ?? [], data?.profile?.id, seen);
   const [draft, setDraft] = useState("");
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [remoteThread, setRemoteThread] = useState<Array<{ id: string; from: "me" | "them"; text: string; at: string }>>([]);
+  const seenDmIds = useRef<Set<string>>(new Set());
   const realUsers: User[] = (data?.profiles ?? []).filter(row => row.id !== data?.profile?.id).map(row => {
-    const owned = (data?.items ?? []).filter(item => item.user_id === row.id && item.equipped);
+    const owned = (data?.equippedItems ?? []).filter(item => item.user_id === row.id);
     const worn = (kind: string) => data?.catalog.find(item => item.kind === kind && owned.some(ownedItem => ownedItem.catalog_id === item.id));
     const frame = worn("frame");
     return {
@@ -53,12 +57,72 @@ function Messages() {
   const openChat = (uid: string) => void nav({ search: { chat: uid } });
   const closeChat = () => void nav({ search: {} });
 
+  useEffect(() => {
+    if (!activeUser || !data?.profile?.id) {
+      setConversationId(null);
+      setRemoteThread([]);
+      seenDmIds.current.clear();
+      return;
+    }
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    setConversationId(null);
+    setRemoteThread([]);
+    seenDmIds.current.clear();
+
+    const addMessage = (row: { id: string; sender_id: string; body: string | null; created_at: string; deleted_at?: string | null }) => {
+      if (!row.id || !row.body || row.deleted_at || seenDmIds.current.has(row.id)) return;
+      seenDmIds.current.add(row.id);
+      setRemoteThread(current => [...current, {
+        id: row.id,
+        from: row.sender_id === data.profile!.id ? "me" : "them",
+        text: row.body!,
+        at: new Date(row.created_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" }),
+      }].sort((a,b) => a.at.localeCompare(b.at)));
+    };
+
+    void (supabase as any).rpc("get_or_create_private_conversation", { p_other_user_id: activeUser.id })
+      .then(async ({ data: id, error }: { data: string | null; error: { message: string } | null }) => {
+        if (cancelled) return;
+        if (error || !id) {
+          console.warn("[messages] conversation unavailable:", error?.message);
+          return;
+        }
+        setConversationId(id);
+        channel = supabase.channel(`private-chat:${id}`)
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "private_messages", filter: `conversation_id=eq.${id}` }, payload => {
+            addMessage(payload.new as { id: string; sender_id: string; body: string | null; created_at: string; deleted_at?: string | null });
+          })
+          .subscribe();
+        const { data: rows, error: loadError } = await (supabase as any).from("private_messages")
+          .select("id,sender_id,body,created_at,deleted_at")
+          .eq("conversation_id", id).is("deleted_at", null).order("created_at", { ascending: true }).limit(200);
+        if (cancelled) return;
+        if (loadError) {
+          console.warn("[messages] history unavailable:", loadError.message);
+          return;
+        }
+        for (const row of rows ?? []) addMessage(row);
+      });
+    return () => {
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [activeUser?.id, data?.profile?.id]);
+
   if (activeUser) {
-    const thread = profile.dms[activeUser.id] ?? [];
+    const thread = remoteThread;
     const meU = meAsUser(profile);
-    const send = () => {
-      if (!draft.trim()) return;
-      sendDm(activeUser.id, draft);
+    const send = async () => {
+      const body = draft.trim();
+      if (!body || !conversationId || !data?.profile?.id) return;
+      const { error } = await (supabase as any).from("private_messages").insert({
+        conversation_id: conversationId, sender_id: data.profile.id, body, message_type: "text",
+      });
+      if (error) {
+        toast(error.message || "تعذّر إرسال الرسالة");
+        return;
+      }
       setDraft("");
     };
     return (
