@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronLeft, Copy, Settings, Pencil } from "lucide-react";
 import { toast } from "@/components/app/toast";
 import { Coin } from "@/components/app/AppShell";
-import { images, icons, gifts } from "@/components/app/data";
+import { images, icons, badgeArt } from "@/components/app/data";
 import { MY_UID, meAsUser, useProfile } from "@/components/app/profile";
 import { Avatar, GenderChip, LevelChip, SpecialId, VipChip, UserBadges, UserName } from "@/components/app/ui";
 import { useCloud } from '@/components/app/cloud';
@@ -72,7 +72,7 @@ function Me() {
         </div>
         <Link to="/vip" className="vip-card press relative flex items-center justify-between overflow-hidden rounded-2xl border border-ice px-4 py-3 shadow-lg">
           <div><p className="text-gold-grad text-[28px] font-black leading-none">VIP</p><p className="mt-1 text-[11px] text-primary-foreground/80">افتح VIP للاستمتاع بالامتيازات المميزة</p></div>
-          <img src={gifts[3]!.img} alt="" className="h-14 w-14 drop-shadow-lg" />
+          <img src={badgeArt.gift} alt="" className="h-14 w-14 drop-shadow-lg" />
         </Link>
         <div className="surface grid grid-cols-4 py-3">
           {grid.map((g) => <Link key={g.l} to={g.to} className="press flex flex-col items-center gap-1"><img src={g.i} alt="" className="h-10 w-10" /><span className="text-[12px] font-bold text-navy">{g.l}</span></Link>)}
