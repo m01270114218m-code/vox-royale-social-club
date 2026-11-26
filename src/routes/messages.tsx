@@ -40,6 +40,7 @@ function Messages() {
   const [draft, setDraft] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [remoteThread, setRemoteThread] = useState<Array<{ id: string; from: "me" | "them"; text: string; at: string; createdAt: string }>>([]);
+  const [privateThreads, setPrivateThreads] = useState<Record<string, { text: string; at: string; createdAt: string }>>({});
   const seenDmIds = useRef<Set<string>>(new Set());
   const realUsers: User[] = (data?.profiles ?? []).filter(row => row.id !== data?.profile?.id).map(row => {
     const owned = (data?.equippedItems ?? []).filter((item: { user_id: string; catalog_id: string }) => item.user_id === row.id);
@@ -53,6 +54,64 @@ function Messages() {
       charm: row.gift_value || 0, wealth: row.coins || 0, gifts: [],
     };
   });
+
+  useEffect(() => {
+    const myId = data?.profile?.id;
+    if (!myId || realUsers.length === 0) {
+      setPrivateThreads({});
+      return;
+    }
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    const loadThreads = async () => {
+      const { data: memberships, error: memberError } = await (supabase as any)
+        .from("private_conversation_members")
+        .select("conversation_id,user_id")
+        .eq("user_id", myId);
+      if (cancelled || memberError) return;
+      const conversationIds = (memberships ?? []).map((m: { conversation_id: string }) => m.conversation_id);
+      if (!conversationIds.length) {
+        setPrivateThreads({});
+        return;
+      }
+      const { data: members, error: membersError } = await (supabase as any)
+        .from("private_conversation_members")
+        .select("conversation_id,user_id")
+        .in("conversation_id", conversationIds);
+      if (cancelled || membersError) return;
+      const otherByConversation: Record<string, string> = {};
+      for (const member of members ?? []) {
+        if (member.user_id !== myId) otherByConversation[member.conversation_id] = member.user_id;
+      }
+      const { data: rows, error: messageError } = await (supabase as any)
+        .from("private_messages")
+        .select("conversation_id,body,created_at,deleted_at")
+        .in("conversation_id", conversationIds)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (cancelled || messageError) return;
+      const next: Record<string, { text: string; at: string; createdAt: string }> = {};
+      for (const row of rows ?? []) {
+        const userId = otherByConversation[row.conversation_id];
+        if (!userId || next[userId] || !row.body) continue;
+        next[userId] = {
+          text: row.body,
+          at: new Date(row.created_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" }),
+          createdAt: row.created_at,
+        };
+      }
+      setPrivateThreads(next);
+    };
+    void loadThreads();
+    channel = supabase.channel("private-messages-inbox")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "private_messages" }, () => { void loadThreads(); })
+      .subscribe();
+    return () => {
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [data?.profile?.id, realUsers.length]);
 
   const activeUser = chat ? realUsers.find((u) => u.id === chat) : undefined;
   const openChat = (uid: string) => void nav({ search: { chat: uid } });
@@ -178,7 +237,7 @@ function Messages() {
     );
   }
 
-  const dmUsers = realUsers.filter((u) => (profile.dms[u.id]?.length ?? 0) > 0);
+  const dmUsers = realUsers.filter((u) => !!privateThreads[u.id]).sort((a, b) => new Date(privateThreads[b.id]!.createdAt).getTime() - new Date(privateThreads[a.id]!.createdAt).getTime());
   return (
     <div>
       <IceHeader>
@@ -205,7 +264,7 @@ function Messages() {
               {dmUsers.length > 0 ? (
                 <div className="mt-6 space-y-2">
                   {dmUsers.map((u) => {
-                    const last = profile.dms[u.id]!.at(-1)!;
+                    const last = privateThreads[u.id]!;
                     return (
                       <button key={u.id} onClick={() => openChat(u.id)} className="room-card-pro press flex w-full items-center gap-3 p-2.5 text-start">
                         <Avatar img={u.avatar} frame={u.frame} size={50} className="m-1" />
