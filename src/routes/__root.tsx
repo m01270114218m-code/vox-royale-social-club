@@ -125,6 +125,29 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  useEffect(() => {
+    const block = (event: Event) => event.preventDefault();
+    const blockKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && ["c", "x", "a", "u", "s"].includes(event.key.toLowerCase())) {
+        event.preventDefault();
+      }
+    };
+    document.addEventListener("copy", block);
+    document.addEventListener("cut", block);
+    document.addEventListener("contextmenu", block);
+    document.addEventListener("selectstart", block);
+    document.addEventListener("dragstart", block);
+    document.addEventListener("keydown", blockKey);
+    return () => {
+      document.removeEventListener("copy", block);
+      document.removeEventListener("cut", block);
+      document.removeEventListener("contextmenu", block);
+      document.removeEventListener("selectstart", block);
+      document.removeEventListener("dragstart", block);
+      document.removeEventListener("keydown", blockKey);
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthBridge/><CloudBridge/>
