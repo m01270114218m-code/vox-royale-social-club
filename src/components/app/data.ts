@@ -211,13 +211,23 @@ export const bundledAssets:Record<string,string>={
   ...Object.fromEntries(Object.entries(entries).map(([key,value])=>[`bundled/entry/${key}`,value.img])),
   'bundled/bubble/gold':sBubbleGold,'bundled/bubble/ice':sBubbleIce,'bundled/seat/throne':sThrone,'bundled/seat/trophy':sTrophy,'bundled/sid':iId,
 };
-export function installCatalog(list: readonly {id:string;kind:string;name:string;url:string;price:number;enabled:boolean;description:string}[]) {
+export function installCatalog(list: readonly {id:string;kind:string;name:string;url:string;price:number;enabled:boolean;description:string;metadata?:Record<string, unknown>}[]) {
+  // The room/store UI is cloud-authoritative. Local bundled catalog entries are never
+  // promoted into the live catalog; only rows returned by Supabase can be displayed.
   for(const c of list.filter(c=>c.enabled&&c.url)) {
     const key=`cloud-${c.id}`;
     if(c.kind==='frame')Object.assign(frames,{[key]:{n:c.name,img:c.url,p:c.price}});
     if(c.kind==='entry')Object.assign(entries,{[key]:{n:c.name,img:c.url,p:c.price}});
     if(c.kind==='bubble')Object.assign(bubbles,{[key]:{n:c.name,img:c.url,p:c.price,cls:'bubble-ice'}});
   }
-  const custom=list.filter(c=>c.kind==='gift'&&c.enabled&&c.url).map(c=>({img:c.url,n:c.name,p:c.price,id:c.id}));
-  for(const tab of giftTabs)tab.list=tab.k==='lucky'?[]:custom.filter(g=>tab.k==='animated'?g.p>=1000:g.p<1000);
+  const custom=list.filter(c=>c.kind==='gift'&&c.enabled&&c.url).map(c=>{
+    const meta=(c.metadata ?? {}) as Record<string, unknown>;
+    return {img:c.url,n:c.name,p:c.price,id:c.id, mime:undefined, animated:meta.type==='animated', lucky:meta.type==='lucky', full:meta.full===true};
+  });
+  const staticGifts=custom.filter(g=>!g.lucky&&!g.animated);
+  const animatedGifts=custom.filter(g=>g.animated&&!g.lucky);
+  const lucky=custom.filter(g=>g.lucky);
+  for(const tab of giftTabs) {
+    tab.list = tab.k==='lucky' ? lucky : tab.k==='animated' ? animatedGifts : staticGifts;
+  }
 }
