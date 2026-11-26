@@ -675,7 +675,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
                     </span>
                   )}
                 </span>
-                <span className="relative z-[1] seat-name mt-3 flex max-w-[78px] items-center gap-0.5 text-[10.5px] font-bold">{speaking && <span className="eq shrink-0"><i /><i /><i /></span>}<span className="user-name">{u ? (s.uid === "me" ? "أنا" : u.name) : i === 0 ? "المضيف" : s.locked ? "مقفول" : `No.${i + 1}`}</span></span>
+                <span className="relative z-[1] seat-name mt-3 flex max-w-[78px] items-center gap-0.5 text-[10.5px] font-bold">{speaking && <span className="eq shrink-0"><i /><i /><i /></span>}<span className="user-name">{u ? u.name : i === 0 ? "المضيف" : s.locked ? "مقفول" : `No.${i + 1}`}</span></span>
                 <span className="flex items-center gap-0.5 rounded-full night-glass px-1.5 text-[9.5px] leading-4"><Heart className="h-2.5 w-2.5 fill-badge text-badge" />{hearts[i]!.toLocaleString("en")}</span>
               </button>
             );
