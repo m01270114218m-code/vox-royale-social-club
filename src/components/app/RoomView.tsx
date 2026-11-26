@@ -63,6 +63,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const [membershipReady, setMembershipReady] = useState(false);
   const [roomMemberIds, setRoomMemberIds] = useState<string[]>([]);
   const previousRoomMembers = useRef<Set<string>>(new Set());
+  const previousMembersRoomId = useRef<string | null>(null);
   const hasLoadedRoomMembers = useRef(false);
   const [follow, setFollow] = useState(false);
   const [tab, setTab] = useState(0);
@@ -202,6 +203,12 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   // Newly observed members trigger the same room-entry announcement/effect on every device.
   useEffect(() => {
     if (!live || !membershipReady) return;
+    if (previousMembersRoomId.current !== roomDbId) {
+      previousMembersRoomId.current = roomDbId ?? null;
+      previousRoomMembers.current = new Set();
+      hasLoadedRoomMembers.current = false;
+    }
+    if (roomMemberIds.length === 0) return;
     const ownId = cloud?.profile?.id;
     const current = new Set(roomMemberIds);
     const ids = roomMemberIds.map((uid) => uid === ownId ? "me" : uid);
@@ -219,7 +226,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
       }
     }
     previousRoomMembers.current = current;
-  }, [roomMemberIds, cloud?.profile?.id, live, membershipReady]);
+  }, [roomMemberIds, cloud?.profile?.id, live, membershipReady, roomDbId]);
 
   // mic activity time for the host center
   const micLive = membershipReady && micOn && mySeat >= 0 && !seats[mySeat]?.muted;
