@@ -48,11 +48,11 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+        <h1 className="text-xl font-black tracking-tight text-navy">
+          تعذّر فتح الصفحة
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          حدث خطأ مؤقت. حاول مرة أخرى أو ارجع للرئيسية.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -83,7 +83,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     // twitter:image here: every page without its own would inherit the root's preview image.
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
+      { name: "theme-color", content: "#07122d" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
       { title: "صدى شات - غرف دردشة صوتية" },
       { name: "description", content: "صدى شات: غرف دردشة صوتية عربية وهدايا وغرفتك الخاصة" },
       { name: "author", content: "صدى شات" },
