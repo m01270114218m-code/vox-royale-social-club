@@ -27,8 +27,6 @@ function Row({ icon, label, value, onClick, danger, right }: { icon: string; lab
   return onClick?<Button variant="ghost" onClick={onClick} className={`${cls} h-auto whitespace-normal py-3`}>{content}</Button>:<div className={cls}>{content}</div>;
 }
 
-const providers = [{ k: "google", n: "Google" }, { k: "facebook", n: "Facebook" }, { k: "phone", n: "رقم الهاتف" }] as const;
-
 function Settings() {
   const p = useProfile();
   const admin = canAdmin(useCloudState().roles);
