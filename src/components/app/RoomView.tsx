@@ -45,7 +45,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const roomCover = live ? room.img : roomOv?.cover || room.img;
   const roomBg = roomOv?.bg || images.room;
   const meU = findUser("me", profile)!;
-  const user = (uid: string): User => findUser(uid === "me" ? (cloud?.profile?.id ?? "me") : uid, profile) ?? meU;
+  const user = (uid: string): User => findUser(uid, profile) ?? meU;
 
   const myRole: Role = room.hostId === "me" ? "owner" : cloud?.roles.includes('admin')||cloud?.roles.includes('moderator') ? "admin" : "member";
   // rooms owned by real users have no simulated guests
@@ -238,7 +238,8 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
 
   useEffect(() => {
     if (!live || !roomDbId || !membershipReady || !cloud?.profile?.id) return;
-    const channel = supabase.channel(`room-activity:${roomDbId}`);
+    void supabase.realtime.setAuth();
+    const channel = supabase.channel(`room-activity:${roomDbId}`, { config: { private: true } });
     typingChannelRef.current = channel;
     channel.on("broadcast", { event: "typing" }, ({ payload }) => {
       const userId = String((payload as { user_id?: unknown })?.user_id ?? "");
