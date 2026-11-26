@@ -43,7 +43,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const roomOv = profile.roomMedia[id];
   const live = !!room.cloud;
   const roomCover = live ? room.img : roomOv?.cover || room.img;
-  const roomBg = roomOv?.bg || images.room;
+  const roomBg = live ? (room.bg || room.img || images.room) : (roomOv?.bg || images.room);
   const meU = findUser("me", profile)!;
   const user = (uid: string): User => findUser(uid, profile) ?? meU;
 
