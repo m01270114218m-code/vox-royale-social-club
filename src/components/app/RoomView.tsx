@@ -389,19 +389,23 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   useEffect(() => { chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" }); }, [msgs.length, tab]);
 
   const commitSeats = (makeNext: (current: SeatS[]) => SeatS[]) => {
+    if (live && !roomSeatsLoaded) { toast("جارٍ مزامنة المقاعد، حاول بعد لحظة"); return; }
     const next = makeNext(seats);
     setSeats(next);
-    if (!live || !roomDbId || !cloud?.profile?.id || !roomSeatsLoaded) return;
-    void Promise.all(next.map(async (seat, index) => {
-      const previous = seats[index];
-      if (previous && previous.uid === seat.uid && previous.locked === seat.locked && previous.muted === seat.muted && previous.micEnabled === seat.micEnabled) return;
-      const userId = seat.uid === "me" ? cloud.profile!.id : seat.uid;
-      const status = seat.locked && !userId ? "locked" : seat.muted && userId ? "muted" : userId ? "occupied" : "available";
-      const { error } = await (supabase as any).rpc("set_room_seat", {
-        p_room_id: roomDbId, p_seat_number: index, p_user_id: userId || null, p_seat_status: status,
-      });
-      if (error) toast(error.message || "تعذّر مزامنة المقعد");
-    }));
+    if (!live || !roomDbId || !cloud?.profile?.id) return;
+    const changes = next.map((seat, index) => ({ seat, index, previous: seats[index] }))
+      .filter(({ seat, previous }) => !previous || previous.uid !== seat.uid || previous.locked !== seat.locked || previous.muted !== seat.muted || previous.micEnabled !== seat.micEnabled)
+      .sort((a, b) => Number(Boolean(a.seat.uid)) - Number(Boolean(b.seat.uid)));
+    void (async () => {
+      for (const { seat, index } of changes) {
+        const userId = seat.uid === "me" ? cloud.profile!.id : seat.uid;
+        const status = seat.locked && !userId ? "locked" : seat.muted && userId ? "muted" : userId ? "occupied" : "available";
+        const { error } = await (supabase as any).rpc("set_room_seat", {
+          p_room_id: roomDbId, p_seat_number: index, p_user_id: userId || null, p_seat_status: status,
+        });
+        if (error) { toast(error.message || "تعذّر مزامنة المقعد"); break; }
+      }
+    })();
   };
   const setSeat = (i: number, patch: Partial<SeatS>) => commitSeats((a) => a.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const sitAt = (i: number, uid: string) => commitSeats((a) => a.map((s, j) => (j === i ? { ...s, uid, muted: false, micEnabled: false } : s.uid === uid ? { ...s, uid: null, muted: false, micEnabled: false } : s)));
