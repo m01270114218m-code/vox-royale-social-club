@@ -39,7 +39,7 @@ function Rankings() {
   const me = meAsUser(profile);
   const { data } = useCloud();
   const realUsers: User[] = (data?.profiles ?? []).filter(row => row.id !== data?.profile?.id).map(row => {
-    const owned = (data?.items ?? []).filter(item => item.user_id === row.id && item.equipped);
+    const owned = (data?.equippedItems ?? []).filter(item => item.user_id === row.id);
     const worn = (kind: string) => data?.catalog.find(item => item.kind === kind && owned.some(ownedItem => ownedItem.catalog_id === item.id));
     const frame = worn("frame"), entry = worn("entry"), bubble = worn("bubble");
     return {
