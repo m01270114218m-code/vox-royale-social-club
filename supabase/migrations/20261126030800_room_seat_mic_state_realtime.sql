@@ -60,3 +60,33 @@ $$;
 revoke all on function public.set_room_seat_mic(uuid, boolean) from public, anon;
 grant execute on function public.set_room_seat_mic(uuid, boolean) to authenticated;
 revoke all on function public.normalize_room_seat_mic_state() from public, anon, authenticated;
+
+drop policy if exists room_members_can_receive_typing_broadcast on realtime.messages;
+create policy room_members_can_receive_typing_broadcast
+on realtime.messages
+for select
+to authenticated
+using (
+  extension = 'broadcast'
+  and exists (
+    select 1
+    from public.room_members rm
+    where rm.user_id = (select auth.uid())
+      and rm.room_id = split_part(realtime.topic(), ':', 2)::uuid
+  )
+);
+
+drop policy if exists room_members_can_send_typing_broadcast on realtime.messages;
+create policy room_members_can_send_typing_broadcast
+on realtime.messages
+for insert
+to authenticated
+with check (
+  extension = 'broadcast'
+  and exists (
+    select 1
+    from public.room_members rm
+    where rm.user_id = (select auth.uid())
+      and rm.room_id = split_part(realtime.topic(), ':', 2)::uuid
+  )
+);
