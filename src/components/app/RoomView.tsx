@@ -85,7 +85,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const [text, setText] = useState("");
   const [typingUids, setTypingUids] = useState<Set<string>>(() => new Set());
   const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const typingTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const typingTimers = useRef<Map<string, number>>(new Map());
   const lastTypingBroadcast = useRef(0);
   const [emo, setEmo] = useState<Record<string, { k: number; img: string }>>({});
   const [entry, setEntry] = useState<{ k: number; uid: string } | null>(null);
@@ -246,7 +246,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
       const active = (payload as { typing?: unknown })?.typing === true;
       if (!userId || userId === cloud.profile?.id || !roomMemberIds.includes(userId)) return;
       const existing = typingTimers.current.get(userId);
-      if (existing) clearTimeout(existing);
+      if (existing) window.clearTimeout(existing);
       if (active) {
         setTypingUids(current => new Set(current).add(userId));
         typingTimers.current.set(userId, window.setTimeout(() => {
@@ -262,7 +262,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     return () => {
       void channel.send({ type: "broadcast", event: "typing", payload: { user_id: cloud.profile?.id, typing: false } });
       typingChannelRef.current = null;
-      for (const timer of typingTimers.current.values()) clearTimeout(timer);
+      for (const timer of typingTimers.current.values()) window.clearTimeout(timer);
       typingTimers.current.clear();
       setTypingUids(new Set());
       void supabase.removeChannel(channel);
@@ -299,7 +299,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     if (!live || !roomDbId || !membershipReady) { setRoomSeatsLoaded(false); return; }
     let cancelled = false;
     const applySeatRows = (rows: Array<{ seat_number: number; user_id: string | null; seat_status: string; mic_enabled?: boolean }>) => {
-      const next: SeatS[] = Array.from({ length: 8 }, () => ({ uid: null, locked: false, muted: false }));
+      const next: SeatS[] = Array.from({ length: 8 }, () => ({ uid: null, locked: false, muted: false, micEnabled: false }));
       for (const row of rows) {
         if (row.seat_number < 0 || row.seat_number > 7) continue;
         const uid = row.user_id === cloud?.profile?.id ? "me" : row.user_id;
@@ -388,7 +388,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     }));
   };
   const setSeat = (i: number, patch: Partial<SeatS>) => commitSeats((a) => a.map((s, j) => (j === i ? { ...s, ...patch } : s)));
-  const sitAt = (i: number, uid: string) => commitSeats((a) => a.map((s, j) => (j === i ? { ...s, uid, muted: false } : s.uid === uid ? { ...s, uid: null, muted: false } : s)));
+  const sitAt = (i: number, uid: string) => commitSeats((a) => a.map((s, j) => (j === i ? { ...s, uid, muted: false, micEnabled: false } : s.uid === uid ? { ...s, uid: null, muted: false, micEnabled: false } : s)));
   const leaveMic = (uid: string) => commitSeats((a) => a.map((s, j) => (s.uid === uid && j !== 0 ? { ...s, uid: null, muted: false, micEnabled: false } : s)));
 
   const toggleMyMic = async (enabled: boolean) => {
