@@ -43,7 +43,10 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const live = !!room.cloud;
   const roomCover = live ? room.img : roomOv?.cover || room.img;
   const roomBg = live ? (room.bg || room.img || images.room) : (roomOv?.bg || images.room);
-  const meU = findUser("me", profile);
+  const meU: User = findUser("me", profile) ?? {
+    id: "", uid: "", name: "", avatar: "", frame: null, bubble: "none", entry: null, sid: null,
+    level: 1, vip: 0, gender: "m", flag: "", bio: "", fans: 0, following: 0, charm: 0, wealth: 0, gifts: [],
+  };
   const user = (uid: string): User => findUser(uid, profile) ?? meU ?? {
     id: uid, uid, name: "مستخدم", avatar: "", frame: null, bubble: "none", entry: null, sid: null,
     level: 1, vip: 0, gender: "m", flag: "", bio: "", fans: 0, following: 0, charm: 0, wealth: 0, gifts: [],
