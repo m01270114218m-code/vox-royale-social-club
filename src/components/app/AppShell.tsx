@@ -109,7 +109,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         else if (step === "back") router.history.back();
         else if (step === "home") void nav({ to: "/", replace: true });
         else if (step === "exit-hint") { last = Date.now(); toast("اضغط رجوع مرة أخرى للخروج"); }
-        else void App.exitApp();
+        else void CapacitorApp.exitApp();
       });
       if (dead) void handle.remove(); else remove = () => void handle.remove();
     })().catch(() => {});
