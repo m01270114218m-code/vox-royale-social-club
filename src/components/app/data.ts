@@ -25,6 +25,14 @@ import cParis from "@/assets/covers/paris.webp";
 
 
 
+import gRose from "@/assets/gifts/rose.webp";
+import gDiamond from "@/assets/gifts/diamond.webp";
+import gCrown from "@/assets/gifts/crown.webp";
+import gFalcon from "@/assets/gifts/falcon.webp";
+import gCastle from "@/assets/gifts/castle.webp";
+import gRocket from "@/assets/gifts/rocket.webp";
+import gChoco from "@/assets/gifts/chocolate.webp";
+import gRing from "@/assets/gifts/ring.webp";
 import iWallet from "@/assets/icons/wallet.webp";
 import iHost from "@/assets/icons/host.webp";
 import iTask from "@/assets/icons/task.webp";
