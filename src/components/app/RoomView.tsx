@@ -32,7 +32,7 @@ const nid = () => ++mid;
 export function RoomView({ id, minimized }: { id: string; minimized: boolean }) {
   const {data:cloud}=useCloud();
   const cloudAct=useCloudActions();
-  const room = roomById(id) ?? cloud?.roomList.find((r) => r.id === id) ?? {
+  const room = cloud?.roomList.find((r) => r.id === id) ?? roomById(id) ?? {
     id, name: "غرفة صوتية", flag: "", vip: 0, online: 0,
     img: images.room, host: cloud?.profile?.avatar_url || cloud?.profile?.avatar || "", hostId: cloud?.profile?.id || "me",
     badges: [], tag: "غرفة", notice: "", cloud: true,
