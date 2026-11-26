@@ -72,7 +72,11 @@ using (
     select 1
     from public.room_members rm
     where rm.user_id = (select auth.uid())
-      and rm.room_id = split_part(realtime.topic(), ':', 2)::uuid
+      and rm.room_id = case
+        when realtime.topic() ~ '^room-activity:[0-9a-fA-F-]{36}$'
+        then split_part(realtime.topic(), ':', 2)::uuid
+        else null
+      end
   )
 );
 
@@ -87,6 +91,10 @@ with check (
     select 1
     from public.room_members rm
     where rm.user_id = (select auth.uid())
-      and rm.room_id = split_part(realtime.topic(), ':', 2)::uuid
+      and rm.room_id = case
+        when realtime.topic() ~ '^room-activity:[0-9a-fA-F-]{36}$'
+        then split_part(realtime.topic(), ':', 2)::uuid
+        else null
+      end
   )
 );
