@@ -67,13 +67,13 @@ export async function fetchCloud() {
     if (result?.error) console.warn(`[cloud] ${name} query failed:`, result.error.message);
   }
   const now = Date.now();
-  let url = (path: string) => bundledAssets[path] ?? signed.get(path)?.url ?? '';
+  let url = (path: string) => signed.get(path)?.url ?? '';
   try {
     url = await signMany((assets.data ?? []).map(a => a.path));
   } catch (error) {
-    console.warn('[cloud] asset signing unavailable; using bundled fallbacks:', error);
+    console.warn('[cloud] asset signing unavailable:', error);
   }
-  const art = (assets.data ?? []).map(a => ({ ...a, url: url(a.path) }));
+  const art = (assets.data ?? []).map(a => ({ ...a, url: url(a.path) })).filter(a => !!a.url);
   const ownRoles = (roles.data ?? []).filter(r => r.user_id === id).map(r => r.role);
   const isAdmin = ownRoles.includes('admin');
   const list: CatalogItem[] = (catalog.data ?? []).filter(c => isAdmin || stillValid(c.publish_until, now)).map(c => { const a = art.find(x => x.id === c.asset_id); return { ...c, url: a?.url ?? '', mime: a?.mime ?? '' }; });
