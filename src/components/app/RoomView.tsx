@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Power, Mic, MicOff, Smile, LayoutGrid, Mail, Send, Heart, Share2, Plus, Check, Lock, Users, Trash2, Volume2, VolumeX, Pencil, UserPlus, MessageCircle, Gift as GiftIcon, AtSign, Minimize2, X, Music2, Image as ImageIcon } from "lucide-react";
 import { toast } from "./toast";
 import { Coin } from "./AppShell";
@@ -69,6 +69,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const [gTab, setGTab] = useState<GiftTab>("static");
   const [gSel, setGSel] = useState(0);
   const [qty, setQty] = useState(1);
+  const [giftSending, setGiftSending] = useState(false);
   const [giftTo, setGiftTo] = useState<string>(room.hostId);
   const [bigGift, setBigGift] = useState<{ k: number; g: ShopGift } | null>(null);
   const [luckyWin, setLuckyWin] = useState<{ k: number; x: number; win: number } | null>(null);
@@ -262,51 +263,100 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     showEmoji("me", img);
   };
 
-  const cloudGifts: ShopGift[] = cloudState.catalog.filter((c) => c.kind === "gift" && c.enabled && c.url).map((c) => { const m = (c.metadata ?? {}) as Record<string, unknown>; const type = String(m["type"] ?? "static"); const audioKey = typeof m["audio_asset_key"] === "string" ? m["audio_asset_key"] : ""; const soundUrl = cloudState.assets.find(a => a.asset_key === audioKey)?.url; return { id: c.id, img: c.url, n: c.name, p: c.price, mime: c.mime ?? "", lucky: type === "lucky", animated: type === "animated", full: m["full"] === true, ...(soundUrl ? { soundUrl } : {}) }; });
+  const cloudGifts: ShopGift[] = useMemo(() => cloudState.catalog
+    .filter((c) => c.kind === "gift" && c.enabled && c.url)
+    .map((c) => {
+      const m = (c.metadata ?? {}) as Record<string, unknown>;
+      const type = String(m["type"] ?? "static");
+      const audioKey = typeof m["audio_asset_key"] === "string" ? m["audio_asset_key"] : "";
+      const soundUrl = cloudState.assets.find(a => a.asset_key === audioKey)?.url;
+      return { id: c.id, img: c.url, n: c.name, p: c.price, mime: c.mime ?? "", lucky: type === "lucky", animated: type === "animated", full: m["full"] === true, ...(soundUrl ? { soundUrl } : {}) };
+    }), [cloudState.catalog, cloudState.assets]);
   const list = cloudGifts.filter((g) => (gTab === "lucky" ? g.lucky : gTab === "animated" ? g.animated : !g.lucky && !g.animated));
+
+  // The database event is the single source of truth for gift visuals. Every
+  // member in the room (sender, receiver and listeners) sees the same gift.
+  useEffect(() => {
+    if (!live || !roomDbId || !membershipReady) return;
+    const channel = supabase.channel(`room-gifts:${roomDbId}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "room_gift_events",
+        filter: `room_id=eq.${roomDbId}`,
+      }, (payload) => {
+        const event = payload.new as {
+          id: string; sender_id: string; receiver_id: string; catalog_id: string;
+          gift_name: string; quantity: number; total_price: number;
+          lucky_multiplier: number; lucky_win: number;
+        };
+        const gift = cloudGifts.find((item) => item.id === event.catalog_id);
+        if (!gift) {
+          void qc.invalidateQueries({ queryKey: ["cloud"] });
+          return;
+        }
+        const senderId = event.sender_id === cloud?.profile?.id ? "me" : event.sender_id;
+        const receiverId = event.receiver_id === cloud?.profile?.id ? "me" : event.receiver_id;
+        const sender = user(senderId);
+        const receiver = user(receiverId);
+        const amount = Number(event.quantity) || 1;
+        const seatIndex = seats.findIndex((seat) => seat.uid === receiverId);
+        if (seatIndex >= 0) setHearts((values) => values.map((value, index) => index === seatIndex ? value + Number(event.total_price) : value));
+        push({ kind: "gift", uid: senderId, t: `أرسل ${gift.n} ×${amount} إلى ${receiver.name}`, gift: gift.img });
+        if (gift.soundUrl) {
+          const audio = new Audio(gift.soundUrl);
+          audio.volume = 0.9;
+          void audio.play().catch(() => undefined);
+        }
+        const root = roomRef.current?.getBoundingClientRect();
+        const seatEl = roomRef.current?.querySelector<HTMLElement>(`[data-seat-uid="${receiverId}"]`)?.getBoundingClientRect();
+        const dx = root && seatEl ? seatEl.left + seatEl.width / 2 - (root.left + root.width / 2) : 0;
+        const dy = root && seatEl ? seatEl.top + seatEl.height / 2 - (root.top + root.height * 0.42) : -200;
+        setFly({ k: Date.now(), img: gift.img, dx, dy });
+        window.setTimeout(() => setFly(null), 2600);
+        if (gift.full || gift.mime?.startsWith("video")) {
+          setBigGift({ k: Date.now(), g: gift });
+          window.setTimeout(() => setBigGift(null), 4200);
+        }
+        if (gift.lucky) {
+          const x = Number(event.lucky_multiplier) || 0;
+          const win = Number(event.lucky_win) || 0;
+          setLuckyWin({ k: Date.now(), x, win });
+          window.setTimeout(() => setLuckyWin(null), 3000);
+          if (x > 0) push({ kind: "lucky", uid: senderId, t: `ربح ×${x} من ${gift.n} (+${win.toLocaleString("en")} عملة)`, gift: gift.img });
+          if (x >= LUCKY_BANNER_MIN_X) enqueueBanner({ kind: "lucky", from: sender, to: receiver, gift, qty: amount, x });
+        } else if (gift.animated || Number(event.total_price) >= LUXURY_BANNER_MIN) {
+          enqueueBanner({ kind: "luxury", from: sender, to: receiver, gift, qty: amount });
+        }
+        if (senderId === "me") void qc.invalidateQueries({ queryKey: ["cloud"] });
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [live, roomDbId, membershipReady, cloudGifts, cloud?.profile?.id, qc]);
+
   const sendGift = async (g: ShopGift & {id?:string}) => {
-    const cost = g.p * qty;
-    if(!g.id){toast('اختر هدية منشورة من الإدارة ومستخدمًا حقيقيًا');return;}
-    let res: { x?: number; win?: number } = {};
+    if (giftSending) return;
+    if (!g.id) { toast("الهدية غير متاحة حاليًا"); return; }
+    const recipient = user(giftTo);
+    if (!roomDbId || !recipient.id || recipient.id === cloud?.profile?.id) {
+      toast("اختر مستخدمًا موجودًا فعليًا في الغرفة");
+      return;
+    }
+    setGiftSending(true);
     try {
-      const recipient = user(giftTo);
-      if (!roomDbId || !recipient.id || recipient.id === cloud?.profile?.id) {
-        throw new Error("اختر مستخدمًا موجودًا فعليًا في الغرفة");
-      }
-      const { data, error } = await (supabase as any).rpc('send_catalog_gift', {
+      const { error } = await (supabase as any).rpc("send_catalog_gift", {
         p_catalog_id: g.id,
         p_receiver_id: recipient.id,
         p_room_id: roomDbId,
         p_quantity: qty,
       });
       if (error) throw new Error(error.message);
-      const giftResult = (data ?? {}) as unknown as { x?: number; win?: number };
-      res = giftResult;
-      void qc.invalidateQueries({ queryKey: ['cloud'] });
-    }
-    catch (e) { toast(e instanceof Error ? e.message : 'تعذّر الإرسال'); return; }
-    const si = seats.findIndex((s) => s.uid === giftTo);
-    if (si >= 0) setHearts((h) => h.map((v, i) => (i === si ? v + cost : v)));
-    if (g.soundUrl) { const audio = new Audio(g.soundUrl); audio.volume = 0.9; void audio.play().catch(() => undefined); }
-    push({ kind: "gift", uid: "me", t: `أرسل ${g.n} ×${qty} إلى ${user(giftTo).name}`, gift: g.img });
-    setSheet(null);
-    const root = roomRef.current?.getBoundingClientRect();
-    const seatEl = roomRef.current?.querySelector<HTMLElement>(`[data-seat-uid="${giftTo}"]`)?.getBoundingClientRect();
-    const dx = root && seatEl ? seatEl.left + seatEl.width / 2 - (root.left + root.width / 2) : 0;
-    const dy = root && seatEl ? seatEl.top + seatEl.height / 2 - (root.top + root.height * 0.42) : -200;
-    setFly({ k: Date.now(), img: g.img, dx, dy });
-    setTimeout(() => setFly(null), 2600);
-    if (g.full || g.mime?.startsWith("video")) { setBigGift({ k: Date.now(), g }); setTimeout(() => setBigGift(null), 4200); }
-    if (g.lucky) {
-      const x = res.x ?? 0; const win = res.win ?? 0;
-      setLuckyWin({ k: Date.now(), x, win });
-      setTimeout(() => setLuckyWin(null), 2400);
-      if (x > 0) {
-        push({ kind: "lucky", uid: "me", t: `ربح ×${x} من ${g.n} (+${win.toLocaleString("en")} عملة)`, gift: g.img });
-        if (x >= LUCKY_BANNER_MIN_X) enqueueBanner({ kind: "lucky", from: meU, to: user(giftTo), gift: g, qty, x });
-      }
-    } else if (g.animated || cost >= LUXURY_BANNER_MIN) {
-      enqueueBanner({ kind: "luxury", from: meU, to: user(giftTo), gift: g, qty });
+      setSheet(null);
+      void qc.invalidateQueries({ queryKey: ["cloud"] });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "تعذّر إرسال الهدية");
+    } finally {
+      setGiftSending(false);
     }
   };
 
@@ -642,8 +692,8 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
           <div className="no-scrollbar flex flex-1 gap-1 overflow-x-auto">
             {QTYS.map((q) => <button key={q} onClick={() => setQty(q)} className={`h-7 shrink-0 rounded-full px-2.5 text-[11.5px] font-bold ${qty === q ? "gold-bg text-navy" : "border border-night-foreground/20"}`}>×{q}</button>)}
           </div>
-          <button onClick={() => list[gSel] && sendGift(list[gSel]!)} className="press flex h-9 shrink-0 items-center gap-1.5 rounded-full gold-bg px-4 text-[13px] font-black text-navy shadow-lg">
-            <span>إرسال</span>
+          <button disabled={giftSending || !giftTargets.length || !list[gSel]} onClick={() => list[gSel] && void sendGift(list[gSel]!)} className="press flex h-9 shrink-0 items-center gap-1.5 rounded-full gold-bg px-4 text-[13px] font-black text-navy shadow-lg disabled:opacity-50">
+            <span>{giftSending ? "جارٍ الإرسال..." : "إرسال"}</span>
             {list[gSel] && <span className="rounded-full bg-navy/15 px-1.5 py-0.5 text-[10.5px]">{(list[gSel]!.p * qty).toLocaleString("en")}</span>}
           </button>
         </div>
