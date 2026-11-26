@@ -216,7 +216,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     };
     void (supabase as any).from("chat_messages").select("id,sender_id,body,message_type,deleted_at,created_at")
       .eq("room_id", roomDbId).is("deleted_at", null).order("created_at", { ascending: true }).limit(100)
-      .then(({ data, error }) => {
+      .then(({ data, error }: { data: Array<{ id: string; sender_id: string; body: string | null; message_type: string; deleted_at: string | null; created_at: string }> | null; error: { message: string } | null }) => {
         if (cancelled) return;
         if (error) { console.warn("[room] chat history unavailable:", error.message); return; }
         for (const row of data ?? []) addRemoteMessage(row);
@@ -252,7 +252,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
       if (cancelled) return;
       if (error) { console.warn("[room] seat state unavailable:", error.message); return; }
       applySeatRows(data ?? []);
-      if (room.ownerId === cloud?.profile?.id && !(data ?? []).some(row => row.seat_number === 0 && row.user_id === cloud?.profile?.id)) {
+      if (room.ownerId === cloud?.profile?.id && !(data ?? []).some((row: { seat_number: number; user_id: string | null }) => row.seat_number === 0 && row.user_id === cloud?.profile?.id)) {
         const { error: seatError } = await (supabase as any).rpc("set_room_seat", {
           p_room_id: roomDbId, p_seat_number: 0, p_user_id: cloud?.profile?.id, p_seat_status: "occupied",
         });
@@ -358,7 +358,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     if (!live || !roomDbId || !cloud?.profile?.id) { toast("الدردشة السحابية غير متاحة الآن"); return; }
     void (supabase as any).from("chat_messages").insert({
       room_id: roomDbId, sender_id: cloud.profile.id, message_type: "text", body: t,
-    }).then(({ error }) => {
+    }).then(({ error }: { error: { message: string } | null }) => {
       if (error) toast(error.message || "تعذّر إرسال الرسالة");
       else setText("");
     });
