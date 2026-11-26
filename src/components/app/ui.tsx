@@ -22,9 +22,10 @@ export function Avatar({ img, frame, size, className = "", ring = "" }: { img: s
 }
 
 /** Detect how an uploaded asset should be shown. */
-export function mediaKind(src:string,mime?:string|null):'video'|'audio'|'svga'|'image'|'file'{
+export function mediaKind(src:string,mime?:string|null):'video'|'audio'|'svga'|'pdf'|'image'|'file'{
   const m=(mime??'').toLowerCase(); const ext=(src.split('?')[0]?.split('.').at(-1)??'').toLowerCase();
   if(m.includes('svga')||ext==='svga')return 'svga';
+  if(m.includes('pdf')||ext==='pdf')return 'pdf';
   if(m.startsWith('video')||['mp4','webm','mov','m4v','ogv'].includes(ext))return 'video';
   if(m.startsWith('audio')||['mp3','wav','ogg','m4a','aac','flac','opus'].includes(ext))return 'audio';
   if(m.startsWith('image')||['png','jpg','jpeg','gif','webp','svg','avif','apng','bmp'].includes(ext)||src.startsWith('data:image'))return 'image';
@@ -57,7 +58,8 @@ export function Media({src,mime,alt='',className='',controls=false,loop=true,onE
   if(!src)return null;
   const k=mediaKind(src,mime);
   if(k==='svga')return <Svga src={src} className={className} loop={loop} onEnded={onEnded}/>;
-  if(k==='video')return <video src={src} className={`object-contain ${className}`} autoPlay muted={!controls} loop={loop} playsInline controls={controls} onEnded={onEnded}/>;
+  if(k==='pdf')return <iframe src={src} title={alt || 'PDF'} className={`h-full min-h-24 w-full border-0 ${className}`} loading="lazy" />;
+  if(k==='video')return <video src={src} className={`object-contain ${className}`} autoPlay muted={!controls} loop={loop} playsInline controls={controls} preload="auto" onEnded={onEnded}/>;
   if(k==='audio')return controls?<audio src={src} controls className={`w-full ${className}`} onEnded={onEnded}/>:<span className={`grid place-items-center rounded-xl bg-primary/10 text-primary ${className}`}><svg viewBox="0 0 24 24" className="h-1/2 w-1/2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>;
   if(k==='file')return <span className={`grid place-items-center rounded-xl bg-muted text-[10px] font-bold text-muted-foreground ${className}`} dir="ltr">{(src.split('?')[0]?.split('.').at(-1)??'file').toUpperCase()}</span>;
   return <img src={src} alt={alt} className={`object-contain ${className}`} onError={(e) => { if (e.currentTarget.dataset['fallback'] !== "1") { e.currentTarget.dataset['fallback'] = "1"; e.currentTarget.src = images.mascot; } }} />;
