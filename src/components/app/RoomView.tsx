@@ -686,7 +686,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
                   )}
                   {u && s.muted && <span className="mic-badge mic-badge-muted absolute z-[30] -bottom-0.5 left-0 grid h-[18px] w-[18px] place-items-center rounded-full"><MicOff className="h-2.5 w-2.5" strokeWidth={3} /></span>}
                   {u && !s.muted && myMicOff && <span className="mic-badge absolute z-[30] -bottom-0.5 left-0 grid h-[18px] w-[18px] place-items-center rounded-full"><MicOff className="h-2.5 w-2.5" strokeWidth={3} /></span>}
-                  {u && !s.muted && s.micEnabled && <span className="mic-badge absolute z-[30] -bottom-0.5 left-0 grid h-[18px] w-[18px] place-items-center rounded-full bg-emerald-500 text-white"><Mic className="h-2.5 w-2.5" strokeWidth={3} /></span>}
+                  {u && !s.muted && s.micEnabled && <span className="mic-badge absolute z-[30] -bottom-0.5 left-0 grid h-[18px] w-[18px] place-items-center rounded-full !bg-emerald-500 !text-white"><Mic className="h-2.5 w-2.5" strokeWidth={3} /></span>}
                   {u && s.uid && <span className="absolute -bottom-0.5 right-0"><RoleBadge role={roleOf(s.uid)} className="h-4 w-4" /></span>}
                   {e && <img key={e.k} src={e.img} alt="" className="emoji-pop pointer-events-none absolute z-20 h-12 w-12" />}
                   {isTyping && !e && (
