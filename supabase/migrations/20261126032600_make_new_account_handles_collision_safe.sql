@@ -36,3 +36,5 @@ begin
   return new;
 end;
 $function$;
+
+revoke all on function public.handle_new_user() from public, anon, authenticated;
