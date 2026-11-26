@@ -303,7 +303,23 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
         for (const row of data ?? []) addRemoteMessage(row);
       });
     const channel = supabase.channel(`room-chat:${roomDbId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: `room_id=eq.${roomDbId}` }, (payload) => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "chat_messages", filter: `room_id=eq.${roomDbId}` }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          const deletedId = String((payload.old as { id?: unknown })?.id ?? "");
+          if (deletedId) {
+            seenChatIds.current.delete(deletedId);
+            setMsgs(current => current.filter(m => m.kind !== "chat" || m.id !== deletedId));
+          }
+          return;
+        }
+        if (payload.eventType === "UPDATE") {
+          const row = payload.new as { id: string; sender_id: string; body: string | null; message_type: string; deleted_at?: string | null };
+          if (row.deleted_at) {
+            seenChatIds.current.delete(row.id);
+            setMsgs(current => current.filter(m => m.kind !== "chat" || m.id !== row.id));
+          }
+          return;
+        }
         addRemoteMessage(payload.new as { id: string; sender_id: string; body: string | null; message_type: string; deleted_at?: string | null });
       })
       .subscribe();
@@ -622,7 +638,16 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     { n: "الرسائل", i: Mail, ok: true, f: () => { setSheet(null); setExitMenu(false); void nav({ to: "/messages", replace: true }); } },
     { n: "مشاركة", i: Share2, ok: true, f: () => { setSheet(null); toast("تم نسخ رابط الغرفة"); } },
     { n: "تعديل الغرفة", i: Pencil, ok: can(myRole, "editRoom"), f: () => setSheet({ kind: "edit" }) },
-    { n: "مسح الدردشة", i: Trash2, ok: can(myRole, "clearChat"), f: () => { setMsgs((m) => m.filter((x) => x.kind === "notice")); setSheet(null); toast("تم مسح الدردشة"); } },
+    { n: "مسح الدردشة", i: Trash2, ok: can(myRole, "clearChat"), f: () => {
+      if (!live || !roomDbId) { toast("الدردشة السحابية غير متاحة الآن"); return; }
+      void (supabase as any).rpc("clear_room_chat", { p_room_id: roomDbId }).then(({ error }: { error: { message: string } | null }) => {
+        if (error) { toast(error.message || "تعذّر مسح الدردشة"); return; }
+        setMsgs((m) => m.filter((x) => x.kind === "notice"));
+        seenChatIds.current.clear();
+        setSheet(null);
+        toast("تم مسح الدردشة للجميع");
+      });
+    } },
     { n: "قفل المقاعد", i: Lock, ok: can(myRole, "lockSeat"), f: () => { commitSeats((a) => a.map((s, i) => (i && !s.uid ? { ...s, locked: true } : s))); setSheet(null); toast("تم قفل كل المقاعد الفارغة"); } },
     { n: "فتح المقاعد", i: UserPlus, ok: can(myRole, "lockSeat"), f: () => { commitSeats((a) => a.map((s) => ({ ...s, locked: false }))); setSheet(null); toast("تم فتح المقاعد"); } },
     { n: "كتم الجميع", i: VolumeX, ok: can(myRole, "muteAll"), f: () => { commitSeats((a) => a.map((s) => (s.uid && s.uid !== "me" ? { ...s, muted: true } : s))); setSheet(null); sys("قام المالك بكتم جميع المايكات"); } },
