@@ -82,7 +82,7 @@ export async function fetchCloud() {
   const profile = own.data ? liveVip(own.data) : null;
   const roomList: Room[] = (userRooms.data ?? []).map(r => {
     const owner = r.owner_id === id ? profile : people.find(p => p.id === r.owner_id);
-    return { id: String(r.room_uid), dbId: r.id, name: r.name, flag: '', vip: owner?.vip ?? 0, online: 0, img: r.cover || owner?.avatar || roomCover, host: owner?.avatar || avatarAt(0), hostId: r.owner_id === id ? 'me' : r.owner_id, badges: [], tag: 'غرفة', notice: r.notice, cloud: true, ownerId: r.owner_id };
+    return { id: String(r.room_uid), dbId: r.id, name: r.title?.trim() || r.name?.trim() || 'غرفة صوتية', flag: '', vip: owner?.vip ?? 0, online: 0, img: r.cover_url || r.cover || owner?.avatar || roomCover, host: owner?.avatar || avatarAt(0), hostId: r.owner_id === id ? 'me' : r.owner_id, badges: [], tag: 'غرفة', notice: r.notice, cloud: true, ownerId: r.owner_id };
   });
   const myRoom = roomList.find(r => r.ownerId === id) ?? null;
   // install before returning so the first render with this data already resolves rooms and art
