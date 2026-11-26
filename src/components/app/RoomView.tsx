@@ -433,6 +433,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   }, [mySeat, seats, micOn]);
 
   const tapSeat = (i: number) => {
+    if (live && !roomSeatsLoaded) { toast("جارٍ مزامنة المقاعد، حاول بعد لحظة"); return; }
     const s = seats[i]!;
     if (s.uid && s.uid !== "me") { setSheet({ kind: "user", uid: s.uid }); return; }
     if (s.uid === "me" || can(myRole, "lockSeat")) { setSheet({ kind: "seat", i }); return; }
