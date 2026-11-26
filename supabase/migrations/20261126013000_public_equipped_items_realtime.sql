@@ -45,3 +45,38 @@ after insert or update or delete on public.user_items
 for each row execute function public.bump_profile_for_item_change();
 
 revoke all on function public.bump_profile_for_item_change() from public, anon, authenticated;
+
+-- Create a shared one-to-one conversation for the authenticated user and target.
+-- Membership rows are inserted server-side so clients cannot add arbitrary participants.
+create or replace function public.get_or_create_private_conversation(p_other_user_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  actor uuid := auth.uid();
+  conversation uuid;
+begin
+  if actor is null then raise exception 'سجل الدخول أولاً'; end if;
+  if p_other_user_id is null or p_other_user_id = actor then raise exception 'اختر مستخدمًا آخر'; end if;
+  if not exists(select 1 from public.profiles where id = p_other_user_id and not banned) then
+    raise exception 'الحساب غير موجود أو غير متاح';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended(least(actor::text,p_other_user_id::text)||':'||greatest(actor::text,p_other_user_id::text),0));
+  select mine.conversation_id into conversation
+  from public.private_conversation_members mine
+  join public.private_conversation_members other_member on other_member.conversation_id = mine.conversation_id
+  where mine.user_id = actor and other_member.user_id = p_other_user_id
+    and (select count(*) from public.private_conversation_members m where m.conversation_id = mine.conversation_id) = 2
+  limit 1;
+  if conversation is null then
+    insert into public.private_conversations default values returning id into conversation;
+    insert into public.private_conversation_members(conversation_id,user_id)
+    values (conversation,actor),(conversation,p_other_user_id);
+  end if;
+  return conversation;
+end;
+$$;
+revoke all on function public.get_or_create_private_conversation(uuid) from public, anon;
+grant execute on function public.get_or_create_private_conversation(uuid) to authenticated;
