@@ -134,14 +134,14 @@ function RootComponent() {
     };
     document.addEventListener("copy", block);
     document.addEventListener("cut", block);
-    document.addEventListener("contextmenu", block);
+    document.addEventListener("contextmenu", block, { capture: true });
     document.addEventListener("selectstart", block);
     document.addEventListener("dragstart", block);
     document.addEventListener("keydown", blockKey);
     return () => {
       document.removeEventListener("copy", block);
       document.removeEventListener("cut", block);
-      document.removeEventListener("contextmenu", block);
+      document.removeEventListener("contextmenu", block, { capture: true });
       document.removeEventListener("selectstart", block);
       document.removeEventListener("dragstart", block);
       document.removeEventListener("keydown", blockKey);
