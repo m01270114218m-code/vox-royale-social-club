@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { readCloud, useCloudState } from "./cloud-state";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useCloud, useCloudActions, cloudAction } from './cloud';
+import { useCloud, cloudAction } from './cloud';
 import { ChatText } from './ChatText';
 import { RoomMusic } from './RoomMusic';
 import { useAgoraRoom } from './voice';
@@ -31,7 +31,6 @@ const nid = () => ++mid;
 
 export function RoomView({ id, minimized }: { id: string; minimized: boolean }) {
   const {data:cloud}=useCloud();
-  const cloudAct=useCloudActions();
   const room = cloud?.roomList.find((r) => r.id === id) ?? roomById(id) ?? {
     id, name: "غرفة صوتية", flag: "", vip: 0, online: 0,
     img: images.room, host: cloud?.profile?.avatar_url || cloud?.profile?.avatar || "", hostId: cloud?.profile?.id || "me",
@@ -814,14 +813,15 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
           hasCustomBg={Boolean(roomOv?.bg)}
           onSave={async (n, t, cover, bg) => {
             try {
-              setRoomName(n);
               if (live) {
                 const uploadedCover = cover ? await uploadImageDataUrl(cover, "room-covers") : null;
                 const uploadedBackground = bg ? await uploadImageDataUrl(bg, "room-backgrounds") : null;
                 const { error } = await (supabase as any).rpc("save_room_settings", { p_name: n, p_notice: t, p_cover_url: uploadedCover, p_background_url: uploadedBackground });
                 if (error) throw new Error(error.message || "تعذّر حفظ إعدادات الغرفة");
+                setRoomName(n);
                 await qc.invalidateQueries({ queryKey: ["cloud"] });
               } else {
+                setRoomName(n);
                 setRoomMedia(id, { name: n, notice: t, cover, bg });
               }
               setMsgs((m) => m.map((x) => (x.kind === "notice" ? { ...x, t } : x)));
