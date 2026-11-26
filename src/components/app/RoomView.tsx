@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { Power, Mic, MicOff, Smile, LayoutGrid, Mail, Send, Heart, Share2, Plus, Check, Lock, Users, Trash2, Volume2, VolumeX, Pencil, UserPlus, MessageCircle, Gift as GiftIcon, AtSign, Minimize2, X, Music2, Image as ImageIcon } from "lucide-react";
 import { toast } from "./toast";
 import { Coin } from "./AppShell";
-import { images, entries, bubbles, emojis, giftTabs, LUXURY_BANNER_MIN, type GiftTab, type ShopGift, type User } from "./data";
+import { images, ui, entries, bubbles, emojis, giftTabs, LUXURY_BANNER_MIN, type GiftTab, type ShopGift, type User } from "./data";
 import { readImageFile, uploadImageDataUrl } from "./imageUpload";
 import { addStat, findUser, setProfile, setRoomMedia, spendCoins, toggleFollow, useProfile } from "./profile";
 import { can, roleLabel, type Role } from "./permissions";
