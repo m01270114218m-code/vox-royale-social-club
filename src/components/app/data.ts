@@ -15,16 +15,16 @@ import cDesert from "@/assets/covers/desert.webp";
 import cEagle from "@/assets/covers/eagle.webp";
 import cCafe from "@/assets/covers/cafe.webp";
 import cParis from "@/assets/covers/paris.webp";
-import gRose from "@/assets/gifts/rose.webp";
-import gDiamond from "@/assets/gifts/diamond.webp";
-import gCrown from "@/assets/gifts/crown.webp";
-import gFalcon from "@/assets/gifts/falcon.webp";
-import gCastle from "@/assets/gifts/castle.webp";
-import gRocket from "@/assets/gifts/rocket.webp";
-import gChoco from "@/assets/gifts/chocolate.webp";
-import gRing from "@/assets/gifts/ring.webp";
-import gFalconFlight from "@/assets/gifts/falcon_flight.mp4.asset.json";
-import gIceCastle from "@/assets/gifts/ice_castle.mp4.asset.json";
+
+
+
+
+
+
+
+
+
+
 import iWallet from "@/assets/icons/wallet.webp";
 import iHost from "@/assets/icons/host.webp";
 import iTask from "@/assets/icons/task.webp";
@@ -136,11 +136,7 @@ export const users: User[] = [];
 
 
 export type Gift = { img: string; n: string; p: number };
-export const gifts: Gift[] = [
-  { img: gRose, n: "وردة", p: 1 }, { img: gChoco, n: "شوكولا", p: 10 }, { img: gDiamond, n: "ألماسة", p: 99 },
-  { img: gCrown, n: "تاج", p: 520 }, { img: gFalcon, n: "صقر", p: 999 }, { img: gRing, n: "خاتم", p: 1314 },
-  { img: gCastle, n: "قصر جليد", p: 5000 }, { img: gRocket, n: "صاروخ", p: 9999 },
-];
+export const gifts: Gift[] = [];
 
 export type StoreKind = "frame" | "entry" | "bubble" | "sid" | "seat";
 export type StoreItem = { key: string; kind: StoreKind; img: string; n: string; p: number; days: number };
@@ -184,19 +180,11 @@ export const loginMedia = { video: (import.meta.env["VITE_LOGIN_VIDEO"] as strin
 /* ---------- gift categories ---------- */
 export type GiftTab = "static" | "animated" | "lucky";
 export type ShopGift = Gift & { lucky?: boolean; id?: string; animated?: boolean; full?: boolean; mime?: string; soundUrl?: string; bannerStyle?: "glass"|"luxury"|"minimal"|"neon" };
-export const luckyGifts: ShopGift[] = [
-  { img: gRose, n: "وردة الحظ", p: 10, lucky: true },
-  { img: gChoco, n: "حلوى الحظ", p: 50, lucky: true },
-  { img: gDiamond, n: "ألماسة الحظ", p: 100, lucky: true },
-  { img: gCrown, n: "تاج الحظ", p: 500, lucky: true },
-];
+export const luckyGifts: ShopGift[] = [];
 /** Total value (price × quantity) at which a gift is broadcast as a luxury banner across rooms. */
 export const LUXURY_BANNER_MIN = 5000;
 /** Special animated video gifts (falcon flight, ice castle) shown fullscreen when sent. */
-export const videoGifts: ShopGift[] = [
-  { img: gFalconFlight.url, n: "صقر المجد", p: 1999, animated: true, full: true, mime: "video/mp4" },
-  { img: gIceCastle.url, n: "قلعة الجليد", p: 9999, animated: true, full: true, mime: "video/mp4" },
-];
+export const videoGifts: ShopGift[] = [];
 export const giftTabs: { k: GiftTab; n: string; list: ShopGift[] }[] = [
   { k: "static", n: "ثابتة", list: gifts.filter((g) => g.p < 1000) },
   { k: "animated", n: "فاخرة", list: [...gifts.filter((g) => g.p >= 1000), ...videoGifts] },
@@ -206,7 +194,7 @@ export const giftTabs: { k: GiftTab; n: string; list: ShopGift[] }[] = [
 /* ---------- badges ---------- */
 export const badgeArt = { vip: iBadge, level: iLevel, owner: rOwner, admin: rAdmin, fan: rFan, member: rMember, host: iHost, wealth: uWealth, charm: uCharm, id: iId, gift: gCrown, rocket: gRocket, castle: gCastle, task: iTask };
 export const bundledAssets:Record<string,string>={
-  'bundled/gift/rose':gRose,'bundled/gift/chocolate':gChoco,'bundled/gift/diamond':gDiamond,'bundled/gift/crown':gCrown,'bundled/gift/falcon':gFalcon,'bundled/gift/ring':gRing,'bundled/gift/castle':gCastle,'bundled/gift/rocket':gRocket,'bundled/emoji/heart':emHeart,'bundled/emoji/kiss':emKiss,'bundled/emoji/fire':emFire,'bundled/emoji/party':emParty,'bundled/emoji/rose':emRose,
+  'bundled/emoji/heart':emHeart,'bundled/emoji/kiss':emKiss,'bundled/emoji/fire':emFire,'bundled/emoji/party':emParty,'bundled/emoji/rose':emRose,
   ...Object.fromEntries(Object.entries(frames).map(([key,value])=>[`bundled/frame/${key}`,value.img])),
   ...Object.fromEntries(Object.entries(entries).map(([key,value])=>[`bundled/entry/${key}`,value.img])),
   'bundled/bubble/gold':sBubbleGold,'bundled/bubble/ice':sBubbleIce,'bundled/seat/throne':sThrone,'bundled/seat/trophy':sTrophy,'bundled/sid':iId,
@@ -222,7 +210,7 @@ export function installCatalog(list: readonly {id:string;kind:string;name:string
   }
   const custom=list.filter(c=>c.kind==='gift'&&c.enabled&&c.url).map(c=>{
     const meta=(c.metadata && typeof c.metadata === "object" && !Array.isArray(c.metadata) ? c.metadata : {}) as Record<string, unknown>;
-    return {img:c.url,n:c.name,p:c.price,id:c.id, animated:meta['type']==='animated', lucky:meta['type']==='lucky', full:meta['full']===true, bannerStyle: (meta.banner_style==="luxury"||meta.banner_style==="minimal"||meta.banner_style==="neon"||meta.banner_style==="glass") ? meta.banner_style : "luxury"};
+    return {img:c.url,n:c.name,p:c.price,id:c.id, animated:meta['type']==='animated', lucky:meta['type']==='lucky', full:meta['full']===true, bannerStyle: (meta["banner_style"]==="luxury"||meta["banner_style"]==="minimal"||meta["banner_style"]==="neon"||meta["banner_style"]==="glass") ? meta["banner_style"] as "luxury"|"minimal"|"neon"|"glass" : "luxury"};
   });
   const staticGifts=custom.filter(g=>!g.lucky&&!g.animated);
   const animatedGifts=custom.filter(g=>g.animated&&!g.lucky);
