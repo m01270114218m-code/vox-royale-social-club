@@ -134,7 +134,7 @@ function Messages() {
           <span className="relative"><Avatar img={activeUser.avatar} frame={activeUser.frame} size={38} className="m-1.5" /><span className="absolute bottom-1 left-1 h-2.5 w-2.5 rounded-full border-2 border-background bg-primary" /></span>
           <div className="min-w-0 flex-1">
             <p className="user-name text-[14.5px] font-black text-navy">{activeUser.name}</p><div className="flex items-center gap-1"><LevelChip level={activeUser.level} /><VipChip vip={activeUser.vip} /></div>
-            <div className="mt-0.5 flex items-center gap-1.5"><SpecialId uid={activeUser.uid} sid={activeUser.sid} /><span className="text-[10.5px] font-bold text-primary">متصل الآن</span></div>
+            <div className="mt-0.5 flex items-center gap-1.5"><SpecialId uid={activeUser.uid} sid={activeUser.sid} /><span className="text-[10.5px] font-bold text-primary">{Date.now() - new Date(data?.profiles.find(row => row.id === activeUser.id)?.last_app_at || 0).getTime() < 90000 ? "متصل الآن" : "غير متصل"}</span></div>
           </div>
         </div>
         <div className="flex-1 space-y-2.5 px-3.5 py-4">
