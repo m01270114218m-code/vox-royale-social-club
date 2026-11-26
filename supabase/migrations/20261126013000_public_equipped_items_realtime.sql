@@ -1,7 +1,7 @@
 -- Expose only equipped, enabled cosmetics across accounts.
 -- Private inventory remains restricted to its owner.
 create or replace view public.public_equipped_items
-with (security_barrier = true, security_invoker = false)
+with (security_barrier = true, security_invoker = true)
 as
 select ui.id, ui.user_id, ui.catalog_id, ui.equipped, ui.expires_at
 from public.user_items ui
@@ -11,6 +11,15 @@ where ui.equipped = true
   and (ui.expires_at is null or ui.expires_at > now());
 
 grant select on public.public_equipped_items to authenticated;
+
+-- Only currently equipped, unexpired items are visible across accounts.
+-- The private inventory remains owner/admin-only.
+drop policy if exists user_items_public_equipped_read on public.user_items;
+create policy user_items_public_equipped_read
+on public.user_items
+for select
+to authenticated
+using (equipped = true and (expires_at is null or expires_at > now()));
 
 -- Make cosmetic equip/unequip changes invalidate the shared profile stream.
 create or replace function public.bump_profile_for_item_change()
@@ -34,3 +43,5 @@ drop trigger if exists user_items_bump_profile_realtime on public.user_items;
 create trigger user_items_bump_profile_realtime
 after insert or update or delete on public.user_items
 for each row execute function public.bump_profile_for_item_change();
+
+revoke all on function public.bump_profile_for_item_change() from public, anon, authenticated;
