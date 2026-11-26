@@ -4,7 +4,7 @@ import { Copy, Plus, Check, MessageCircle, Gift as GiftIcon, Pencil } from "luci
 import { toast } from "@/components/app/toast";
 import { SubHeader } from "@/components/app/AppShell";
 import { images, gifts, frames, entries, bubbles } from "@/components/app/data";
-import { findUser, toggleFollow, useProfile } from "@/components/app/profile";
+import { findUser, useProfile } from "@/components/app/profile";
 import { Avatar, GenderChip, LevelChip, SpecialId, VipChip, UserBadges, UserName } from "@/components/app/ui";
 import { useCloud } from '@/components/app/cloud';
 import { supabase } from '@/integrations/supabase/client';
