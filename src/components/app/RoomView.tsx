@@ -20,14 +20,14 @@ import { ChatText } from './ChatText';
 import { RoomMusic } from './RoomMusic';
 import { useAgoraRoom } from './voice';
 
-type Msg = { id: number; kind: "chat" | "sys" | "gift" | "notice" | "lucky"; uid?: string; t: string; gift?: string };
+type Msg = { id: string; kind: "chat" | "sys" | "gift" | "notice" | "lucky"; uid?: string; t: string; gift?: string };
 type SeatS = { uid: string | null; locked: boolean; muted: boolean; micEnabled: boolean };
 type Sheets = { kind: "user"; uid: string } | { kind: "seat"; i: number } | { kind: "menu" } | { kind: "members" } | { kind: "edit" } | { kind: "gift" } | { kind: "emoji" } | {kind:'music'} | null;
 type Banner = { k: number; kind: "luxury" | "lucky"; from: User; to: User; gift: ShopGift; qty: number; room?: string; x?: number };
 
 const QTYS = [1, 10, 66, 99, 520];
 let mid = 1;
-const nid = () => ++mid;
+const nid = () => String(++mid);
 
 export function RoomView({ id, minimized }: { id: string; minimized: boolean }) {
   const {data:cloud}=useCloud();
@@ -950,7 +950,7 @@ function GiftBanner({ b }: { b: Banner }) {
   const style = b.gift.bannerStyle ?? "luxury";
   return (
     <div className="pointer-events-none absolute inset-x-0 top-[84px] z-30 h-[120px]">
-      {big && <div className="coin-rain absolute inset-x-0 -top-[84px] h-[60vh] overflow-hidden">{Array.from({ length: 14 }, (_, i) => <img key={i} src={ui.coin} alt="" style={{ left: `${(i * 37) % 100}%`, animationDelay: `${(i % 7) * 0.22}s` }} />)}</div>}
+      {big && <div className="coin-rain absolute inset-x-0 -top-[84px] h-[60vh] overflow-hidden">{Array.from({ length: 14 }, (_: undefined, i: number) => <img key={i} src={ui.coin} alt="" style={{ left: `${(i * 37) % 100}%`, animationDelay: `${(i % 7) * 0.22}s` }} />)}</div>}
       <div className={`gift-banner gb gb-${tier} gb-style-${style} relative mx-auto mt-3 h-[64px] w-[344px]`}>
         <span className="gb-wing gb-wing-r" /><span className="gb-wing gb-wing-l" />
         <div className="gb-frame absolute inset-0 rounded-[20px] p-[2px]">
