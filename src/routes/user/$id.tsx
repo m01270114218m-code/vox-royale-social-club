@@ -22,7 +22,7 @@ function UserPage() {
   const u = findUser(id, p);
   if (!u) return <div><SubHeader title="الملف الشخصي" /><p className="p-6 text-center text-muted-foreground">المستخدم غير موجود</p></div>;
   const self = id === "me";
-  const following = (data?.follows ?? []).some(f => f.follower_id === data?.profile?.id && f.following_id === u.id);
+  const following = (data?.follows ?? []).some((f: { follower_id: string; following_id: string }) => f.follower_id === data?.profile?.id && f.following_id === u.id);
   const cloudItem = (value: string | null, kind: string) => value?.startsWith("cloud-") ? data?.catalog.find(item => item.id === value.slice(6) && item.kind === kind && item.enabled) : undefined;
   const cloudFrame = cloudItem(u.frame, "frame"), cloudEntry = cloudItem(u.entry, "entry"), cloudBubble = cloudItem(u.bubble, "bubble");
   const items = [
