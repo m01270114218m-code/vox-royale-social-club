@@ -62,6 +62,8 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const [micOn, setMicOn] = useState(false);
   const [membershipReady, setMembershipReady] = useState(false);
   const [roomMemberIds, setRoomMemberIds] = useState<string[]>([]);
+  const [roomSeatsLoaded, setRoomSeatsLoaded] = useState(false);
+  const seenChatIds = useRef<Set<string>>(new Set());
   const previousRoomMembers = useRef<Set<string>>(new Set());
   const previousMembersRoomId = useRef<string | null>(null);
   const hasLoadedRoomMembers = useRef(false);
@@ -111,7 +113,6 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     setEntry({ k: Date.now(), uid: next });
     clearTimeout(entryTimer.current); entryTimer.current = setTimeout(playEntry, 4500);
   };
-  const skipEntry = () => { clearTimeout(entryTimer.current); playEntry(); };
   const enqueueEntry = (uid: string) => { entryQ.current.push(uid); if (!entryBusy.current) playEntry(); };
 
   // gift banner queue (luxury + lucky), shown one after another
@@ -195,9 +196,75 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
       setRoomMemberIds((data ?? []).map((row: { user_id: unknown }) => String(row.user_id)));
     };
     void loadMembers();
-    const timer = window.setInterval(() => { void loadMembers(); }, 3000);
-    return () => { cancelled = true; window.clearInterval(timer); };
+    const channel = supabase.channel(`room-members:${roomDbId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_members", filter: `room_id=eq.${roomDbId}` }, () => { void loadMembers(); })
+      .subscribe();
+    const timer = window.setInterval(() => { void loadMembers(); }, 15000);
+    return () => { cancelled = true; window.clearInterval(timer); void supabase.removeChannel(channel); };
   }, [live, roomDbId, membershipReady]);
+
+
+  // Restore chat history and receive every new room message through Supabase Realtime.
+  useEffect(() => {
+    if (!live || !roomDbId || !membershipReady) return;
+    let cancelled = false;
+    const addRemoteMessage = (row: { id: string; sender_id: string; body: string | null; message_type: string; deleted_at?: string | null }) => {
+      if (!row.id || seenChatIds.current.has(row.id) || row.deleted_at || row.message_type !== "text" || !row.body) return;
+      seenChatIds.current.add(row.id);
+      const uid = row.sender_id === cloud?.profile?.id ? "me" : row.sender_id;
+      push({ kind: "chat", uid, t: row.body });
+    };
+    void supabase.from("chat_messages").select("id,sender_id,body,message_type,deleted_at,created_at")
+      .eq("room_id", roomDbId).is("deleted_at", null).order("created_at", { ascending: true }).limit(100)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) { console.warn("[room] chat history unavailable:", error.message); return; }
+        for (const row of data ?? []) addRemoteMessage(row);
+      });
+    const channel = supabase.channel(`room-chat:${roomDbId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: `room_id=eq.${roomDbId}` }, (payload) => {
+        addRemoteMessage(payload.new as { id: string; sender_id: string; body: string | null; message_type: string; deleted_at?: string | null });
+      })
+      .subscribe();
+    return () => { cancelled = true; void supabase.removeChannel(channel); };
+  }, [live, roomDbId, membershipReady, cloud?.profile?.id]);
+
+  // The room_seats table is authoritative; changes made on one device are reflected on every other device.
+  useEffect(() => {
+    if (!live || !roomDbId || !membershipReady) { setRoomSeatsLoaded(false); return; }
+    let cancelled = false;
+    const applySeatRows = (rows: Array<{ seat_number: number; user_id: string | null; seat_status: string }>) => {
+      const next: SeatS[] = Array.from({ length: 8 }, () => ({ uid: null, locked: false, muted: false }));
+      for (const row of rows) {
+        if (row.seat_number < 0 || row.seat_number > 7) continue;
+        const uid = row.user_id === cloud?.profile?.id ? "me" : row.user_id;
+        next[row.seat_number] = {
+          uid,
+          locked: row.seat_status === "locked",
+          muted: row.seat_status === "muted",
+        };
+      }
+      setSeats(next);
+      setRoomSeatsLoaded(true);
+    };
+    const loadSeats = async () => {
+      const { data, error } = await supabase.from("room_seats").select("seat_number,user_id,seat_status").eq("room_id", roomDbId).order("seat_number");
+      if (cancelled) return;
+      if (error) { console.warn("[room] seat state unavailable:", error.message); return; }
+      applySeatRows(data ?? []);
+      if (room.ownerId === cloud?.profile?.id && !(data ?? []).some(row => row.seat_number === 0 && row.user_id === cloud?.profile?.id)) {
+        const { error: seatError } = await supabase.rpc("set_room_seat", {
+          p_room_id: roomDbId, p_seat_number: 0, p_user_id: cloud?.profile?.id, p_seat_status: "occupied",
+        });
+        if (seatError) console.warn("[room] host seat initialization failed:", seatError.message);
+      }
+    };
+    void loadSeats();
+    const channel = supabase.channel(`room-seats:${roomDbId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_seats", filter: `room_id=eq.${roomDbId}` }, () => { void loadSeats(); })
+      .subscribe();
+    return () => { cancelled = true; setRoomSeatsLoaded(false); void supabase.removeChannel(channel); };
+  }, [live, roomDbId, membershipReady, cloud?.profile?.id, room.ownerId]);
 
   // All clients derive the room roster from the same room_members rows.
   // Newly observed members trigger the same room-entry announcement/effect on every device.
@@ -208,7 +275,6 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
       previousRoomMembers.current = new Set();
       hasLoadedRoomMembers.current = false;
     }
-    if (roomMemberIds.length === 0) return;
     const ownId = cloud?.profile?.id;
     const current = new Set(roomMemberIds);
     const ids = roomMemberIds.map((uid) => uid === ownId ? "me" : uid);
@@ -240,9 +306,24 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
 
   useEffect(() => { chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" }); }, [msgs.length, tab]);
 
-  const setSeat = (i: number, patch: Partial<SeatS>) => setSeats((a) => a.map((s, j) => (j === i ? { ...s, ...patch } : s)));
-  const sitAt = (i: number, uid: string) => setSeats((a) => a.map((s, j) => (j === i ? { ...s, uid, muted: false } : s.uid === uid ? { ...s, uid: null, muted: false } : s)));
-  const leaveMic = (uid: string) => setSeats((a) => a.map((s, j) => (s.uid === uid && j !== 0 ? { ...s, uid: null, muted: false } : s)));
+  const commitSeats = (makeNext: (current: SeatS[]) => SeatS[]) => {
+    const next = makeNext(seats);
+    setSeats(next);
+    if (!live || !roomDbId || !cloud?.profile?.id || !roomSeatsLoaded) return;
+    void Promise.all(next.map(async (seat, index) => {
+      const previous = seats[index];
+      if (previous && previous.uid === seat.uid && previous.locked === seat.locked && previous.muted === seat.muted) return;
+      const userId = seat.uid === "me" ? cloud.profile!.id : seat.uid;
+      const status = seat.locked && !userId ? "locked" : seat.muted && userId ? "muted" : userId ? "occupied" : "available";
+      const { error } = await supabase.rpc("set_room_seat", {
+        p_room_id: roomDbId, p_seat_number: index, p_user_id: userId || null, p_seat_status: status,
+      });
+      if (error) toast(error.message || "تعذّر مزامنة المقعد");
+    }));
+  };
+  const setSeat = (i: number, patch: Partial<SeatS>) => commitSeats((a) => a.map((s, j) => (j === i ? { ...s, ...patch } : s)));
+  const sitAt = (i: number, uid: string) => commitSeats((a) => a.map((s, j) => (j === i ? { ...s, uid, muted: false } : s.uid === uid ? { ...s, uid: null, muted: false } : s)));
+  const leaveMic = (uid: string) => commitSeats((a) => a.map((s, j) => (s.uid === uid && j !== 0 ? { ...s, uid: null, muted: false } : s)));
 
   const tapSeat = (i: number) => {
     const s = seats[i]!;
@@ -274,8 +355,13 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const send = () => {
     const t = text.trim();
     if (!t) return;
-    push({ kind: "chat", uid: "me", t });
-    setText("");
+    if (!live || !roomDbId || !cloud?.profile?.id) { toast("الدردشة السحابية غير متاحة الآن"); return; }
+    void supabase.from("chat_messages").insert({
+      room_id: roomDbId, sender_id: cloud.profile.id, message_type: "text", body: t,
+    }).then(({ error }) => {
+      if (error) toast(error.message || "تعذّر إرسال الرسالة");
+      else setText("");
+    });
   };
 
   const sendEmoji = (img: string) => {
@@ -415,10 +501,10 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     { n: "مشاركة", i: Share2, ok: true, f: () => { setSheet(null); toast("تم نسخ رابط الغرفة"); } },
     { n: "تعديل الغرفة", i: Pencil, ok: can(myRole, "editRoom"), f: () => setSheet({ kind: "edit" }) },
     { n: "مسح الدردشة", i: Trash2, ok: can(myRole, "clearChat"), f: () => { setMsgs((m) => m.filter((x) => x.kind === "notice")); setSheet(null); toast("تم مسح الدردشة"); } },
-    { n: "قفل المقاعد", i: Lock, ok: can(myRole, "lockSeat"), f: () => { setSeats((a) => a.map((s, i) => (i && !s.uid ? { ...s, locked: true } : s))); setSheet(null); toast("تم قفل كل المقاعد الفارغة"); } },
-    { n: "فتح المقاعد", i: UserPlus, ok: can(myRole, "lockSeat"), f: () => { setSeats((a) => a.map((s) => ({ ...s, locked: false }))); setSheet(null); toast("تم فتح كل المقاعد"); } },
-    { n: "كتم الجميع", i: VolumeX, ok: can(myRole, "muteAll"), f: () => { setSeats((a) => a.map((s) => (s.uid && s.uid !== "me" ? { ...s, muted: true } : s))); setSheet(null); sys("قام المالك بكتم جميع المايكات"); } },
-    { n: "إلغاء الكتم", i: Volume2, ok: can(myRole, "muteAll"), f: () => { setSeats((a) => a.map((s) => ({ ...s, muted: false }))); setSheet(null); sys("تم إلغاء كتم الجميع"); } },
+    { n: "قفل المقاعد", i: Lock, ok: can(myRole, "lockSeat"), f: () => { commitSeats((a) => a.map((s, i) => (i && !s.uid ? { ...s, locked: true } : s))); setSheet(null); toast("تم قفل كل المقاعد الفارغة"); } },
+    { n: "فتح المقاعد", i: UserPlus, ok: can(myRole, "lockSeat"), f: () => { commitSeats((a) => a.map((s) => ({ ...s, locked: false }))); setSheet(null); toast("تم فتح المقاعد"); } },
+    { n: "كتم الجميع", i: VolumeX, ok: can(myRole, "muteAll"), f: () => { commitSeats((a) => a.map((s) => (s.uid && s.uid !== "me" ? { ...s, muted: true } : s))); setSheet(null); sys("قام المالك بكتم جميع المايكات"); } },
+    { n: "إلغاء الكتم", i: Volume2, ok: can(myRole, "muteAll"), f: () => { commitSeats((a) => a.map((s) => ({ ...s, muted: false }))); setSheet(null); sys("تم إلغاء كتم الجميع"); } },
   ].filter((t) => t.ok);
 
   return (
@@ -506,7 +592,7 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
           })}
         </div>
 
-        {entry && <EntryShow key={entry.k} u={user(entry.uid)} onSkip={skipEntry} />}
+        {entry && <EntryShow key={entry.k} u={user(entry.uid)} />}
 
         {/* chat tabs */}
         <div className="mt-3 flex items-center gap-5 px-4 text-[13.5px]">
@@ -836,7 +922,7 @@ function EditRoom({ name, notice, cover, bg, hasCustomCover, hasCustomBg, onSave
   );
 }
 
-function EntryShow({ u, onSkip }: { u: User; onSkip: () => void }) {
+function EntryShow({ u }: { u: User }) {
   const v = u.entry ? entries[u.entry] : null;
   const {catalog, assets}=useCloudState();
   const cloud=u.entry?.startsWith('cloud-')?catalog.find(c=>`cloud-${c.id}`===u.entry):undefined;
@@ -846,7 +932,6 @@ function EntryShow({ u, onSkip }: { u: User; onSkip: () => void }) {
   useEffect(() => { if (!sound) return; const audio = new Audio(sound); audio.volume = 0.9; void audio.play().catch(() => undefined); return () => { audio.pause(); audio.currentTime = 0; }; }, [sound]);
   return (
     <div className="relative mx-3 mt-3 h-[104px] shrink-0 overflow-hidden rounded-2xl border border-ice/25 bg-night/65 shadow-lg" role="status" aria-label="دخول الغرفة">
-      <Button size="sm" variant="secondary" onClick={onSkip} className="pointer-events-auto absolute end-2 top-2 z-10 h-7 rounded-full px-2.5 text-[10px] font-bold opacity-95">إخفاء ✕</Button>
       {v && <div className={`${cloud?.url ? "" : "entry-ride"} absolute inset-0 grid place-items-center`}><Media src={cloud?.url||v.img} mime={cloud?.mime} alt="" className="h-full w-full object-contain drop-shadow-2xl" loop={false}/></div>}
       <div className={`entry-ribbon ${u.vip >= 5 ? "entry-ribbon-gold" : ""} absolute inset-x-0 bottom-0 flex items-center gap-2 bg-night/75 px-2 py-1 text-[11px]`}>
         <Avatar img={u.avatar} frame={u.frame} size={28} />
