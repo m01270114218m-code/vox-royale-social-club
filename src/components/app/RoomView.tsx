@@ -43,6 +43,8 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
   const live = !!room.cloud;
   const roomCover = live ? room.img : roomOv?.cover || room.img;
   const roomBg = live ? (room.bg || room.img || "") : (roomOv?.bg || images.room);
+  const roomControl = live ? cloud?.roomControls?.find((x: { room_id: string; frame_id?: string | null; banned?: boolean }) => x.room_id === room.dbId) : undefined;
+  const roomFrameUrl = roomControl?.frame_id ? cloud?.assets?.find((a: { id: string; url?: string }) => a.id === roomControl.frame_id)?.url || "" : "";
   const meU: User = findUser("me", profile) ?? {
     id: "", uid: "", name: "", avatar: "", frame: null, bubble: "none", entry: null, sid: null,
     level: 1, vip: 0, gender: "m", flag: "", bio: "", fans: 0, following: 0, charm: 0, wealth: 0, gifts: [],
@@ -670,6 +672,14 @@ export function RoomView({ id, minimized }: { id: string; minimized: boolean }) 
     <div ref={roomRef} dir="rtl" className={`fixed inset-0 z-50 mx-auto max-w-[440px] overflow-hidden bg-night text-night-foreground ${minimized ? "hidden" : ""}`}>
       <img src={roomBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" />
       <div className="absolute inset-0 bg-gradient-to-b from-night/50 via-night/10 to-night/90" />
+      {roomFrameUrl && (
+        <img
+          src={roomFrameUrl}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-[35] h-full w-full object-contain"
+        />
+      )}
       <div className="relative flex h-full flex-col">
         {cloud?.catalog.filter(c=>c.kind==='welcome'&&c.enabled).map(c=><div key={c.id} className="relative mx-3 mt-2 flex items-center gap-2 rounded-lg bg-night/70 px-3 py-2 text-[11px]">{c.url&&<img src={c.url} alt="" className="h-8 w-10 object-contain"/>}{c.description||c.name}</div>)}
         {/* top bar */}
